@@ -1,0 +1,3 @@
+import { createFileRoute } from "@tanstack/react-router";
+import { RolePortalPage } from "@/site/pages/RolePortalPage";
+export const Route = createFileRoute("/volunteer")({ ssr: false, head: () => ({ meta: [{ title: "Volunteer Workspace — Upgrade Talents India" }, { name: "description", content: "Private Upgrade Talents India volunteer workspace." }, { property: "og:title", content: "Volunteer Workspace — Upgrade Talents India" }, { property: "og:description", content: "Private Upgrade Talents India volunteer workspace." }, { property: "og:type", content: "website" }, { name: "twitter:card", content: "summary" }, { name: "robots", content: "noindex" }] }), component: () => <RolePortalPage role="volunteer"/> });

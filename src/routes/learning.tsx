@@ -1,0 +1,3 @@
+import { createFileRoute } from "@tanstack/react-router";
+import { LearningPage } from "@/site/pages/ExplorePages";
+export const Route = createFileRoute("/learning")({ head: () => ({ meta: [{ title: "Courses & Workshops — Upgrade Talents India" }, { name: "description", content: "Discover Upgrade Talents India courses and workshops." }, { property: "og:title", content: "Courses & Workshops — Upgrade Talents India" }, { property: "og:description", content: "Discover Upgrade Talents India courses and workshops." }, { property: "og:type", content: "website" }, { name: "twitter:card", content: "summary_large_image" }] }), component: LearningPage });

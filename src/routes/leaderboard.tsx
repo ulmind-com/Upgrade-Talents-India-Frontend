@@ -1,0 +1,3 @@
+import { createFileRoute } from "@tanstack/react-router";
+import { LeaderboardPage } from "@/site/pages/ExplorePages";
+export const Route = createFileRoute("/leaderboard")({ head: () => ({ meta: [{ title: "Leaderboard & Results — Upgrade Talents India" }, { name: "description", content: "See published Upgrade Talents India rankings and competition results." }, { property: "og:title", content: "Leaderboard & Results — Upgrade Talents India" }, { property: "og:description", content: "See published Upgrade Talents India rankings and competition results." }, { property: "og:type", content: "website" }, { name: "twitter:card", content: "summary_large_image" }] }), component: LeaderboardPage });
