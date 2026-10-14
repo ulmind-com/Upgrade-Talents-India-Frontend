@@ -1,0 +1,554 @@
+@import "tailwindcss";
+
+/* ════════════════════════════════════════════════════════════
+   UPGRADE TALENTS INDIA — DESIGN SYSTEM
+   Theme A: "dark"  → near-black stage + neon magenta/violet
+   Theme B: "blue"  → electric royal-blue daylight (replaces white)
+   ════════════════════════════════════════════════════════════ */
+
+@theme {
+  --font-display: "Clash Display", "Archivo Black", system-ui, sans-serif;
+  --font-sans: "Satoshi", "Inter", system-ui, sans-serif;
+  --font-mono: "JetBrains Mono", ui-monospace, monospace;
+
+  --radius-xs: 6px;
+  --radius-sm: 10px;
+  --radius-md: 16px;
+  --radius-lg: 24px;
+  --radius-xl: 32px;
+  --radius-2xl: 44px;
+
+  --space-1: 4px;
+  --space-2: 8px;
+  --space-3: 16px;
+  --space-4: 24px;
+  --space-5: 40px;
+  --space-6: 64px;
+  --space-7: 96px;
+  --space-8: 140px;
+
+  --ease-out-expo: cubic-bezier(0.16, 1, 0.3, 1);
+  --ease-in-out-quint: cubic-bezier(0.83, 0, 0.17, 1);
+}
+
+/* ── DARK THEME (default) ─────────────────────────────── */
+:root,
+:root[data-theme="dark"] {
+  --bg: #091124;
+  --bg-elevated: #0d1830;
+  --surface: #11203f;
+  --surface-2: #16284d;
+  --surface-glass: rgba(17, 32, 63, 0.55);
+  --border: rgba(255, 255, 255, 0.09);
+  --border-strong: rgba(255, 255, 255, 0.18);
+
+  --fg: #f5f7ff;
+  --fg-muted: #9aa6cc;
+  --fg-subtle: #6b7aa3;
+
+  --primary: #ff6a2b;
+  --primary-hover: #ff824d;
+  --on-primary: #ffffff;
+
+  --accent: #ff8a3d;
+  --accent-hover: #ffa15c;
+  --on-accent: #ffffff;
+
+  --cyan: #38bdf8;
+  --lime: #c6ff3d;
+
+  --glow-a: #ff6a2b;
+  --glow-b: #ff9a4d;
+  --glow-c: #ffb067;
+
+  --success: #22c55e;
+  --warning: #f59e0b;
+  --danger: #ef4444;
+
+  --ring: #ff6a2b;
+  --scrim: rgba(5, 10, 26, 0.78);
+
+  --grad-brand: linear-gradient(115deg, #ffab52 0%, #ff7a33 45%, #ff5e1f 72%, #f0471e 100%);
+  --grad-surface: linear-gradient(160deg, rgba(255, 122, 51, 0.14), rgba(255, 94, 31, 0.06) 55%, transparent);
+  --noise-opacity: 0.045;
+  --spot-1: rgba(255, 122, 51, 0.22);
+  --spot-2: rgba(255, 154, 77, 0.18);
+  --spot-3: rgba(56, 189, 248, 0.12);
+}
+
+/* ── BLUE THEME (light counterpart — blue instead of white) ── */
+:root[data-theme="blue"] {
+  --bg: #fff7f1;
+  --bg-elevated: #fffaf6;
+  --surface: #ffffff;
+  --surface-2: #fff0e6;
+  --surface-glass: rgba(255, 255, 255, 0.72);
+  --border: rgba(120, 60, 20, 0.12);
+  --border-strong: rgba(120, 60, 20, 0.26);
+
+  --fg: #2a1810;
+  --fg-muted: #6b5546;
+  --fg-subtle: #957d6c;
+
+  --primary: #e8440f;
+  --primary-hover: #cf380a;
+  --on-primary: #ffffff;
+
+  --accent: #ff7a33;
+  --accent-hover: #f0471e;
+  --on-accent: #ffffff;
+
+  --cyan: #0a8ca8;
+  --lime: #4e8f00;
+
+  --glow-a: #ff6a2b;
+  --glow-b: #ff8a3d;
+  --glow-c: #ffab52;
+
+  --success: #11804a;
+  --warning: #9a5a00;
+  --danger: #c01b1b;
+
+  --ring: #e8440f;
+  --scrim: rgba(60, 30, 12, 0.5);
+
+  --grad-brand: linear-gradient(115deg, #ffab52 0%, #ff7a33 45%, #f0471e 100%);
+  --grad-surface: linear-gradient(160deg, rgba(255, 122, 51, 0.12), rgba(240, 71, 30, 0.05) 55%, transparent);
+  --noise-opacity: 0.025;
+  --spot-1: rgba(255, 122, 51, 0.2);
+  --spot-2: rgba(255, 154, 77, 0.16);
+  --spot-3: rgba(240, 71, 30, 0.1);
+}
+
+@theme inline {
+  --color-bg: var(--bg);
+  --color-bg-elevated: var(--bg-elevated);
+  --color-surface: var(--surface);
+  --color-surface-2: var(--surface-2);
+  --color-border: var(--border);
+  --color-border-strong: var(--border-strong);
+  --color-fg: var(--fg);
+  --color-fg-muted: var(--fg-muted);
+  --color-fg-subtle: var(--fg-subtle);
+  --color-primary: var(--primary);
+  --color-primary-hover: var(--primary-hover);
+  --color-on-primary: var(--on-primary);
+  --color-accent: var(--accent);
+  --color-accent-hover: var(--accent-hover);
+  --color-on-accent: var(--on-accent);
+  --color-cyan: var(--cyan);
+  --color-lime: var(--lime);
+  --color-success: var(--success);
+  --color-warning: var(--warning);
+  --color-danger: var(--danger);
+  --color-ring: var(--ring);
+}
+
+/* ── BASE ─────────────────────────────────────────────── */
+* { border-color: var(--border); }
+
+html {
+  -webkit-text-size-adjust: 100%;
+  scroll-behavior: smooth;
+}
+html.lenis, html.lenis body { height: auto; }
+.lenis.lenis-smooth { scroll-behavior: auto !important; }
+
+body {
+  background-color: var(--bg);
+  color: var(--fg);
+  font-family: var(--font-sans);
+  font-size: 16px;
+  line-height: 1.6;
+  -webkit-font-smoothing: antialiased;
+  overflow-x: hidden;
+  transition: background-color 0.5s var(--ease-out-expo), color 0.4s var(--ease-out-expo);
+}
+
+::selection { background: var(--accent); color: var(--on-accent); }
+
+:where(a, button, [role="button"], input, select, textarea, summary):focus-visible {
+  outline: 2px solid var(--ring);
+  outline-offset: 3px;
+  border-radius: var(--radius-xs);
+}
+
+h1, h2, h3, h4 {
+  font-family: var(--font-display);
+  font-weight: 700;
+  line-height: 0.95;
+  letter-spacing: -0.03em;
+  text-wrap: balance;
+}
+
+p { text-wrap: pretty; overflow-wrap: anywhere; }
+
+/* ── SCROLLBAR ───────────────────────────────────────── */
+::-webkit-scrollbar { width: 10px; height: 10px; }
+::-webkit-scrollbar-track { background: var(--bg); }
+::-webkit-scrollbar-thumb {
+  background: linear-gradient(var(--primary), var(--accent));
+  border-radius: 99px;
+  border: 2px solid var(--bg);
+}
+
+/* ── UTILITIES ───────────────────────────────────────── */
+.container-x { width: 100%; max-width: 1400px; margin-inline: auto; padding-inline: 20px; }
+@media (min-width: 768px) { .container-x { padding-inline: 40px; } }
+@media (min-width: 1280px) { .container-x { padding-inline: 64px; } }
+
+.text-gradient {
+  background: var(--grad-brand);
+  -webkit-background-clip: text;
+  background-clip: text;
+  color: transparent;
+}
+
+.glass {
+  background: var(--surface-glass);
+  backdrop-filter: blur(22px) saturate(160%);
+  -webkit-backdrop-filter: blur(22px) saturate(160%);
+  border: 1px solid var(--border);
+}
+
+.glow-ring {
+  position: relative;
+  isolation: isolate;
+}
+.glow-ring::before {
+  content: "";
+  position: absolute;
+  inset: -1px;
+  border-radius: inherit;
+  padding: 1px;
+  background: var(--grad-brand);
+  -webkit-mask: linear-gradient(#000 0 0) content-box, linear-gradient(#000 0 0);
+  -webkit-mask-composite: xor;
+  mask-composite: exclude;
+  opacity: 0;
+  transition: opacity 0.4s var(--ease-out-expo);
+  z-index: 1;
+  pointer-events: none;
+}
+.glow-ring:hover::before, .glow-ring:focus-within::before { opacity: 1; }
+
+.spotlight {
+  position: absolute;
+  border-radius: 9999px;
+  filter: blur(64px);
+  pointer-events: none;
+  will-change: transform;
+  transform: translateZ(0);
+  contain: layout paint;
+}
+
+.noise::after {
+  content: "";
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+  opacity: var(--noise-opacity);
+  background-image: url("data:image/svg+xml,%3Csvg viewBox='0 0 256 256' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.85' numOctaves='4'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)'/%3E%3C/svg%3E");
+}
+
+.tilt-3d { transform-style: preserve-3d; perspective: 1000px; }
+
+/* Ticket perforation edge (booking cards) */
+.ticket-notch {
+  --notch: 18px;
+  -webkit-mask:
+    radial-gradient(var(--notch) at 0 50%, #0000 98%, #000) left / 100% 100% no-repeat,
+    radial-gradient(var(--notch) at 100% 50%, #0000 98%, #000) right / 100% 100% no-repeat;
+  -webkit-mask-composite: source-in;
+  mask-composite: intersect;
+}
+
+.marquee-track {
+  display: flex;
+  width: max-content;
+  animation: marquee 32s linear infinite;
+}
+@keyframes marquee { to { transform: translateX(-50%); } }
+
+@keyframes float-y { 0%,100% { transform: translateY(0); } 50% { transform: translateY(-14px); } }
+.float-y { animation: float-y 6s ease-in-out infinite; }
+
+@keyframes pulse-glow {
+  0%, 100% { box-shadow: 0 0 0 0 color-mix(in srgb, var(--accent) 55%, transparent); }
+  70% { box-shadow: 0 0 0 16px transparent; }
+}
+.pulse-glow { animation: pulse-glow 2.4s ease-out infinite; }
+
+@keyframes shimmer { to { background-position: 200% 0; } }
+.skeleton {
+  background: linear-gradient(90deg, var(--surface) 0%, var(--surface-2) 50%, var(--surface) 100%);
+  background-size: 200% 100%;
+  animation: shimmer 1.4s linear infinite;
+  border-radius: var(--radius-sm);
+}
+
+.hide-scrollbar::-webkit-scrollbar { display: none; }
+.hide-scrollbar { scrollbar-width: none; }
+
+@media (prefers-reduced-motion: reduce) {
+  *, *::before, *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+    scroll-behavior: auto !important;
+  }
+  .marquee-track, .float-y, .pulse-glow { animation: none !important; }
+}
+
+/* ── MEDIA OVERLAYS ──────────────────────────────────────
+   Photographic heroes keep a fixed dark scrim in BOTH themes so the
+   headline never depends on the theme's background being dark.      */
+
+.hero-scrim {
+  background: linear-gradient(
+    180deg,
+    rgba(4, 5, 12, 0.74) 0%,
+    rgba(4, 5, 12, 0.46) 40%,
+    rgba(4, 5, 12, 0.86) 88%,
+    rgba(4, 5, 12, 0.96) 100%
+  );
+}
+
+.hero-fade {
+  background: linear-gradient(180deg, transparent 62%, var(--bg) 100%);
+}
+
+/* Scope for content sitting directly on imagery: light text tokens. */
+.on-media {
+  --fg: #ffffff;
+  --fg-muted: rgba(255, 255, 255, 0.82);
+  --fg-subtle: rgba(255, 255, 255, 0.64);
+  --border: rgba(255, 255, 255, 0.18);
+  --border-strong: rgba(255, 255, 255, 0.32);
+  --surface: rgba(255, 255, 255, 0.1);
+  --surface-2: rgba(255, 255, 255, 0.16);
+  color: #ffffff;
+}
+
+/* ── SIGNATURE HERO (dance stage) ────────────────────────
+   Deep red → magenta stage gradient with flowing ribbon lines.
+   The blue theme swaps the ramp to its own family.          */
+
+:root,
+:root[data-theme="dark"] {
+  --stage-grad: linear-gradient(104deg, #e01830 0%, #c21034 20%, #a40f42 42%, #80114f 66%, #5e1257 86%, #4a1150 100%);
+  --stage-ribbon: rgba(12, 1, 7, 0.8);
+  --stage-bloom: rgba(255, 94, 120, 0.4);
+}
+
+:root[data-theme="blue"] {
+  --stage-grad: linear-gradient(104deg, #1340ff 0%, #2a2ee6 22%, #4723c8 46%, #5e1fa8 70%, #6a1d8c 100%);
+  --stage-ribbon: rgba(2, 4, 24, 0.72);
+  --stage-bloom: rgba(120, 170, 255, 0.4);
+}
+
+.stage-bg { background: var(--stage-grad); }
+
+.font-hero { font-family: var(--font-hero); }
+
+/* Cut-out blend for the performer photo so it melts into the stage. */
+/* The side cut-out only applies once the layout is two-column (lg+).
+   Below that the performer is a full-bleed backdrop behind a scrim. */
+@media (min-width: 1024px) {
+.stage-cutout {
+  -webkit-mask-image:
+    linear-gradient(to right, #000 58%, transparent 96%),
+    linear-gradient(to bottom, transparent 0%, #000 7%, #000 93%, transparent 100%);
+  mask-image:
+    linear-gradient(to right, #000 58%, transparent 96%),
+    linear-gradient(to bottom, transparent 0%, #000 7%, #000 93%, transparent 100%);
+  -webkit-mask-composite: source-in;
+  mask-composite: intersect;
+}
+}
+
+@keyframes ribbon-drift {
+  0%, 100% { transform: translate3d(0, 0, 0) scaleY(1); }
+  50% { transform: translate3d(-1.5%, -1.2%, 0) scaleY(1.03); }
+}
+.ribbon-drift { animation: ribbon-drift 18s ease-in-out infinite; }
+
+@keyframes bubble-float {
+  0%, 100% { transform: translateY(0) scale(1); }
+  50% { transform: translateY(-16px) scale(1.06); }
+}
+.bubble-float { animation: bubble-float 7s ease-in-out infinite; }
+
+@media (prefers-reduced-motion: reduce) {
+  .ribbon-drift, .bubble-float { animation: none !important; }
+}
+
+/* ── GLITCH DISPLAY TITLE (events banner) ────────────── */
+
+.glitch {
+  position: relative;
+  display: inline-block;
+  color: #fff;
+  text-shadow: 0 2px 30px rgba(0, 0, 0, 0.55);
+}
+.glitch::before,
+.glitch::after {
+  content: attr(data-text);
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+}
+.glitch::before {
+  color: #22d3ee;
+  transform: translate3d(-3px, 0, 0);
+  clip-path: polygon(0 2%, 100% 2%, 100% 28%, 0 28%);
+  animation: glitch-a 3.4s steps(2, end) infinite;
+  mix-blend-mode: screen;
+}
+.glitch::after {
+  color: #ff2e88;
+  transform: translate3d(3px, 0, 0);
+  clip-path: polygon(0 62%, 100% 62%, 100% 88%, 0 88%);
+  animation: glitch-b 2.8s steps(2, end) infinite;
+  mix-blend-mode: screen;
+}
+
+@keyframes glitch-a {
+  0%, 72%, 100% { clip-path: polygon(0 2%, 100% 2%, 100% 28%, 0 28%); transform: translate3d(-3px, 0, 0); }
+  74% { clip-path: polygon(0 14%, 100% 14%, 100% 36%, 0 36%); transform: translate3d(5px, -2px, 0); }
+  78% { clip-path: polygon(0 44%, 100% 44%, 100% 52%, 0 52%); transform: translate3d(-6px, 1px, 0); }
+  82% { clip-path: polygon(0 8%, 100% 8%, 100% 20%, 0 20%); transform: translate3d(4px, 0, 0); }
+}
+@keyframes glitch-b {
+  0%, 66%, 100% { clip-path: polygon(0 62%, 100% 62%, 100% 88%, 0 88%); transform: translate3d(3px, 0, 0); }
+  69% { clip-path: polygon(0 34%, 100% 34%, 100% 48%, 0 48%); transform: translate3d(-5px, 2px, 0); }
+  73% { clip-path: polygon(0 76%, 100% 76%, 100% 96%, 0 96%); transform: translate3d(6px, -1px, 0); }
+  77% { clip-path: polygon(0 54%, 100% 54%, 100% 66%, 0 66%); transform: translate3d(-4px, 0, 0); }
+}
+
+/* Torn horizontal slices across the wordmark */
+.glitch-slices {
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+  background: repeating-linear-gradient(
+    180deg,
+    transparent 0 6px,
+    rgba(255, 255, 255, 0.05) 6px 7px
+  );
+  mix-blend-mode: overlay;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .glitch::before, .glitch::after { animation: none; }
+}
+
+/* Gradient hairline under the events banner */
+.rainbow-rule {
+  background: linear-gradient(90deg, #6d4dff 0%, #a23bff 22%, #ff2e88 48%, #ff7a3d 68%, #22d3ee 100%);
+}
+
+/* ── STREET / TICKET PAGE SYSTEM ─────────────────────────
+   Acid-green + black streetwear language for the ticket flow. */
+
+:root,
+:root[data-theme="dark"] {
+  --acid: #bfff2e;
+  --acid-ink: #0a0a0a;
+  --street-bg: #0a0a0a;
+  --street-card: #1a1a1a;
+  --street-line: rgba(255, 255, 255, 0.28);
+  --street-red: #e3202a;
+}
+
+:root[data-theme="blue"] {
+  --acid: #38e8ff;
+  --acid-ink: #04121c;
+  --street-bg: #060d22;
+  --street-card: #0f1836;
+  --street-line: rgba(255, 255, 255, 0.26);
+  --street-red: #1b46ff;
+}
+
+.font-street { font-family: var(--font-street); letter-spacing: 0.01em; }
+.font-cond { font-family: var(--font-cond); }
+.font-marker { font-family: var(--font-marker); }
+
+.street-bg { background: var(--street-bg); }
+
+/* Soft glow behind the big condensed headings, as in the reference */
+.street-heading {
+  font-family: var(--font-cond);
+  text-transform: uppercase;
+  font-weight: 700;
+  letter-spacing: 0.005em;
+  text-shadow:
+    0 0 22px rgba(255, 255, 255, 0.28),
+    0 0 60px rgba(255, 255, 255, 0.12);
+}
+
+/* Barcode strip */
+.barcode {
+  background-image: repeating-linear-gradient(
+    90deg,
+    currentColor 0 2px,
+    transparent 2px 4px,
+    currentColor 4px 5px,
+    transparent 5px 9px,
+    currentColor 9px 12px,
+    transparent 12px 14px
+  );
+}
+
+@keyframes acid-pop {
+  0% { transform: scale(0.97); }
+  60% { transform: scale(1.015); }
+  100% { transform: scale(1); }
+}
+.acid-pop { animation: acid-pop 0.45s cubic-bezier(0.16, 1, 0.3, 1); }
+
+@media (prefers-reduced-motion: reduce) {
+  .acid-pop { animation: none; }
+}
+
+/* ── THEATER SECTIONS (home page below the hero) ─────────
+   Elegant serif display over full-bleed stage photography. */
+
+.font-serif-display { font-family: var(--font-serif); }
+
+:root,
+:root[data-theme="dark"] {
+  --theater-bg: #130b26;
+  --theater-deep: #0b0617;
+  --theater-pink: #e8336e;
+  --theater-pink-hover: #f04a81;
+}
+
+:root[data-theme="blue"] {
+  --theater-bg: #0d1540;
+  --theater-deep: #060c2b;
+  --theater-pink: #1b46ff;
+  --theater-pink-hover: #0f35e0;
+}
+
+.theater-bg { background: var(--theater-bg); }
+
+/* Scrim used under serif titles sitting on photography */
+.stage-veil {
+  background: linear-gradient(
+    180deg,
+    rgba(11, 6, 23, 0.35) 0%,
+    rgba(11, 6, 23, 0.55) 45%,
+    rgba(11, 6, 23, 0.85) 100%
+  );
+}
+
+@keyframes cue-bob {
+  0%, 100% { transform: translateY(0); }
+  50% { transform: translateY(5px); }
+}
+.cue-bob { animation: cue-bob 2.2s ease-in-out infinite; }
+
+@media (prefers-reduced-motion: reduce) {
+  .cue-bob { animation: none; }
+}

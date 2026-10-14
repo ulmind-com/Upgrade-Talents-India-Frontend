@@ -1,3 +1,0 @@
-import { createFileRoute } from "@tanstack/react-router";
-import { CertificateVerificationPage as CertificateVerifyPage } from "@/site/pages/CertificateVerificationPage";
-export const Route = createFileRoute("/certificate/verify")({ head: () => ({ meta: [{ title: "Verify Certificate — Upgrade Talents India" }, { name: "description", content: "Verify the authenticity of an Upgrade Talents India certificate." }, { property: "og:title", content: "Verify Certificate — Upgrade Talents India" }, { property: "og:description", content: "Verify the authenticity of an Upgrade Talents India certificate." }, { property: "og:type", content: "website" }, { name: "twitter:card", content: "summary" }] }), component: CertificateVerifyPage });

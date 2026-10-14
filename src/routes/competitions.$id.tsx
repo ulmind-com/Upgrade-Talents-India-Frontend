@@ -1,3 +1,0 @@
-import { createFileRoute } from "@tanstack/react-router";
-import { CompetitionDetailPage } from "@/site/pages/ExplorePages";
-export const Route = createFileRoute("/competitions/$id")({ head: () => ({ meta: [{ title: "Competition — Upgrade Talents India" }, { name: "description", content: "Competition details, registration and live rankings on Upgrade Talents India." }, { property: "og:title", content: "Competition — Upgrade Talents India" }, { property: "og:description", content: "Competition details, registration and live rankings on Upgrade Talents India." }, { property: "og:type", content: "website" }, { name: "twitter:card", content: "summary_large_image" }] }), component: CompetitionDetailPage });

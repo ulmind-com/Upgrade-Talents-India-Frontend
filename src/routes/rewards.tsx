@@ -1,3 +1,0 @@
-import { createFileRoute } from "@tanstack/react-router";
-import { RewardsPage } from "@/site/pages/ExplorePages";
-export const Route = createFileRoute("/rewards")({ head: () => ({ meta: [{ title: "Rewards & Referrals — Upgrade Talents India" }, { name: "description", content: "View your Upgrade Talents India coins, referrals and reward activity." }, { property: "og:title", content: "Rewards & Referrals — Upgrade Talents India" }, { property: "og:description", content: "View your Upgrade Talents India coins, referrals and reward activity." }, { property: "og:type", content: "website" }, { name: "twitter:card", content: "summary_large_image" }] }), component: RewardsPage });
