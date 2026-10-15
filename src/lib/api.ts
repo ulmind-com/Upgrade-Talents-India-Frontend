@@ -229,6 +229,8 @@ export const publicApi = {
     apiFetch<any[]>("/api/activities/competitions", { query: { limit: 50, ...p }, cache: "no-store" }),
   leaderboard: (id: string) =>
     apiFetch<{ ranking_mode?: string; leaderboard?: any[] }>(`/api/v1/competitions/${id}/leaderboard`, { cache: "no-store" }),
+  verifyCertificate: (token: string) =>
+    apiFetch<any>(`/api/public/certificates/verify/${encodeURIComponent(token)}`, { cache: "no-store" }),
 };
 
 /* ─────────────── COMPETE (register / submit / vote — auth) ─────────────── */

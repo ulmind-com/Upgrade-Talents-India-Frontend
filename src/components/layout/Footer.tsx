@@ -97,9 +97,9 @@ export default function Footer({ brandName = "UPGRADE TALENTS INDIA", tagline, c
           <ul className="mt-6 flex flex-col gap-3">
             {[
               { label: "All Events", href: "/events" },
-              { label: "Courses", href: "/courses" },
-              { label: "Workshops", href: "/workshops" },
+              { label: "Competitions", href: "/competitions" },
               { label: "Gallery", href: "/gallery" },
+              { label: "Verify Certificate", href: "/verify" },
               { label: "My Tickets", href: "/dashboard" },
             ].map((l) => (
               <li key={l.href}>
