@@ -4,6 +4,7 @@ import {
   AppPromo, ContestBand, LearnGrid, LiveNow, Marquee,
   Sponsors, Stats, Testimonials, UpcomingEvents,
 } from "@/components/home/Sections";
+import GalleryReveal from "@/components/home/GalleryReveal";
 import { publicApi, safe, type HomepagePayload } from "@/lib/api";
 
 export const revalidate = 60;
@@ -39,6 +40,7 @@ export default async function HomePage() {
       <FeaturedShow events={data.upcoming_events} />
 
       <Marquee />
+      <GalleryReveal events={data.upcoming_events} />
       <UpcomingEvents events={data.upcoming_events} />
       <Stats eventCount={data.upcoming_events.length} courseCount={data.courses.length + data.workshops.length} />
       <LiveNow items={data.live_events} />
