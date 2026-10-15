@@ -259,6 +259,14 @@ export const shopApi = {
     apiFetch<any>("/api/merchandise/orders", { method: "POST", auth: true, body: payload }),
 };
 
+/* ─────────────── VIP PASSES ─────────────── */
+
+export const vipApi = {
+  forEvent: (eventId: string) => apiFetch<any[]>(`/api/events/${eventId}/vip-passes`, { cache: "no-store" }),
+  book: (eventId: string, configId: string, quantity = 1) =>
+    apiFetch<any>(`/api/events/${eventId}/vip-passes/${configId}/book`, { method: "POST", auth: true, body: { quantity } }),
+};
+
 /* ─────────────── ACTIVITIES (events + ticket tiers) ─────────────── */
 
 export const activitiesApi = {

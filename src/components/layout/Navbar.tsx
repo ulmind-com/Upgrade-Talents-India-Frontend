@@ -16,6 +16,7 @@ const NAV = [
   { label: "Competitions", href: "/competitions" },
   { label: "Leaderboard", href: "/leaderboard" },
   { label: "Shop", href: "/shop" },
+  { label: "VIP", href: "/vip" },
   { label: "Courses", href: "/courses" },
   { label: "Workshops", href: "/workshops" },
   { label: "Contact", href: "/contact" },
