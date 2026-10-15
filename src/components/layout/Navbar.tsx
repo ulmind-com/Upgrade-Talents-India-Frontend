@@ -12,6 +12,7 @@ import { cn, isUsableImageUrl } from "@/lib/utils";
 const NAV = [
   { label: "Home", href: "/" },
   { label: "Events", href: "/events" },
+  { label: "Competitions", href: "/competitions" },
   { label: "Leaderboard", href: "/leaderboard" },
   { label: "Courses", href: "/courses" },
   { label: "Workshops", href: "/workshops" },
