@@ -11,6 +11,7 @@ import { Reveal, StaggerGroup, StaggerItem, SplitHeading, Parallax } from "@/com
 import { Badge, Button, Magnetic, SectionLabel, Spotlights, TiltCard } from "@/components/ui/Primitives";
 import { formatINR, imageFor, isUsableImageUrl, splitDate, truncate } from "@/lib/utils";
 import type { BannerItem, ContestPromotion, CourseItem, EventItem, LiveEventItem, TestimonialItem } from "@/lib/api";
+import CoverflowCarousel from "./CoverflowCarousel";
 
 /* ═══════════ MARQUEE TICKER ═══════════ */
 
@@ -168,13 +169,9 @@ export function UpcomingEvents({ events }: { events: EventItem[] }) {
           </Magnetic>
         </Reveal>
 
-        <StaggerGroup className="mt-14 grid gap-7 sm:grid-cols-2 lg:grid-cols-3" stagger={0.08}>
-          {events.slice(0, 6).map((ev, i) => (
-            <StaggerItem key={ev._id} className="h-full">
-              <EventCard ev={ev} index={i} />
-            </StaggerItem>
-          ))}
-        </StaggerGroup>
+        <div className="mt-12">
+          <CoverflowCarousel events={events} />
+        </div>
       </div>
     </section>
   );
