@@ -225,6 +225,10 @@ export const publicApi = {
   appPromotion: () => apiFetch<Record<string, any>>("/api/v1/app-promotion", { revalidate: 300 }),
   contactInfo: () => apiFetch<Record<string, any>>("/api/v1/contact-info", { revalidate: 300 }),
   importantLinks: () => apiFetch<any[]>("/api/v1/important-links", { revalidate: 300 }),
+  competitions: (p: { skip?: number; limit?: number; search?: string } = {}) =>
+    apiFetch<any[]>("/api/activities/competitions", { query: { limit: 50, ...p }, cache: "no-store" }),
+  leaderboard: (id: string) =>
+    apiFetch<{ ranking_mode?: string; leaderboard?: any[] }>(`/api/v1/competitions/${id}/leaderboard`, { cache: "no-store" }),
 };
 
 /* ─────────────── ACTIVITIES (events + ticket tiers) ─────────────── */
