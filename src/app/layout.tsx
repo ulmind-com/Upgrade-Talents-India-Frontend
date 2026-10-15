@@ -1,6 +1,7 @@
 import type { Metadata, Viewport } from "next";
 import "./globals.css";
 import { AuthProvider, SmoothScroll, ThemeProvider } from "@/components/motion/Providers";
+import { CartProvider } from "@/components/shop/CartProvider";
 import Shell from "@/components/layout/Shell";
 import { publicApi, safe } from "@/lib/api";
 
@@ -60,6 +61,7 @@ export default async function RootLayout({ children }: { children: React.ReactNo
         </a>
         <ThemeProvider>
           <AuthProvider>
+            <CartProvider>
             <SmoothScroll>
               <Shell
                 brandName={settings?.brand_name || "UPGRADE TALENTS"}
@@ -71,6 +73,7 @@ export default async function RootLayout({ children }: { children: React.ReactNo
                 {children}
               </Shell>
             </SmoothScroll>
+            </CartProvider>
           </AuthProvider>
         </ThemeProvider>
       </body>

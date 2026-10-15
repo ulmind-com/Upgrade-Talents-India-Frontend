@@ -248,6 +248,17 @@ export const competeApi = {
     apiFetch<any>(`/api/v1/competitions/${id}/vote`, { method: "POST", auth: true, body: { participant_id, source: "WEBSITE" } }),
 };
 
+/* ─────────────── SHOP (merchandise) ─────────────── */
+
+export const shopApi = {
+  products: (p: { skip?: number; limit?: number; search?: string; category?: string } = {}) =>
+    apiFetch<any[]>("/api/merchandise/products", { query: { limit: 60, ...p }, cache: "no-store" }),
+  product: (id: string) => apiFetch<any>(`/api/merchandise/products/${id}`, { cache: "no-store" }),
+  categories: () => apiFetch<any[]>("/api/merchandise/categories", { revalidate: 300 }),
+  createOrder: (payload: { items: { product_id: string; variant_id?: string; quantity: number }[]; shipping_address: Record<string, string> }) =>
+    apiFetch<any>("/api/merchandise/orders", { method: "POST", auth: true, body: payload }),
+};
+
 /* ─────────────── ACTIVITIES (events + ticket tiers) ─────────────── */
 
 export const activitiesApi = {

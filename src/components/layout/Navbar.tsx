@@ -4,7 +4,8 @@ import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { useEffect, useState } from "react";
 import { AnimatePresence, motion, useScroll, useMotionValueEvent } from "framer-motion";
-import { Menu, X, Moon, Sparkles, Ticket, User, LogOut, LayoutDashboard } from "lucide-react";
+import { Menu, X, Moon, Sparkles, Ticket, User, LogOut, LayoutDashboard, ShoppingBag } from "lucide-react";
+import { useCart } from "@/components/shop/CartProvider";
 import { Button, Magnetic } from "@/components/ui/Primitives";
 import { useAuth, useTheme } from "@/components/motion/Providers";
 import { cn, isUsableImageUrl } from "@/lib/utils";
@@ -14,15 +15,16 @@ const NAV = [
   { label: "Events", href: "/events" },
   { label: "Competitions", href: "/competitions" },
   { label: "Leaderboard", href: "/leaderboard" },
+  { label: "Shop", href: "/shop" },
   { label: "Courses", href: "/courses" },
   { label: "Workshops", href: "/workshops" },
-  { label: "Gallery", href: "/gallery" },
   { label: "Contact", href: "/contact" },
 ];
 
 export default function Navbar({ brandName = "UPGRADE TALENTS", logo }: { brandName?: string; logo?: string }) {
   const pathname = usePathname();
   const { theme, toggle } = useTheme();
+  const { count, setOpen: openCart } = useCart();
   const { user, logout } = useAuth();
   const [scrolled, setScrolled] = useState(false);
   const [open, setOpen] = useState(false);
@@ -124,6 +126,19 @@ export default function Navbar({ brandName = "UPGRADE TALENTS", logo }: { brandN
                 <motion.span key={theme} initial={{ rotate: -90, opacity: 0 }} animate={{ rotate: 0, opacity: 1 }} transition={{ duration: 0.4 }}>
                   {theme === "dark" ? <Moon className="size-[18px]" aria-hidden /> : <Sparkles className="size-[18px]" aria-hidden />}
                 </motion.span>
+              </button>
+
+              <button
+                onClick={() => openCart(true)}
+                aria-label={`Open cart${count ? `, ${count} items` : ""}`}
+                className="relative grid size-10 cursor-pointer place-items-center rounded-full border border-[var(--border)] bg-[var(--surface)] text-[var(--fg-muted)] transition-all duration-300 hover:border-[var(--border-strong)] hover:text-[var(--fg)]"
+              >
+                <ShoppingBag className="size-[18px]" aria-hidden />
+                {count > 0 && (
+                  <span className="absolute -right-1 -top-1 grid min-h-[18px] min-w-[18px] place-items-center rounded-full px-1 text-[10px] font-bold text-[var(--on-accent)]" style={{ background: "var(--grad-brand)" }}>
+                    {count}
+                  </span>
+                )}
               </button>
 
               {user ? (
