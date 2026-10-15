@@ -4,7 +4,7 @@ import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { useEffect, useState } from "react";
 import { AnimatePresence, motion, useScroll, useMotionValueEvent } from "framer-motion";
-import { Menu, X, Moon, Sparkles, Ticket, User, LogOut, LayoutDashboard, ShoppingBag } from "lucide-react";
+import { Menu, X, Moon, Sparkles, Ticket, User, LogOut, LayoutDashboard, ShoppingBag, ChevronDown } from "lucide-react";
 import { useCart } from "@/components/shop/CartProvider";
 import { Button, Magnetic } from "@/components/ui/Primitives";
 import { useAuth, useTheme } from "@/components/motion/Providers";
@@ -19,6 +19,18 @@ const NAV = [
   { label: "VIP", href: "/vip" },
   { label: "Courses", href: "/courses" },
   { label: "Workshops", href: "/workshops" },
+  { label: "Contact", href: "/contact" },
+];
+
+// Desktop groups the learning pages into a dropdown to keep the bar uncluttered.
+const DESKTOP: { label: string; href?: string; children?: { label: string; href: string }[] }[] = [
+  { label: "Home", href: "/" },
+  { label: "Events", href: "/events" },
+  { label: "Competitions", href: "/competitions" },
+  { label: "Leaderboard", href: "/leaderboard" },
+  { label: "Shop", href: "/shop" },
+  { label: "VIP", href: "/vip" },
+  { label: "Learn", children: [{ label: "Courses", href: "/courses" }, { label: "Workshops", href: "/workshops" }] },
   { label: "Contact", href: "/contact" },
 ];
 
@@ -90,16 +102,48 @@ export default function Navbar({ brandName = "UPGRADE TALENTS", logo }: { brandN
             </Link>
 
             {/* Desktop nav */}
-            <ul className="hidden items-center gap-1 lg:flex">
-              {NAV.map((item) => {
-                const active = item.href === "/" ? pathname === "/" : pathname.startsWith(item.href);
+            <ul className="hidden items-center gap-0.5 xl:flex">
+              {DESKTOP.map((item) => {
+                if (item.children) {
+                  const active = item.children.some((c) => pathname.startsWith(c.href));
+                  return (
+                    <li key={item.label} className="group relative">
+                      <button
+                        className={cn(
+                          "relative flex items-center gap-1 whitespace-nowrap rounded-full px-3 py-2 text-[13px] font-medium transition-colors duration-300",
+                          active ? "text-[var(--fg)]" : "text-[var(--fg-muted)] group-hover:text-[var(--fg)]"
+                        )}
+                      >
+                        {item.label}
+                        <ChevronDown className="size-3.5 transition-transform duration-300 group-hover:rotate-180" aria-hidden />
+                      </button>
+                      <div className="invisible absolute left-1/2 top-full z-50 w-44 -translate-x-1/2 pt-2 opacity-0 transition-all duration-200 group-focus-within:visible group-focus-within:opacity-100 group-hover:visible group-hover:opacity-100">
+                        <div className="overflow-hidden rounded-2xl border border-[var(--border)] bg-[var(--surface)] p-1.5 shadow-[0_24px_50px_-22px_rgba(0,0,0,0.55)]">
+                          {item.children.map((c) => (
+                            <Link
+                              key={c.href}
+                              href={c.href}
+                              className={cn(
+                                "block rounded-xl px-3.5 py-2.5 text-[13px] font-medium transition-colors",
+                                pathname.startsWith(c.href) ? "bg-[var(--surface-2)] text-[var(--fg)]" : "text-[var(--fg-muted)] hover:bg-[var(--surface-2)] hover:text-[var(--fg)]"
+                              )}
+                            >
+                              {c.label}
+                            </Link>
+                          ))}
+                        </div>
+                      </div>
+                    </li>
+                  );
+                }
+                const active = item.href === "/" ? pathname === "/" : pathname.startsWith(item.href!);
                 return (
                   <li key={item.href}>
                     <Link
-                      href={item.href}
+                      href={item.href!}
                       aria-current={active ? "page" : undefined}
                       className={cn(
-                        "relative block rounded-full px-4 py-2 text-[13px] font-medium transition-colors duration-300",
+                        "relative block whitespace-nowrap rounded-full px-3 py-2 text-[13px] font-medium transition-colors duration-300",
                         active ? "text-[var(--fg)]" : "text-[var(--fg-muted)] hover:text-[var(--fg)]"
                       )}
                     >
@@ -162,9 +206,11 @@ export default function Navbar({ brandName = "UPGRADE TALENTS", logo }: { brandN
               ) : (
                 <Link
                   href="/login"
-                  className="hidden h-10 cursor-pointer items-center gap-2 rounded-full border border-[var(--border)] bg-[var(--surface)] px-4 text-[13px] font-medium text-[var(--fg-muted)] transition-colors hover:text-[var(--fg)] md:inline-flex"
+                  aria-label="Sign in"
+                  title="Sign in"
+                  className="hidden size-10 cursor-pointer place-items-center rounded-full border border-[var(--border)] bg-[var(--surface)] text-[var(--fg-muted)] transition-colors hover:border-[var(--border-strong)] hover:text-[var(--fg)] md:grid"
                 >
-                  <User className="size-4" aria-hidden /> Sign in
+                  <User className="size-[18px]" aria-hidden />
                 </Link>
               )}
 
@@ -178,7 +224,7 @@ export default function Navbar({ brandName = "UPGRADE TALENTS", logo }: { brandN
                 onClick={() => setOpen(true)}
                 aria-label="Open menu"
                 aria-expanded={open}
-                className="grid size-10 cursor-pointer place-items-center rounded-full border border-[var(--border)] bg-[var(--surface)] lg:hidden"
+                className="grid size-10 cursor-pointer place-items-center rounded-full border border-[var(--border)] bg-[var(--surface)] xl:hidden"
               >
                 <Menu className="size-[18px]" aria-hidden />
               </button>
