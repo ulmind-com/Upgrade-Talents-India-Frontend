@@ -101,15 +101,20 @@ export const TICKET_VARIANTS: Record<TicketVariantKey, TicketVariantConfig> = {
   },
 };
 
-export function getVariantForTicket(ticketRef: string, userEmail?: string): TicketVariantKey {
-  const str = (ticketRef || "") + (userEmail || "");
+export function getVariantForTicket(
+  ticketRef: string,
+  userEmail?: string,
+  holderName?: string
+): TicketVariantKey {
+  // Deterministic dynamic assignment per user / ticket
+  const str = (userEmail || holderName || ticketRef || "").toLowerCase().trim();
   let hash = 0;
   for (let i = 0; i < str.length; i++) {
-    hash = (hash << 5) - hash + str.charCodeAt(i);
-    hash |= 0;
+    hash = (hash * 37 + str.charCodeAt(i)) >>> 0;
   }
-  const keys: TicketVariantKey[] = ["magenta", "blue", "emerald", "amber", "purple"];
-  return keys[Math.abs(hash) % keys.length];
+  // Vibrant palettes: Pink (magenta), Green (emerald), Blue, Violet (purple), Coral (amber)
+  const keys: TicketVariantKey[] = ["magenta", "emerald", "blue", "purple", "amber"];
+  return keys[hash % keys.length];
 }
 
 interface TicketPassProps {
@@ -119,8 +124,8 @@ interface TicketPassProps {
 }
 
 export function TicketPass({ ticket, qrData, defaultVariant }: TicketPassProps) {
-  const autoVariant = defaultVariant || getVariantForTicket(ticket.ticket_ref, ticket.holder_email);
-  const [variant, setVariant] = useState<TicketVariantKey>(autoVariant);
+  // Dynamic colorway automatically assigned per user / ticket — no manual changing
+  const variant = defaultVariant || getVariantForTicket(ticket.ticket_ref, ticket.holder_email, ticket.holder_name);
   const [downloading, setDownloading] = useState(false);
   const [qrDataUrl, setQrDataUrl] = useState<string | null>(null);
   const ticketRef = useRef<HTMLDivElement>(null);
@@ -188,32 +193,16 @@ export function TicketPass({ ticket, qrData, defaultVariant }: TicketPassProps) 
 
   return (
     <div className="w-full flex flex-col items-center">
-      {/* ── TOOLBAR: Colorway switcher & Download / Print actions ── */}
+      {/* ── TOOLBAR: Official Pass Indicator & Actions (Print / Download) ── */}
       <div className="w-full max-w-[920px] mb-4 flex flex-wrap items-center justify-between gap-3 px-1">
         <div className="flex items-center gap-2">
+          <span
+            className="size-2 rounded-full animate-pulse"
+            style={{ background: v.primary }}
+          />
           <span className="text-[11px] font-mono uppercase tracking-[0.2em] text-[var(--fg-muted)]">
-            Colorway:
+            Official Pass • {v.name}
           </span>
-          <div className="flex items-center gap-1.5 rounded-full border border-white/10 bg-black/30 p-1 backdrop-blur-md">
-            {(Object.keys(TICKET_VARIANTS) as TicketVariantKey[]).map((key) => {
-              const cfg = TICKET_VARIANTS[key];
-              const active = variant === key;
-              return (
-                <button
-                  key={key}
-                  type="button"
-                  onClick={() => setVariant(key)}
-                  title={cfg.name}
-                  aria-label={`Switch color to ${cfg.name}`}
-                  className={cn(
-                    "relative size-5 rounded-full transition-all duration-300 cursor-pointer",
-                    active ? "scale-115 ring-2 ring-white ring-offset-2 ring-offset-black" : "opacity-70 hover:opacity-100 hover:scale-105"
-                  )}
-                  style={{ background: cfg.gradient }}
-                />
-              );
-            })}
-          </div>
         </div>
 
         <div className="flex items-center gap-2">
