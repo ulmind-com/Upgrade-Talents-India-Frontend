@@ -3,7 +3,7 @@
 import { useRef, useState, useEffect } from "react";
 import {
   Download, Printer, Calendar, MapPin,
-  Clock, User, Sparkles, ShieldCheck, Loader2
+  Clock, User, Sparkles, ShieldCheck, Loader2, CheckCircle2
 } from "lucide-react";
 import QRCode from "qrcode";
 import html2canvas from "html2canvas";
@@ -106,15 +106,57 @@ export function getVariantForTicket(
   userEmail?: string,
   holderName?: string
 ): TicketVariantKey {
-  // Deterministic dynamic assignment per user / ticket
   const str = (userEmail || holderName || ticketRef || "").toLowerCase().trim();
   let hash = 0;
   for (let i = 0; i < str.length; i++) {
     hash = (hash * 37 + str.charCodeAt(i)) >>> 0;
   }
-  // Vibrant palettes: Pink (magenta), Green (emerald), Blue, Violet (purple), Coral (amber)
   const keys: TicketVariantKey[] = ["magenta", "emerald", "blue", "purple", "amber"];
   return keys[hash % keys.length];
+}
+
+/** Converts any image URL to a local base64 Data URL to guarantee zero canvas tainting */
+async function toBase64DataUrl(url: string): Promise<string> {
+  if (!url || url.startsWith("data:")) return url;
+
+  // Method 1: fetch blob with cors
+  try {
+    const res = await fetch(url, { mode: "cors" });
+    const blob = await res.blob();
+    return new Promise((resolve, reject) => {
+      const reader = new FileReader();
+      reader.onloadend = () => {
+        if (typeof reader.result === "string") resolve(reader.result);
+        else reject(new Error("Failed to read blob as data URL"));
+      };
+      reader.onerror = reject;
+      reader.readAsDataURL(blob);
+    });
+  } catch (err) {
+    // Method 2: in-memory HTMLImageElement draw
+    return new Promise((resolve) => {
+      const img = new Image();
+      img.crossOrigin = "anonymous";
+      img.onload = () => {
+        try {
+          const canvas = document.createElement("canvas");
+          canvas.width = img.naturalWidth || 600;
+          canvas.height = img.naturalHeight || 800;
+          const ctx = canvas.getContext("2d");
+          if (ctx) {
+            ctx.drawImage(img, 0, 0);
+            resolve(canvas.toDataURL("image/jpeg", 0.92));
+            return;
+          }
+        } catch {
+          // ignore
+        }
+        resolve(url);
+      };
+      img.onerror = () => resolve(url);
+      img.src = url;
+    });
+  }
 }
 
 interface TicketPassProps {
@@ -124,10 +166,11 @@ interface TicketPassProps {
 }
 
 export function TicketPass({ ticket, qrData, defaultVariant }: TicketPassProps) {
-  // Dynamic colorway automatically assigned per user / ticket — no manual changing
   const variant = defaultVariant || getVariantForTicket(ticket.ticket_ref, ticket.holder_email, ticket.holder_name);
   const [downloading, setDownloading] = useState(false);
+  const [downloadSuccess, setDownloadSuccess] = useState(false);
   const [qrDataUrl, setQrDataUrl] = useState<string | null>(null);
+  const [coverBase64, setCoverBase64] = useState<string | null>(null);
   const ticketRef = useRef<HTMLDivElement>(null);
 
   const v = TICKET_VARIANTS[variant] || TICKET_VARIANTS.magenta;
@@ -137,7 +180,7 @@ export function TicketPass({ ticket, qrData, defaultVariant }: TicketPassProps) 
     let cancelled = false;
     const token = qrData?.qr_token || qrData?.token || ticket.qr_token || ticket.ticket_ref;
     QRCode.toDataURL(String(token), {
-      width: 400,
+      width: 450,
       margin: 1,
       color: { dark: "#0b0f19", light: "#ffffff" },
     })
@@ -153,30 +196,101 @@ export function TicketPass({ ticket, qrData, defaultVariant }: TicketPassProps) 
     };
   }, [ticket, qrData]);
 
-  // Download ticket with 100% transparent background (ticket only)
+  // Pre-fetch cover image as base64 so html2canvas never encounters CORS issues
+  const rawCover = isUsableImageUrl(ticket.event_cover) ? ticket.event_cover : imageFor(null, 0);
+  useEffect(() => {
+    let cancelled = false;
+    toBase64DataUrl(rawCover).then((b64) => {
+      if (!cancelled && b64) setCoverBase64(b64);
+    });
+    return () => {
+      cancelled = true;
+    };
+  }, [rawCover]);
+
+  // Download ticket with 100% transparent background (ONLY ticket is exported)
   const handleDownload = async () => {
     if (!ticketRef.current || downloading) return;
     setDownloading(true);
+    setDownloadSuccess(false);
 
     try {
+      // 1. Ensure cover image in DOM is already base64
+      const imgEl = ticketRef.current.querySelector("img") as HTMLImageElement | null;
+      if (imgEl && imgEl.src && !imgEl.src.startsWith("data:")) {
+        try {
+          const b64 = await toBase64DataUrl(imgEl.src);
+          if (b64 && b64.startsWith("data:")) {
+            imgEl.src = b64;
+          }
+        } catch (e) {
+          console.warn("Could not inline cover before canvas capture:", e);
+        }
+      }
+
+      // 2. Ensure QR data URL is present
+      if (!qrDataUrl) {
+        const token = qrData?.qr_token || qrData?.token || ticket.qr_token || ticket.ticket_ref;
+        const generated = await QRCode.toDataURL(String(token), {
+          width: 450,
+          margin: 1,
+          color: { dark: "#0b0f19", light: "#ffffff" },
+        });
+        setQrDataUrl(generated);
+      }
+
+      // 3. Render high-resolution canvas with html2canvas
       const canvas = await html2canvas(ticketRef.current, {
-        backgroundColor: null, // Pure transparent background, no dark overlay
-        scale: 3, // Crisp high-DPI output
+        backgroundColor: null, // 100% transparent background outside ticket and notches!
+        scale: 2, // 2x ultra-sharp resolution (~1840px width), memory-safe for mobile & desktop
         useCORS: true,
+        allowTaint: true,
         logging: false,
       } as any);
 
-      const link = document.createElement("a");
-      link.download = `eventora-ticket-${ticket.ticket_ref.toLowerCase()}.png`;
-      link.href = canvas.toDataURL("image/png");
-      document.body.appendChild(link);
-      link.click();
-      document.body.removeChild(link);
+      // 4. Download file using Blob & URL.createObjectURL for universal browser support
+      const filename = `eventora-ticket-${ticket.ticket_ref.toLowerCase()}.png`;
+
+      if (canvas.toBlob) {
+        canvas.toBlob((blob) => {
+          if (!blob) {
+            triggerDataUrlDownload(canvas.toDataURL("image/png"), filename);
+            return;
+          }
+          const blobUrl = URL.createObjectURL(blob);
+          const link = document.createElement("a");
+          link.download = filename;
+          link.href = blobUrl;
+          document.body.appendChild(link);
+          link.click();
+          setTimeout(() => {
+            link.remove();
+            URL.revokeObjectURL(blobUrl);
+          }, 1000);
+          setDownloadSuccess(true);
+          setTimeout(() => setDownloadSuccess(false), 3000);
+        }, "image/png");
+      } else {
+        triggerDataUrlDownload(canvas.toDataURL("image/png"), filename);
+      }
     } catch (err) {
       console.error("Failed to export ticket PNG:", err);
+      // Fallback: trigger print dialog if canvas rendering fails
+      window.print();
     } finally {
       setDownloading(false);
     }
+  };
+
+  const triggerDataUrlDownload = (dataUrl: string, filename: string) => {
+    const link = document.createElement("a");
+    link.download = filename;
+    link.href = dataUrl;
+    document.body.appendChild(link);
+    link.click();
+    setTimeout(() => link.remove(), 200);
+    setDownloadSuccess(true);
+    setTimeout(() => setDownloadSuccess(false), 3000);
   };
 
   const handlePrint = () => {
@@ -189,7 +303,7 @@ export function TicketPass({ ticket, qrData, defaultVariant }: TicketPassProps) 
   const venue = ticket.event_venue || "Kolkata";
   const tierName = ticket.ticket_type || "General Access";
   const priceAmount = ticket.price ?? ticket.base_price ?? 500;
-  const coverImage = isUsableImageUrl(ticket.event_cover) ? ticket.event_cover : imageFor(null, 0);
+  const coverImage = coverBase64 || rawCover;
 
   return (
     <div className="w-full flex flex-col items-center">
@@ -227,11 +341,21 @@ export function TicketPass({ ticket, qrData, defaultVariant }: TicketPassProps) 
             }}
           >
             {downloading ? (
-              <Loader2 className="size-3.5 animate-spin" />
+              <>
+                <Loader2 className="size-3.5 animate-spin" />
+                <span>Generating PNG…</span>
+              </>
+            ) : downloadSuccess ? (
+              <>
+                <CheckCircle2 className="size-3.5 text-white" />
+                <span>Downloaded!</span>
+              </>
             ) : (
-              <Download className="size-3.5" />
+              <>
+                <Download className="size-3.5" />
+                <span>Download Ticket (PNG)</span>
+              </>
             )}
-            <span>Download Ticket (PNG)</span>
           </button>
         </div>
       </div>
