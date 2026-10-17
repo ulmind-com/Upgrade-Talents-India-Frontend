@@ -206,7 +206,7 @@ export function TicketPass({ ticket, qrData, defaultVariant }: TicketPassProps) 
                   title={cfg.name}
                   aria-label={`Switch color to ${cfg.name}`}
                   className={cn(
-                    "relative size-5 rounded-full transition-all duration-300",
+                    "relative size-5 rounded-full transition-all duration-300 cursor-pointer",
                     active ? "scale-115 ring-2 ring-white ring-offset-2 ring-offset-black" : "opacity-70 hover:opacity-100 hover:scale-105"
                   )}
                   style={{ background: cfg.gradient }}
@@ -252,13 +252,13 @@ export function TicketPass({ ticket, qrData, defaultVariant }: TicketPassProps) 
         {/* ── THE TICKET CARD ITSELF ── */}
         <div
           ref={ticketRef}
-          className="relative flex w-full max-w-[920px] shrink-0 overflow-hidden rounded-[26px] bg-white text-zinc-900 shadow-[0_25px_60px_rgba(0,0,0,0.45)] border border-white/10"
+          className="relative flex w-full max-w-[920px] shrink-0 rounded-[26px] bg-transparent text-zinc-900 shadow-[0_25px_60px_rgba(0,0,0,0.45)] border border-white/10"
           style={{ minHeight: "290px", width: "920px" }}
         >
           {/* ══════════ LEFT SECTION: EVENT PHOTO WITH ORGANIC WAVE ══════════ */}
-          {/* Note: inner container has overflow-hidden, so circular price badge is NOT clipped */}
-          <div className="relative w-[34%] min-w-[240px] max-w-[290px] shrink-0 bg-zinc-900">
-            <div className="absolute inset-0 overflow-hidden">
+          <div className="relative w-[34%] min-w-[240px] max-w-[290px] shrink-0 bg-zinc-900 rounded-l-[26px]">
+            {/* Inner image container */}
+            <div className="absolute inset-0 overflow-hidden rounded-l-[26px]">
               <img
                 src={coverImage}
                 alt={eventTitle}
@@ -290,38 +290,73 @@ export function TicketPass({ ticket, qrData, defaultVariant }: TicketPassProps) 
               </div>
             </div>
 
-            {/* ── ORGANIC SVG WAVE SEAM ── */}
+            {/* ── ORGANIC SVG ACCENT WAVE (Peeks out behind white curve) ── */}
             <svg
               viewBox="0 0 100 200"
               preserveAspectRatio="none"
-              className="pointer-events-none absolute -right-0.5 top-0 h-full w-14 text-white fill-current z-10 drop-shadow-[-4px_0_12px_rgba(0,0,0,0.15)]"
+              className="pointer-events-none absolute -right-3 top-0 h-full w-20 fill-current z-10 opacity-95"
+              style={{ color: v.primary }}
             >
-              <path d="M 0,0 C 60,35 60,165 0,200 L 100,200 L 100,0 Z" />
+              <path d="M 0,0 C 70,30 70,170 0,200 L 100,200 L 100,0 Z" />
             </svg>
 
-            {/* ── FLOATING CIRCULAR PRICE BADGE (100% UNCUT, FLOATING ON WAVE SEAM) ── */}
-            <div className="absolute right-0 top-1/2 -translate-y-1/2 translate-x-1/2 z-20 pointer-events-none">
+            {/* ── ORGANIC SVG WHITE WAVE SEAM ── */}
+            <svg
+              viewBox="0 0 100 200"
+              preserveAspectRatio="none"
+              className="pointer-events-none absolute -right-0.5 top-0 h-full w-16 text-white fill-current z-15 drop-shadow-[-6px_0_15px_rgba(0,0,0,0.15)]"
+            >
+              <path d="M 0,0 C 55,38 55,162 0,200 L 100,200 L 100,0 Z" />
+            </svg>
+
+            {/* ── FLOATING CIRCULAR PRICE BADGE (DOUBLE RING, 100% UNCUT) ── */}
+            <div className="absolute right-0 top-1/2 -translate-y-1/2 translate-x-1/2 z-30 pointer-events-none">
               <div
-                className="flex size-20 sm:size-22 flex-col items-center justify-center rounded-full bg-white border-4 border-white shadow-xl"
-                style={{ boxShadow: `0 0 0 3px ${v.primary}, 0 10px 30px rgba(0,0,0,0.25)` }}
+                className="size-20 sm:size-22 rounded-full p-[3px] flex items-center justify-center shadow-[0_10px_30px_rgba(0,0,0,0.28)]"
+                style={{ background: v.primary }}
               >
-                <span
-                  className="font-black tracking-tight text-base sm:text-lg leading-tight"
-                  style={{ color: v.primary }}
-                >
-                  {priceAmount === 0 ? "FREE" : formatINR(priceAmount)}
-                </span>
-                <span className="text-[9px] font-extrabold uppercase tracking-[0.2em] text-zinc-400">
-                  Price
-                </span>
+                {/* White spacer */}
+                <div className="size-full rounded-full bg-white p-[2.5px] flex items-center justify-center">
+                  {/* Inner colored ring & white core */}
+                  <div
+                    className="size-full rounded-full border-2 bg-white flex flex-col items-center justify-center"
+                    style={{ borderColor: v.primary }}
+                  >
+                    <span
+                      className="font-black tracking-tight text-base sm:text-lg leading-tight"
+                      style={{ color: v.primary }}
+                    >
+                      {priceAmount === 0 ? "FREE" : formatINR(priceAmount)}
+                    </span>
+                    <span className="text-[8.5px] font-extrabold uppercase tracking-[0.2em] text-zinc-400">
+                      Price
+                    </span>
+                  </div>
+                </div>
               </div>
             </div>
           </div>
 
-          {/* ══════════ MIDDLE SECTION: MAIN EVENT DETAILS ══════════ */}
-          {/* pl-14 sm:pl-16 ensures text NEVER collides with circular price badge */}
-          <div className="relative flex flex-1 flex-col justify-between p-6 pl-14 sm:pl-16 bg-white min-w-0">
-            <div>
+          {/* ══════════ MIDDLE SECTION: MAIN EVENT DETAILS WITH 45° CHAMFER NOTCHES ══════════ */}
+          <div className="relative flex flex-1 flex-col justify-between p-6 pl-14 sm:pl-16 min-w-0 mr-[2px]">
+            {/* Background layer with 45° angled chamfers at top-right & bottom-right */}
+            <div className="absolute inset-0 pointer-events-none">
+              {/* Main white block (all the way to 14px before the right edge) */}
+              <div className="absolute inset-y-0 left-0 right-[14px] bg-white" />
+              {/* Right vertical strip between the two notches */}
+              <div className="absolute top-[14px] bottom-[14px] right-0 w-[14px] bg-white" />
+              {/* Top-right 45-degree filled triangle */}
+              <svg viewBox="0 0 14 14" className="absolute top-0 right-0 size-[14px] fill-white block">
+                <polygon points="0,0 0,14 14,14" />
+              </svg>
+              {/* Bottom-right 45-degree filled triangle */}
+              <svg viewBox="0 0 14 14" className="absolute bottom-0 right-0 size-[14px] fill-white block">
+                <polygon points="0,0 14,0 0,14" />
+              </svg>
+            </div>
+
+            {/* Content sitting above the background */}
+            <div className="relative z-10">
               {/* Header Eyebrow */}
               <div className="flex items-center justify-between gap-2">
                 <span className="text-[10px] font-extrabold uppercase tracking-[0.24em] text-zinc-400">
@@ -391,7 +426,7 @@ export function TicketPass({ ticket, qrData, defaultVariant }: TicketPassProps) 
             </div>
 
             {/* Bottom Venue & Pills Bar */}
-            <div className="mt-3 border-t border-zinc-100 pt-2.5">
+            <div className="relative z-10 mt-3 border-t border-zinc-100 pt-2.5">
               <div className="flex items-center gap-1.5 text-[11px] font-semibold text-zinc-600 truncate">
                 <MapPin className="size-3 text-zinc-400 shrink-0" />
                 <span className="truncate">{venue}</span>
@@ -414,21 +449,36 @@ export function TicketPass({ ticket, qrData, defaultVariant }: TicketPassProps) 
             </div>
           </div>
 
-          {/* ══════════ TEAR PERFORATION DIVIDER ══════════ */}
-          <div className="relative w-0 shrink-0 flex items-center justify-center">
-            {/* Vertical dashed line */}
-            <div className="absolute top-0 bottom-0 left-0 border-l-2 border-dashed border-zinc-200 z-20" />
-          </div>
+          {/* ══════════ RIGHT SECTION: STUB WITH 45° CHAMFER NOTCHES & REAL QR CODE ══════════ */}
+          <div className="relative w-[210px] shrink-0 p-4 flex flex-col items-center justify-between shadow-inner">
+            {/* Background layer with 45° angled chamfers at top-left & bottom-left */}
+            <div className="absolute inset-0 pointer-events-none">
+              {/* Main stub block (from 14px to the right edge with rounded-r-[26px]) */}
+              <div
+                className="absolute inset-y-0 left-[14px] right-0 rounded-r-[26px]"
+                style={{ background: v.gradient }}
+              />
+              {/* Left vertical strip between top and bottom notches */}
+              <div
+                className="absolute top-[14px] bottom-[14px] left-0 w-[14px]"
+                style={{ background: v.primary }}
+              />
+              {/* Top-left 45-degree filled triangle */}
+              <svg viewBox="0 0 14 14" className="absolute top-0 left-0 size-[14px] block" style={{ fill: v.primary }}>
+                <polygon points="14,0 14,14 0,14" />
+              </svg>
+              {/* Bottom-left 45-degree filled triangle */}
+              <svg viewBox="0 0 14 14" className="absolute bottom-0 left-0 size-[14px] block" style={{ fill: v.primaryDark || v.primary }}>
+                <polygon points="0,0 14,0 14,14" />
+              </svg>
+            </div>
 
-          {/* ══════════ RIGHT SECTION: STUB WITH REAL QR CODE ══════════ */}
-          {/* Well-proportioned: never overlaps, clean padding */}
-          <div
-            className="relative w-[210px] shrink-0 p-4 flex flex-col items-center justify-between shadow-inner"
-            style={{ background: v.gradient }}
-          >
-            {/* Stub Header */}
-            <div className="w-full text-center">
-              <span className="text-[9px] font-black uppercase tracking-[0.2em] text-white/80">
+            {/* Vertical dashed tear perforation line */}
+            <div className="absolute top-[14px] bottom-[14px] -left-[2px] border-l-2 border-dashed border-zinc-200/90 z-20 pointer-events-none" />
+
+            {/* Stub Content */}
+            <div className="relative z-10 w-full text-center">
+              <span className="text-[9px] font-black uppercase tracking-[0.2em] text-white/85">
                 Gate Entry Pass
               </span>
               <p className="mt-0.5 text-xs font-black uppercase tracking-wider text-white truncate px-1">
@@ -437,7 +487,7 @@ export function TicketPass({ ticket, qrData, defaultVariant }: TicketPassProps) 
             </div>
 
             {/* ── THE CRISP QR CODE CONTAINER (NO OVERLAP, CORS-SAFE) ── */}
-            <div className="my-1.5 rounded-2xl bg-white p-2 shadow-lg flex flex-col items-center justify-center">
+            <div className="relative z-10 my-1.5 rounded-2xl bg-white p-2 shadow-lg flex flex-col items-center justify-center">
               {qrDataUrl ? (
                 <img
                   src={qrDataUrl}
@@ -455,7 +505,7 @@ export function TicketPass({ ticket, qrData, defaultVariant }: TicketPassProps) 
             </div>
 
             {/* Stub Footer */}
-            <div className="w-full text-center">
+            <div className="relative z-10 w-full text-center">
               <div className="inline-flex items-center gap-1 rounded-full bg-black/25 px-2.5 py-0.5 text-[8.5px] font-bold text-white shadow-sm">
                 <ShieldCheck className="size-2.5 text-emerald-300" />
                 <span>Scan for gate check-in</span>
