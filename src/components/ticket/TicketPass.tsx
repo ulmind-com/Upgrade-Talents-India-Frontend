@@ -2,10 +2,11 @@
 
 import { useRef, useState, useEffect } from "react";
 import {
-  Download, Printer, QrCode, CheckCircle2, Calendar, MapPin,
-  Clock, User, Sparkles, ShieldCheck, Share2, Loader2, ArrowRight
+  Download, Printer, CheckCircle2, Calendar, MapPin,
+  Clock, User, Sparkles, ShieldCheck, Loader2
 } from "lucide-react";
 import html2canvas from "html2canvas";
+import QRCode from "qrcode";
 import { type MyTicket } from "@/lib/api";
 import { formatEventDate, formatINR, cn, imageFor } from "@/lib/utils";
 import { Button } from "@/components/ui/Primitives";
@@ -121,50 +122,91 @@ export function TicketPass({ ticket, qrData, defaultVariant }: TicketPassProps) 
   const cardRef = useRef<HTMLDivElement>(null);
   const [downloading, setDownloading] = useState(false);
   const [downloadSuccess, setDownloadSuccess] = useState(false);
+  const [qrDataUrl, setQrDataUrl] = useState<string>("");
 
   // Automatically assign distinct color variant per ticket / user, or allow user override
   const autoVariant = defaultVariant || getVariantForTicket(ticket.ticket_ref, ticket.holder_email);
   const [activeVariantKey, setActiveVariantKey] = useState<TicketVariantKey>(autoVariant);
   const v = TICKET_VARIANTS[activeVariantKey];
 
-  // Resolve QR image source
-  const qrDirect = qrData?.qr_image || qrData?.qr_code || qrData?.image;
-  const qrSrc =
-    typeof qrDirect === "string" && (qrDirect.startsWith("data:") || /^https?:\/\//.test(qrDirect))
-      ? qrDirect
-      : `https://api.qrserver.com/v1/create-qr-code/?size=300x300&margin=0&data=${encodeURIComponent(
-          ticket.qr_token || ticket.ticket_ref
-        )}`;
+  // 100% CORS-Safe Local QR Code Generation via data: URI
+  useEffect(() => {
+    // If backend already provided base64 data URL, use it directly
+    const direct = qrData?.qr_image || qrData?.qr_code || qrData?.image;
+    if (typeof direct === "string" && direct.startsWith("data:image")) {
+      setQrDataUrl(direct);
+      return;
+    }
 
-  // Download high-res PNG
+    const raw = ticket.qr_token || ticket.ticket_ref;
+    QRCode.toDataURL(raw, {
+      margin: 1,
+      width: 320,
+      color: { dark: "#000000", light: "#ffffff" },
+      errorCorrectionLevel: "M",
+    })
+      .then((url) => setQrDataUrl(url))
+      .catch((err) => {
+        console.error("QR generation error:", err);
+        setQrDataUrl(`https://api.qrserver.com/v1/create-qr-code/?size=300x300&margin=0&data=${encodeURIComponent(raw)}`);
+      });
+  }, [ticket.qr_token, ticket.ticket_ref, qrData]);
+
+  // Download high-res PNG (Ticket Only, Transparent Background)
   const handleDownload = async () => {
     if (!cardRef.current || downloading) return;
     setDownloading(true);
     setDownloadSuccess(false);
+
     try {
       const canvas = await (html2canvas as any)(cardRef.current, {
         scale: 3, // 3x ultra-crisp resolution
         useCORS: true,
-        backgroundColor: null,
+        allowTaint: false,
+        backgroundColor: null, // Transparent background outside the ticket card
         logging: false,
+        imageTimeout: 6000,
       });
+
       const dataUrl = canvas.toDataURL("image/png");
       const a = document.createElement("a");
       a.href = dataUrl;
-      a.download = `Eventora-Pass-${ticket.ticket_ref}.png`;
+      a.download = `Eventora-Ticket-${ticket.ticket_ref}.png`;
       document.body.appendChild(a);
       a.click();
       document.body.removeChild(a);
       setDownloadSuccess(true);
       setTimeout(() => setDownloadSuccess(false), 3000);
-    } catch (err) {
-      console.error("Ticket download error:", err);
+    } catch (err: any) {
+      console.warn("Direct html2canvas export error, attempting fallback:", err);
+      try {
+        // Fallback: ignore external untrusted images if any failed CORS
+        const fallbackCanvas = await (html2canvas as any)(cardRef.current, {
+          scale: 2,
+          useCORS: true,
+          allowTaint: true,
+          backgroundColor: null,
+          ignoreElements: (el: HTMLElement) =>
+            el.tagName === "IMG" && !el.getAttribute("src")?.startsWith("data:"),
+        });
+        const fallbackUrl = fallbackCanvas.toDataURL("image/png");
+        const a = document.createElement("a");
+        a.href = fallbackUrl;
+        a.download = `Eventora-Ticket-${ticket.ticket_ref}.png`;
+        document.body.appendChild(a);
+        a.click();
+        document.body.removeChild(a);
+        setDownloadSuccess(true);
+        setTimeout(() => setDownloadSuccess(false), 3000);
+      } catch (fallbackErr) {
+        console.error("Download fallback error:", fallbackErr);
+        alert("Could not export image directly. Please use the Print button to save as PDF.");
+      }
     } finally {
       setDownloading(false);
     }
   };
 
-  // Browser Print
   const handlePrint = () => {
     window.print();
   };
@@ -242,52 +284,55 @@ export function TicketPass({ ticket, qrData, defaultVariant }: TicketPassProps) 
       </div>
 
       {/* ── THE PHYSICAL TICKET VOUCHER (PRINTABLE & DOWNLOADABLE) ── */}
-      <div className="overflow-x-auto pb-2">
+      <div className="overflow-x-auto pb-4">
         <div
           ref={cardRef}
-          className="relative mx-auto flex w-full min-w-[720px] max-w-[880px] overflow-hidden rounded-3xl bg-white text-zinc-900 shadow-[0_20px_50px_rgba(0,0,0,0.35)] select-none"
+          className="relative mx-auto flex w-full min-w-[720px] max-w-[880px] min-h-[250px] overflow-hidden rounded-3xl bg-white text-zinc-900 shadow-[0_20px_50px_rgba(0,0,0,0.35)] select-none"
           style={{
             fontFamily: "var(--font-sans, system-ui, sans-serif)",
           }}
         >
           {/* ══════════ LEFT SECTION: EVENT ARTWORK & WAVY CURVE ══════════ */}
-          <div className="relative w-[32%] shrink-0 overflow-hidden bg-zinc-950 flex items-center justify-center">
-            {/* Background Event Photo */}
-            <img
-              src={ticket.event_cover || imageFor(null, 3)}
-              alt=""
-              crossOrigin="anonymous"
-              className="absolute inset-0 size-full object-cover object-center filter saturate-125"
-            />
-            {/* Dramatic color overlay matching variant */}
-            <div
-              className="absolute inset-0 opacity-40 mix-blend-multiply"
-              style={{ background: v.gradient }}
-            />
-            <div className="absolute inset-0 bg-gradient-to-t from-black/80 via-transparent to-black/30" />
+          {/* NOTICE: Parent here does NOT have overflow-hidden so circular badge is NEVER cut off! */}
+          <div className="relative w-[30%] shrink-0 flex items-center justify-center bg-zinc-950">
+            {/* Inner container with overflow-hidden for the image & wave */}
+            <div className="absolute inset-0 overflow-hidden">
+              <img
+                src={ticket.event_cover || imageFor(null, 3)}
+                alt=""
+                crossOrigin="anonymous"
+                className="size-full object-cover object-center filter saturate-125"
+              />
+              {/* Overlay matching variant */}
+              <div
+                className="absolute inset-0 opacity-40 mix-blend-multiply"
+                style={{ background: v.gradient }}
+              />
+              <div className="absolute inset-0 bg-gradient-to-t from-black/80 via-transparent to-black/30" />
 
-            {/* Eventora watermark badge top left */}
-            <div className="absolute top-4 left-4 z-10 flex items-center gap-1.5 rounded-full bg-black/60 px-3 py-1 text-[10px] font-bold uppercase tracking-[0.16em] text-white backdrop-blur-md">
-              <Sparkles className="size-3 text-amber-300" />
-              <span>Eventora 2026</span>
+              {/* Eventora watermark badge top left */}
+              <div className="absolute top-4 left-4 z-10 flex items-center gap-1.5 rounded-full bg-black/60 px-3 py-1 text-[10px] font-bold uppercase tracking-[0.16em] text-white backdrop-blur-md">
+                <Sparkles className="size-3 text-amber-300" />
+                <span>Eventora 2026</span>
+              </div>
+
+              {/* Bottom Tag */}
+              <div className="absolute bottom-4 left-4 z-10 text-[11px] font-semibold text-white/90 drop-shadow">
+                Official Entry Voucher
+              </div>
+
+              {/* ── ORGANIC SVG WAVE SEPARATOR ── */}
+              <svg
+                viewBox="0 0 100 200"
+                preserveAspectRatio="none"
+                className="pointer-events-none absolute -right-0.5 top-0 h-full w-14 text-white fill-current z-10 drop-shadow-[-4px_0_12px_rgba(0,0,0,0.15)]"
+              >
+                <path d="M 0,0 C 60,35 60,165 0,200 L 100,200 L 100,0 Z" />
+              </svg>
             </div>
 
-            {/* Bottom Tag */}
-            <div className="absolute bottom-4 left-4 z-10 text-[11px] font-semibold text-white/90 drop-shadow">
-              Official Entry Voucher
-            </div>
-
-            {/* ── ORGANIC SVG WAVE SEPARATOR ── */}
-            <svg
-              viewBox="0 0 100 200"
-              preserveAspectRatio="none"
-              className="pointer-events-none absolute -right-0.5 top-0 h-full w-14 text-white fill-current z-10 drop-shadow-[-4px_0_12px_rgba(0,0,0,0.15)]"
-            >
-              <path d="M 0,0 C 60,35 60,165 0,200 L 100,200 L 100,0 Z" />
-            </svg>
-
-            {/* ── FLOATING CIRCULAR PRICE BADGE (Overlapping Wave) ── */}
-            <div className="absolute right-0 top-1/2 -translate-y-1/2 translate-x-1/2 z-20">
+            {/* ── FLOATING CIRCULAR PRICE BADGE (100% UNCUT, FLOATING ON WAVE SEAM) ── */}
+            <div className="absolute right-0 top-1/2 -translate-y-1/2 translate-x-1/2 z-30 pointer-events-none">
               <div
                 className="flex size-20 sm:size-22 flex-col items-center justify-center rounded-full bg-white border-4 border-white"
                 style={{ boxShadow: `0 0 0 3px ${v.primary}, 0 10px 30px rgba(0,0,0,0.25)` }}
@@ -306,7 +351,8 @@ export function TicketPass({ ticket, qrData, defaultVariant }: TicketPassProps) 
           </div>
 
           {/* ══════════ MIDDLE SECTION: MAIN EVENT DETAILS ══════════ */}
-          <div className="relative flex flex-1 flex-col justify-between p-6 pl-12 bg-white">
+          {/* pl-14 sm:pl-16 ensures text NEVER collides with circular price badge */}
+          <div className="relative flex flex-1 flex-col justify-between p-6 pl-14 sm:pl-16 bg-white min-w-0">
             <div>
               {/* Header Eyebrow */}
               <div className="flex items-center justify-between gap-2">
@@ -314,7 +360,7 @@ export function TicketPass({ ticket, qrData, defaultVariant }: TicketPassProps) 
                   2026 Special Live Event
                 </span>
                 <span
-                  className="rounded-full px-2.5 py-0.5 text-[10px] font-bold uppercase tracking-wider"
+                  className="rounded-full px-2.5 py-0.5 text-[10px] font-bold uppercase tracking-wider shrink-0"
                   style={{ background: v.pillBg, color: v.pillText }}
                 >
                   {ticket.is_checked_in ? "Used Pass" : "Verified Ticket"}
@@ -330,7 +376,7 @@ export function TicketPass({ ticket, qrData, defaultVariant }: TicketPassProps) 
               </h2>
 
               {/* Key metadata grid */}
-              <div className="mt-4 grid grid-cols-2 gap-y-3 gap-x-4 border-t border-zinc-100 pt-3">
+              <div className="mt-3.5 grid grid-cols-2 gap-y-2.5 gap-x-4 border-t border-zinc-100 pt-3">
                 {/* Holder */}
                 <div>
                   <span className="text-[9.5px] font-bold uppercase tracking-[0.16em] text-zinc-400">
@@ -377,13 +423,13 @@ export function TicketPass({ ticket, qrData, defaultVariant }: TicketPassProps) 
             </div>
 
             {/* Bottom Venue & Pills Bar */}
-            <div className="mt-4 border-t border-zinc-100 pt-3">
+            <div className="mt-3 border-t border-zinc-100 pt-2.5">
               <div className="flex items-center gap-1.5 text-[11px] font-semibold text-zinc-600 truncate">
                 <MapPin className="size-3 text-zinc-400 shrink-0" />
                 <span className="truncate">{venue}</span>
               </div>
 
-              <div className="mt-2.5 flex items-center gap-2">
+              <div className="mt-2 flex items-center gap-2">
                 <span
                   className="rounded-md px-2 py-0.5 text-[9px] font-bold uppercase tracking-wider"
                   style={{ background: v.pillBg, color: v.pillText }}
@@ -400,52 +446,51 @@ export function TicketPass({ ticket, qrData, defaultVariant }: TicketPassProps) 
             </div>
           </div>
 
-          {/* ══════════ NOTCHES & TEAR PERFORATION ══════════ */}
-          <div className="relative w-0 shrink-0">
-            {/* Top semi-circle cutout notch */}
-            <div className="absolute -top-3.5 -left-3 size-7 rounded-full bg-[var(--bg,#0b0f19)] shadow-inner z-30" />
-            {/* Bottom semi-circle cutout notch */}
-            <div className="absolute -bottom-3.5 -left-3 size-7 rounded-full bg-[var(--bg,#0b0f19)] shadow-inner z-30" />
+          {/* ══════════ TEAR PERFORATION DIVIDER ══════════ */}
+          <div className="relative w-0 shrink-0 flex items-center justify-center">
             {/* Vertical dashed line */}
-            <div className="absolute top-0 bottom-0 left-0 border-l-2 border-dashed border-zinc-300 z-20" />
+            <div className="absolute top-0 bottom-0 left-0 border-l-2 border-dashed border-zinc-200 z-20" />
           </div>
 
           {/* ══════════ RIGHT SECTION: STUB WITH REAL QR CODE ══════════ */}
+          {/* Well-proportioned: never overlaps, clean padding */}
           <div
-            className="relative w-[210px] shrink-0 p-5 flex flex-col items-center justify-between shadow-inner"
+            className="relative w-[205px] sm:w-[220px] shrink-0 p-4 flex flex-col items-center justify-between shadow-inner"
             style={{ background: v.gradient }}
           >
             {/* Rotated Stub Header */}
             <div className="w-full text-center">
-              <span className="text-[9.5px] font-extrabold uppercase tracking-[0.24em] text-white/80">
+              <span className="text-[9px] font-black uppercase tracking-[0.2em] text-white/80">
                 Gate Entry Pass
               </span>
-              <p className="mt-0.5 text-[11px] font-black uppercase tracking-wider text-white truncate">
+              <p className="mt-0.5 text-xs font-black uppercase tracking-wider text-white truncate px-1">
                 {tierName}
               </p>
             </div>
 
-            {/* ── THE CRISP QR CODE CONTAINER ── */}
-            <div className="my-2 rounded-2xl bg-white p-2.5 shadow-[0_6px_20px_rgba(0,0,0,0.25)] flex flex-col items-center">
-              <img
-                src={qrSrc}
-                alt={`QR for ${ticket.ticket_ref}`}
-                crossOrigin="anonymous"
-                className="size-28 sm:size-32 object-contain"
-              />
-              <span className="mt-1 font-mono text-[9px] font-extrabold tracking-wider text-zinc-700">
+            {/* ── THE CRISP QR CODE CONTAINER (NO OVERLAP) ── */}
+            <div className="my-1.5 rounded-2xl bg-white p-2 shadow-lg flex flex-col items-center justify-center">
+              {qrDataUrl ? (
+                <img
+                  src={qrDataUrl}
+                  alt={`QR for ${ticket.ticket_ref}`}
+                  className="size-24 sm:size-26 object-contain block"
+                />
+              ) : (
+                <div className="size-24 sm:size-26 grid place-items-center bg-zinc-50">
+                  <Loader2 className="size-6 animate-spin text-zinc-400" />
+                </div>
+              )}
+              <span className="mt-1 font-mono text-[9px] font-black tracking-wider text-zinc-800">
                 {ticket.ticket_ref}
               </span>
             </div>
 
             {/* Stub Footer */}
             <div className="w-full text-center">
-              <p className="text-[9px] font-bold uppercase tracking-widest text-white/90">
-                Scan for gate check-in
-              </p>
-              <div className="mt-1 flex items-center justify-center gap-1 text-[8.5px] text-white/70">
-                <ShieldCheck className="size-3" />
-                <span>Encrypted & Verified</span>
+              <div className="inline-flex items-center gap-1 rounded-full bg-black/25 px-2.5 py-0.5 text-[8.5px] font-bold text-white shadow-sm">
+                <ShieldCheck className="size-2.5 text-emerald-300" />
+                <span>Scan for gate check-in</span>
               </div>
             </div>
           </div>
