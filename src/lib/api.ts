@@ -205,6 +205,14 @@ export type MyTicket = {
   holder_email: string;
   is_checked_in: boolean;
   issued_at: string;
+  event_title?: string;
+  event_date?: string;
+  event_time?: string;
+  event_venue?: string;
+  event_cover?: string;
+  price?: number;
+  base_price?: number;
+  qr_token?: string;
 };
 
 /* ─────────────── PUBLIC (/api/v1) ─────────────── */

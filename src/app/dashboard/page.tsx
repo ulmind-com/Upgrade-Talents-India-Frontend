@@ -13,6 +13,7 @@ import { useAuth } from "@/components/motion/Providers";
 import { Badge, Button, SectionLabel, Spotlights } from "@/components/ui/Primitives";
 import { Reveal, StaggerGroup, StaggerItem, SplitHeading } from "@/components/motion/Reveal";
 import { cn, formatEventDate, formatINR } from "@/lib/utils";
+import { TicketPass } from "@/components/ticket/TicketPass";
 
 type Tab = "tickets" | "bookings" | "profile";
 
@@ -130,49 +131,16 @@ export default function DashboardPage() {
           <div className="mt-10 grid gap-5 sm:grid-cols-2 lg:grid-cols-3">
             {Array.from({ length: 3 }).map((_, i) => <div key={i} className="skeleton h-56 rounded-[var(--radius-lg)]" />)}
           </div>
-        )}
-
-        {/* ── TICKETS ── */}
+        )}        {/* ── TICKETS ── */}
         {!loading && tab === "tickets" && (
           tickets.length ? (
-            <StaggerGroup className="mt-10 grid gap-6 sm:grid-cols-2 lg:grid-cols-3">
-              {tickets.map((t) => (
-                <StaggerItem key={t.ticket_ref} className="h-full">
-                  <article className="glow-ring relative flex h-full flex-col overflow-hidden rounded-[var(--radius-lg)] border border-[var(--border)] bg-[var(--surface)]">
-                    <div className="flex items-start justify-between gap-3 p-6" style={{ background: "var(--grad-surface)" }}>
-                      <div className="min-w-0">
-                        <span className="font-mono text-[10px] uppercase tracking-[0.22em] text-[var(--fg-subtle)]">Pass</span>
-                        <p className="mt-1 truncate font-display text-lg font-bold uppercase">{t.ticket_type || "General"}</p>
-                      </div>
-                      <Badge tone={t.is_checked_in ? "neutral" : "success"}>
-                        {t.is_checked_in ? "Used" : "Valid"}
-                      </Badge>
-                    </div>
-
-                    <div className="ticket-notch border-y border-dashed border-[var(--border-strong)]" />
-
-                    <div className="flex flex-1 flex-col gap-3 p-6">
-                      <div>
-                        <span className="font-mono text-[10px] uppercase tracking-[0.2em] text-[var(--fg-subtle)]">Holder</span>
-                        <p className="mt-1 truncate text-sm font-semibold">{t.holder_name}</p>
-                      </div>
-                      <div>
-                        <span className="font-mono text-[10px] uppercase tracking-[0.2em] text-[var(--fg-subtle)]">Reference</span>
-                        <p className="mt-1 font-mono text-[13px] [overflow-wrap:anywhere]">{t.ticket_ref}</p>
-                      </div>
-                      <p className="inline-flex items-center gap-1.5 text-[12px] text-[var(--fg-muted)]">
-                        <CalendarDays className="size-3.5 shrink-0 text-[var(--accent)]" aria-hidden />
-                        Issued {formatEventDate(t.issued_at)}
-                      </p>
-
-                      <Button onClick={() => openQr(t.ticket_ref)} variant="outline" className="mt-auto w-full">
-                        <QrCode className="size-4" aria-hidden /> Show QR pass
-                      </Button>
-                    </div>
-                  </article>
-                </StaggerItem>
+            <div className="mt-10 flex flex-col gap-10">
+              {tickets.map((t, idx) => (
+                <Reveal key={t.ticket_ref} delay={idx * 0.08}>
+                  <TicketPass ticket={t} />
+                </Reveal>
               ))}
-            </StaggerGroup>
+            </div>
           ) : (
             <EmptyState
               Icon={TicketX}
