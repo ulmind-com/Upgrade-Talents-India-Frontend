@@ -6,7 +6,7 @@ import {
   Clock, User, Sparkles, ShieldCheck, Loader2, CheckCircle2
 } from "lucide-react";
 import QRCode from "qrcode";
-import html2canvas from "html2canvas";
+import { toPng } from "html-to-image";
 import { type MyTicket } from "@/lib/api";
 import { formatEventDate, formatINR, cn, imageFor, isUsableImageUrl } from "@/lib/utils";
 import { Button } from "@/components/ui/Primitives";
@@ -152,6 +152,7 @@ interface TicketPassProps {
 export function TicketPass({ ticket, qrData, defaultVariant }: TicketPassProps) {
   const variant = defaultVariant || getVariantForTicket(ticket.ticket_ref, ticket.holder_email, ticket.holder_name);
   const [downloading, setDownloading] = useState(false);
+  const [printing, setPrinting] = useState(false);
   const [downloadSuccess, setDownloadSuccess] = useState(false);
   const [qrDataUrl, setQrDataUrl] = useState<string | null>(null);
   const [coverBase64, setCoverBase64] = useState<string | null>(null);
@@ -197,100 +198,78 @@ export function TicketPass({ ticket, qrData, defaultVariant }: TicketPassProps) 
     };
   }, [rawCover]);
 
-  // Download ticket with 100% transparent background (ONLY ticket is exported)
+  // ── Exact ticket geometry (must stay in sync with the ticket box below) ──
+  const TICKET_W = 920;
+  const TICKET_H = 290;
+
+  /**
+   * Render ONLY the ticket node to a transparent PNG data URL.
+   * Uses html-to-image (SVG foreignObject) so the browser itself paints the
+   * node — modern CSS used by Tailwind v4 (oklch colours, gradients, backdrop
+   * filters) comes out exactly as it looks on screen, at the exact 920×290 box.
+   */
+  const renderTicketPng = async (pixelRatio = 3): Promise<string> => {
+    const node = ticketRef.current;
+    if (!node) throw new Error("Ticket node not mounted");
+
+    // 1. Make sure the QR code exists as a local data URL
+    if (!qrDataUrl) {
+      const token = qrData?.qr_token || qrData?.token || ticket.qr_token || ticket.ticket_ref;
+      const url = await QRCode.toDataURL(String(token), {
+        width: 450,
+        margin: 1,
+        color: { dark: "#0b0f19", light: "#ffffff" },
+      });
+      setQrDataUrl(url);
+    }
+
+    // 2. Make sure the cover image in the DOM is a data URL (never taint the canvas)
+    const imgEl = node.querySelector("img") as HTMLImageElement | null;
+    if (imgEl && imgEl.src && !imgEl.src.startsWith("data:")) {
+      try {
+        const b64 = await toBase64DataUrl(imgEl.src);
+        imgEl.src = b64 && b64.startsWith("data:") ? b64 : TICKET_DANCER_BASE64;
+      } catch {
+        imgEl.src = TICKET_DANCER_BASE64;
+      }
+    }
+
+    // 3. Wait for webfonts + a paint tick so the capture matches the screen 1:1
+    try {
+      await (document as any).fonts?.ready;
+    } catch {
+      /* fonts API unavailable — carry on */
+    }
+    await new Promise((r) => setTimeout(r, 80));
+
+    const options = {
+      width: TICKET_W,
+      height: TICKET_H,
+      pixelRatio,
+      cacheBust: true,
+      backgroundColor: undefined, // fully transparent outside the ticket
+      style: { margin: "0", transform: "none", transformOrigin: "top left" },
+    };
+
+    // The first pass warms the embedded fonts/images cache; the second is clean.
+    await toPng(node, options as any);
+    return await toPng(node, options as any);
+  };
+
+  // Download the ticket — and nothing but the ticket — as a PNG
   const handleDownload = async () => {
     if (!ticketRef.current || downloading) return;
     setDownloading(true);
     setDownloadSuccess(false);
 
+    const filename = `ticket-${(ticket.event_title || "event").toLowerCase().replace(/[^a-z0-9]+/g, "-")}-${ticket.ticket_ref.toLowerCase()}.png`;
+
     try {
-      // 1. Ensure QR code is ready as data URL
-      let qrUrl = qrDataUrl;
-      if (!qrUrl) {
-        const token = qrData?.qr_token || qrData?.token || ticket.qr_token || ticket.ticket_ref;
-        qrUrl = await QRCode.toDataURL(String(token), {
-          width: 450,
-          margin: 1,
-          color: { dark: "#0b0f19", light: "#ffffff" },
-        });
-        setQrDataUrl(qrUrl);
-      }
-
-      // 2. Ensure cover image in DOM is a data URL
-      const imgEl = ticketRef.current.querySelector("img") as HTMLImageElement | null;
-      if (imgEl && imgEl.src && !imgEl.src.startsWith("data:")) {
-        try {
-          const b64 = await toBase64DataUrl(imgEl.src);
-          if (b64 && b64.startsWith("data:")) {
-            imgEl.src = b64;
-          } else {
-            imgEl.src = TICKET_DANCER_BASE64;
-          }
-        } catch {
-          imgEl.src = TICKET_DANCER_BASE64;
-        }
-      }
-
-      // Small tick for DOM to paint
-      await new Promise((r) => setTimeout(r, 60));
-
-      // 3. Render high-resolution canvas with html2canvas (transparent background, exact 920x290 box)
-      const canvas = await html2canvas(ticketRef.current, {
-        backgroundColor: null, // 100% transparent background outside ticket!
-        scale: 2, // 2x ultra-sharp resolution (1840px × 580px, exact 920:290 ratio)
-        useCORS: true,
-        allowTaint: false, // Never taint canvas so toBlob & toDataURL never throw SecurityError
-        logging: false,
-        width: 920,
-        height: 290,
-        windowWidth: 920,
-        windowHeight: 290,
-      } as any);
-
-      // 4. Download file using Blob & URL.createObjectURL for universal browser support
-      const filename = `ticket-${(ticket.event_title || "event").toLowerCase().replace(/[^a-z0-9]+/g, "-")}-${ticket.ticket_ref.toLowerCase()}.png`;
-
-      const executeBlobDownload = (blob: Blob) => {
-        const blobUrl = URL.createObjectURL(blob);
-        const link = document.createElement("a");
-        link.download = filename;
-        link.href = blobUrl;
-        document.body.appendChild(link);
-        link.click();
-        setTimeout(() => {
-          document.body.removeChild(link);
-          URL.revokeObjectURL(blobUrl);
-        }, 1500);
-        setDownloadSuccess(true);
-        setTimeout(() => setDownloadSuccess(false), 3000);
-      };
-
-      if (canvas.toBlob) {
-        canvas.toBlob((blob) => {
-          if (blob) {
-            executeBlobDownload(blob);
-          } else {
-            triggerDataUrlDownload(canvas.toDataURL("image/png"), filename);
-          }
-        }, "image/png");
-      } else {
-        triggerDataUrlDownload(canvas.toDataURL("image/png"), filename);
-      }
+      triggerDataUrlDownload(await renderTicketPng(3), filename);
     } catch (err) {
       console.error("Failed to export ticket PNG:", err);
-      // Secondary fallback
       try {
-        if (ticketRef.current) {
-          const fallbackCanvas = await html2canvas(ticketRef.current, {
-            backgroundColor: null,
-            scale: 1,
-            useCORS: true,
-            allowTaint: false,
-            logging: false,
-          } as any);
-          const dataUrl = fallbackCanvas.toDataURL("image/png");
-          triggerDataUrlDownload(dataUrl, `ticket-${ticket.ticket_ref.toLowerCase()}.png`);
-        }
+        triggerDataUrlDownload(await renderTicketPng(2), filename);
       } catch (fallbackErr) {
         console.error("Fallback export failed:", fallbackErr);
       }
@@ -300,123 +279,100 @@ export function TicketPass({ ticket, qrData, defaultVariant }: TicketPassProps) 
   };
 
   const triggerDataUrlDownload = (dataUrl: string, filename: string) => {
+    // Blob URLs keep working for large PNGs where a data: href can be refused
+    let href = dataUrl;
+    let blobUrl: string | null = null;
+    try {
+      const [meta, b64] = dataUrl.split(",");
+      const mime = meta.match(/:(.*?);/)?.[1] || "image/png";
+      const bin = atob(b64);
+      const bytes = new Uint8Array(bin.length);
+      for (let i = 0; i < bin.length; i++) bytes[i] = bin.charCodeAt(i);
+      blobUrl = URL.createObjectURL(new Blob([bytes], { type: mime }));
+      href = blobUrl;
+    } catch {
+      /* fall back to the data URL as-is */
+    }
+
     const link = document.createElement("a");
     link.download = filename;
-    link.href = dataUrl;
+    link.href = href;
+    link.rel = "noopener";
     document.body.appendChild(link);
     link.click();
     setTimeout(() => {
-      document.body.removeChild(link);
-    }, 500);
+      link.remove();
+      if (blobUrl) URL.revokeObjectURL(blobUrl);
+    }, 1500);
+
     setDownloadSuccess(true);
     setTimeout(() => setDownloadSuccess(false), 3000);
   };
 
-  // Print EXACTLY 1 page using an isolated hidden iframe containing ONLY the ticket
-  const handlePrint = () => {
-    const ticketEl = ticketRef.current;
-    if (!ticketEl) return;
+  // Print EXACTLY one page: a page sized to the ticket, holding the ticket image
+  const handlePrint = async () => {
+    if (printing || !ticketRef.current) return;
+    setPrinting(true);
 
-    // Clean up previous iframe if any
-    const oldIframe = document.getElementById("eventora-ticket-print-iframe");
-    if (oldIframe) oldIframe.remove();
+    try {
+      const dataUrl = await renderTicketPng(3);
 
-    const iframe = document.createElement("iframe");
-    iframe.id = "eventora-ticket-print-iframe";
-    iframe.style.position = "fixed";
-    iframe.style.right = "0";
-    iframe.style.bottom = "0";
-    iframe.style.width = "0";
-    iframe.style.height = "0";
-    iframe.style.border = "0";
-    iframe.style.visibility = "hidden";
-    document.body.appendChild(iframe);
+      const old = document.getElementById("eventora-ticket-print-iframe");
+      if (old) old.remove();
 
-    const doc = iframe.contentWindow?.document;
-    if (!doc) return;
+      const iframe = document.createElement("iframe");
+      iframe.id = "eventora-ticket-print-iframe";
+      iframe.setAttribute("aria-hidden", "true");
+      iframe.style.cssText =
+        "position:fixed;right:0;bottom:0;width:0;height:0;border:0;visibility:hidden;";
+      document.body.appendChild(iframe);
 
-    const styles = Array.from(document.querySelectorAll("link[rel='stylesheet'], style"))
-      .map((el) => el.outerHTML)
-      .join("\n");
+      const doc = iframe.contentWindow?.document;
+      if (!doc) {
+        setPrinting(false);
+        return;
+      }
 
-    const ticketHtml = ticketEl.outerHTML;
+      // Paper is the ticket: 920×290 CSS px at 96dpi → 243.42mm × 76.73mm
+      const pageW = ((TICKET_W / 96) * 25.4).toFixed(2);
+      const pageH = ((TICKET_H / 96) * 25.4).toFixed(2);
 
-    doc.open();
-    doc.write(`
-      <!DOCTYPE html>
-      <html>
-        <head>
-          <meta charset="utf-8" />
-          <title>Ticket - ${ticket.ticket_ref}</title>
-          ${styles}
-          <style>
-            @page {
-              size: landscape;
-              margin: 0;
-            }
-            @media print {
-              @page {
-                size: landscape;
-                margin: 0;
-              }
-              html, body {
-                width: 100vw !important;
-                height: 100vh !important;
-                margin: 0 !important;
-                padding: 0 !important;
-                overflow: hidden !important;
-                background: #ffffff !important;
-                display: flex !important;
-                align-items: center !important;
-                justify-content: center !important;
-                -webkit-print-color-adjust: exact !important;
-                print-color-adjust: exact !important;
-              }
-            }
-            html, body {
-              margin: 0;
-              padding: 0;
-              width: 100vw;
-              height: 100vh;
-              background: #ffffff;
-              display: flex;
-              align-items: center;
-              justify-content: center;
-              overflow: hidden;
-            }
-            .ticket-print-container {
-              width: 920px;
-              height: 290px;
-              display: flex;
-              align-items: center;
-              justify-content: center;
-              page-break-inside: avoid !important;
-              break-inside: avoid !important;
-              page-break-after: avoid !important;
-              break-after: avoid !important;
-              transform: scale(0.98);
-              transform-origin: center center;
-            }
-          </style>
-        </head>
-        <body>
-          <div class="ticket-print-container">
-            ${ticketHtml}
-          </div>
-        </body>
-      </html>
-    `);
-    doc.close();
+      doc.open();
+      doc.write(`<!DOCTYPE html><html><head><meta charset="utf-8" /><title>Ticket - ${ticket.ticket_ref}</title><style>
+        @page { size: ${pageW}mm ${pageH}mm; margin: 0; }
+        html, body {
+          margin: 0; padding: 0;
+          width: ${pageW}mm; height: ${pageH}mm;
+          overflow: hidden; background: #ffffff;
+          -webkit-print-color-adjust: exact; print-color-adjust: exact;
+        }
+        img {
+          display: block; width: 100%; height: 100%; object-fit: contain;
+          page-break-inside: avoid; break-inside: avoid;
+          page-break-after: avoid; break-after: avoid;
+        }
+      </style></head><body><img id="eventora-ticket-img" src="${dataUrl}" alt="Ticket ${ticket.ticket_ref}" /></body></html>`);
+      doc.close();
 
-    setTimeout(() => {
-      iframe.contentWindow?.focus();
-      iframe.contentWindow?.print();
-      setTimeout(() => {
-        iframe.remove();
-      }, 2000);
-    }, 350);
+      const fire = () => {
+        iframe.contentWindow?.focus();
+        iframe.contentWindow?.print();
+        setPrinting(false);
+        setTimeout(() => iframe.remove(), 3000);
+      };
+
+      const img = doc.getElementById("eventora-ticket-img") as HTMLImageElement | null;
+      if (img && !img.complete) {
+        img.onload = () => setTimeout(fire, 120);
+        img.onerror = () => fire();
+      } else {
+        setTimeout(fire, 180);
+      }
+    } catch (err) {
+      console.error("Failed to prepare ticket for printing:", err);
+      setPrinting(false);
+    }
   };
-
   const eventTitle = ticket.event_title || "Neon Night Battle";
   const dateFormatted = ticket.event_date ? formatEventDate(ticket.event_date) : formatEventDate(ticket.issued_at);
   const time = ticket.event_time || "10:00 PM";
@@ -443,12 +399,17 @@ export function TicketPass({ ticket, qrData, defaultVariant }: TicketPassProps) 
         <div className="flex items-center gap-2">
           <Button
             onClick={handlePrint}
+            disabled={printing}
             variant="outline"
             size="sm"
             className="gap-2 text-xs"
           >
-            <Printer className="size-3.5" />
-            <span>Print</span>
+            {printing ? (
+              <Loader2 className="size-3.5 animate-spin" />
+            ) : (
+              <Printer className="size-3.5" />
+            )}
+            <span>{printing ? "Preparing…" : "Print"}</span>
           </Button>
 
           <button
