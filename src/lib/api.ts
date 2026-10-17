@@ -360,6 +360,148 @@ export const registrationsApi = {
     apiFetch<any>("/api/registrations/verify-payment", { method: "POST", body, auth: true }),
 };
 
+/* ─────────────── JUDGE AUTH (OTP-based, passwordless) ─────────────── */
+
+export const judgeAuthApi = {
+  /** Step 1: Send OTP to judge's registered email */
+  loginStep1: (email: string) =>
+    apiFetch<{ message: string }>("/api/judge/auth/login/step1", { method: "POST", body: { email } }),
+
+  /** Step 2: Verify OTP and receive access token */
+  loginStep2: (email: string, otp: string) =>
+    apiFetch<{ access_token: string; token_type: string; user_email: string; role: string }>(
+      "/api/judge/auth/login/step2", { method: "POST", body: { email, otp } }
+    ),
+};
+
+/* ─────────────── VOLUNTEER AUTH (OTP-based, passwordless) ─────────────── */
+
+export const volunteerAuthApi = {
+  /** Step 1: Send OTP to volunteer's registered email */
+  loginStep1: (email: string) =>
+    apiFetch<{ message: string }>("/api/volunteer/auth/login/step1", { method: "POST", body: { email } }),
+
+  /** Step 2: Verify OTP and receive access token */
+  loginStep2: (email: string, otp: string) =>
+    apiFetch<{ access_token: string; token_type: string; user_email: string; role: string }>(
+      "/api/volunteer/auth/login/step2", { method: "POST", body: { email, otp } }
+    ),
+};
+
+/* ─────────────── JUDGE COMPETITIONS & SCORING ─────────────── */
+
+export interface JudgingCriterion {
+  name: string;
+  max_score: number;
+  weight?: number;
+  description?: string;
+}
+
+export interface JudgeCompetition {
+  _id: string;
+  title: string;
+  category: string;
+  description?: string;
+  judge_scoring_enabled?: boolean;
+  judging_status?: string;
+  judging_criteria?: JudgingCriterion[];
+  banner_url?: string;
+}
+
+export interface JudgeContestant {
+  _id: string;
+  competition_id: string;
+  user_email: string;
+  user_name?: string;
+  title?: string;
+  submission_url?: string;
+  media_url?: string;
+  description?: string;
+  status: string;
+  submitted_at?: string;
+}
+
+export const judgeCompetitionsApi = {
+  /** List assigned competitions for current judge */
+  listAssigned: () =>
+    apiFetch<JudgeCompetition[]>("/api/judge/competitions/", { auth: true }),
+
+  /** List scorable contestants/submissions for a competition */
+  listContestants: (compId: string) =>
+    apiFetch<JudgeContestant[]>(`/api/judge/competitions/${compId}/contestants`, { auth: true }),
+
+  /** Verify live session PIN to unlock scoring */
+  verifyPin: (compId: string, pin: string) =>
+    apiFetch<{ message: string }>(`/api/judge/competitions/${compId}/verify-pin`, {
+      method: "POST",
+      body: { pin },
+      auth: true,
+    }),
+
+  /** Auto-save partial draft score */
+  saveDraft: (compId: string, subId: string, scores: Record<string, number>, comments?: string) =>
+    apiFetch<{ message: string }>(`/api/judge/competitions/${compId}/contestants/${subId}/draft`, {
+      method: "POST",
+      body: { scores, comments },
+      auth: true,
+    }),
+
+  /** Retrieve saved draft score */
+  getDraft: (compId: string, subId: string) =>
+    apiFetch<{ scores?: Record<string, number>; comments?: string }>(
+      `/api/judge/competitions/${compId}/contestants/${subId}/draft`,
+      { auth: true }
+    ),
+
+  /** Declare Conflict of Interest (COI) and skip contestant */
+  skipContestant: (compId: string, subId: string, reason: string) =>
+    apiFetch<{ message: string }>(`/api/judge/competitions/${compId}/contestants/${subId}/skip`, {
+      method: "POST",
+      body: { reason },
+      auth: true,
+    }),
+
+  /** Final score submission */
+  submitScore: (subId: string, scores: Record<string, number>, comments?: string) =>
+    apiFetch<{ message: string }>(`/api/judge/competitions/submissions/${subId}/scores`, {
+      method: "POST",
+      body: { scores, comments },
+      auth: true,
+    }),
+};
+
+/* ─────────────── VOLUNTEER GATE CHECK-IN & SCANNER ─────────────── */
+
+export interface TicketScanVerifyResult {
+  is_valid: boolean;
+  ticket: {
+    ticket_ref: string;
+    holder_name: string;
+    holder_email: string;
+    is_checked_in: boolean;
+    check_in_time: string | null;
+  };
+  booking_status: string;
+}
+
+export const volunteerScannerApi = {
+  /** Scan or enter QR token to verify ticket validity */
+  verifyTicket: (qr_token: string) =>
+    apiFetch<TicketScanVerifyResult>("/api/admin/checkin/verify", {
+      method: "POST",
+      body: { qr_token },
+      auth: true,
+    }),
+
+  /** Atomically mark ticket as checked in */
+  checkInTicket: (qr_token: string) =>
+    apiFetch<{ message: string; ticket_ref: string }>("/api/admin/checkin/check-in", {
+      method: "POST",
+      body: { qr_token },
+      auth: true,
+    }),
+};
+
 /* ─────────────── EXTRAS ─────────────── */
 
 export const extrasApi = {
