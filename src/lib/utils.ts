@@ -68,8 +68,12 @@ export const FALLBACK_IMAGES = [
 const BAD_IMAGE_PATTERNS = [/(^|\/\/)(www\.)?example\.(com|org|net)/i, /placeholder/i, /your-?domain/i];
 
 export function isUsableImageUrl(url: string | undefined | null): url is string {
-  if (!url || !url.trim()) return false;
-  return !BAD_IMAGE_PATTERNS.some((re) => re.test(url));
+  if (!url || typeof url !== "string" || !url.trim()) return false;
+  const trimmed = url.trim();
+  if (!trimmed.startsWith("http://") && !trimmed.startsWith("https://") && !trimmed.startsWith("/") && !trimmed.startsWith("data:")) {
+    return false;
+  }
+  return !BAD_IMAGE_PATTERNS.some((re) => re.test(trimmed));
 }
 
 function fallbackImage(seed: string | number) {

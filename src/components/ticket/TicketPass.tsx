@@ -8,7 +8,7 @@ import {
 import QRCode from "qrcode";
 import html2canvas from "html2canvas";
 import { type MyTicket } from "@/lib/api";
-import { formatEventDate, formatINR, cn, imageFor } from "@/lib/utils";
+import { formatEventDate, formatINR, cn, imageFor, isUsableImageUrl } from "@/lib/utils";
 import { Button } from "@/components/ui/Primitives";
 
 export type TicketVariantKey = "magenta" | "blue" | "emerald" | "amber" | "purple";
@@ -184,7 +184,7 @@ export function TicketPass({ ticket, qrData, defaultVariant }: TicketPassProps) 
   const venue = ticket.event_venue || "Kolkata";
   const tierName = ticket.ticket_type || "General Access";
   const priceAmount = ticket.price ?? ticket.base_price ?? 500;
-  const coverImage = ticket.event_cover || imageFor("neon night party crowd concert dancing energetic lights");
+  const coverImage = isUsableImageUrl(ticket.event_cover) ? ticket.event_cover : imageFor(null, 0);
 
   return (
     <div className="w-full flex flex-col items-center">
@@ -262,7 +262,15 @@ export function TicketPass({ ticket, qrData, defaultVariant }: TicketPassProps) 
               <img
                 src={coverImage}
                 alt={eventTitle}
-                className="size-full object-cover brightness-90 saturate-125"
+                crossOrigin="anonymous"
+                onError={(e) => {
+                  const target = e.currentTarget;
+                  if (!target.dataset.fallbackApplied) {
+                    target.dataset.fallbackApplied = "1";
+                    target.src = "https://images.unsplash.com/photo-1547153760-18fc86324498?auto=format&fit=crop&w=1400&q=80";
+                  }
+                }}
+                className="size-full object-cover brightness-95 saturate-125"
               />
               <div className="absolute inset-0 bg-gradient-to-t from-black/80 via-black/20 to-black/30" />
 
