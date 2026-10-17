@@ -197,7 +197,8 @@ export function TicketPass({ ticket, qrData, defaultVariant }: TicketPassProps) 
   }, [ticket, qrData]);
 
   // Pre-fetch cover image as base64 so html2canvas never encounters CORS issues
-  const rawCover = isUsableImageUrl(ticket.event_cover) ? ticket.event_cover : imageFor(null, 0);
+  const defaultCover = "/images/ticket-dancer.jpg";
+  const rawCover = isUsableImageUrl(ticket.event_cover) ? ticket.event_cover : defaultCover;
   useEffect(() => {
     let cancelled = false;
     toBase64DataUrl(rawCover).then((b64) => {
@@ -239,17 +240,24 @@ export function TicketPass({ ticket, qrData, defaultVariant }: TicketPassProps) 
         setQrDataUrl(generated);
       }
 
-      // 3. Render high-resolution canvas with html2canvas
+      // Small delay for painted DOM
+      await new Promise((r) => setTimeout(r, 60));
+
+      // 3. Render high-resolution canvas with html2canvas (transparent background, exact 920x290 box)
       const canvas = await html2canvas(ticketRef.current, {
-        backgroundColor: null, // 100% transparent background outside ticket and notches!
-        scale: 2, // 2x ultra-sharp resolution (~1840px width), memory-safe for mobile & desktop
+        backgroundColor: null, // 100% transparent background outside ticket!
+        scale: 2, // 2x ultra-sharp resolution (~1840px width)
         useCORS: true,
         allowTaint: true,
         logging: false,
+        width: 920,
+        height: 290,
+        windowWidth: 920,
+        windowHeight: 290,
       } as any);
 
       // 4. Download file using Blob & URL.createObjectURL for universal browser support
-      const filename = `eventora-ticket-${ticket.ticket_ref.toLowerCase()}.png`;
+      const filename = `ticket-${(ticket.event_title || "event").toLowerCase().replace(/[^a-z0-9]+/g, "-")}-${ticket.ticket_ref.toLowerCase()}.png`;
 
       if (canvas.toBlob) {
         canvas.toBlob((blob) => {
@@ -275,8 +283,7 @@ export function TicketPass({ ticket, qrData, defaultVariant }: TicketPassProps) 
       }
     } catch (err) {
       console.error("Failed to export ticket PNG:", err);
-      // Fallback: trigger print dialog if canvas rendering fails
-      window.print();
+      // Never trigger window.print() on download failure
     } finally {
       setDownloading(false);
     }
@@ -360,18 +367,29 @@ export function TicketPass({ ticket, qrData, defaultVariant }: TicketPassProps) 
         </div>
       </div>
 
-      {/* ── SCROLL WRAPPER FOR MOBILE ── */}
+      {/* ── SCROLL WRAPPER FOR MOBILE / DESKTOP PREVIEW ── */}
       <div className="w-full overflow-x-auto pb-4 pt-1 flex justify-center">
-        {/* ── THE TICKET CARD ITSELF ── */}
-        <div
-          ref={ticketRef}
-          className="relative flex w-full max-w-[920px] shrink-0 rounded-[26px] bg-transparent text-zinc-900 shadow-[0_25px_60px_rgba(0,0,0,0.45)] border border-white/10"
-          style={{ minHeight: "290px", width: "920px" }}
-        >
-          {/* ══════════ LEFT SECTION: EVENT PHOTO WITH ORGANIC WAVE ══════════ */}
-          <div className="relative w-[34%] min-w-[240px] max-w-[290px] shrink-0 bg-zinc-900 rounded-l-[26px]">
-            {/* Inner image container */}
-            <div className="absolute inset-0 overflow-hidden rounded-l-[26px]">
+        {/* Outer UI Card Container: provides the shadow & border for the web page dashboard ONLY */}
+        <div className="relative rounded-[26px] shadow-[0_25px_60px_rgba(0,0,0,0.5)] border border-white/10 shrink-0">
+          {/* ── THE TICKET CARD ITSELF (CAPTURED FOR DOWNLOAD) ── */}
+          <div
+            ref={ticketRef}
+            id="printable-ticket"
+            className="relative flex text-zinc-900 select-none"
+            style={{
+              width: "920px",
+              height: "290px",
+              minWidth: "920px",
+              maxWidth: "920px",
+              minHeight: "290px",
+              maxHeight: "290px",
+              background: "transparent",
+              boxShadow: "none",
+              border: "none",
+            }}
+          >
+            {/* ══════════ LEFT SECTION: EVENT PHOTO WITH ORGANIC WAVE ══════════ */}
+            <div className="relative w-[280px] h-[290px] shrink-0 rounded-l-[26px] overflow-hidden bg-zinc-900">
               <img
                 src={coverImage}
                 alt={eventTitle}
@@ -380,12 +398,12 @@ export function TicketPass({ ticket, qrData, defaultVariant }: TicketPassProps) 
                   const target = e.currentTarget;
                   if (!target.dataset.fallbackApplied) {
                     target.dataset.fallbackApplied = "1";
-                    target.src = "https://images.unsplash.com/photo-1547153760-18fc86324498?auto=format&fit=crop&w=1400&q=80";
+                    target.src = "/images/ticket-dancer.jpg";
                   }
                 }}
                 className="size-full object-cover brightness-95 saturate-125"
               />
-              <div className="absolute inset-0 bg-gradient-to-t from-black/80 via-black/20 to-black/30" />
+              <div className="absolute inset-0 bg-gradient-to-t from-black/80 via-black/20 to-black/30 pointer-events-none" />
 
               {/* Badge overlay on top-left of image */}
               <div className="absolute left-4 top-4 z-10 flex items-center gap-1.5 rounded-full bg-black/50 px-3 py-1 backdrop-blur-md border border-white/10">
@@ -401,31 +419,33 @@ export function TicketPass({ ticket, qrData, defaultVariant }: TicketPassProps) 
                   Official Entry Voucher
                 </p>
               </div>
+
+              {/* ── ORGANIC SVG WAVE SEAM (Single crisp curve with primary color stroke) ── */}
+              <svg
+                viewBox="0 0 60 290"
+                preserveAspectRatio="none"
+                className="pointer-events-none absolute right-0 top-0 h-full w-[60px] z-20"
+              >
+                <path
+                  d="M 15,0 C 55,70 55,220 15,290 L 60,290 L 60,0 Z"
+                  fill="#ffffff"
+                />
+                <path
+                  d="M 15,0 C 55,70 55,220 15,290"
+                  fill="none"
+                  stroke={v.primary}
+                  strokeWidth="3.5"
+                />
+              </svg>
             </div>
 
-            {/* ── ORGANIC SVG ACCENT WAVE (Peeks out behind white curve) ── */}
-            <svg
-              viewBox="0 0 100 200"
-              preserveAspectRatio="none"
-              className="pointer-events-none absolute -right-3 top-0 h-full w-20 fill-current z-10 opacity-95"
-              style={{ color: v.primary }}
-            >
-              <path d="M 0,0 C 70,30 70,170 0,200 L 100,200 L 100,0 Z" />
-            </svg>
-
-            {/* ── ORGANIC SVG WHITE WAVE SEAM ── */}
-            <svg
-              viewBox="0 0 100 200"
-              preserveAspectRatio="none"
-              className="pointer-events-none absolute -right-0.5 top-0 h-full w-16 text-white fill-current z-15 drop-shadow-[-6px_0_15px_rgba(0,0,0,0.15)]"
-            >
-              <path d="M 0,0 C 55,38 55,162 0,200 L 100,200 L 100,0 Z" />
-            </svg>
-
             {/* ── FLOATING CIRCULAR PRICE BADGE (DOUBLE RING, 100% UNCUT) ── */}
-            <div className="absolute right-0 top-1/2 -translate-y-1/2 translate-x-1/2 z-30 pointer-events-none">
+            <div
+              className="absolute z-30 pointer-events-none"
+              style={{ left: "280px", top: "145px", transform: "translate(-50%, -50%)" }}
+            >
               <div
-                className="size-20 sm:size-22 rounded-full p-[3px] flex items-center justify-center shadow-[0_10px_30px_rgba(0,0,0,0.28)]"
+                className="size-20 rounded-full p-[3px] flex items-center justify-center shadow-[0_8px_25px_rgba(0,0,0,0.22)]"
                 style={{ background: v.primary }}
               >
                 {/* White spacer */}
@@ -436,7 +456,7 @@ export function TicketPass({ ticket, qrData, defaultVariant }: TicketPassProps) 
                     style={{ borderColor: v.primary }}
                   >
                     <span
-                      className="font-black tracking-tight text-base sm:text-lg leading-tight"
+                      className="font-black tracking-tight text-lg leading-tight"
                       style={{ color: v.primary }}
                     >
                       {priceAmount === 0 ? "FREE" : formatINR(priceAmount)}
@@ -448,180 +468,179 @@ export function TicketPass({ ticket, qrData, defaultVariant }: TicketPassProps) 
                 </div>
               </div>
             </div>
-          </div>
 
-          {/* ══════════ MIDDLE SECTION: MAIN EVENT DETAILS WITH 45° CHAMFER NOTCHES ══════════ */}
-          <div className="relative flex flex-1 flex-col justify-between p-6 pl-14 sm:pl-16 min-w-0 mr-[2px]">
-            {/* Background layer with 45° angled chamfers at top-right & bottom-right */}
-            <div className="absolute inset-0 pointer-events-none">
-              {/* Main white block (all the way to 14px before the right edge) */}
-              <div className="absolute inset-y-0 left-0 right-[14px] bg-white" />
-              {/* Right vertical strip between the two notches */}
-              <div className="absolute top-[14px] bottom-[14px] right-0 w-[14px] bg-white" />
-              {/* Top-right 45-degree filled triangle */}
-              <svg viewBox="0 0 14 14" className="absolute top-0 right-0 size-[14px] fill-white block">
-                <polygon points="0,0 0,14 14,14" />
-              </svg>
-              {/* Bottom-right 45-degree filled triangle */}
-              <svg viewBox="0 0 14 14" className="absolute bottom-0 right-0 size-[14px] fill-white block">
-                <polygon points="0,0 14,0 0,14" />
-              </svg>
-            </div>
-
-            {/* Content sitting above the background */}
-            <div className="relative z-10">
-              {/* Header Eyebrow */}
-              <div className="flex items-center justify-between gap-2">
-                <span className="text-[10px] font-extrabold uppercase tracking-[0.24em] text-zinc-400">
-                  2026 Special Live Event
-                </span>
-                <span
-                  className="rounded-full px-2.5 py-0.5 text-[10px] font-bold uppercase tracking-wider shrink-0"
-                  style={{ background: v.pillBg, color: v.pillText }}
-                >
-                  {ticket.is_checked_in ? "Used Pass" : "Verified Ticket"}
-                </span>
-              </div>
-
-              {/* Event Name */}
-              <h2
-                className="mt-1 font-display text-2xl sm:text-3xl font-black uppercase leading-tight tracking-tight line-clamp-1"
-                style={{ color: v.primary }}
+            {/* ══════════ MIDDLE SECTION: MAIN EVENT DETAILS WITH 45° CHAMFER NOTCHES ══════════ */}
+            <div className="relative w-[430px] h-[290px] shrink-0">
+              {/* White background path with 45° chamfer cutouts at top-right & bottom-right */}
+              <svg
+                viewBox="0 0 430 290"
+                preserveAspectRatio="none"
+                className="absolute inset-0 size-full pointer-events-none"
               >
-                {eventTitle}
-              </h2>
+                <path
+                  d="M 0,0 L 416,0 L 430,14 L 430,276 L 416,290 L 0,290 Z"
+                  fill="#ffffff"
+                />
+              </svg>
 
-              {/* Key metadata grid */}
-              <div className="mt-3.5 grid grid-cols-2 gap-y-2.5 gap-x-4 border-t border-zinc-100 pt-3">
-                {/* Holder */}
+              {/* Content sitting above the background */}
+              <div className="relative z-10 size-full flex flex-col justify-between pl-14 pr-6 py-5">
                 <div>
-                  <span className="text-[9.5px] font-bold uppercase tracking-[0.16em] text-zinc-400">
-                    Attendee / Holder
-                  </span>
-                  <p className="mt-0.5 text-xs font-bold text-zinc-900 truncate flex items-center gap-1">
-                    <User className="size-3 text-zinc-400 shrink-0" />
-                    {ticket.holder_name || "Guest Attendee"}
-                  </p>
+                  {/* Header Eyebrow */}
+                  <div className="flex items-center justify-between gap-2">
+                    <span className="text-[10px] font-extrabold uppercase tracking-[0.24em] text-zinc-400">
+                      2026 Special Live Event
+                    </span>
+                    <span
+                      className="rounded-full px-2.5 py-0.5 text-[10px] font-bold uppercase tracking-wider shrink-0"
+                      style={{ background: v.pillBg, color: v.pillText }}
+                    >
+                      {ticket.is_checked_in ? "Used Pass" : "Verified Ticket"}
+                    </span>
+                  </div>
+
+                  {/* Event Name */}
+                  <h2
+                    className="mt-1 font-display text-2xl font-black uppercase leading-tight tracking-tight line-clamp-1"
+                    style={{ color: v.primary }}
+                  >
+                    {eventTitle}
+                  </h2>
+
+                  {/* Key metadata grid */}
+                  <div className="mt-3.5 grid grid-cols-2 gap-y-2.5 gap-x-4 border-t border-zinc-100 pt-3">
+                    {/* Holder */}
+                    <div>
+                      <span className="text-[9.5px] font-bold uppercase tracking-[0.16em] text-zinc-400">
+                        Attendee / Holder
+                      </span>
+                      <p className="mt-0.5 text-xs font-bold text-zinc-900 truncate flex items-center gap-1">
+                        <User className="size-3 text-zinc-400 shrink-0" />
+                        {ticket.holder_name || "Guest Attendee"}
+                      </p>
+                    </div>
+
+                    {/* Tier */}
+                    <div>
+                      <span className="text-[9.5px] font-bold uppercase tracking-[0.16em] text-zinc-400">
+                        Access Tier
+                      </span>
+                      <p className="mt-0.5 text-xs font-bold text-zinc-900 truncate">
+                        {tierName}
+                      </p>
+                    </div>
+
+                    {/* Date */}
+                    <div>
+                      <span className="text-[9.5px] font-bold uppercase tracking-[0.16em] text-zinc-400">
+                        Event Date
+                      </span>
+                      <p className="mt-0.5 text-xs font-bold text-zinc-900 flex items-center gap-1">
+                        <Calendar className="size-3 text-zinc-400 shrink-0" />
+                        {dateFormatted}
+                      </p>
+                    </div>
+
+                    {/* Time */}
+                    <div>
+                      <span className="text-[9.5px] font-bold uppercase tracking-[0.16em] text-zinc-400">
+                        Gate Time
+                      </span>
+                      <p className="mt-0.5 text-xs font-bold text-zinc-900 flex items-center gap-1">
+                        <Clock className="size-3 text-zinc-400 shrink-0" />
+                        {time}
+                      </p>
+                    </div>
+                  </div>
                 </div>
 
-                {/* Tier */}
+                {/* Bottom Venue & Pills Bar */}
+                <div className="border-t border-zinc-100 pt-2.5">
+                  <div className="flex items-center gap-1.5 text-[11px] font-semibold text-zinc-600 truncate">
+                    <MapPin className="size-3 text-zinc-400 shrink-0" />
+                    <span className="truncate">{venue}</span>
+                  </div>
+
+                  <div className="mt-2 flex items-center gap-2">
+                    <span
+                      className="rounded-md px-2 py-0.5 text-[9px] font-bold uppercase tracking-wider"
+                      style={{ background: v.pillBg, color: v.pillText }}
+                    >
+                      Admit One
+                    </span>
+                    <span className="rounded-md bg-zinc-100 px-2 py-0.5 text-[9px] font-bold uppercase tracking-wider text-zinc-600">
+                      Non-Transferable
+                    </span>
+                    <span className="ml-auto font-mono text-[10px] font-bold text-zinc-400">
+                      {ticket.ticket_ref}
+                    </span>
+                  </div>
+                </div>
+              </div>
+            </div>
+
+            {/* ── VERTICAL DASHED TEAR LINE ── */}
+            <div
+              className="absolute top-[14px] bottom-[14px] z-20 pointer-events-none border-l-2 border-dashed border-zinc-200"
+              style={{ left: "710px" }}
+            />
+
+            {/* ══════════ RIGHT SECTION: STUB WITH 45° CHAMFER NOTCHES & REAL QR CODE ══════════ */}
+            <div className="relative w-[210px] h-[290px] shrink-0">
+              {/* Gradient background with 45° chamfers and rounded right corners */}
+              <svg
+                viewBox="0 0 210 290"
+                preserveAspectRatio="none"
+                className="absolute inset-0 size-full pointer-events-none"
+              >
+                <defs>
+                  <linearGradient id={`stub-grad-${variant}`} x1="0%" y1="0%" x2="100%" y2="100%">
+                    <stop offset="0%" stopColor={v.primary} />
+                    <stop offset="100%" stopColor={v.primaryDark || v.primary} />
+                  </linearGradient>
+                </defs>
+                <path
+                  d="M 14,0 L 184,0 A 26 26 0 0 1 210,26 L 210,264 A 26 26 0 0 1 184,290 L 14,290 L 0,276 L 0,14 Z"
+                  fill={`url(#stub-grad-${variant})`}
+                />
+              </svg>
+
+              {/* Stub Content */}
+              <div className="relative z-10 size-full p-4 flex flex-col items-center justify-between text-center">
                 <div>
-                  <span className="text-[9.5px] font-bold uppercase tracking-[0.16em] text-zinc-400">
-                    Access Tier
+                  <span className="text-[9px] font-black uppercase tracking-[0.2em] text-white/90">
+                    Gate Entry Pass
                   </span>
-                  <p className="mt-0.5 text-xs font-bold text-zinc-900 truncate">
+                  <p className="mt-0.5 text-xs font-black uppercase tracking-wider text-white truncate px-1">
                     {tierName}
                   </p>
                 </div>
 
-                {/* Date */}
-                <div>
-                  <span className="text-[9.5px] font-bold uppercase tracking-[0.16em] text-zinc-400">
-                    Event Date
+                {/* ── THE CRISP QR CODE CONTAINER (NO OVERLAP, CORS-SAFE) ── */}
+                <div className="my-1 rounded-2xl bg-white p-2 shadow-sm flex flex-col items-center justify-center">
+                  {qrDataUrl ? (
+                    <img
+                      src={qrDataUrl}
+                      alt={`QR for ${ticket.ticket_ref}`}
+                      className="size-24 object-contain block"
+                    />
+                  ) : (
+                    <div className="size-24 grid place-items-center bg-zinc-50">
+                      <Loader2 className="size-6 animate-spin text-zinc-400" />
+                    </div>
+                  )}
+                  <span className="mt-1 font-mono text-[9px] font-black tracking-wider text-zinc-800">
+                    {ticket.ticket_ref}
                   </span>
-                  <p className="mt-0.5 text-xs font-bold text-zinc-900 flex items-center gap-1">
-                    <Calendar className="size-3 text-zinc-400 shrink-0" />
-                    {dateFormatted}
-                  </p>
                 </div>
 
-                {/* Time */}
+                {/* Stub Footer */}
                 <div>
-                  <span className="text-[9.5px] font-bold uppercase tracking-[0.16em] text-zinc-400">
-                    Gate Time
-                  </span>
-                  <p className="mt-0.5 text-xs font-bold text-zinc-900 flex items-center gap-1">
-                    <Clock className="size-3 text-zinc-400 shrink-0" />
-                    {time}
-                  </p>
+                  <div className="inline-flex items-center gap-1 rounded-full bg-black/25 px-2.5 py-0.5 text-[8.5px] font-bold text-white shadow-sm">
+                    <ShieldCheck className="size-2.5 text-emerald-300" />
+                    <span>Scan for gate check-in</span>
+                  </div>
                 </div>
-              </div>
-            </div>
-
-            {/* Bottom Venue & Pills Bar */}
-            <div className="relative z-10 mt-3 border-t border-zinc-100 pt-2.5">
-              <div className="flex items-center gap-1.5 text-[11px] font-semibold text-zinc-600 truncate">
-                <MapPin className="size-3 text-zinc-400 shrink-0" />
-                <span className="truncate">{venue}</span>
-              </div>
-
-              <div className="mt-2 flex items-center gap-2">
-                <span
-                  className="rounded-md px-2 py-0.5 text-[9px] font-bold uppercase tracking-wider"
-                  style={{ background: v.pillBg, color: v.pillText }}
-                >
-                  Admit One
-                </span>
-                <span className="rounded-md bg-zinc-100 px-2 py-0.5 text-[9px] font-bold uppercase tracking-wider text-zinc-600">
-                  Non-Transferable
-                </span>
-                <span className="ml-auto font-mono text-[10px] font-bold text-zinc-400">
-                  {ticket.ticket_ref}
-                </span>
-              </div>
-            </div>
-          </div>
-
-          {/* ══════════ RIGHT SECTION: STUB WITH 45° CHAMFER NOTCHES & REAL QR CODE ══════════ */}
-          <div className="relative w-[210px] shrink-0 p-4 flex flex-col items-center justify-between shadow-inner">
-            {/* Background layer with 45° angled chamfers at top-left & bottom-left */}
-            <div className="absolute inset-0 pointer-events-none">
-              {/* Main stub block (from 14px to the right edge with rounded-r-[26px]) */}
-              <div
-                className="absolute inset-y-0 left-[14px] right-0 rounded-r-[26px]"
-                style={{ background: v.gradient }}
-              />
-              {/* Left vertical strip between top and bottom notches */}
-              <div
-                className="absolute top-[14px] bottom-[14px] left-0 w-[14px]"
-                style={{ background: v.primary }}
-              />
-              {/* Top-left 45-degree filled triangle */}
-              <svg viewBox="0 0 14 14" className="absolute top-0 left-0 size-[14px] block" style={{ fill: v.primary }}>
-                <polygon points="14,0 14,14 0,14" />
-              </svg>
-              {/* Bottom-left 45-degree filled triangle */}
-              <svg viewBox="0 0 14 14" className="absolute bottom-0 left-0 size-[14px] block" style={{ fill: v.primaryDark || v.primary }}>
-                <polygon points="0,0 14,0 14,14" />
-              </svg>
-            </div>
-
-            {/* Vertical dashed tear perforation line */}
-            <div className="absolute top-[14px] bottom-[14px] -left-[2px] border-l-2 border-dashed border-zinc-200/90 z-20 pointer-events-none" />
-
-            {/* Stub Content */}
-            <div className="relative z-10 w-full text-center">
-              <span className="text-[9px] font-black uppercase tracking-[0.2em] text-white/85">
-                Gate Entry Pass
-              </span>
-              <p className="mt-0.5 text-xs font-black uppercase tracking-wider text-white truncate px-1">
-                {tierName}
-              </p>
-            </div>
-
-            {/* ── THE CRISP QR CODE CONTAINER (NO OVERLAP, CORS-SAFE) ── */}
-            <div className="relative z-10 my-1.5 rounded-2xl bg-white p-2 shadow-lg flex flex-col items-center justify-center">
-              {qrDataUrl ? (
-                <img
-                  src={qrDataUrl}
-                  alt={`QR for ${ticket.ticket_ref}`}
-                  className="size-24 sm:size-26 object-contain block"
-                />
-              ) : (
-                <div className="size-24 sm:size-26 grid place-items-center bg-zinc-50">
-                  <Loader2 className="size-6 animate-spin text-zinc-400" />
-                </div>
-              )}
-              <span className="mt-1 font-mono text-[9px] font-black tracking-wider text-zinc-800">
-                {ticket.ticket_ref}
-              </span>
-            </div>
-
-            {/* Stub Footer */}
-            <div className="relative z-10 w-full text-center">
-              <div className="inline-flex items-center gap-1 rounded-full bg-black/25 px-2.5 py-0.5 text-[8.5px] font-bold text-white shadow-sm">
-                <ShieldCheck className="size-2.5 text-emerald-300" />
-                <span>Scan for gate check-in</span>
               </div>
             </div>
           </div>
@@ -630,3 +649,4 @@ export function TicketPass({ ticket, qrData, defaultVariant }: TicketPassProps) 
     </div>
   );
 }
+
