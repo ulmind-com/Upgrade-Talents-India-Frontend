@@ -47,10 +47,10 @@ export default async function RootLayout({ children }: { children: React.ReactNo
         <link rel="preconnect" href="https://fonts.googleapis.com" />
         <link rel="preconnect" href="https://fonts.gstatic.com" crossOrigin="anonymous" />
         <link
-          href="https://fonts.googleapis.com/css2?family=Archivo+Black&family=Inter:wght@400;500;600;700;800;900&family=JetBrains+Mono:wght@400;500&family=Poppins:wght@300;400;500;600;700;800&family=Anton&family=Oswald:wght@400;500;600;700&family=Permanent+Marker&family=Playfair+Display:ital,wght@0,400;0,500;0,600;1,400&display=swap"
+          href="https://fonts.googleapis.com/css2?family=Cormorant+Garamond:ital,wght@0,400;0,500;0,600;0,700;1,400;1,500;1,600&family=Inter:wght@400;500;600;700;800;900&family=JetBrains+Mono:wght@400;500&family=Anton&family=Oswald:wght@400;500;600;700&family=Permanent+Marker&family=Playfair+Display:ital,wght@0,400;0,500;0,600;0,700;1,400&display=swap"
           rel="stylesheet"
         />
-        <style>{`:root{--font-display:'Archivo Black','Inter',system-ui,sans-serif;--font-sans:'Inter',system-ui,sans-serif;--font-mono:'JetBrains Mono',ui-monospace,monospace;--font-hero:'Poppins','Inter',system-ui,sans-serif;--font-street:'Anton','Archivo Black',system-ui,sans-serif;--font-cond:'Oswald','Inter',system-ui,sans-serif;--font-marker:'Permanent Marker',cursive;--font-serif:'Playfair Display',Georgia,serif;}`}</style>
+        <style>{`:root{--font-display:'Cormorant Garamond',Georgia,serif;--font-sans:'Inter',system-ui,sans-serif;--font-mono:'JetBrains Mono',ui-monospace,monospace;--font-hero:'Cormorant Garamond',Georgia,serif;--font-street:'Anton',system-ui,sans-serif;--font-cond:'Oswald','Inter',system-ui,sans-serif;--font-marker:'Permanent Marker',cursive;--font-serif:'Playfair Display',Georgia,serif;}`}</style>
       </head>
       <body>
         <a
