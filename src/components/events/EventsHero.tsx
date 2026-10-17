@@ -24,7 +24,7 @@ export default function EventsHero({
   return (
     <section ref={ref} className="on-media relative isolate flex min-h-[62vh] items-center justify-center overflow-hidden md:min-h-[74vh]">
       <motion.div style={{ y, scale }} className="absolute inset-0 -z-20">
-        <img src={imageFor(image, seed)} alt="" aria-hidden className="size-full object-cover" />
+        <img src={imageFor(image, seed)} alt="" aria-hidden className="size-full object-cover object-[center_30%]" />
       </motion.div>
 
       {/* Stage scrim — keeps the wordmark legible in both themes */}
