@@ -36,7 +36,9 @@ export default function CompetitionDetail({ comp, initialLeaderboard }: { comp: 
   const [files, setFiles] = useState<Record<string, File | null>>({});
   const [busy, setBusy] = useState(false);
   const [msg, setMsg] = useState<{ tone: "ok" | "err"; text: string } | null>(null);
-  const [rows, setRows] = useState<Row[]>(initialLeaderboard || []);
+  const [rows, setRows] = useState<Row[]>(
+    (initialLeaderboard || []).map((r: any) => ({ ...r, audience_votes: r.audience_votes ?? r.raw_audience_votes, final_score: r.final_score }))
+  );
   const [voted, setVoted] = useState<Set<string>>(new Set());
   const [votingId, setVotingId] = useState<string | null>(null);
 

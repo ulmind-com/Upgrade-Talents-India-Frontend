@@ -254,8 +254,11 @@ export const competeApi = {
 
 export const shopApi = {
   products: (p: { skip?: number; limit?: number; search?: string; category?: string } = {}) =>
-    apiFetch<any[]>("/api/merchandise/products", { query: { limit: 60, ...p }, cache: "no-store" }),
-  product: (id: string) => apiFetch<any>(`/api/merchandise/products/${id}`, { cache: "no-store" }),
+    apiFetch<any>("/api/merchandise/products", { query: { limit: 60, ...p }, cache: "no-store" }).then(
+      (d) => (Array.isArray(d) ? d : d?.products || []) as any[]
+    ),
+  product: (id: string) =>
+    apiFetch<any>(`/api/merchandise/products/${id}`, { cache: "no-store" }).then((d) => d?.product ?? d),
   categories: () => apiFetch<any[]>("/api/merchandise/categories", { revalidate: 300 }),
   createOrder: (payload: { items: { product_id: string; variant_id?: string; quantity: number }[]; shipping_address: Record<string, string> }) =>
     apiFetch<any>("/api/merchandise/orders", { method: "POST", auth: true, body: payload }),

@@ -141,7 +141,12 @@ export default function LeaderboardView({
     finally { setLoading(false); }
   }
 
-  const data = (rows.length ? rows : preview ? DEMO : []).map((r, i) => ({ ...r, rank: r.rank ?? i + 1 }));
+  const data = (rows.length ? rows : preview ? DEMO : []).map((r: any, i) => ({
+    ...r,
+    rank: r.rank ?? i + 1,
+    audience_votes: r.audience_votes ?? r.raw_audience_votes,
+    judge_score: r.judge_score ?? r.raw_judge_score,
+  }));
   const podium = data.slice(0, 3);
   const podiumOrder = [podium[1], podium[0], podium[2]].filter(Boolean) as Row[]; // 2 · 1 · 3
   const filtered = useMemo(
