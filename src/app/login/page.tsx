@@ -3,12 +3,24 @@
 import Link from "next/link";
 import { useRouter, useSearchParams } from "next/navigation";
 import { Suspense, useState } from "react";
+import { motion, type Variants } from "framer-motion";
 import { Eye, EyeOff, ArrowRight, Ticket, ShieldCheck, Sparkles } from "lucide-react";
 import { authApi, tokenStore } from "@/lib/api";
 import { useAuth } from "@/components/motion/Providers";
 import { AuthShell, Field, FormAlert, Input } from "@/components/ui/Form";
 import { Button } from "@/components/ui/Primitives";
 import { imageFor } from "@/lib/utils";
+
+const EASE = [0.16, 1, 0.3, 1] as const;
+// Form is "pushed" into place with a spring, its fields cascade in after.
+const formV: Variants = {
+  hidden: { opacity: 0, x: 64 },
+  show: { opacity: 1, x: 0, transition: { type: "spring", stiffness: 120, damping: 16, mass: 0.9, staggerChildren: 0.08, delayChildren: 0.18 } },
+};
+const itemV: Variants = {
+  hidden: { opacity: 0, y: 18 },
+  show: { opacity: 1, y: 0, transition: { duration: 0.5, ease: EASE } },
+};
 
 function LoginForm() {
   const router = useRouter();
@@ -53,7 +65,12 @@ function LoginForm() {
       title="Sign in"
       subtitle="Access your tickets, bookings and certificates."
       aside={
-        <div className="relative aspect-[4/5] overflow-hidden rounded-[var(--radius-2xl)] border border-[var(--border)]">
+        <motion.div
+          initial={{ opacity: 0, scale: 0.92, x: 40 }}
+          animate={{ opacity: 1, scale: 1, x: 0 }}
+          transition={{ duration: 0.85, ease: EASE }}
+          className="relative aspect-[4/5] overflow-hidden rounded-[var(--radius-2xl)] border border-[var(--border)]"
+        >
           <img src={imageFor(null, 1)} alt="" className="size-full object-cover" />
           <div className="absolute inset-0" style={{ background: "linear-gradient(200deg, transparent, var(--bg) 92%)" }} aria-hidden />
           <ul className="absolute inset-x-8 bottom-8 flex flex-col gap-4">
@@ -70,12 +87,13 @@ function LoginForm() {
               </li>
             ))}
           </ul>
-        </div>
+        </motion.div>
       }
     >
-      <form onSubmit={submit} noValidate className="flex flex-col gap-5">
-        {formError && <FormAlert tone="error">{formError}</FormAlert>}
+      <motion.form onSubmit={submit} noValidate variants={formV} initial="hidden" animate="show" className="flex flex-col gap-5">
+        {formError && <motion.div variants={itemV}><FormAlert tone="error">{formError}</FormAlert></motion.div>}
 
+        <motion.div variants={itemV}>
         <Field label="Email address" error={errors.email} required>
           {({ id, describedBy, invalid }) => (
             <Input
@@ -91,7 +109,9 @@ function LoginForm() {
             />
           )}
         </Field>
+        </motion.div>
 
+        <motion.div variants={itemV}>
         <Field label="Password" error={errors.password} required>
           {({ id, describedBy, invalid }) => (
             <div className="relative">
@@ -117,18 +137,21 @@ function LoginForm() {
             </div>
           )}
         </Field>
+        </motion.div>
 
-        <Button type="submit" size="lg" loading={loading} className="mt-2 w-full">
-          Sign in <ArrowRight className="size-4" aria-hidden />
-        </Button>
+        <motion.div variants={itemV}>
+          <Button type="submit" size="lg" loading={loading} className="mt-2 w-full">
+            Sign in <ArrowRight className="size-4" aria-hidden />
+          </Button>
+        </motion.div>
 
-        <p className="text-center text-[13px] text-[var(--fg-muted)]">
+        <motion.p variants={itemV} className="text-center text-[13px] text-[var(--fg-muted)]">
           New here?{" "}
           <Link href="/register" className="font-semibold text-[var(--accent)] underline-offset-4 hover:underline">
             Create an account
           </Link>
-        </p>
-      </form>
+        </motion.p>
+      </motion.form>
     </AuthShell>
   );
 }
