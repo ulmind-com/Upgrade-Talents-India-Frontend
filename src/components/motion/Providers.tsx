@@ -1,6 +1,6 @@
 "use client";
 
-import { createContext, useCallback, useContext, useEffect, useState } from "react";
+import { createContext, useCallback, useContext, useEffect, useRef, useState } from "react";
 import Lenis from "lenis";
 import { authApi, tokenStore } from "@/lib/api";
 
@@ -45,6 +45,36 @@ let lenisInstance: Lenis | null = null;
 export function setPageScrollLocked(locked: boolean) {
   if (locked) lenisInstance?.stop();
   else lenisInstance?.start();
+}
+
+/**
+ * Freezes the page behind an open overlay and, when `onEscape` is given,
+ * closes it on Escape. Covers both Lenis and the native scrollbars.
+ */
+export function usePageScrollLock(active: boolean, onEscape?: () => void) {
+  // Callers usually pass an inline arrow, so keep it out of the effect's deps:
+  // re-locking on every render would thrash Lenis.
+  const escapeRef = useRef(onEscape);
+  escapeRef.current = onEscape;
+
+  useEffect(() => {
+    if (!active) return;
+
+    const prevOverflow = document.body.style.overflow;
+    document.body.style.overflow = "hidden";
+    setPageScrollLocked(true);
+
+    const onKey = (e: KeyboardEvent) => {
+      if (e.key === "Escape") escapeRef.current?.();
+    };
+    document.addEventListener("keydown", onKey);
+
+    return () => {
+      document.body.style.overflow = prevOverflow;
+      setPageScrollLocked(false);
+      document.removeEventListener("keydown", onKey);
+    };
+  }, [active]);
 }
 
 export function SmoothScroll({ children }: { children: React.ReactNode }) {

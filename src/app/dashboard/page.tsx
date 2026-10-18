@@ -17,7 +17,7 @@ import {
   bookingsApi, vipApi, profileApi, rewardsApi, certificatesApi,
   ApiError, type MyTicket,
 } from "@/lib/api";
-import { useAuth, setPageScrollLocked } from "@/components/motion/Providers";
+import { useAuth, usePageScrollLock } from "@/components/motion/Providers";
 import { Badge, Button, SectionLabel, Spotlights } from "@/components/ui/Primitives";
 import { Reveal, SplitHeading } from "@/components/motion/Reveal";
 import { cn, formatEventDate, formatINR } from "@/lib/utils";
@@ -850,19 +850,7 @@ function EditProfileModal({
     setErr(null);
   }, [user, isOpen]);
 
-  useEffect(() => {
-    if (!isOpen) return;
-    const onKey = (e: KeyboardEvent) => { if (e.key === "Escape") onClose(); };
-    const prevOverflow = document.body.style.overflow;
-    document.body.style.overflow = "hidden";
-    setPageScrollLocked(true);
-    document.addEventListener("keydown", onKey);
-    return () => {
-      document.body.style.overflow = prevOverflow;
-      setPageScrollLocked(false);
-      document.removeEventListener("keydown", onKey);
-    };
-  }, [isOpen, onClose]);
+  usePageScrollLock(isOpen, onClose);
 
   function handlePhotoChange(e: React.ChangeEvent<HTMLInputElement>) {
     const file = e.target.files?.[0];
@@ -1304,6 +1292,8 @@ function VipDashboardTab({ vipBookings, vipPasses, user }: { vipBookings: any[];
    ═══════════════════════════════════════════════════════════════════ */
 
 function QrCodeModal({ pass, onClose }: { pass: any | null; onClose: () => void }) {
+  usePageScrollLock(!!pass, onClose);
+
   const [qrData, setQrData] = useState<any>(null);
   const [clientQrUrl, setClientQrUrl] = useState<string>("");
   const [loading, setLoading] = useState(false);
@@ -1375,7 +1365,10 @@ function QrCodeModal({ pass, onClose }: { pass: any | null; onClose: () => void 
   return (
     <AnimatePresence>
       {pass && (
-        <div className="fixed inset-0 z-[130] grid place-items-center p-4">
+        <div
+          data-lenis-prevent
+          className="fixed inset-0 z-[130] grid place-items-center overflow-y-auto overscroll-contain p-4"
+        >
           <div className="absolute inset-0 backdrop-blur-sm" style={{ background: "var(--scrim)" }} onClick={onClose} />
           <motion.div
             initial={{ scale: 0.94, y: 16, opacity: 0 }}
