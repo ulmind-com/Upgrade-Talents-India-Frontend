@@ -65,18 +65,33 @@ export default function CompetitionDetail({ comp, initialLeaderboard }: { comp: 
               String(comp.title || comp.name || "").toLowerCase().trim()
         );
         if (match) {
-          setEnrollmentInfo({
-            reference: match.registration_reference,
-            registered_at: match.registered_at,
-          });
-          if (match.has_submitted || match.submission_id) {
-            setStep("done");
-            setMsg({ tone: "ok", text: "You have submitted your entry for this competition!" });
+          const isConfirmed =
+            match.status === "CONFIRMED" ||
+            match.payment_status === "PAID" ||
+            match.payment_status === "NOT_REQUIRED" ||
+            match.is_confirmed === true;
+
+          if (isConfirmed) {
+            setEnrollmentInfo({
+              reference: match.registration_reference,
+              registered_at: match.registered_at,
+            });
+            if (match.has_submitted || match.submission_id) {
+              setStep("done");
+              setMsg({ tone: "ok", text: "You have submitted your entry for this competition!" });
+            } else {
+              setStep(fields.length ? "submit" : "done");
+              setMsg({
+                tone: "ok",
+                text: `You are enrolled in this competition! (${match.registration_reference || "Confirmed"}) Upload your entry below.`,
+              });
+            }
           } else {
-            setStep(fields.length ? "submit" : "done");
+            // Unconfirmed / Pending Payment — Keep registration step active so user can pay
+            setStep("register");
             setMsg({
-              tone: "ok",
-              text: `You are enrolled in this competition! (${match.registration_reference || "Confirmed"}) Upload your entry below.`,
+              tone: "err",
+              text: "You have a pending registration. Please complete entry fee payment below to confirm your registration and submit your entry.",
             });
           }
         }
@@ -144,6 +159,7 @@ export default function CompetitionDetail({ comp, initialLeaderboard }: { comp: 
         modal: {
           ondismiss: () => {
             setBusy(false);
+            setStep("register");
             setMsg({ tone: "err", text: "Payment was cancelled. Pay entry fee to confirm registration and submit your entry." });
           },
         },
@@ -175,10 +191,11 @@ export default function CompetitionDetail({ comp, initialLeaderboard }: { comp: 
       rzp.open();
     } catch (e: any) {
       const m = String(e?.message || "");
-      if (/already/i.test(m)) {
+      if (/already registered and confirmed/i.test(m)) {
         setStep(fields.length ? "submit" : "done");
         setMsg({ tone: "ok", text: "You're already registered. Upload your entry below." });
       } else {
+        setStep("register");
         setMsg({ tone: "err", text: m || "Could not register." });
       }
     } finally {

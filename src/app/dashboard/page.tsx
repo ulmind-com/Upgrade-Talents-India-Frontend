@@ -318,7 +318,7 @@ export default function DashboardPage() {
               <div className="grid gap-6 sm:grid-cols-2 lg:grid-cols-3">
                 {competitions.map((c, i) => {
                   const compId = c.competition_id || c.activity_id || c._id;
-                  const isPaid = c.payment_status === "PAID" || c.status === "CONFIRMED";
+                  const isPaid = c.is_confirmed || c.payment_status === "PAID" || c.payment_status === "NOT_REQUIRED" || c.status === "CONFIRMED";
                   const hasSubmitted = c.has_submitted || c.submission_id;
                   return (
                     <motion.div
@@ -356,7 +356,11 @@ export default function DashboardPage() {
                           </p>
                           <div className="flex items-center gap-2 pt-1">
                             <span className="text-[var(--fg-subtle)]">Entry Status:</span>
-                            {hasSubmitted ? (
+                            {!isPaid ? (
+                              <span className="inline-flex items-center gap-1 font-semibold text-rose-400">
+                                <AlertCircle className="size-3.5" /> Payment Required
+                              </span>
+                            ) : hasSubmitted ? (
                               <span className="inline-flex items-center gap-1 font-semibold text-[var(--success)]">
                                 <CheckCircle2 className="size-3.5" /> Video/Entry Submitted
                               </span>
@@ -373,9 +377,9 @@ export default function DashboardPage() {
                         <Link
                           href={`/competitions/${compId}`}
                           className="inline-flex w-full items-center justify-center gap-2 rounded-full py-2.5 text-xs font-bold text-[var(--on-accent)] transition-transform active:scale-95"
-                          style={{ background: "var(--grad-brand)" }}
+                          style={{ background: !isPaid ? "linear-gradient(135deg, #f59e0b, #ef4444)" : "var(--grad-brand)" }}
                         >
-                          {hasSubmitted ? "View Competition & Leaderboard" : "Upload Your Entry"}
+                          {!isPaid ? "Complete Payment" : hasSubmitted ? "View Competition & Leaderboard" : "Upload Your Entry"}
                           <ArrowUpRight className="size-3.5" />
                         </Link>
                       </div>
@@ -461,29 +465,35 @@ export default function DashboardPage() {
           <div className="mt-10 flex flex-col gap-10">
             {eventsRegistered.length || coursesRegistered.length ? (
               <div className="grid gap-6 sm:grid-cols-2">
-                {eventsRegistered.map((ev, i) => (
-                  <div key={i} className="rounded-[var(--radius-lg)] border border-[var(--border)] bg-[var(--surface)] p-6">
-                    <Badge tone="success">Registered Event</Badge>
-                    <h3 className="mt-3 font-display text-xl font-bold uppercase">{ev.activity_title || ev.title || "Live Event"}</h3>
-                    <p className="mt-2 text-xs text-[var(--fg-muted)]">
-                      Ref: <span className="font-mono text-[var(--fg)]">{ev.registration_id || ev._id}</span>
-                    </p>
-                    {ev.date && (
-                      <p className="mt-1 flex items-center gap-1.5 text-xs text-[var(--fg-muted)]">
-                        <CalendarDays className="size-3.5" /> {formatEventDate(ev.date)}
+                {eventsRegistered.map((ev, i) => {
+                  const isPaid = ev.is_confirmed || ev.status === "CONFIRMED" || ev.payment_status === "PAID" || ev.payment_status === "NOT_REQUIRED";
+                  return (
+                    <div key={i} className="rounded-[var(--radius-lg)] border border-[var(--border)] bg-[var(--surface)] p-6">
+                      <Badge tone={isPaid ? "success" : "warning"}>{isPaid ? "Registered Event" : "Payment Pending"}</Badge>
+                      <h3 className="mt-3 font-display text-xl font-bold uppercase">{ev.activity_title || ev.title || "Live Event"}</h3>
+                      <p className="mt-2 text-xs text-[var(--fg-muted)]">
+                        Ref: <span className="font-mono text-[var(--fg)]">{ev.registration_id || ev._id || ev.order_reference}</span>
                       </p>
-                    )}
-                  </div>
-                ))}
-                {coursesRegistered.map((cr, i) => (
-                  <div key={i} className="rounded-[var(--radius-lg)] border border-[var(--border)] bg-[var(--surface)] p-6">
-                    <Badge tone="brand">Registered Course</Badge>
-                    <h3 className="mt-3 font-display text-xl font-bold uppercase">{cr.activity_title || cr.title || "Masterclass"}</h3>
-                    <p className="mt-2 text-xs text-[var(--fg-muted)]">
-                      Ref: <span className="font-mono text-[var(--fg)]">{cr.registration_id || cr._id}</span>
-                    </p>
-                  </div>
-                ))}
+                      {ev.date && (
+                        <p className="mt-1 flex items-center gap-1.5 text-xs text-[var(--fg-muted)]">
+                          <CalendarDays className="size-3.5" /> {formatEventDate(ev.date)}
+                        </p>
+                      )}
+                    </div>
+                  );
+                })}
+                {coursesRegistered.map((cr, i) => {
+                  const isPaid = cr.is_confirmed || cr.status === "CONFIRMED" || cr.payment_status === "PAID" || cr.payment_status === "NOT_REQUIRED";
+                  return (
+                    <div key={i} className="rounded-[var(--radius-lg)] border border-[var(--border)] bg-[var(--surface)] p-6">
+                      <Badge tone={isPaid ? "brand" : "warning"}>{isPaid ? "Registered Course" : "Payment Pending"}</Badge>
+                      <h3 className="mt-3 font-display text-xl font-bold uppercase">{cr.activity_title || cr.title || "Masterclass"}</h3>
+                      <p className="mt-2 text-xs text-[var(--fg-muted)]">
+                        Ref: <span className="font-mono text-[var(--fg)]">{cr.registration_id || cr._id || cr.order_reference}</span>
+                      </p>
+                    </div>
+                  );
+                })}
               </div>
             ) : (
               <EmptyState

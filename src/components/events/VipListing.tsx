@@ -199,16 +199,20 @@ function BookingModal({ offering, user, onClose }: { offering: Offering | null; 
       const paymentDetails = booking.payment_details;
 
       if (!paymentDetails) {
-        // No payment details — booking might be in a weird state
-        setStep("success");
+        if (booking.booking_status === "CONFIRMED" || booking.payment_status === "PAID") {
+          setStep("success");
+        } else {
+          setErr("Payment configuration required. Please retry to complete payment.");
+          setStep("form");
+        }
         setBusy(false);
         return;
       }
 
       // 3. If status is PENDING_CONFIGURATION, gateway isn't configured — show message
       if (paymentDetails.status === "PENDING_CONFIGURATION") {
-        setErr("Payment gateway is being configured. Your booking is reserved — you can complete payment from your dashboard once it's ready.");
-        setStep("success");
+        setErr("Payment gateway is being configured. Your booking is reserved — you can complete payment once it's ready.");
+        setStep("form");
         setBusy(false);
         return;
       }

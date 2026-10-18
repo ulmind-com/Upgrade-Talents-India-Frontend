@@ -1,13 +1,13 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import Link from "next/link";
 import {
   GraduationCap, CalendarRange, User2, Clock, Loader2, CheckCircle2,
   AlertCircle, LogIn, ArrowUpRight, IndianRupee,
 } from "lucide-react";
 import type { CourseItem } from "@/lib/api";
-import { registrationsApi } from "@/lib/api";
+import { registrationsApi, profileApi } from "@/lib/api";
 import { useAuth } from "@/components/motion/Providers";
 import { Badge, Button, SectionLabel } from "@/components/ui/Primitives";
 import { Reveal } from "@/components/motion/Reveal";
@@ -40,6 +40,37 @@ export default function LearnDetail({ item, kind }: { item: CourseItem; kind: "c
   const soldOut = typeof item.available_seats === "number" && item.available_seats <= 0;
   const closed = item.registration_status === "CLOSED";
   const upcoming = item.registration_status === "UPCOMING";
+
+  // Check existing enrollment status
+  useEffect(() => {
+    if (!user || !item._id) return;
+    profileApi.dashboard().then((d) => {
+      const myCourses = Array.isArray(d?.my_courses) ? d.my_courses : [];
+      const match = myCourses.find(
+        (c: any) =>
+          String(c.activity_id || c._id) === String(item._id) ||
+          String(c.activity_title || c.title || "").toLowerCase().trim() ===
+            String(item.title || "").toLowerCase().trim()
+      );
+      if (match) {
+        const isConfirmed =
+          match.status === "CONFIRMED" ||
+          match.payment_status === "PAID" ||
+          match.payment_status === "NOT_REQUIRED" ||
+          match.is_confirmed === true;
+        if (isConfirmed) {
+          setDone(true);
+          setMsg({ tone: "ok", text: `You are enrolled in this ${label.toLowerCase()}.` });
+        } else {
+          setDone(false);
+          setMsg({
+            tone: "err",
+            text: `You have a pending registration. Click "Enrol Now" below to complete payment and secure your seat.`,
+          });
+        }
+      }
+    }).catch(() => {});
+  }, [user, item._id, item.title, label]);
 
   async function enrol() {
     setBusy(true);
@@ -77,7 +108,8 @@ export default function LearnDetail({ item, kind }: { item: CourseItem; kind: "c
         modal: {
           ondismiss: () => {
             setBusy(false);
-            setMsg({ tone: "err", text: "Payment cancelled — your seat is not confirmed yet." });
+            setDone(false);
+            setMsg({ tone: "err", text: "Payment cancelled — your seat is not confirmed yet. Click Enrol to retry." });
           },
         },
         handler: async (resp: any) => {
@@ -103,7 +135,13 @@ export default function LearnDetail({ item, kind }: { item: CourseItem; kind: "c
       return;
     } catch (e: any) {
       const text = e?.message || `Could not enrol in this ${kind}.`;
-      setMsg({ tone: /already registered/i.test(text) ? "info" : "err", text });
+      if (/already registered and confirmed/i.test(text) || (/already registered/i.test(text) && !/pending/i.test(text))) {
+        setDone(true);
+        setMsg({ tone: "ok", text: `You're already enrolled in this ${kind}.` });
+      } else {
+        setDone(false);
+        setMsg({ tone: "err", text });
+      }
     } finally {
       setBusy(false);
     }
