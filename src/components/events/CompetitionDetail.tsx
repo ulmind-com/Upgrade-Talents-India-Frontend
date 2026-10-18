@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import Link from "next/link";
 import { motion } from "framer-motion";
 import {
@@ -10,7 +10,7 @@ import {
 import { Reveal, StaggerGroup, StaggerItem } from "@/components/motion/Reveal";
 import { SectionLabel } from "@/components/ui/Primitives";
 import { useAuth } from "@/components/motion/Providers";
-import { competeApi } from "@/lib/api";
+import { competeApi, profileApi } from "@/lib/api";
 import { imageFor, formatEventDate } from "@/lib/utils";
 
 type Field = { name: string; required?: boolean; type?: string };
@@ -33,6 +33,11 @@ export default function CompetitionDetail({ comp, initialLeaderboard }: { comp: 
   const fields = comp.dynamic_submission_fields || [];
 
   const [step, setStep] = useState<"register" | "submit" | "done">("register");
+  const [checkingEnrollment, setCheckingEnrollment] = useState(false);
+  const [enrollmentInfo, setEnrollmentInfo] = useState<{
+    reference?: string;
+    registered_at?: string;
+  } | null>(null);
   const [rules, setRules] = useState(false);
   const [entryModes, setEntryModes] = useState<Record<string, "file" | "link">>({});
   const [files, setFiles] = useState<Record<string, File | null>>({});
@@ -44,6 +49,41 @@ export default function CompetitionDetail({ comp, initialLeaderboard }: { comp: 
   );
   const [voted, setVoted] = useState<Set<string>>(new Set());
   const [votingId, setVotingId] = useState<string | null>(null);
+
+  // Auto-detect if user is already enrolled or submitted
+  useEffect(() => {
+    if (!user || !id) return;
+    setCheckingEnrollment(true);
+    profileApi
+      .dashboard()
+      .then((d) => {
+        const myComps = Array.isArray(d?.my_competitions) ? d.my_competitions : [];
+        const match = myComps.find(
+          (c: any) =>
+            String(c.competition_id || c._id || c.activity_id) === String(id) ||
+            String(c.title || c.name || "").toLowerCase().trim() ===
+              String(comp.title || comp.name || "").toLowerCase().trim()
+        );
+        if (match) {
+          setEnrollmentInfo({
+            reference: match.registration_reference,
+            registered_at: match.registered_at,
+          });
+          if (match.has_submitted || match.submission_id) {
+            setStep("done");
+            setMsg({ tone: "ok", text: "You have submitted your entry for this competition!" });
+          } else {
+            setStep(fields.length ? "submit" : "done");
+            setMsg({
+              tone: "ok",
+              text: `You are enrolled in this competition! (${match.registration_reference || "Confirmed"}) Upload your entry below.`,
+            });
+          }
+        }
+      })
+      .catch(() => {})
+      .finally(() => setCheckingEnrollment(false));
+  }, [user, id, comp.title, comp.name, fields.length]);
 
   const loadRazorpay = () =>
     new Promise<boolean>((resolve) => {
@@ -310,8 +350,12 @@ export default function CompetitionDetail({ comp, initialLeaderboard }: { comp: 
       <div className="lg:sticky lg:top-28 lg:self-start">
         <div className="overflow-hidden rounded-[var(--radius-xl)] border border-[var(--border)] bg-[var(--surface)]" style={{ background: "var(--grad-surface), var(--surface)" }}>
           <div className="border-b border-[var(--border)] p-5">
-            <p className="font-display text-lg font-bold">Enter this competition</p>
-            <p className="mt-1 text-[12.5px] text-[var(--fg-muted)]">{open ? "Registration is open." : "Registration has closed."}</p>
+            <p className="font-display text-lg font-bold">
+              {step === "submit" ? "Submit Your Entry" : step === "done" ? "Entry Submitted" : "Enter this competition"}
+            </p>
+            <p className="mt-1 text-[12.5px] text-[var(--fg-muted)]">
+              {step === "submit" ? "You are enrolled. Upload your performance entry." : step === "done" ? "Your performance has been submitted." : open ? "Registration is open." : "Registration has closed."}
+            </p>
           </div>
 
           <div className="p-5">
@@ -324,6 +368,11 @@ export default function CompetitionDetail({ comp, initialLeaderboard }: { comp: 
                   <LogIn className="size-4" aria-hidden /> Sign in to enter
                 </Link>
               </>
+            ) : checkingEnrollment ? (
+              <div className="flex flex-col items-center justify-center py-8 text-center text-xs text-[var(--fg-muted)]">
+                <Loader2 className="size-6 animate-spin text-[var(--accent)]" />
+                <p className="mt-2.5">Checking enrollment status…</p>
+              </div>
             ) : step === "register" ? (
               <>
                 {!!(comp.participation_fee || comp.fee) && (
@@ -346,6 +395,14 @@ export default function CompetitionDetail({ comp, initialLeaderboard }: { comp: 
               </>
             ) : step === "submit" ? (
               <>
+                <div className="mb-4 flex items-center justify-between rounded-xl border border-emerald-500/30 bg-emerald-500/10 p-3 text-xs text-emerald-300">
+                  <span className="flex items-center gap-1.5 font-bold">
+                    <CheckCircle2 className="size-4 text-emerald-400" /> Enrolled & Confirmed
+                  </span>
+                  {enrollmentInfo?.reference && (
+                    <span className="font-mono text-[11px] text-emerald-400/80">{enrollmentInfo.reference}</span>
+                  )}
+                </div>
                 <div className="flex items-center justify-between">
                   <p className="text-[13px] font-semibold">Upload your entry</p>
                   <span className="text-[11px] text-[var(--fg-subtle)]">File or Link accepted</span>
