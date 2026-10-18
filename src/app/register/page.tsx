@@ -42,9 +42,7 @@ export default function RegisterPage() {
   const [password, setPassword] = useState("");
   const [confirm, setConfirm] = useState("");
   const [showPw, setShowPw] = useState(false);
-  const [govtId, setGovtId] = useState<File | null>(null);
   const [photo, setPhoto] = useState<File | null>(null);
-  const govtRef = useRef<HTMLInputElement>(null);
   const photoRef = useRef<HTMLInputElement>(null);
 
   const handleGoogleSignIn = async () => {
@@ -130,7 +128,6 @@ export default function RegisterPage() {
       fd.append("address", address.trim());
       if (parentPhone.trim()) fd.append("parent_phone_number", parentPhone.replace(/\D/g, ""));
       if (photo) fd.append("profile_photo", photo);
-      if (govtId) fd.append("govt_id_proof", govtId);
 
       const res = await authApi.registerStep3(fd);
       tokenStore.clearReg();
@@ -348,40 +345,20 @@ export default function RegisterPage() {
               </Field>
             </div>
 
-            {/* Uploads */}
-            <div className="grid gap-5 sm:grid-cols-2">
-              <Field label="Government ID proof" hint="Optional. Verify digitally with DigiLocker anytime." error={errors.govtId}>
-                {({ id, describedBy, invalid }) => (
-                  <>
-                    <input ref={govtRef} id={id} type="file" accept="image/*,.pdf" className="sr-only"
-                      aria-describedby={describedBy}
-                      onChange={(e) => setGovtId(e.target.files?.[0] || null)} />
-                    <button type="button" onClick={() => govtRef.current?.click()}
-                      className={cn(
-                        "flex min-h-[48px] w-full cursor-pointer items-center gap-3 rounded-xl border border-dashed px-4 text-left text-[13px] transition-colors hover:border-[var(--accent)]",
-                        invalid ? "border-[var(--danger)]" : "border-[var(--border-strong)]"
-                      )}>
-                      <Upload className="size-4 shrink-0 text-[var(--accent)]" aria-hidden />
-                      <span className="truncate text-[var(--fg-muted)]">{govtId?.name || "Choose a file"}</span>
-                    </button>
-                  </>
-                )}
-              </Field>
-
-              <Field label="Profile photo" hint="Optional.">
-                {({ id }) => (
-                  <>
-                    <input ref={photoRef} id={id} type="file" accept="image/*" className="sr-only"
-                      onChange={(e) => setPhoto(e.target.files?.[0] || null)} />
-                    <button type="button" onClick={() => photoRef.current?.click()}
-                      className="flex min-h-[48px] w-full cursor-pointer items-center gap-3 rounded-xl border border-dashed border-[var(--border-strong)] px-4 text-left text-[13px] transition-colors hover:border-[var(--accent)]">
-                      <Upload className="size-4 shrink-0 text-[var(--accent)]" aria-hidden />
-                      <span className="truncate text-[var(--fg-muted)]">{photo?.name || "Choose a photo"}</span>
-                    </button>
-                  </>
-                )}
-              </Field>
-            </div>
+            {/* Profile Photo */}
+            <Field label="Profile photo" hint="Optional — you can add or change this anytime in your profile.">
+              {({ id }) => (
+                <>
+                  <input ref={photoRef} id={id} type="file" accept="image/*" className="sr-only"
+                    onChange={(e) => setPhoto(e.target.files?.[0] || null)} />
+                  <button type="button" onClick={() => photoRef.current?.click()}
+                    className="flex min-h-[48px] w-full cursor-pointer items-center gap-3 rounded-xl border border-dashed border-[var(--border-strong)] px-4 text-left text-[13px] transition-colors hover:border-[var(--accent)]">
+                    <Upload className="size-4 shrink-0 text-[var(--accent)]" aria-hidden />
+                    <span className="truncate text-[var(--fg-muted)]">{photo?.name || "Choose a photo"}</span>
+                  </button>
+                </>
+              )}
+            </Field>
 
             <Button type="submit" size="lg" loading={loading} className="mt-2 w-full">
               Complete registration <ArrowRight className="size-4" aria-hidden />
