@@ -850,6 +850,18 @@ function EditProfileModal({
     setErr(null);
   }, [user, isOpen]);
 
+  useEffect(() => {
+    if (!isOpen) return;
+    const onKey = (e: KeyboardEvent) => { if (e.key === "Escape") onClose(); };
+    const prevOverflow = document.body.style.overflow;
+    document.body.style.overflow = "hidden";
+    document.addEventListener("keydown", onKey);
+    return () => {
+      document.body.style.overflow = prevOverflow;
+      document.removeEventListener("keydown", onKey);
+    };
+  }, [isOpen, onClose]);
+
   function handlePhotoChange(e: React.ChangeEvent<HTMLInputElement>) {
     const file = e.target.files?.[0];
     if (!file) return;
@@ -886,24 +898,33 @@ function EditProfileModal({
   if (!isOpen) return null;
 
   return (
-    <div className="fixed inset-0 z-[140] grid place-items-center p-4">
+    <div className="fixed inset-0 z-[140] flex items-center justify-center p-4 sm:p-6">
       <div className="absolute inset-0 backdrop-blur-md" style={{ background: "var(--scrim)" }} onClick={onClose} />
       <motion.div
         initial={{ opacity: 0, scale: 0.95, y: 16 }}
         animate={{ opacity: 1, scale: 1, y: 0 }}
         exit={{ opacity: 0, scale: 0.95 }}
-        className="relative w-full max-w-lg overflow-hidden rounded-[var(--radius-xl)] border border-[var(--border)] bg-[var(--bg-elevated)] shadow-2xl"
+        role="dialog"
+        aria-modal="true"
+        aria-label="Edit your profile"
+        className="relative flex max-h-[min(90dvh,780px)] w-full max-w-lg flex-col overflow-hidden rounded-[var(--radius-xl)] border border-[var(--border)] bg-[var(--bg-elevated)] shadow-2xl"
       >
-        <div className="flex items-center justify-between border-b border-[var(--border)] px-6 py-5">
+        <div className="flex shrink-0 items-center justify-between gap-4 border-b border-[var(--border)] bg-[var(--bg-elevated)] px-6 py-5">
           <h3 className="flex items-center gap-2 font-display text-lg font-bold uppercase">
             <Edit3 className="size-4.5 text-[var(--accent)]" /> Edit Your Profile
           </h3>
-          <button onClick={onClose} className="grid size-8 place-items-center rounded-full hover:bg-[var(--surface-2)]">
+          <button
+            type="button"
+            onClick={onClose}
+            aria-label="Close"
+            className="grid size-9 shrink-0 place-items-center rounded-full border border-[var(--border)] text-[var(--fg-muted)] transition-colors hover:border-[var(--accent)] hover:bg-[var(--surface-2)] hover:text-[var(--fg)]"
+          >
             <X className="size-4" />
           </button>
         </div>
 
-        <form onSubmit={handleSubmit} className="p-6 space-y-5">
+        <form onSubmit={handleSubmit} className="flex min-h-0 flex-1 flex-col">
+          <div className="min-h-0 flex-1 space-y-5 overflow-y-auto px-6 py-6">
           {err && (
             <div className="flex items-center gap-2 rounded-xl border border-red-500/30 bg-red-500/10 p-3 text-xs text-red-400">
               <AlertCircle className="size-4 shrink-0" />
@@ -1020,7 +1041,9 @@ function EditProfileModal({
             />
           </div>
 
-          <div className="flex items-center justify-end gap-3 pt-3">
+          </div>
+
+          <div className="flex shrink-0 items-center justify-end gap-3 border-t border-[var(--border)] bg-[var(--bg-elevated)] px-6 py-4">
             <button
               type="button"
               onClick={onClose}
