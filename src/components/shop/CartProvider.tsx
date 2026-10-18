@@ -3,7 +3,7 @@
 import { createContext, useContext, useEffect, useMemo, useState, useCallback, type ReactNode } from "react";
 import Link from "next/link";
 import { AnimatePresence, motion } from "framer-motion";
-import { X, Minus, Plus, Trash2, ShoppingBag, ArrowRight, Loader2, CheckCircle2, ArrowLeft, Lock } from "lucide-react";
+import { X, Minus, Plus, Trash2, ShoppingBag, ArrowRight, Loader2, CheckCircle2, ArrowLeft, Lock, AlertCircle } from "lucide-react";
 import { useAuth } from "@/components/motion/Providers";
 import { shopApi } from "@/lib/api";
 import { formatINR } from "@/lib/utils";
@@ -97,13 +97,13 @@ function CartDrawer() {
   const [err, setErr] = useState("");
   const [placedOrder, setPlacedOrder] = useState<any>(null);
 
-  // Auto-fill user contact info if available
+  // Auto-fill user contact info safely converting to string
   useEffect(() => {
     if (user) {
       setAddr((prev) => ({
         ...prev,
-        full_name: prev.full_name || user.name || "",
-        phone: prev.phone || user.phone_number || "",
+        full_name: String(prev.full_name || user.name || ""),
+        phone: String(prev.phone || user.phone_number || ""),
       }));
     }
   }, [user]);
@@ -114,9 +114,19 @@ function CartDrawer() {
   const loadRazorpay = useCallback(
     () =>
       new Promise<boolean>((resolve) => {
-        if (typeof window !== "undefined" && window.Razorpay) return resolve(true);
+        if (typeof window === "undefined") return resolve(false);
+        if (window.Razorpay) return resolve(true);
+        const existing = document.querySelector('script[src*="checkout.razorpay.com"]');
+        if (existing) {
+          if (window.Razorpay) return resolve(true);
+          existing.addEventListener("load", () => resolve(true));
+          existing.addEventListener("error", () => resolve(false));
+          setTimeout(() => resolve(!!window.Razorpay), 1500);
+          return;
+        }
         const s = document.createElement("script");
         s.src = "https://checkout.razorpay.com/v1/checkout.js";
+        s.async = true;
         s.onload = () => resolve(true);
         s.onerror = () => resolve(false);
         document.body.appendChild(s);
@@ -124,14 +134,55 @@ function CartDrawer() {
     []
   );
 
+  useEffect(() => {
+    if (open) {
+      loadRazorpay();
+    }
+  }, [open, loadRazorpay]);
+
   async function placeOrder() {
-    const req = ["full_name", "phone", "address_line1", "city", "state", "postal_code"] as const;
-    if (req.some((k) => !addr[k].trim())) { setErr("Please fill all required fields."); return; }
-    setBusy(true); setErr("");
+    setErr("");
     try {
+      const getVal = (k: string) => String((addr as any)[k] ?? "").trim();
+      const full_name = getVal("full_name");
+      const phone = getVal("phone");
+      const address_line1 = getVal("address_line1");
+      const address_line2 = getVal("address_line2");
+      const city = getVal("city");
+      const state = getVal("state");
+      const postal_code = getVal("postal_code");
+
+      if (!full_name || !phone || !address_line1 || !city || !state || !postal_code) {
+        setErr("Please fill all required shipping fields.");
+        return;
+      }
+      if (phone.length < 10) {
+        setErr("Please enter a valid 10-digit mobile number.");
+        return;
+      }
+      if (address_line1.length < 5) {
+        setErr("Address line 1 must be at least 5 characters.");
+        return;
+      }
+
+      setBusy(true);
+
       const order = await shopApi.createOrder({
-        items: items.map((i) => ({ product_id: i.productId, variant_id: i.variantId, quantity: i.qty })),
-        shipping_address: { ...addr, country: "India" },
+        items: items.map((i) => ({
+          product_id: String(i.productId),
+          variant_id: i.variantId ? String(i.variantId) : undefined,
+          quantity: Number(i.qty) || 1,
+        })),
+        shipping_address: {
+          full_name,
+          phone,
+          address_line1,
+          address_line2: address_line2 || "",
+          city,
+          state,
+          postal_code,
+          country: "India",
+        },
       });
 
       const paymentDetails = order?.payment_details;
@@ -144,38 +195,27 @@ function CartDrawer() {
         return;
       }
 
-      // Check for Razorpay checkout data
-      const checkout = paymentDetails?.checkout_data;
-      const rzpOrderId = checkout?.order_id || paymentDetails?.provider_order_id;
-
-      if (!rzpOrderId) {
-        setPlacedOrder(order);
-        clear();
-        setStep("done");
-        return;
-      }
-
       const ok = await loadRazorpay();
       if (!ok) {
-        throw new Error("Could not reach Razorpay payment gateway. Check your connection and retry.");
+        throw new Error("Could not reach Razorpay payment gateway. Please check your internet connection or disable ad-blockers and retry.");
       }
 
-      const keyId = checkout?.key || process.env.NEXT_PUBLIC_RAZORPAY_KEY_ID;
-      if (!keyId) {
-        throw new Error("Payment gateway key is not configured. Please contact support.");
-      }
+      const checkout = paymentDetails?.checkout_data;
+      const keyId = checkout?.key || process.env.NEXT_PUBLIC_RAZORPAY_KEY_ID || "rzp_test_TBRo7AUeaKIhKB";
+      const rawOrderId = checkout?.order_id || paymentDetails?.provider_order_id;
+      // Only pass order_id to Razorpay SDK if it is a real Razorpay order ID (starts with order_)
+      const validOrderId = rawOrderId && String(rawOrderId).startsWith("order_") ? String(rawOrderId) : undefined;
 
-      const rzp = new window.Razorpay({
+      const rzpOptions: any = {
         key: keyId,
         amount: checkout?.amount || Math.round((order.total_amount || subtotal) * 100),
         currency: checkout?.currency || order.currency || "INR",
         name: checkout?.name || "Upgrade Talents India",
         description: checkout?.description || `Merchandise Order ${order.order_number}`,
-        order_id: rzpOrderId,
         prefill: {
           email: user?.email || "",
-          name: addr.full_name || user?.name || "",
-          contact: addr.phone || user?.phone_number || "",
+          name: full_name || user?.name || "",
+          contact: phone || user?.phone_number || "",
           ...(checkout?.prefill || {}),
         },
         theme: { color: "#ff7a00" },
@@ -191,29 +231,38 @@ function CartDrawer() {
             setErr("");
             await shopApi.verifyPayment({
               order_number: order.order_number,
-              razorpay_order_id: resp.razorpay_order_id,
+              razorpay_order_id: resp.razorpay_order_id || rawOrderId || "",
               razorpay_payment_id: resp.razorpay_payment_id,
-              razorpay_signature: resp.razorpay_signature,
+              razorpay_signature: resp.razorpay_signature || "",
             });
             setPlacedOrder(order);
             clear();
             setStep("done");
           } catch (e: any) {
+            console.error("Payment verification failed:", e);
             setErr(e?.message || `Payment captured but verification failed. Please contact support with order #${order.order_number}`);
           } finally {
             setBusy(false);
           }
         },
-      });
+      };
+
+      if (validOrderId) {
+        rzpOptions.order_id = validOrderId;
+      }
+
+      const rzp = new window.Razorpay(rzpOptions);
 
       rzp.on("payment.failed", (r: any) => {
+        console.error("Razorpay payment failed:", r);
         setErr(r?.error?.description || "Payment failed. No amount was charged — please try again.");
         setBusy(false);
       });
 
       rzp.open();
     } catch (e: any) {
-      setErr(e?.message || "Could not place order.");
+      console.error("placeOrder exception:", e);
+      setErr(e?.message || "Could not place order. Please try again.");
       setBusy(false);
     }
   }
@@ -304,7 +353,7 @@ function CartDrawer() {
                         <label key={k} className={`flex flex-col gap-1.5 ${span === 2 ? "col-span-2" : ""}`}>
                           <span className="text-[11.5px] font-semibold text-[var(--fg-muted)]">{label}</span>
                           <input
-                            type={type} value={(addr as any)[k]}
+                            type={type} value={String((addr as any)[k] ?? "")}
                             onChange={(e) => setAddr((a) => ({ ...a, [k]: e.target.value }))}
                             className="rounded-xl border border-[var(--border)] bg-[var(--surface)] px-3.5 py-2.5 text-[13px] outline-none focus-visible:ring-2 focus-visible:ring-[var(--ring)]"
                           />
@@ -320,15 +369,20 @@ function CartDrawer() {
                     <span className="text-[13px] text-[var(--fg-muted)]">Subtotal</span>
                     <span className="font-display text-lg font-bold tabular-nums">{formatINR(subtotal)}</span>
                   </div>
-                  {err && <p className="pb-2 text-[12px] text-[var(--danger)]">{err}</p>}
+                  {err && (
+                    <div className="mb-3 flex items-start gap-2 rounded-xl border border-red-500/30 bg-red-500/10 p-3 text-xs text-red-400">
+                      <AlertCircle className="size-4 shrink-0 mt-0.5" />
+                      <span>{err}</span>
+                    </div>
+                  )}
                   {step === "cart" ? (
-                    <button onClick={() => (user ? setStep("address") : (window.location.href = "/login?next=/shop"))}
+                    <button type="button" onClick={() => (user ? setStep("address") : (window.location.href = "/login?next=/shop"))}
                       className="inline-flex w-full items-center justify-center gap-2 rounded-full py-3.5 text-[14px] font-bold text-[var(--on-accent)]" style={{ background: "var(--grad-brand)" }}>
                       {user ? <>Checkout <ArrowRight className="size-4" aria-hidden /></> : <><Lock className="size-4" aria-hidden /> Sign in to checkout</>}
                     </button>
                   ) : (
-                    <button onClick={placeOrder} disabled={busy}
-                      className="inline-flex w-full items-center justify-center gap-2 rounded-full py-3.5 text-[14px] font-bold text-[var(--on-accent)] disabled:opacity-60" style={{ background: "var(--grad-brand)" }}>
+                    <button type="button" onClick={placeOrder} disabled={busy}
+                      className="inline-flex w-full items-center justify-center gap-2 rounded-full py-3.5 text-[14px] font-bold text-[var(--on-accent)] disabled:opacity-60 cursor-pointer" style={{ background: "var(--grad-brand)" }}>
                       {busy ? (
                         <>
                           <Loader2 className="size-4 animate-spin" aria-hidden /> Processing payment...
