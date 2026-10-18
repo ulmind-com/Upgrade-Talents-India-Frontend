@@ -5,7 +5,7 @@ import Link from "next/link";
 import { motion } from "framer-motion";
 import {
   Trophy, Calendar, Gavel, Upload, CheckCircle2, AlertCircle, ListChecks,
-  ShieldCheck, LogIn, Loader2, Heart, Crown, FileUp,
+  ShieldCheck, LogIn, Loader2, Heart, Crown, FileUp, Link2, Film, Music, X,
 } from "lucide-react";
 import { Reveal, StaggerGroup, StaggerItem } from "@/components/motion/Reveal";
 import { SectionLabel } from "@/components/ui/Primitives";
@@ -33,7 +33,9 @@ export default function CompetitionDetail({ comp, initialLeaderboard }: { comp: 
 
   const [step, setStep] = useState<"register" | "submit" | "done">("register");
   const [rules, setRules] = useState(false);
+  const [entryModes, setEntryModes] = useState<Record<string, "file" | "link">>({});
   const [files, setFiles] = useState<Record<string, File | null>>({});
+  const [links, setLinks] = useState<Record<string, string>>({});
   const [busy, setBusy] = useState(false);
   const [msg, setMsg] = useState<{ tone: "ok" | "err"; text: string } | null>(null);
   const [rows, setRows] = useState<Row[]>(
@@ -58,16 +60,58 @@ export default function CompetitionDetail({ comp, initialLeaderboard }: { comp: 
   }
 
   async function doSubmit() {
-    const missing = fields.filter((f) => f.required && !files[f.name]);
-    if (missing.length) { setMsg({ tone: "err", text: `Please upload: ${missing.map((f) => f.name).join(", ")}` }); return; }
+    const missing: string[] = [];
+    const payloadFiles: File[] = [];
+    const fieldNames: string[] = [];
+
+    for (const f of fields) {
+      const mode = entryModes[f.name] || (f.type === "URL" || f.type === "PORTFOLIO_LINK" ? "link" : "file");
+      const file = files[f.name];
+      const link = (links[f.name] || "").trim();
+
+      if (mode === "link") {
+        if (!link) {
+          if (f.required) missing.push(f.name);
+        } else {
+          if (!/^https?:\/\//i.test(link)) {
+            setMsg({ tone: "err", text: `Please enter a valid link starting with http:// or https:// for ${f.name}` });
+            return;
+          }
+          const safeName = f.name.replace(/[^a-zA-Z0-9_-]/g, "_");
+          const linkFile = new File([link], `${safeName}_link.txt`, { type: "text/plain" });
+          payloadFiles.push(linkFile);
+          fieldNames.push(f.name);
+        }
+      } else {
+        if (!file) {
+          if (f.required) missing.push(f.name);
+        } else {
+          payloadFiles.push(file);
+          fieldNames.push(f.name);
+        }
+      }
+    }
+
+    if (missing.length) {
+      setMsg({ tone: "err", text: `Please provide a file or link for: ${missing.join(", ")}` });
+      return;
+    }
+
+    if (payloadFiles.length === 0) {
+      setMsg({ tone: "err", text: "Please provide at least one entry file or link to submit." });
+      return;
+    }
+
     setBusy(true); setMsg(null);
     try {
-      const names = fields.map((f) => f.name);
-      const fl = names.map((n) => files[n]).filter(Boolean) as File[];
-      await competeApi.submit(id, fl, names);
-      setStep("done"); setMsg({ tone: "ok", text: "Entry submitted successfully!" });
-    } catch (e: any) { setMsg({ tone: "err", text: e?.message || "Submission failed." }); }
-    finally { setBusy(false); }
+      await competeApi.submit(id, payloadFiles, fieldNames);
+      setStep("done");
+      setMsg({ tone: "ok", text: "Entry submitted successfully!" });
+    } catch (e: any) {
+      setMsg({ tone: "err", text: e?.message || "Submission failed." });
+    } finally {
+      setBusy(false);
+    }
   }
 
   async function doVote(pid?: string) {
@@ -206,18 +250,133 @@ export default function CompetitionDetail({ comp, initialLeaderboard }: { comp: 
               </>
             ) : step === "submit" ? (
               <>
-                <p className="text-[13px] font-semibold">Upload your entry</p>
-                <div className="mt-3 flex flex-col gap-3">
-                  {fields.map((f) => (
-                    <label key={f.name} className="group flex cursor-pointer flex-col gap-1.5">
-                      <span className="text-[12px] font-semibold">{f.name}{f.required && <span className="text-[var(--accent)]"> *</span>}</span>
-                      <span className="flex items-center gap-2 rounded-xl border border-dashed border-[var(--border-strong)] bg-[var(--surface-2)] px-3.5 py-3 text-[12.5px] text-[var(--fg-muted)] transition-colors group-hover:border-[var(--accent)]">
-                        <FileUp className="size-4 shrink-0 text-[var(--fg-subtle)]" aria-hidden />
-                        <span className="truncate">{files[f.name]?.name || "Choose file…"}</span>
-                      </span>
-                      <input type="file" className="hidden" onChange={(e) => setFiles((s) => ({ ...s, [f.name]: e.target.files?.[0] || null }))} />
-                    </label>
-                  ))}
+                <div className="flex items-center justify-between">
+                  <p className="text-[13px] font-semibold">Upload your entry</p>
+                  <span className="text-[11px] text-[var(--fg-subtle)]">File or Link accepted</span>
+                </div>
+                <div className="mt-3 flex flex-col gap-3.5">
+                  {fields.map((f) => {
+                    const mode = entryModes[f.name] || (f.type === "URL" || f.type === "PORTFOLIO_LINK" ? "link" : "file");
+                    const selectedFile = files[f.name];
+                    const enteredLink = links[f.name] || "";
+
+                    const isAudio = /audio|sound|singing|voice|music|song/i.test(f.name) || f.type === "AUDIO";
+                    const isVideo = /video|dance|film|visual|acting|performance/i.test(f.name) || f.type === "VIDEO";
+                    const acceptTypes = isAudio
+                      ? "audio/*,.mp3,.wav,.m4a,.aac,.ogg"
+                      : isVideo
+                      ? "video/*,audio/*,.mp4,.mov,.webm,.mkv,.mp3,.wav"
+                      : "video/*,audio/*,image/*,.pdf";
+
+                    return (
+                      <div key={f.name} className="flex flex-col gap-2 rounded-2xl border border-[var(--border)] bg-[var(--surface-2)]/50 p-3">
+                        <div className="flex items-center justify-between gap-2">
+                          <span className="text-[12px] font-semibold text-[var(--fg)]">
+                            {f.name}{f.required && <span className="text-[var(--accent)]"> *</span>}
+                          </span>
+                          <div className="flex items-center rounded-lg border border-[var(--border)] bg-[var(--surface)] p-0.5 text-[11px]">
+                            <button
+                              type="button"
+                              onClick={() => setEntryModes((s) => ({ ...s, [f.name]: "file" }))}
+                              className={`flex items-center gap-1 rounded-md px-2 py-0.5 transition-colors ${
+                                mode === "file"
+                                  ? "bg-[var(--accent)] font-semibold text-[var(--on-accent)]"
+                                  : "text-[var(--fg-muted)] hover:text-[var(--fg)]"
+                              }`}
+                            >
+                              <Upload className="size-3" /> File
+                            </button>
+                            <button
+                              type="button"
+                              onClick={() => setEntryModes((s) => ({ ...s, [f.name]: "link" }))}
+                              className={`flex items-center gap-1 rounded-md px-2 py-0.5 transition-colors ${
+                                mode === "link"
+                                  ? "bg-[var(--accent)] font-semibold text-[var(--on-accent)]"
+                                  : "text-[var(--fg-muted)] hover:text-[var(--fg)]"
+                              }`}
+                            >
+                              <Link2 className="size-3" /> Link
+                            </button>
+                          </div>
+                        </div>
+
+                        {mode === "file" ? (
+                          <div>
+                            {selectedFile ? (
+                              <div className="flex items-center justify-between rounded-xl border border-[var(--border-strong)] bg-[var(--surface)] px-3 py-2 text-[12px]">
+                                <div className="flex min-w-0 flex-1 items-center gap-2 mr-2">
+                                  {selectedFile.type.startsWith("video") ? (
+                                    <Film className="size-4 shrink-0 text-[var(--accent)]" />
+                                  ) : selectedFile.type.startsWith("audio") ? (
+                                    <Music className="size-4 shrink-0 text-[var(--accent)]" />
+                                  ) : (
+                                    <FileUp className="size-4 shrink-0 text-[var(--accent)]" />
+                                  )}
+                                  <div className="min-w-0 truncate">
+                                    <p className="truncate font-medium">{selectedFile.name}</p>
+                                    <p className="text-[10px] text-[var(--fg-subtle)]">
+                                      {(selectedFile.size / (1024 * 1024)).toFixed(2)} MB · {selectedFile.type || "file"}
+                                    </p>
+                                  </div>
+                                </div>
+                                <button
+                                  type="button"
+                                  onClick={() => setFiles((s) => ({ ...s, [f.name]: null }))}
+                                  aria-label="Remove file"
+                                  className="grid size-6 place-items-center rounded-md text-[var(--fg-muted)] hover:bg-[var(--surface-2)] hover:text-[var(--danger)]"
+                                >
+                                  <X className="size-3.5" />
+                                </button>
+                              </div>
+                            ) : (
+                              <label className="group flex cursor-pointer items-center justify-center gap-2 rounded-xl border border-dashed border-[var(--border-strong)] bg-[var(--surface)] px-3.5 py-3 text-[12px] text-[var(--fg-muted)] transition-colors hover:border-[var(--accent)] hover:text-[var(--fg)]">
+                                {isAudio ? (
+                                  <Music className="size-4 shrink-0 text-[var(--fg-subtle)] group-hover:text-[var(--accent)]" />
+                                ) : isVideo ? (
+                                  <Film className="size-4 shrink-0 text-[var(--fg-subtle)] group-hover:text-[var(--accent)]" />
+                                ) : (
+                                  <FileUp className="size-4 shrink-0 text-[var(--fg-subtle)] group-hover:text-[var(--accent)]" />
+                                )}
+                                <span className="truncate">Choose video, audio or photo…</span>
+                                <input
+                                  type="file"
+                                  accept={acceptTypes}
+                                  className="hidden"
+                                  onChange={(e) => {
+                                    const fl = e.target.files?.[0] || null;
+                                    setFiles((s) => ({ ...s, [f.name]: fl }));
+                                  }}
+                                />
+                              </label>
+                            )}
+                            <p className="mt-1 text-[10.5px] text-[var(--fg-subtle)]">
+                              {isAudio
+                                ? "Accepts MP3, WAV, M4A, AAC audio"
+                                : isVideo
+                                ? "Accepts MP4, MOV, WebM, MKV video or audio"
+                                : "Accepts video, audio, image (JPG/PNG) or PDF"}
+                            </p>
+                          </div>
+                        ) : (
+                          <div>
+                            <div className="relative">
+                              <Link2 className="pointer-events-none absolute left-3 top-1/2 size-3.5 -translate-y-1/2 text-[var(--fg-subtle)]" />
+                              <input
+                                type="url"
+                                value={enteredLink}
+                                onChange={(e) => setLinks((s) => ({ ...s, [f.name]: e.target.value }))}
+                                placeholder="https://youtu.be/... or Google Drive link"
+                                className="w-full rounded-xl border border-[var(--border)] bg-[var(--surface)] py-2 pl-9 pr-3 text-[12px] text-[var(--fg)] placeholder:text-[var(--fg-subtle)] focus:border-[var(--accent)] focus:outline-none"
+                              />
+                            </div>
+                            <p className="mt-1 text-[10.5px] text-[var(--fg-subtle)]">
+                              Paste YouTube, Vimeo, Google Drive, SoundCloud, or portfolio URL
+                            </p>
+                          </div>
+                        )}
+                      </div>
+                    );
+                  })}
                 </div>
                 <button onClick={doSubmit} disabled={busy}
                   className="mt-4 inline-flex w-full items-center justify-center gap-2 rounded-full py-3 text-[13.5px] font-bold text-[var(--on-accent)] transition-opacity disabled:opacity-50" style={{ background: "var(--grad-brand)" }}>
