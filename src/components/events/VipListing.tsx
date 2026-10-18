@@ -1,14 +1,17 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useCallback, useEffect, useState } from "react";
 import Link from "next/link";
+import { useRouter } from "next/navigation";
 import { AnimatePresence, motion } from "framer-motion";
-import { Crown, Check, DoorOpen, Sofa, KeyRound, Users, Car, Sparkles, X, Minus, Plus, Loader2, CheckCircle2, Lock, Calendar } from "lucide-react";
+import { Crown, Check, DoorOpen, Sofa, KeyRound, Users, Car, Sparkles, X, Minus, Plus, Loader2, CheckCircle2, Lock, Calendar, CreditCard, AlertCircle } from "lucide-react";
 import { Reveal, StaggerGroup, StaggerItem } from "@/components/motion/Reveal";
 import { SectionLabel } from "@/components/ui/Primitives";
 import { useAuth } from "@/components/motion/Providers";
-import { vipApi } from "@/lib/api";
+import { vipApi, ApiError } from "@/lib/api";
 import { formatINR } from "@/lib/utils";
+
+declare global { interface Window { Razorpay?: any } }
 
 type Cfg = {
   configuration_id?: string; _id?: string; id?: string;
@@ -135,26 +138,149 @@ export default function VipListing({ offerings }: { offerings: Offering[] }) {
   );
 }
 
-function BookingModal({ offering, user, onClose }: { offering: Offering | null; user: any; onClose: () => void }) {
-  const [qty, setQty] = useState(1);
-  const [busy, setBusy] = useState(false);
-  const [done, setDone] = useState(false);
-  const [err, setErr] = useState("");
+/* ═══════════════════════════════════════════════════════════════════
+   BOOKING MODAL — Full Razorpay Payment Gateway Integration
+   ═══════════════════════════════════════════════════════════════════ */
 
-  useEffect(() => { if (offering) { setQty(1); setDone(false); setErr(""); } }, [offering]);
+type ModalStep = "form" | "processing" | "success" | "failed";
+
+function BookingModal({ offering, user, onClose }: { offering: Offering | null; user: any; onClose: () => void }) {
+  const router = useRouter();
+  const [qty, setQty] = useState(1);
+  const [step, setStep] = useState<ModalStep>("form");
+  const [busy, setBusy] = useState(false);
+  const [err, setErr] = useState("");
+  const [bookingRef, setBookingRef] = useState("");
+
+  useEffect(() => { if (offering) { setQty(1); setStep("form"); setErr(""); setBookingRef(""); } }, [offering]);
   useEffect(() => { document.body.style.overflow = offering ? "hidden" : ""; return () => { document.body.style.overflow = ""; }; }, [offering]);
+
+  /* ── Load Razorpay Checkout Script ── */
+  const loadRazorpay = useCallback(
+    () => new Promise<boolean>((resolve) => {
+      if (window.Razorpay) return resolve(true);
+      const s = document.createElement("script");
+      s.src = "https://checkout.razorpay.com/v1/checkout.js";
+      s.onload = () => resolve(true);
+      s.onerror = () => resolve(false);
+      document.body.appendChild(s);
+    }),
+    []
+  );
 
   if (!offering) return null;
   const c = offering.config;
 
-  async function confirm() {
-    if (!user) { window.location.href = "/login"; return; }
-    setBusy(true); setErr("");
+  /* ── Main Purchase Flow ── */
+  async function handlePurchase() {
+    // If not logged in, redirect to login
+    if (!user) {
+      window.location.href = "/login?next=/vip";
+      return;
+    }
+
+    setBusy(true);
+    setErr("");
+    setStep("processing");
+
     try {
-      await vipApi.book(evId(offering!.event), cfgId(c), qty);
-      setDone(true);
-    } catch (e: any) { setErr(e?.message || "Could not create booking."); }
-    finally { setBusy(false); }
+      // 1. Create booking on backend — this also creates a Razorpay order
+      const booking = await vipApi.book(
+        evId(offering!.event),
+        cfgId(c),
+        qty,
+        [user?.name || "VIP Guest"]
+      );
+
+      const bRef = booking.booking_reference || booking.booking_ref || "";
+      setBookingRef(bRef);
+
+      // 2. Check if payment_details exist (backend returns Razorpay order info)
+      const paymentDetails = booking.payment_details;
+
+      if (!paymentDetails) {
+        // No payment details — booking might be in a weird state
+        setStep("success");
+        setBusy(false);
+        return;
+      }
+
+      // 3. If status is PENDING_CONFIGURATION, gateway isn't configured — show message
+      if (paymentDetails.status === "PENDING_CONFIGURATION") {
+        setErr("Payment gateway is being configured. Your booking is reserved — you can complete payment from your dashboard once it's ready.");
+        setStep("success");
+        setBusy(false);
+        return;
+      }
+
+      // 4. Load Razorpay checkout script
+      const rzpLoaded = await loadRazorpay();
+      if (!rzpLoaded) {
+        throw new ApiError("Could not reach the payment gateway. Check your connection and retry.", 0);
+      }
+
+      // 5. Extract checkout data from backend response
+      const checkout = paymentDetails.checkout_data || {};
+      const keyId = checkout.key || process.env.NEXT_PUBLIC_RAZORPAY_KEY_ID;
+
+      if (!keyId) {
+        throw new ApiError("Payment gateway is not configured yet. Please contact support.", 0);
+      }
+
+      // 6. Open Razorpay Checkout Popup
+      const rzp = new window.Razorpay({
+        key: keyId,
+        amount: checkout.amount || Math.round((c.price || 0) * qty * 100),
+        currency: checkout.currency || paymentDetails.currency || "INR",
+        name: checkout.name || "Upgrade Talents India",
+        description: checkout.description || `VIP Pass — ${offering!.event.title || offering!.event.name}`,
+        order_id: checkout.order_id || paymentDetails.provider_order_id,
+        prefill: {
+          email: user?.email || "",
+          name: user?.name || "",
+          contact: user?.phone_number || "",
+          ...(checkout.prefill || {}),
+        },
+        theme: { color: "#bfff2e" },
+        modal: {
+          ondismiss: () => {
+            setBusy(false);
+            setStep("form");
+            setErr("Payment cancelled. Your booking is held briefly — retry to confirm.");
+          },
+        },
+        handler: async (resp: any) => {
+          // 7. Payment successful — verify on backend
+          try {
+            setStep("processing");
+            await vipApi.verifyPayment({
+              booking_reference: bRef,
+              razorpay_order_id: resp.razorpay_order_id,
+              razorpay_payment_id: resp.razorpay_payment_id,
+              razorpay_signature: resp.razorpay_signature,
+            });
+            setStep("success");
+          } catch (e: any) {
+            setErr(e?.message || "Payment captured but verification failed. Contact support with your booking reference.");
+            setStep("failed");
+          } finally {
+            setBusy(false);
+          }
+        },
+      });
+
+      rzp.on("payment.failed", (r: any) => {
+        setErr(r?.error?.description || "Payment failed. No amount was charged — please try again.");
+        setStep("failed");
+        setBusy(false);
+      });
+
+      rzp.open();
+    } catch (e: any) {
+      setErr(e?.message || "Something went wrong while creating your booking.");
+      setStep("failed");
+      setBusy(false);
+    }
   }
 
   return (
@@ -168,22 +294,60 @@ function BookingModal({ offering, user, onClose }: { offering: Offering | null; 
             className="relative w-full max-w-[420px] overflow-hidden rounded-[var(--radius-xl)] border border-[var(--border)] bg-[var(--bg-elevated)]"
             role="dialog" aria-label="Book VIP pass"
           >
+            {/* Header */}
             <div className="flex items-center justify-between border-b border-[var(--border)] px-5 py-4">
-              <p className="flex items-center gap-2 font-display text-lg font-bold"><Crown className="size-5 text-[var(--accent)]" aria-hidden /> {done ? "Booking started" : "Book VIP pass"}</p>
+              <p className="flex items-center gap-2 font-display text-lg font-bold">
+                <Crown className="size-5 text-[var(--accent)]" aria-hidden />
+                {step === "success" ? "Booking confirmed!" : step === "failed" ? "Payment failed" : step === "processing" ? "Processing…" : "Book VIP pass"}
+              </p>
               <button onClick={onClose} aria-label="Close" className="grid size-8 place-items-center rounded-full hover:bg-[var(--surface-2)]"><X className="size-4.5" aria-hidden /></button>
             </div>
 
-            {done ? (
+            {/* ── SUCCESS ── */}
+            {step === "success" && (
               <div className="grid place-items-center px-6 py-10 text-center">
-                <CheckCircle2 className="size-14 text-[var(--success)]" aria-hidden />
-                <p className="mt-4 font-display text-xl font-bold">Almost there!</p>
-                <p className="mt-1.5 text-[13px] text-[var(--fg-muted)]">Your VIP booking is reserved pending payment. Complete it from your dashboard.</p>
+                <motion.div initial={{ scale: 0 }} animate={{ scale: 1 }} transition={{ type: "spring", stiffness: 400, damping: 20 }}>
+                  <CheckCircle2 className="size-14 text-[var(--success)]" aria-hidden />
+                </motion.div>
+                <p className="mt-4 font-display text-xl font-bold">Payment successful!</p>
+                <p className="mt-1.5 text-[13px] text-[var(--fg-muted)]">
+                  Your VIP pass has been confirmed. {bookingRef && <>Booking ref: <span className="font-mono font-semibold text-[var(--fg)]">{bookingRef}</span></>}
+                </p>
+                {err && <p className="mt-2 text-[12px] text-[var(--fg-subtle)]">{err}</p>}
                 <div className="mt-6 flex w-full flex-col gap-2.5">
-                  <Link href="/dashboard" onClick={onClose} className="inline-flex items-center justify-center rounded-full py-3 text-[13.5px] font-bold text-[var(--on-accent)]" style={{ background: "var(--grad-brand)" }}>Go to dashboard</Link>
+                  <Link href="/dashboard" onClick={onClose} className="inline-flex items-center justify-center rounded-full py-3 text-[13.5px] font-bold text-[var(--on-accent)]" style={{ background: "var(--grad-brand)" }}>View my VIP passes</Link>
                   <button onClick={onClose} className="rounded-full border border-[var(--border)] py-3 text-[13.5px] font-semibold hover:border-[var(--border-strong)]">Close</button>
                 </div>
               </div>
-            ) : (
+            )}
+
+            {/* ── PROCESSING ── */}
+            {step === "processing" && (
+              <div className="grid place-items-center px-6 py-14 text-center">
+                <Loader2 className="size-10 animate-spin text-[var(--accent)]" aria-hidden />
+                <p className="mt-4 font-display text-lg font-bold">Processing payment…</p>
+                <p className="mt-1.5 text-[13px] text-[var(--fg-muted)]">Please do not close this window.</p>
+              </div>
+            )}
+
+            {/* ── FAILED ── */}
+            {step === "failed" && (
+              <div className="grid place-items-center px-6 py-10 text-center">
+                <AlertCircle className="size-14 text-[var(--danger)]" aria-hidden />
+                <p className="mt-4 font-display text-xl font-bold">Payment failed</p>
+                <p className="mt-1.5 text-[13px] text-[var(--fg-muted)]">{err || "Something went wrong. No amount was charged."}</p>
+                {bookingRef && <p className="mt-1 font-mono text-[11px] text-[var(--fg-subtle)]">Ref: {bookingRef}</p>}
+                <div className="mt-6 flex w-full flex-col gap-2.5">
+                  <button onClick={() => { setStep("form"); setErr(""); }} className="inline-flex items-center justify-center gap-2 rounded-full py-3 text-[13.5px] font-bold text-[var(--on-accent)]" style={{ background: "var(--grad-brand)" }}>
+                    Try again
+                  </button>
+                  <button onClick={onClose} className="rounded-full border border-[var(--border)] py-3 text-[13.5px] font-semibold hover:border-[var(--border-strong)]">Close</button>
+                </div>
+              </div>
+            )}
+
+            {/* ── FORM ── */}
+            {step === "form" && (
               <div className="p-5">
                 <p className="text-[12px] text-[var(--fg-subtle)]">{offering.event.title || offering.event.name}</p>
                 <p className="font-display text-xl font-bold">{c.name}</p>
@@ -203,12 +367,12 @@ function BookingModal({ offering, user, onClose }: { offering: Offering | null; 
                   <span className="font-display text-xl font-bold tabular-nums">{formatINR((c.price || 0) * qty)}</span>
                 </div>
                 {err && <p className="mt-3 text-[12.5px] text-[var(--danger)]">{err}</p>}
-                <button onClick={confirm} disabled={busy}
+                <button onClick={handlePurchase} disabled={busy}
                   className="mt-5 inline-flex w-full items-center justify-center gap-2 rounded-full py-3.5 text-[14px] font-bold text-[var(--on-accent)] disabled:opacity-60" style={{ background: "var(--grad-brand)" }}>
-                  {busy ? <Loader2 className="size-4 animate-spin" aria-hidden /> : user ? <Crown className="size-4" aria-hidden /> : <Lock className="size-4" aria-hidden />}
-                  {user ? "Reserve my pass" : "Sign in to book"}
+                  {busy ? <Loader2 className="size-4 animate-spin" aria-hidden /> : user ? <CreditCard className="size-4" aria-hidden /> : <Lock className="size-4" aria-hidden />}
+                  {user ? "Pay & confirm pass" : "Sign in to book"}
                 </button>
-                <p className="mt-2.5 text-center text-[11px] text-[var(--fg-subtle)]">Secure booking · pay to confirm</p>
+                <p className="mt-2.5 text-center text-[11px] text-[var(--fg-subtle)]">Secure checkout via Razorpay · UPI, Card, NetBanking</p>
               </div>
             )}
           </motion.div>

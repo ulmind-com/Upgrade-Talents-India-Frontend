@@ -276,8 +276,20 @@ export const shopApi = {
 
 export const vipApi = {
   forEvent: (eventId: string) => apiFetch<any[]>(`/api/events/${eventId}/vip-passes`, { cache: "no-store" }),
-  book: (eventId: string, configId: string, quantity = 1) =>
-    apiFetch<any>(`/api/events/${eventId}/vip-passes/${configId}/book`, { method: "POST", auth: true, body: { quantity } }),
+  book: (eventId: string, configId: string, quantity = 1, holder_names?: string[]) =>
+    apiFetch<any>(`/api/events/${eventId}/vip-passes/${configId}/book`, { method: "POST", auth: true, body: { quantity, holder_names } }),
+  verifyPayment: (body: {
+    booking_reference: string;
+    razorpay_order_id: string;
+    razorpay_payment_id: string;
+    razorpay_signature: string;
+  }) => apiFetch<any>("/api/vip/verify-payment", { method: "POST", body, auth: true }),
+  myBookings: (p: { skip?: number; limit?: number } = {}) =>
+    apiFetch<any>("/api/users/me/vip-bookings", { auth: true, cache: "no-store", query: p }),
+  myPasses: (p: { skip?: number; limit?: number } = {}) =>
+    apiFetch<any>("/api/users/me/vip-passes", { auth: true, cache: "no-store", query: p }),
+  passQr: (passId: string) =>
+    apiFetch<any>(`/api/users/me/vip-passes/${passId}/qr`, { auth: true, cache: "no-store" }),
 };
 
 /* ─────────────── ACTIVITIES (events + ticket tiers) ─────────────── */
