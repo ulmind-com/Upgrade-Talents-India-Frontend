@@ -18,6 +18,7 @@ import {
   ApiError, type MyTicket,
 } from "@/lib/api";
 import { useAuth, usePageScrollLock } from "@/components/motion/Providers";
+import AadhaarKyc from "@/components/account/AadhaarKyc";
 import { Badge, Button, SectionLabel, Spotlights } from "@/components/ui/Primitives";
 import { Reveal, SplitHeading } from "@/components/motion/Reveal";
 import { cn, formatEventDate, formatINR } from "@/lib/utils";
@@ -529,6 +530,7 @@ export default function DashboardPage() {
               </div>
 
               {/* Details Key-Value List */}
+              <div className="flex flex-col gap-6">
               <div className="overflow-hidden rounded-[var(--radius-xl)] border border-[var(--border)] bg-[var(--surface)] shadow-lg">
                 <div className="border-b border-[var(--border)] px-7 py-5 flex items-center justify-between">
                   <h3 className="font-display text-base font-bold uppercase tracking-wider text-[var(--fg)]">
@@ -559,6 +561,9 @@ export default function DashboardPage() {
                     </div>
                   ))}
                 </dl>
+              </div>
+
+              <AadhaarKyc />
               </div>
             </div>
           </Reveal>

@@ -417,6 +417,37 @@ export const registrationsApi = {
     apiFetch<any>("/api/registrations/verify-payment", { method: "POST", body, auth: true }),
 };
 
+/* ─────────────── AADHAAR KYC (DigiLocker) ─────────────── */
+
+export type KycStatus = {
+  email?: string;
+  status?: "NOT_SUBMITTED" | "PENDING" | "VERIFIED" | "REJECTED" | string;
+  aadhaar_masked?: string | null;
+  source?: string;
+  verified_at?: string | null;
+  is_verified?: boolean;
+  verified_name?: string | null;
+  verified_dob?: string | null;
+  verified_address?: string | null;
+};
+
+export const kycApi = {
+  status: () => apiFetch<KycStatus>("/api/kyc/status", { auth: true }),
+  sendOtp: (aadhaar_number: string) =>
+    apiFetch<{ success: boolean; message: string; reference_id: string; masked_mobile?: string; mode?: string }>(
+      "/api/kyc/digilocker/send-otp",
+      { method: "POST", body: { aadhaar_number }, auth: true }
+    ),
+  verifyOtp: (reference_id: string, otp: string) =>
+    apiFetch<{
+      success: boolean;
+      kyc_status: string;
+      aadhaar_masked?: string;
+      message: string;
+      verified_details?: { name?: string; date_of_birth?: string; gender?: string; address?: string };
+    }>("/api/kyc/digilocker/verify-otp", { method: "POST", body: { reference_id, otp }, auth: true }),
+};
+
 /* ─────────────── JUDGE AUTH (OTP-based, passwordless) ─────────────── */
 
 export const judgeAuthApi = {
