@@ -11,10 +11,10 @@ import {
   Crown, CreditCard, QrCode, X, Trophy, Award, Coins,
   Medal, Download, Copy, Check, Camera, Edit3, Sparkles,
   ExternalLink, GraduationCap, ShieldCheck, MapPin, Phone,
-  Mail, Flame, Star, Send, Layers,
+  Mail, Flame, Star, Send, Layers, Package,
 } from "lucide-react";
 import {
-  bookingsApi, vipApi, profileApi, rewardsApi, certificatesApi,
+  bookingsApi, vipApi, profileApi, rewardsApi, certificatesApi, shopApi,
   ApiError, type MyTicket,
 } from "@/lib/api";
 import { useAuth, usePageScrollLock } from "@/components/motion/Providers";
@@ -26,13 +26,14 @@ import { TicketPass } from "@/components/ticket/TicketPass";
 
 declare global { interface Window { Razorpay?: any } }
 
-type Tab = "tickets" | "competitions" | "certificates" | "rewards" | "vip" | "events" | "profile";
+type Tab = "tickets" | "competitions" | "certificates" | "rewards" | "vip" | "events" | "orders" | "profile";
 
 export default function DashboardPage() {
   const router = useRouter();
   const { user, loading: authLoading, refresh: refreshAuth, logout } = useAuth();
 
   const [tab, setTab] = useState<Tab>("tickets");
+  const [merchOrders, setMerchOrders] = useState<any[]>([]);
   const [tickets, setTickets] = useState<MyTicket[]>([]);
   const [bookings, setBookings] = useState<any[]>([]);
   const [vipBookings, setVipBookings] = useState<any[]>([]);
@@ -56,6 +57,15 @@ export default function DashboardPage() {
     if (!authLoading && !user) router.replace("/login?next=/dashboard");
   }, [authLoading, user, router]);
 
+  useEffect(() => {
+    if (typeof window !== "undefined") {
+      const qTab = new URLSearchParams(window.location.search).get("tab");
+      if (qTab && ["tickets", "competitions", "certificates", "rewards", "vip", "events", "orders", "profile"].includes(qTab)) {
+        setTab(qTab as Tab);
+      }
+    }
+  }, []);
+
   const loadAll = useCallback(() => {
     if (!user) return;
     setLoading(true);
@@ -68,7 +78,8 @@ export default function DashboardPage() {
       rewardsApi.coins(),
       rewardsApi.referralProfile(),
       certificatesApi.myCertificates(),
-    ]).then(([t, b, vb, vp, dash, cnRes, refRes, certRes]) => {
+      shopApi.myOrders(),
+    ]).then(([t, b, vb, vp, dash, cnRes, refRes, certRes, ordRes]) => {
       if (t.status === "fulfilled") setTickets(Array.isArray(t.value) ? t.value : []);
       if (b.status === "fulfilled") setBookings(Array.isArray(b.value) ? b.value : []);
       if (vb.status === "fulfilled") {
@@ -76,6 +87,10 @@ export default function DashboardPage() {
       }
       if (vp.status === "fulfilled") {
         setVipPasses(vp.value?.passes || (Array.isArray(vp.value) ? vp.value : []));
+      }
+      if (ordRes.status === "fulfilled" && ordRes.value) {
+        const ords = Array.isArray(ordRes.value) ? ordRes.value : ordRes.value.orders || [];
+        setMerchOrders(ords);
       }
 
       if (dash.status === "fulfilled" && dash.value) {
@@ -139,6 +154,7 @@ export default function DashboardPage() {
     { key: "rewards", label: "Rewards & Coins", Icon: Coins, count: `${coinsData.total_coins} 🪙` },
     { key: "vip", label: "VIP Passes", Icon: Crown, count: vipCount },
     { key: "events", label: "Events & Courses", Icon: CalendarDays, count: eventsRegistered.length + coursesRegistered.length },
+    { key: "orders", label: "Shop Orders", Icon: Package, count: merchOrders.length },
     { key: "profile", label: "Profile", Icon: User },
   ];
 
@@ -482,7 +498,127 @@ export default function DashboardPage() {
         )}
 
         {/* ════════════════════════════════════════════════════════════════
-            7. PROFILE & PERSONAL DETAILS TAB
+            7. SHOP ORDERS TAB
+           ════════════════════════════════════════════════════════════════ */}
+        {!loading && tab === "orders" && (
+          <div className="mt-10 flex flex-col gap-6">
+            {merchOrders.length ? (
+              <div className="flex flex-col gap-5">
+                {merchOrders.map((ord, i) => {
+                  const isPaid = ord.payment_status === "PAID" || ord.status === "CONFIRMED" || ord.status === "DELIVERED" || ord.status === "SHIPPED";
+                  const isPending = ord.status === "PENDING_PAYMENT" || ord.payment_status === "PENDING";
+                  const isCancelled = ord.status === "CANCELLED";
+                  const tone = isCancelled ? "danger" : isPaid ? "success" : "warning";
+                  const statusLabel = isCancelled ? "Cancelled" : isPaid ? (ord.status || "Paid") : "Payment Pending";
+
+                  return (
+                    <motion.div
+                      key={ord.order_number || ord._id || ord.id || i}
+                      initial={{ opacity: 0, y: 16 }}
+                      animate={{ opacity: 1, y: 0 }}
+                      transition={{ delay: i * 0.05 }}
+                      className="overflow-hidden rounded-[var(--radius-xl)] border border-[var(--border)] bg-[var(--surface)] p-6 shadow-md transition-all hover:border-[var(--accent)]"
+                    >
+                      <div className="flex flex-col gap-4 border-b border-[var(--border)] pb-4 sm:flex-row sm:items-center sm:justify-between">
+                        <div>
+                          <div className="flex flex-wrap items-center gap-2">
+                            <Badge tone={tone}>{statusLabel}</Badge>
+                            <span className="font-mono text-xs font-bold text-[var(--accent)]">
+                              #{ord.order_number}
+                            </span>
+                          </div>
+                          <p className="mt-1.5 flex items-center gap-1.5 text-xs text-[var(--fg-muted)]">
+                            <Clock className="size-3.5 text-[var(--fg-subtle)]" />
+                            Placed on {formatEventDate(ord.created_at)}
+                          </p>
+                        </div>
+                        <div className="flex items-center gap-4">
+                          <div className="text-right">
+                            <span className="text-[11px] uppercase tracking-wider text-[var(--fg-subtle)]">Total</span>
+                            <p className="font-display text-lg font-bold text-white">{formatINR(ord.total_amount)}</p>
+                          </div>
+                          {isPending && !isCancelled && (
+                            <Link
+                              href="/shop"
+                              className="inline-flex items-center gap-1.5 rounded-full px-4 py-2 text-xs font-bold text-[var(--on-accent)]"
+                              style={{ background: "var(--grad-brand)" }}
+                            >
+                              <CreditCard className="size-3.5" /> Retry in Shop
+                            </Link>
+                          )}
+                        </div>
+                      </div>
+
+                      {/* Items */}
+                      <div className="mt-4 divide-y divide-[var(--border)]">
+                        {(ord.items || []).map((it: any, idx: number) => {
+                          const itemImg = it.image_url || it.image || "";
+                          const itemVariant = [it.variant?.color, it.variant?.size].filter(Boolean).join(" · ");
+                          return (
+                            <div key={idx} className="flex items-center gap-4 py-3 first:pt-0 last:pb-0">
+                              {itemImg ? (
+                                <img
+                                  src={itemImg}
+                                  alt={it.title || it.name || "Item"}
+                                  className="size-14 shrink-0 rounded-xl border border-[var(--border)] bg-[var(--surface-2)] object-cover"
+                                />
+                              ) : (
+                                <div className="grid size-14 shrink-0 place-items-center rounded-xl border border-[var(--border)] bg-[var(--surface-2)] text-[var(--fg-subtle)]">
+                                  <Package className="size-6" />
+                                </div>
+                              )}
+                              <div className="min-w-0 flex-1">
+                                <p className="font-semibold text-sm line-clamp-1">{it.title || it.name || "Merchandise Item"}</p>
+                                {itemVariant && <p className="text-xs text-[var(--fg-subtle)]">{itemVariant}</p>}
+                                <p className="mt-0.5 text-xs text-[var(--fg-muted)]">
+                                  Qty: <span className="font-semibold text-white">{it.quantity}</span> × {formatINR(it.price || it.unit_price || 0)}
+                                </p>
+                              </div>
+                              <p className="font-display font-bold text-sm">
+                                {formatINR((it.price || it.unit_price || 0) * (it.quantity || 1))}
+                              </p>
+                            </div>
+                          );
+                        })}
+                      </div>
+
+                      {/* Delivery Address */}
+                      {ord.shipping_address && (
+                        <div className="mt-4 flex items-start gap-2 rounded-xl bg-[var(--surface-2)]/40 p-3.5 text-xs text-[var(--fg-muted)]">
+                          <MapPin className="size-4 shrink-0 text-[var(--accent)] mt-0.5" />
+                          <div>
+                            <span className="font-semibold text-white">{ord.shipping_address.full_name || ord.user_name}</span>
+                            {ord.shipping_address.phone && <span className="ml-2 font-mono text-[var(--fg-subtle)]">({ord.shipping_address.phone})</span>}
+                            <p className="mt-0.5 text-[var(--fg-subtle)]">
+                              {[
+                                ord.shipping_address.address_line1,
+                                ord.shipping_address.address_line2,
+                                ord.shipping_address.city,
+                                ord.shipping_address.state,
+                                ord.shipping_address.postal_code,
+                              ].filter(Boolean).join(", ")}
+                            </p>
+                          </div>
+                        </div>
+                      )}
+                    </motion.div>
+                  );
+                })}
+              </div>
+            ) : (
+              <EmptyState
+                Icon={Package}
+                title="No shop orders yet"
+                body="You haven't ordered any merchandise yet. Explore official hoodies, tees, caps, and gear in our shop."
+                ctaLink="/shop"
+                ctaText="Browse Shop"
+              />
+            )}
+          </div>
+        )}
+
+        {/* ════════════════════════════════════════════════════════════════
+            8. PROFILE & PERSONAL DETAILS TAB
            ════════════════════════════════════════════════════════════════ */}
         {!loading && tab === "profile" && (
           <Reveal className="mt-10">

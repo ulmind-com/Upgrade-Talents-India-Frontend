@@ -1,12 +1,18 @@
 "use client";
 
-import { createContext, useContext, useEffect, useMemo, useState, type ReactNode } from "react";
+import { createContext, useContext, useEffect, useMemo, useState, useCallback, type ReactNode } from "react";
 import Link from "next/link";
 import { AnimatePresence, motion } from "framer-motion";
 import { X, Minus, Plus, Trash2, ShoppingBag, ArrowRight, Loader2, CheckCircle2, ArrowLeft, Lock } from "lucide-react";
 import { useAuth } from "@/components/motion/Providers";
 import { shopApi } from "@/lib/api";
 import { formatINR } from "@/lib/utils";
+
+declare global {
+  interface Window {
+    Razorpay?: any;
+  }
+}
 
 export type CartItem = {
   key: string;
@@ -89,25 +95,130 @@ function CartDrawer() {
   const [addr, setAddr] = useState(EMPTY_ADDR);
   const [busy, setBusy] = useState(false);
   const [err, setErr] = useState("");
+  const [placedOrder, setPlacedOrder] = useState<any>(null);
+
+  // Auto-fill user contact info if available
+  useEffect(() => {
+    if (user) {
+      setAddr((prev) => ({
+        ...prev,
+        full_name: prev.full_name || user.name || "",
+        phone: prev.phone || user.phone_number || "",
+      }));
+    }
+  }, [user]);
 
   useEffect(() => { if (!open) { setErr(""); } }, [open]);
   useEffect(() => { document.body.style.overflow = open ? "hidden" : ""; return () => { document.body.style.overflow = ""; }; }, [open]);
+
+  const loadRazorpay = useCallback(
+    () =>
+      new Promise<boolean>((resolve) => {
+        if (typeof window !== "undefined" && window.Razorpay) return resolve(true);
+        const s = document.createElement("script");
+        s.src = "https://checkout.razorpay.com/v1/checkout.js";
+        s.onload = () => resolve(true);
+        s.onerror = () => resolve(false);
+        document.body.appendChild(s);
+      }),
+    []
+  );
 
   async function placeOrder() {
     const req = ["full_name", "phone", "address_line1", "city", "state", "postal_code"] as const;
     if (req.some((k) => !addr[k].trim())) { setErr("Please fill all required fields."); return; }
     setBusy(true); setErr("");
     try {
-      await shopApi.createOrder({
+      const order = await shopApi.createOrder({
         items: items.map((i) => ({ product_id: i.productId, variant_id: i.variantId, quantity: i.qty })),
         shipping_address: { ...addr, country: "India" },
       });
-      clear(); setStep("done");
-    } catch (e: any) { setErr(e?.message || "Could not place order."); }
-    finally { setBusy(false); }
+
+      const paymentDetails = order?.payment_details;
+
+      // If backend reports credentials are not yet configured
+      if (paymentDetails?.status === "PENDING_CONFIGURATION") {
+        setPlacedOrder(order);
+        clear();
+        setStep("done");
+        return;
+      }
+
+      // Check for Razorpay checkout data
+      const checkout = paymentDetails?.checkout_data;
+      const rzpOrderId = checkout?.order_id || paymentDetails?.provider_order_id;
+
+      if (!rzpOrderId) {
+        setPlacedOrder(order);
+        clear();
+        setStep("done");
+        return;
+      }
+
+      const ok = await loadRazorpay();
+      if (!ok) {
+        throw new Error("Could not reach Razorpay payment gateway. Check your connection and retry.");
+      }
+
+      const keyId = checkout?.key || process.env.NEXT_PUBLIC_RAZORPAY_KEY_ID;
+      if (!keyId) {
+        throw new Error("Payment gateway key is not configured. Please contact support.");
+      }
+
+      const rzp = new window.Razorpay({
+        key: keyId,
+        amount: checkout?.amount || Math.round((order.total_amount || subtotal) * 100),
+        currency: checkout?.currency || order.currency || "INR",
+        name: checkout?.name || "Upgrade Talents India",
+        description: checkout?.description || `Merchandise Order ${order.order_number}`,
+        order_id: rzpOrderId,
+        prefill: {
+          email: user?.email || "",
+          name: addr.full_name || user?.name || "",
+          contact: addr.phone || user?.phone_number || "",
+          ...(checkout?.prefill || {}),
+        },
+        theme: { color: "#ff7a00" },
+        modal: {
+          ondismiss: () => {
+            setBusy(false);
+            setErr("Payment cancelled. Your order is pending — retry to complete payment.");
+          },
+        },
+        handler: async (resp: any) => {
+          try {
+            setBusy(true);
+            setErr("");
+            await shopApi.verifyPayment({
+              order_number: order.order_number,
+              razorpay_order_id: resp.razorpay_order_id,
+              razorpay_payment_id: resp.razorpay_payment_id,
+              razorpay_signature: resp.razorpay_signature,
+            });
+            setPlacedOrder(order);
+            clear();
+            setStep("done");
+          } catch (e: any) {
+            setErr(e?.message || `Payment captured but verification failed. Please contact support with order #${order.order_number}`);
+          } finally {
+            setBusy(false);
+          }
+        },
+      });
+
+      rzp.on("payment.failed", (r: any) => {
+        setErr(r?.error?.description || "Payment failed. No amount was charged — please try again.");
+        setBusy(false);
+      });
+
+      rzp.open();
+    } catch (e: any) {
+      setErr(e?.message || "Could not place order.");
+      setBusy(false);
+    }
   }
 
-  const close = () => { setOpen(false); setTimeout(() => setStep("cart"), 300); };
+  const close = () => { setOpen(false); setTimeout(() => { setStep("cart"); setPlacedOrder(null); }, 300); };
 
   return (
     <AnimatePresence>
@@ -135,9 +246,14 @@ function CartDrawer() {
                 <div>
                   <CheckCircle2 className="mx-auto size-14 text-[var(--success)]" aria-hidden />
                   <p className="mt-4 font-display text-xl font-bold">Thank you!</p>
-                  <p className="mt-1.5 text-[13.5px] text-[var(--fg-muted)]">Your order has been placed. Track it in your dashboard.</p>
+                  {placedOrder?.order_number && (
+                    <p className="mt-1 font-mono text-xs font-semibold text-[var(--accent)]">
+                      Order #{placedOrder.order_number}
+                    </p>
+                  )}
+                  <p className="mt-1.5 text-[13.5px] text-[var(--fg-muted)]">Your order has been placed and payment confirmed. Track it in your dashboard.</p>
                   <div className="mt-6 flex flex-col gap-2.5">
-                    <Link href="/dashboard" onClick={close} className="inline-flex items-center justify-center gap-2 rounded-full py-3 text-[13.5px] font-bold text-[var(--on-accent)]" style={{ background: "var(--grad-brand)" }}>View my orders</Link>
+                    <Link href="/dashboard?tab=orders" onClick={close} className="inline-flex items-center justify-center gap-2 rounded-full py-3 text-[13.5px] font-bold text-[var(--on-accent)]" style={{ background: "var(--grad-brand)" }}>View my orders</Link>
                     <button onClick={close} className="rounded-full border border-[var(--border)] py-3 text-[13.5px] font-semibold hover:border-[var(--border-strong)]">Continue shopping</button>
                   </div>
                 </div>
@@ -206,14 +322,22 @@ function CartDrawer() {
                   </div>
                   {err && <p className="pb-2 text-[12px] text-[var(--danger)]">{err}</p>}
                   {step === "cart" ? (
-                    <button onClick={() => (user ? setStep("address") : (window.location.href = "/login"))}
+                    <button onClick={() => (user ? setStep("address") : (window.location.href = "/login?next=/shop"))}
                       className="inline-flex w-full items-center justify-center gap-2 rounded-full py-3.5 text-[14px] font-bold text-[var(--on-accent)]" style={{ background: "var(--grad-brand)" }}>
                       {user ? <>Checkout <ArrowRight className="size-4" aria-hidden /></> : <><Lock className="size-4" aria-hidden /> Sign in to checkout</>}
                     </button>
                   ) : (
                     <button onClick={placeOrder} disabled={busy}
                       className="inline-flex w-full items-center justify-center gap-2 rounded-full py-3.5 text-[14px] font-bold text-[var(--on-accent)] disabled:opacity-60" style={{ background: "var(--grad-brand)" }}>
-                      {busy ? <Loader2 className="size-4 animate-spin" aria-hidden /> : <Lock className="size-4" aria-hidden />} Place order · {formatINR(subtotal)}
+                      {busy ? (
+                        <>
+                          <Loader2 className="size-4 animate-spin" aria-hidden /> Processing payment...
+                        </>
+                      ) : (
+                        <>
+                          <Lock className="size-4" aria-hidden /> Pay with Razorpay · {formatINR(subtotal)}
+                        </>
+                      )}
                     </button>
                   )}
                 </div>

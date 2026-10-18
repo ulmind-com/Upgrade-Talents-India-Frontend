@@ -285,6 +285,20 @@ export const shopApi = {
   categories: () => apiFetch<any[]>("/api/merchandise/categories", { revalidate: 300 }),
   createOrder: (payload: { items: { product_id: string; variant_id?: string; quantity: number }[]; shipping_address: Record<string, string> }) =>
     apiFetch<any>("/api/merchandise/orders", { method: "POST", auth: true, body: payload }),
+  verifyPayment: (body: {
+    order_number: string;
+    razorpay_order_id: string;
+    razorpay_payment_id: string;
+    razorpay_signature: string;
+  }) => apiFetch<any>("/api/merchandise/orders/verify-payment", { method: "POST", auth: true, body }),
+  myOrders: (p: { skip?: number; limit?: number } = {}) =>
+    apiFetch<any>("/api/merchandise/orders", { auth: true, cache: "no-store", query: p }),
+  orderDetail: (orderId: string) =>
+    apiFetch<any>(`/api/merchandise/orders/${orderId}`, { auth: true, cache: "no-store" }),
+  orderTracking: (orderId: string) =>
+    apiFetch<any>(`/api/merchandise/orders/${orderId}/tracking`, { auth: true, cache: "no-store" }),
+  cancelOrder: (orderId: string, reason: string) =>
+    apiFetch<any>(`/api/merchandise/orders/${orderId}/cancel`, { method: "POST", auth: true, body: { reason } }),
 };
 
 /* ─────────────── VIP PASSES ─────────────── */
