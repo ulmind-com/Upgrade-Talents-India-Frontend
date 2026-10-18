@@ -1,5 +1,6 @@
 "use client";
 
+import Link from "next/link";
 import { motion } from "framer-motion";
 import { GraduationCap, Clock, User2, CalendarRange, ArrowUpRight } from "lucide-react";
 import type { CourseItem } from "@/lib/api";
@@ -38,6 +39,7 @@ export default function LearnListing({ items, kind }: { items: CourseItem[]; kin
           {items.map((c, i) => (
             <StaggerItem key={c._id} className="h-full">
               <TiltCard className="group h-full" intensity={7}>
+                <Link href={`/${noun}/${c._id}`} className="block h-full">
                 <article className="glow-ring flex h-full flex-col overflow-hidden rounded-[var(--radius-lg)] border border-[var(--border)] bg-[var(--surface)]">
                   <div className="relative aspect-[16/10] overflow-hidden">
                     <img src={imageFor(c.thumbnail, i)} alt="" loading="lazy" className="size-full object-cover transition-transform duration-[1.2s] group-hover:scale-110" />
@@ -72,7 +74,7 @@ export default function LearnListing({ items, kind }: { items: CourseItem[]; kin
                     <div className="mt-auto flex items-center justify-between gap-4 border-t border-[var(--border)] pt-5">
                       <div>
                         <span className="block font-mono text-[10px] uppercase tracking-[0.2em] text-[var(--fg-subtle)]">Fee</span>
-                        <span className="font-display text-lg font-bold">{formatINR(c.price)}</span>
+                        <span className="font-display text-lg font-bold">{c.price > 0 ? formatINR(c.price) : "Free"}</span>
                       </div>
                       {typeof c.available_seats === "number" && (
                         <span className="inline-flex items-center gap-1.5 font-mono text-[10px] uppercase tracking-[0.14em] text-[var(--fg-subtle)]">
@@ -80,8 +82,13 @@ export default function LearnListing({ items, kind }: { items: CourseItem[]; kin
                         </span>
                       )}
                     </div>
+
+                    <span className="inline-flex items-center gap-1.5 font-mono text-[11px] font-semibold uppercase tracking-[0.14em] text-[var(--accent)]">
+                      View details <ArrowUpRight className="size-3.5 transition-transform group-hover:translate-x-0.5 group-hover:-translate-y-0.5" aria-hidden />
+                    </span>
                   </div>
                 </article>
+                </Link>
               </TiltCard>
             </StaggerItem>
           ))}
