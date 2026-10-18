@@ -2,8 +2,9 @@
 
 import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { useEffect, useState, useCallback, useRef } from "react";
+import { useEffect, useState, useCallback, useRef, useMemo } from "react";
 import { motion, AnimatePresence } from "framer-motion";
+import QRCode from "qrcode";
 import {
   Ticket, CalendarDays, User, Loader2, AlertCircle,
   CheckCircle2, Clock, ArrowUpRight, TicketX, Receipt,
@@ -1235,20 +1236,72 @@ function VipDashboardTab({ vipBookings, vipPasses, user }: { vipBookings: any[];
 
 function QrCodeModal({ pass, onClose }: { pass: any | null; onClose: () => void }) {
   const [qrData, setQrData] = useState<any>(null);
+  const [clientQrUrl, setClientQrUrl] = useState<string>("");
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
 
   useEffect(() => {
-    if (!pass) { setQrData(null); setError(""); return; }
+    if (!pass) {
+      setQrData(null);
+      setClientQrUrl("");
+      setError("");
+      return;
+    }
     setLoading(true);
     setError("");
 
     const passId = pass._id || pass.pass_id || pass.id;
-    vipApi.passQr(passId)
-      .then((data) => setQrData(data))
-      .catch((e: any) => setError(e?.message || "Could not load QR code."))
+    vipApi
+      .passQr(passId)
+      .then((data) => {
+        setQrData(data);
+        const token = data?.qr_token || pass?.pass_reference;
+        if (token) {
+          QRCode.toDataURL(String(token), {
+            width: 320,
+            margin: 1,
+            color: { dark: "#000000", light: "#ffffff" },
+          })
+            .then(setClientQrUrl)
+            .catch(() => {});
+        }
+      })
+      .catch(async (e: any) => {
+        if (pass?.pass_reference) {
+          try {
+            const url = await QRCode.toDataURL(String(pass.pass_reference), {
+              width: 320,
+              margin: 1,
+              color: { dark: "#000000", light: "#ffffff" },
+            });
+            setClientQrUrl(url);
+          } catch {
+            setError(e?.message || "Could not load QR code.");
+          }
+        } else {
+          setError(e?.message || "Could not load QR code.");
+        }
+      })
       .finally(() => setLoading(false));
   }, [pass]);
+
+  const qrSrc = useMemo(() => {
+    if (qrData?.qr_image_base64) {
+      const raw = String(qrData.qr_image_base64).trim();
+      return raw.startsWith("data:") ? raw : `data:image/png;base64,${raw}`;
+    }
+    return clientQrUrl;
+  }, [qrData, clientQrUrl]);
+
+  const handleDownload = () => {
+    if (!qrSrc) return;
+    const a = document.createElement("a");
+    a.href = qrSrc;
+    a.download = `VIP-Pass-${pass?.pass_reference || "QR"}.png`;
+    document.body.appendChild(a);
+    a.click();
+    document.body.removeChild(a);
+  };
 
   return (
     <AnimatePresence>
@@ -1259,7 +1312,7 @@ function QrCodeModal({ pass, onClose }: { pass: any | null; onClose: () => void 
             initial={{ scale: 0.94, y: 16, opacity: 0 }}
             animate={{ scale: 1, y: 0, opacity: 1 }}
             exit={{ scale: 0.96, opacity: 0 }}
-            className="relative w-full max-w-[380px] overflow-hidden rounded-[var(--radius-xl)] border border-[var(--accent)] bg-[var(--bg-elevated)] p-6 text-center"
+            className="relative w-full max-w-[380px] overflow-hidden rounded-[var(--radius-xl)] border border-[var(--accent)] bg-[var(--bg-elevated)] p-6 text-center shadow-2xl"
           >
             <div className="flex items-center justify-between border-b border-[var(--border)] pb-4 mb-4">
               <p className="flex items-center gap-2 font-display text-lg font-bold">
@@ -1270,22 +1323,37 @@ function QrCodeModal({ pass, onClose }: { pass: any | null; onClose: () => void 
               </button>
             </div>
 
-            {loading && <Loader2 className="mx-auto size-8 animate-spin text-[var(--accent)]" />}
-            {error && <p className="text-xs text-red-400">{error}</p>}
-            {!loading && !error && qrData && (
+            {loading && (
+              <div className="py-12">
+                <Loader2 className="mx-auto size-8 animate-spin text-[var(--accent)]" />
+                <p className="mt-3 text-xs text-[var(--fg-muted)]">Generating secure QR pass...</p>
+              </div>
+            )}
+            {error && !qrSrc && <p className="text-xs text-red-400 py-6">{error}</p>}
+            {!loading && qrSrc && (
               <>
-                <div className="mx-auto overflow-hidden rounded-2xl border border-[var(--border)] bg-white p-3 size-48">
-                  {qrData.qr_image_base64 ? (
-                    <img src={`data:image/png;base64,${qrData.qr_image_base64}`} alt="QR" className="size-full object-contain" />
-                  ) : (
-                    <QrCode className="size-full text-black" />
-                  )}
+                <div className="mx-auto overflow-hidden rounded-2xl border border-[var(--border)] bg-white p-3 size-52 flex items-center justify-center shadow-inner">
+                  <img src={qrSrc} alt="VIP Pass QR" className="size-full object-contain" />
                 </div>
                 <h4 className="mt-4 font-display text-lg font-bold">{pass.pass_name || pass.category}</h4>
                 <p className="text-xs text-[var(--fg-muted)]">{pass.event_title}</p>
                 <p className="mt-1 font-mono text-[11px] text-[var(--fg-subtle)]">{pass.pass_reference}</p>
-                <p className="mt-4 text-[11px] text-[var(--fg-subtle)]">Scan this QR at the VIP entrance gate</p>
+                <div className="mt-4 flex items-center justify-center gap-2">
+                  <button
+                    onClick={handleDownload}
+                    className="inline-flex items-center gap-1.5 rounded-full border border-[var(--border)] bg-[var(--surface-2)] px-3.5 py-1.5 text-xs font-semibold text-[var(--fg)] hover:border-[var(--accent)] transition-colors"
+                  >
+                    <Download className="size-3.5 text-[var(--accent)]" /> Download QR
+                  </button>
+                </div>
+                <p className="mt-3 text-[11px] text-[var(--fg-subtle)]">Scan this QR at the VIP entrance gate</p>
               </>
+            )}
+            {!loading && !error && !qrSrc && (
+              <div className="py-8">
+                <QrCode className="mx-auto size-16 text-[var(--fg-subtle)]" />
+                <p className="mt-2 text-xs text-[var(--fg-muted)]">No QR available for this pass.</p>
+              </div>
             )}
           </motion.div>
         </div>
