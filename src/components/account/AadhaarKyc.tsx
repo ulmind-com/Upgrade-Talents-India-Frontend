@@ -1,12 +1,14 @@
 "use client";
 
 import { useCallback, useEffect, useRef, useState } from "react";
+import { createPortal } from "react-dom";
 import { AnimatePresence, motion } from "framer-motion";
 import {
   ShieldCheck, ShieldAlert, Lock, Loader2, X, ArrowRight, RotateCcw,
   AlertCircle, CheckCircle2, Smartphone, FileCheck2, UserCheck, CalendarDays, MapPin,
+  ExternalLink, Sparkles, RefreshCw, KeyRound
 } from "lucide-react";
-import { kycApi, type KycStatus } from "@/lib/api";
+import { kycApi, digilockerApi, type KycStatus } from "@/lib/api";
 import { usePageScrollLock } from "@/components/motion/Providers";
 import { Button } from "@/components/ui/Primitives";
 import { formatEventDate } from "@/lib/utils";
@@ -18,17 +20,42 @@ const digitsOnly = (v: string) => v.replace(/\D/g, "");
 const groupAadhaar = (v: string) => digitsOnly(v).slice(0, 12).replace(/(\d{4})(?=\d)/g, "$1 ").trim();
 
 /* ═══════════════════════════════════════════════════════════════════
-   PANEL — lives in the dashboard profile tab
+   PANEL — Lives in the dashboard profile tab
    ═══════════════════════════════════════════════════════════════════ */
 
 export default function AadhaarKyc() {
   const [kyc, setKyc] = useState<KycStatus | null>(null);
   const [loading, setLoading] = useState(true);
-  const [open, setOpen] = useState(false);
+  const [modalOpen, setModalOpen] = useState(false);
+  const [oauthLoading, setOauthLoading] = useState(false);
+  const [revoking, setRevoking] = useState(false);
+  const [notice, setNotice] = useState<string | null>(null);
 
   const load = useCallback(async () => {
     try {
-      setKyc(await kycApi.status());
+      // Check both standard KYC status and official DigiLocker OAuth status
+      const [stdRes, oauthRes] = await Promise.allSettled([
+        kycApi.status(),
+        digilockerApi.status(),
+      ]);
+
+      const std = stdRes.status === "fulfilled" ? stdRes.value : null;
+      const oauth = oauthRes.status === "fulfilled" ? oauthRes.value : null;
+
+      if (oauth?.verified || oauth?.kyc_status === "VERIFIED") {
+        setKyc({
+          ...std,
+          ...oauth,
+          status: "VERIFIED",
+          is_verified: true,
+          verified: true,
+          source: oauth.verification_source || "DIGILOCKER_OAUTH",
+        });
+      } else if (std?.is_verified || std?.status === "VERIFIED") {
+        setKyc(std);
+      } else {
+        setKyc(oauth || std || null);
+      }
     } catch {
       setKyc(null);
     } finally {
@@ -36,21 +63,101 @@ export default function AadhaarKyc() {
     }
   }, []);
 
-  useEffect(() => { load(); }, [load]);
+  useEffect(() => {
+    load();
+  }, [load]);
 
-  const verified = !!kyc?.is_verified || kyc?.status === "VERIFIED";
+  // Listen for the official postMessage from DigiLocker popup callback
+  useEffect(() => {
+    function handleMessage(event: MessageEvent) {
+      if (event.data?.type === "DIGILOCKER_VERIFIED" && event.data?.status === "VERIFIED") {
+        setNotice("DigiLocker verification succeeded! Updating your profile…");
+        load();
+        setTimeout(() => setNotice(null), 4000);
+      }
+    }
+    window.addEventListener("message", handleMessage);
+    return () => window.removeEventListener("message", handleMessage);
+  }, [load]);
+
+  const verified = !!kyc?.is_verified || kyc?.status === "VERIFIED" || kyc?.verified === true;
+
+  /* ── 1-Click Official DigiLocker OAuth Window ── */
+  async function launchOfficialDigiLocker() {
+    setOauthLoading(true);
+    setNotice(null);
+    try {
+      const res = await digilockerApi.getAuthorizeUrl();
+      if (!res.authorization_url) {
+        throw new Error(res.message || "Failed to generate authorization URL");
+      }
+
+      const w = 620;
+      const h = 760;
+      const left = window.screenX + (window.outerWidth - w) / 2;
+      const top = window.screenY + (window.outerHeight - h) / 2;
+
+      const popup = window.open(
+        res.authorization_url,
+        "eventora_digilocker_window",
+        `width=${w},height=${h},left=${left},top=${top},status=yes,toolbar=no,menubar=no,location=yes,scrollbars=yes`
+      );
+
+      if (!popup) {
+        // Popup blocked — navigate or open tab
+        window.open(res.authorization_url, "_blank");
+      }
+
+      // Check for popup close & re-verify status
+      const pollTimer = setInterval(async () => {
+        if (!popup || popup.closed) {
+          clearInterval(pollTimer);
+          setOauthLoading(false);
+          await load();
+        }
+      }, 1500);
+    } catch (e: any) {
+      setNotice(e?.message || "Could not launch DigiLocker portal. You can enter Aadhaar number directly.");
+      setOauthLoading(false);
+    }
+  }
+
+  /* ── Revoke / Reset Verification (Dev / Testing) ── */
+  async function handleRevoke() {
+    if (!confirm("Are you sure you want to reset your DigiLocker verification status?")) return;
+    setRevoking(true);
+    try {
+      await digilockerApi.revoke();
+      await load();
+    } catch (e: any) {
+      alert(e?.message || "Could not reset verification status.");
+    } finally {
+      setRevoking(false);
+    }
+  }
 
   return (
-    <div className="overflow-hidden rounded-[var(--radius-xl)] border border-[var(--border)] bg-[var(--surface)] shadow-lg">
+    <div className="overflow-hidden rounded-[var(--radius-xl)] border border-[var(--border)] bg-[var(--surface)] shadow-lg transition-all">
+      {/* Header bar */}
       <div className="flex items-center justify-between gap-4 border-b border-[var(--border)] px-7 py-5">
-        <h3 className="flex items-center gap-2 font-display text-base font-bold uppercase tracking-wider text-[var(--fg)]">
-          {verified ? (
-            <ShieldCheck className="size-4.5 text-green-400" aria-hidden />
-          ) : (
-            <ShieldAlert className="size-4.5 text-[var(--accent)]" aria-hidden />
-          )}
-          Government ID
-        </h3>
+        <div className="flex items-center gap-2.5">
+          <div className="grid size-8 place-items-center rounded-lg bg-[var(--surface-2)] border border-[var(--border)]">
+            {verified ? (
+              <ShieldCheck className="size-4.5 text-green-400" aria-hidden />
+            ) : (
+              <ShieldAlert className="size-4.5 text-[var(--accent)]" aria-hidden />
+            )}
+          </div>
+          <div>
+            <h3 className="flex items-center gap-2 font-display text-base font-bold uppercase tracking-wider text-[var(--fg)]">
+              Government ID Verification
+            </h3>
+            <p className="font-mono text-[10px] uppercase tracking-wider text-[var(--fg-subtle)]">
+              Official DigiLocker · MeitY, Govt. of India
+            </p>
+          </div>
+        </div>
+
         {verified ? (
           <span className="inline-flex items-center gap-1.5 rounded-full border border-green-500/30 bg-green-500/10 px-3 py-1 text-[11px] font-semibold text-green-400">
             <CheckCircle2 className="size-3.5" aria-hidden /> Verified
@@ -62,19 +169,27 @@ export default function AadhaarKyc() {
         )}
       </div>
 
+      {notice && (
+        <div className="mx-7 mt-5 flex items-center gap-2 rounded-xl border border-[var(--accent)]/30 bg-[var(--accent)]/10 px-4 py-2.5 text-xs text-[var(--accent)]">
+          <Sparkles className="size-4 shrink-0" />
+          <span>{notice}</span>
+        </div>
+      )}
+
       {loading ? (
         <div className="flex items-center gap-3 px-7 py-8 text-sm text-[var(--fg-muted)]">
           <Loader2 className="size-4 animate-spin text-[var(--accent)]" aria-hidden />
-          Checking your verification status…
+          Checking your DigiLocker verification status…
         </div>
       ) : verified ? (
         <>
           <dl className="divide-y divide-[var(--border)]">
             {[
-              { k: "Aadhaar", v: kyc?.aadhaar_masked, icon: Lock, mono: true },
+              { k: "Masked Aadhaar", v: kyc?.aadhaar_masked, icon: Lock, mono: true },
               { k: "Verified Name", v: kyc?.verified_name, icon: UserCheck },
               { k: "Date of Birth", v: kyc?.verified_dob ? formatEventDate(kyc.verified_dob) : null, icon: CalendarDays },
               { k: "Address on Record", v: kyc?.verified_address, icon: MapPin },
+              { k: "Verification ID", v: kyc?.verification_id, icon: KeyRound, mono: true },
               { k: "Verified On", v: kyc?.verified_at ? formatEventDate(kyc.verified_at) : null, icon: FileCheck2 },
             ]
               .filter((row) => row.v)
@@ -89,22 +204,31 @@ export default function AadhaarKyc() {
                 </div>
               ))}
           </dl>
-          <p className="border-t border-[var(--border)] px-7 py-4 text-[11px] text-[var(--fg-subtle)]">
-            Pulled straight from {kyc?.source === "DIGILOCKER" ? "DigiLocker" : kyc?.source || "DigiLocker"} — we never store your full Aadhaar number.
-          </p>
+          <div className="flex items-center justify-between border-t border-[var(--border)] px-7 py-4 text-[11px] text-[var(--fg-subtle)]">
+            <span>
+              Verified via official Government of India DigiLocker integration. No raw Aadhaar number is stored.
+            </span>
+            <button
+              type="button"
+              onClick={handleRevoke}
+              disabled={revoking}
+              className="ml-4 shrink-0 text-red-400 hover:underline disabled:opacity-50"
+            >
+              {revoking ? "Resetting…" : "Reset / Re-verify"}
+            </button>
+          </div>
         </>
       ) : (
         <div className="px-7 py-6">
           <p className="text-sm leading-relaxed text-[var(--fg-muted)]">
-            Verify once with DigiLocker to unlock prize payouts, official certificates and age-restricted competitions.
-            No documents to scan or upload.
+            Verify once through official DigiLocker to unlock prize payouts, verified certificates, and access to all competitions. Zero physical document scans or manual file uploads needed.
           </p>
 
           <ul className="mt-5 flex flex-col gap-2.5">
             {[
-              { icon: Smartphone, text: "An OTP goes to the mobile linked to your Aadhaar" },
-              { icon: FileCheck2, text: "Your name, date of birth and address come back verified" },
-              { icon: Lock, text: "Only a masked number (XXXX XXXX 1234) is kept on record" },
+              { icon: Smartphone, text: "DigiLocker & UIDAI dispatch the official OTP directly to your registered mobile" },
+              { icon: FileCheck2, text: "Your legal name, date of birth and address are extracted and verified automatically" },
+              { icon: Lock, text: "Only a permanently masked identity (XXXX-XXXX-1234) is retained for duplicate prevention" },
             ].map((row) => (
               <li key={row.text} className="flex items-start gap-2.5 text-[13px] text-[var(--fg-muted)]">
                 <row.icon className="mt-0.5 size-4 shrink-0 text-[var(--accent)]" aria-hidden />
@@ -113,38 +237,69 @@ export default function AadhaarKyc() {
             ))}
           </ul>
 
-          <Button onClick={() => setOpen(true)} className="mt-7 w-full">
-            <ShieldCheck className="size-4" aria-hidden /> Verify with DigiLocker
-          </Button>
+          {/* Action buttons */}
+          <div className="mt-7 flex flex-col sm:flex-row gap-3">
+            <Button
+              onClick={launchOfficialDigiLocker}
+              disabled={oauthLoading}
+              className="flex-1 shadow-lg shadow-[var(--accent)]/15"
+            >
+              {oauthLoading ? (
+                <Loader2 className="size-4 animate-spin" aria-hidden />
+              ) : (
+                <ShieldCheck className="size-4" aria-hidden />
+              )}
+              {oauthLoading ? "Opening DigiLocker Portal…" : "Verify with DigiLocker"}
+              <ExternalLink className="size-3.5 ml-1 opacity-70" />
+            </Button>
+
+            <button
+              type="button"
+              onClick={() => setModalOpen(true)}
+              className="inline-flex items-center justify-center gap-2 rounded-xl border border-[var(--border)] bg-[var(--surface-2)] px-4 py-3 text-xs font-semibold text-[var(--fg)] transition-colors hover:border-[var(--accent)] hover:text-[var(--accent)]"
+            >
+              <KeyRound className="size-3.5" />
+              Enter Aadhaar Number Directly
+            </button>
+          </div>
         </div>
       )}
 
+      {/* Portal-rendered Modal to prevent any ancestor transform / navbar clipping bug */}
       <KycModal
-        open={open}
-        onClose={() => setOpen(false)}
-        onVerified={() => { setOpen(false); load(); }}
+        open={modalOpen}
+        onClose={() => setModalOpen(false)}
+        onVerified={() => {
+          setModalOpen(false);
+          load();
+        }}
       />
     </div>
   );
 }
 
 /* ═══════════════════════════════════════════════════════════════════
-   MODAL — Aadhaar number, then the OTP
+   MODAL — Portaled directly to document.body (Zero Navbar Overlap!)
    ═══════════════════════════════════════════════════════════════════ */
 
 type Step = "aadhaar" | "otp" | "done";
 
 function KycModal({
-  open, onClose, onVerified,
+  open,
+  onClose,
+  onVerified,
 }: {
   open: boolean;
   onClose: () => void;
   onVerified: () => void;
 }) {
+  const [mounted, setMounted] = useState(false);
   const [step, setStep] = useState<Step>("aadhaar");
   const [aadhaar, setAadhaar] = useState("");
   const [reference, setReference] = useState("");
   const [maskedMobile, setMaskedMobile] = useState("");
+  const [sandboxOtp, setSandboxOtp] = useState<string | null>(null);
+  const [mode, setMode] = useState<string | null>(null);
   const [otp, setOtp] = useState<string[]>(Array(OTP_LENGTH).fill(""));
   const [secondsLeft, setSecondsLeft] = useState(OTP_WINDOW_SECONDS);
   const [busy, setBusy] = useState(false);
@@ -154,6 +309,10 @@ function KycModal({
 
   const boxes = useRef<(HTMLInputElement | null)[]>([]);
 
+  useEffect(() => {
+    setMounted(true);
+  }, []);
+
   usePageScrollLock(open, onClose);
 
   useEffect(() => {
@@ -162,6 +321,8 @@ function KycModal({
     setAadhaar("");
     setReference("");
     setMaskedMobile("");
+    setSandboxOtp(null);
+    setMode(null);
     setOtp(Array(OTP_LENGTH).fill(""));
     setErr(null);
     setDetails(null);
@@ -185,16 +346,34 @@ function KycModal({
       const res = await kycApi.sendOtp(rawAadhaar);
       setReference(res.reference_id);
       setMaskedMobile(res.masked_mobile || "");
+      setMode(res.mode || null);
+
+      // If backend is in sandbox mode, capture the test OTP so user is never stuck
+      if (res.sandbox_otp) {
+        setSandboxOtp(res.sandbox_otp);
+      } else if (res.mode === "sandbox") {
+        setSandboxOtp("123456");
+      } else {
+        setSandboxOtp(null);
+      }
+
       setOtp(Array(OTP_LENGTH).fill(""));
       setStep("otp");
       if (resend) setSecondsLeft(OTP_WINDOW_SECONDS);
       setTimeout(() => boxes.current[0]?.focus(), 80);
     } catch (e: any) {
-      const text = e?.message || "Could not send the OTP. Please try again.";
+      const text = e?.message || "Could not send the OTP. Please check the Aadhaar number.";
       setErr({ text, duplicate: /already registered/i.test(text) });
     } finally {
       setBusy(false);
     }
+  }
+
+  function autofillSandboxOtp() {
+    const code = sandboxOtp || "123456";
+    const digits = code.split("").slice(0, OTP_LENGTH);
+    setOtp(digits);
+    boxes.current[OTP_LENGTH - 1]?.focus();
   }
 
   async function verify() {
@@ -221,10 +400,11 @@ function KycModal({
       setOtp((prev) => prev.map((c, idx) => (idx === i ? "" : c)));
       return;
     }
-    // A paste of the whole code lands in one box — spread it across the row.
     setOtp((prev) => {
       const next = [...prev];
-      v.split("").slice(0, OTP_LENGTH - i).forEach((d, k) => { next[i + k] = d; });
+      v.split("").slice(0, OTP_LENGTH - i).forEach((d, k) => {
+        next[i + k] = d;
+      });
       return next;
     });
     const landed = Math.min(i + v.length, OTP_LENGTH - 1);
@@ -241,23 +421,31 @@ function KycModal({
   const ss = String(secondsLeft % 60).padStart(2, "0");
   const expired = secondsLeft === 0;
 
-  if (!open) return null;
+  if (!open || !mounted) return null;
 
-  return (
-    <div className="fixed inset-0 z-[150] flex items-center justify-center p-4 sm:p-6">
-      <div className="absolute inset-0 backdrop-blur-md" style={{ background: "var(--scrim)" }} onClick={onClose} />
+  const modalContent = (
+    <div className="fixed inset-0 z-[200] flex items-center justify-center p-4 sm:p-6">
+      {/* Backdrop */}
+      <div
+        className="absolute inset-0 backdrop-blur-md transition-opacity"
+        style={{ background: "rgba(0, 0, 0, 0.75)" }}
+        onClick={onClose}
+      />
 
+      {/* Modal Dialog */}
       <motion.div
         initial={{ opacity: 0, scale: 0.95, y: 16 }}
         animate={{ opacity: 1, scale: 1, y: 0 }}
+        exit={{ opacity: 0, scale: 0.95, y: 16 }}
         role="dialog"
         aria-modal="true"
         aria-label="Verify your government ID"
-        className="relative flex max-h-[min(90dvh,760px)] w-full max-w-md flex-col overflow-hidden rounded-[var(--radius-xl)] border border-[var(--border)] bg-[var(--bg-elevated)] shadow-2xl"
+        className="relative flex max-h-[min(90dvh,760px)] w-full max-w-md flex-col overflow-hidden rounded-[var(--radius-xl)] border border-[var(--border)] bg-[var(--bg-elevated)] shadow-2xl z-10"
       >
+        {/* Header */}
         <div className="flex shrink-0 items-center justify-between gap-4 border-b border-[var(--border)] px-6 py-5">
           <div className="min-w-0">
-            <h3 className="flex items-center gap-2 font-display text-base font-bold uppercase">
+            <h3 className="flex items-center gap-2 font-display text-base font-bold uppercase text-[var(--fg)]">
               <ShieldCheck className="size-4.5 text-[var(--accent)]" aria-hidden /> DigiLocker Verification
             </h3>
             <p className="mt-0.5 font-mono text-[10px] uppercase tracking-wider text-[var(--fg-subtle)]">
@@ -281,7 +469,9 @@ function KycModal({
             return (
               <span
                 key={s}
-                className={`h-1 flex-1 rounded-full transition-colors duration-500 ${active ? "bg-[var(--accent)]" : "bg-[var(--surface-2)]"}`}
+                className={`h-1 flex-1 rounded-full transition-colors duration-500 ${
+                  active ? "bg-[var(--accent)]" : "bg-[var(--surface-2)]"
+                }`}
               />
             );
           })}
@@ -311,13 +501,12 @@ function KycModal({
                 className="flex flex-col gap-5"
               >
                 <p className="text-[13px] leading-relaxed text-[var(--fg-muted)]">
-                  Enter your 12-digit Aadhaar number. DigiLocker will send a one-time password to the mobile
-                  number linked to it.
+                  Enter your 12-digit Aadhaar number. DigiLocker will dispatch a one-time verification password to the mobile number registered with UIDAI.
                 </p>
 
                 <div>
                   <label htmlFor="aadhaar" className="block font-mono text-[11px] uppercase tracking-wider text-[var(--fg-subtle)] mb-1.5">
-                    Aadhaar Number
+                    12-Digit Aadhaar Number
                   </label>
                   <input
                     id="aadhaar"
@@ -325,23 +514,25 @@ function KycModal({
                     autoComplete="off"
                     value={groupAadhaar(aadhaar)}
                     onChange={(e) => setAadhaar(digitsOnly(e.target.value).slice(0, 12))}
-                    onKeyDown={(e) => { if (e.key === "Enter" && rawAadhaar.length === 12 && !busy) sendOtp(); }}
+                    onKeyDown={(e) => {
+                      if (e.key === "Enter" && rawAadhaar.length === 12 && !busy) sendOtp();
+                    }}
                     placeholder="0000 0000 0000"
-                    className="w-full rounded-xl border border-[var(--border)] bg-[var(--surface)] px-4 py-3 text-center font-mono text-lg font-semibold tracking-[0.18em] outline-none focus:border-[var(--accent)]"
+                    className="w-full rounded-xl border border-[var(--border)] bg-[var(--surface)] px-4 py-3 text-center font-mono text-lg font-semibold tracking-[0.18em] text-[var(--fg)] outline-none focus:border-[var(--accent)] transition-colors"
                   />
                   <p className="mt-1.5 text-[11px] text-[var(--fg-subtle)]">
-                    {rawAadhaar.length}/12 digits · checked against the UIDAI checksum
+                    {rawAadhaar.length}/12 digits · Verified against official UIDAI Verhoeff algorithm
                   </p>
                 </div>
 
                 <Button onClick={() => sendOtp()} disabled={rawAadhaar.length !== 12 || busy} className="w-full">
                   {busy ? <Loader2 className="size-4 animate-spin" aria-hidden /> : <ArrowRight className="size-4" aria-hidden />}
-                  {busy ? "Sending OTP…" : "Send OTP"}
+                  {busy ? "Requesting OTP…" : "Send OTP"}
                 </Button>
 
                 <p className="flex items-start gap-2 text-[11px] leading-relaxed text-[var(--fg-subtle)]">
                   <Lock className="mt-0.5 size-3.5 shrink-0" aria-hidden />
-                  Your full Aadhaar number is never stored — only a masked form such as XXXX XXXX 1234.
+                  Your full Aadhaar number is never stored on any server — only a masked reference (XXXX-XXXX-1234).
                 </p>
               </motion.div>
             )}
@@ -358,11 +549,34 @@ function KycModal({
                   We sent a 6-digit code{maskedMobile ? <> to <span className="font-semibold text-[var(--fg)]">{maskedMobile}</span></> : " to your Aadhaar-linked mobile"}.
                 </p>
 
+                {/* Sandbox / Development Helper Callout */}
+                {sandboxOtp && (
+                  <div className="rounded-xl border border-sky-500/30 bg-sky-500/10 p-3.5 text-xs text-sky-200">
+                    <div className="flex items-center justify-between gap-2">
+                      <span className="font-semibold flex items-center gap-1.5">
+                        <Sparkles className="size-3.5 text-sky-300" /> Test Mode Active
+                      </span>
+                      <button
+                        type="button"
+                        onClick={autofillSandboxOtp}
+                        className="rounded-lg bg-sky-500/20 px-2.5 py-1 text-[11px] font-bold text-sky-200 transition-colors hover:bg-sky-500/30 active:scale-95"
+                      >
+                        Autofill OTP ({sandboxOtp})
+                      </button>
+                    </div>
+                    <p className="mt-1 text-[11px] text-sky-300/80">
+                      Live SMS gateway is running in sandbox mode. Enter OTP <strong>{sandboxOtp}</strong> or <strong>123456</strong>.
+                    </p>
+                  </div>
+                )}
+
                 <div className="flex justify-between gap-2">
                   {otp.map((digit, i) => (
                     <input
                       key={i}
-                      ref={(el) => { boxes.current[i] = el; }}
+                      ref={(el) => {
+                        boxes.current[i] = el;
+                      }}
                       inputMode="numeric"
                       autoComplete="one-time-code"
                       maxLength={OTP_LENGTH}
@@ -370,7 +584,7 @@ function KycModal({
                       onChange={(e) => setOtpAt(i, e.target.value)}
                       onKeyDown={(e) => onOtpKeyDown(i, e)}
                       aria-label={`Digit ${i + 1}`}
-                      className="size-12 rounded-xl border border-[var(--border)] bg-[var(--surface)] text-center font-mono text-lg font-bold outline-none transition-colors focus:border-[var(--accent)]"
+                      className="size-12 rounded-xl border border-[var(--border)] bg-[var(--surface)] text-center font-mono text-lg font-bold text-[var(--fg)] outline-none transition-colors focus:border-[var(--accent)]"
                     />
                   ))}
                 </div>
@@ -391,13 +605,16 @@ function KycModal({
 
                 <Button onClick={verify} disabled={otpValue.length !== OTP_LENGTH || busy || expired} className="w-full">
                   {busy ? <Loader2 className="size-4 animate-spin" aria-hidden /> : <ShieldCheck className="size-4" aria-hidden />}
-                  {busy ? "Verifying…" : "Verify & Finish"}
+                  {busy ? "Verifying with DigiLocker…" : "Verify & Finish"}
                 </Button>
 
                 <button
                   type="button"
-                  onClick={() => { setStep("aadhaar"); setErr(null); }}
-                  className="text-center text-[11px] font-semibold text-[var(--fg-subtle)] hover:text-[var(--accent)]"
+                  onClick={() => {
+                    setStep("aadhaar");
+                    setErr(null);
+                  }}
+                  className="text-center text-[11px] font-semibold text-[var(--fg-subtle)] hover:text-[var(--accent)] transition-colors"
                 >
                   Use a different Aadhaar number
                 </button>
@@ -415,15 +632,15 @@ function KycModal({
                   <ShieldCheck className="size-8 text-green-400" aria-hidden />
                 </span>
                 <div>
-                  <h4 className="font-display text-xl font-bold uppercase">Identity Verified</h4>
+                  <h4 className="font-display text-xl font-bold uppercase text-[var(--fg)]">Identity Verified</h4>
                   <p className="mt-1.5 text-[13px] text-[var(--fg-muted)]">
-                    Straight from DigiLocker — nothing to upload.
+                    Successfully verified through Government of India DigiLocker integration.
                   </p>
                 </div>
 
                 <dl className="w-full divide-y divide-[var(--border)] rounded-xl border border-[var(--border)] bg-[var(--surface)] text-left">
                   {[
-                    { k: "Aadhaar", v: maskedAadhaar },
+                    { k: "Masked Aadhaar", v: maskedAadhaar },
                     { k: "Name", v: details?.name },
                     { k: "Date of Birth", v: details?.date_of_birth },
                     { k: "Address", v: details?.address },
@@ -432,7 +649,7 @@ function KycModal({
                     .map((r) => (
                       <div key={r.k} className="flex items-start justify-between gap-5 px-4 py-3">
                         <dt className="font-mono text-[10px] uppercase tracking-wider text-[var(--fg-subtle)]">{r.k}</dt>
-                        <dd className="text-right text-[13px] font-semibold [overflow-wrap:anywhere]">{r.v}</dd>
+                        <dd className="text-right text-[13px] font-semibold text-[var(--fg)] [overflow-wrap:anywhere]">{r.v}</dd>
                       </div>
                     ))}
                 </dl>
@@ -447,4 +664,6 @@ function KycModal({
       </motion.div>
     </div>
   );
+
+  return createPortal(modalContent, document.body);
 }

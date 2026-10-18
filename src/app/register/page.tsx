@@ -113,7 +113,6 @@ export default function RegisterPage() {
     if (!address.trim()) errs.address = "Enter your address.";
     if (password.length < 6) errs.password = "Use at least 6 characters.";
     if (password !== confirm) errs.confirm = "Passwords don't match.";
-    if (!govtId) errs.govtId = "A government ID proof is required.";
     setErrors(errs);
     if (Object.keys(errs).length) {
       setFormError("Please fix the highlighted fields below.");
@@ -351,7 +350,7 @@ export default function RegisterPage() {
 
             {/* Uploads */}
             <div className="grid gap-5 sm:grid-cols-2">
-              <Field label="Government ID proof" hint="Aadhaar, PAN or passport." error={errors.govtId} required>
+              <Field label="Government ID proof" hint="Optional. Verify digitally with DigiLocker anytime." error={errors.govtId}>
                 {({ id, describedBy, invalid }) => (
                   <>
                     <input ref={govtRef} id={id} type="file" accept="image/*,.pdf" className="sr-only"

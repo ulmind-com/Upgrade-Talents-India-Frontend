@@ -435,20 +435,34 @@ export const registrationsApi = {
 
 export type KycStatus = {
   email?: string;
+  user_email?: string;
   status?: "NOT_SUBMITTED" | "PENDING" | "VERIFIED" | "REJECTED" | string;
+  kyc_status?: "NOT_VERIFIED" | "VERIFIED" | "PENDING" | "REJECTED" | string;
   aadhaar_masked?: string | null;
   source?: string;
+  verification_source?: string;
+  verification_id?: string | null;
+  doc_uri?: string | null;
   verified_at?: string | null;
   is_verified?: boolean;
+  verified?: boolean;
   verified_name?: string | null;
   verified_dob?: string | null;
   verified_address?: string | null;
+  message?: string;
 };
 
 export const kycApi = {
   status: () => apiFetch<KycStatus>("/api/kyc/status", { auth: true }),
   sendOtp: (aadhaar_number: string) =>
-    apiFetch<{ success: boolean; message: string; reference_id: string; masked_mobile?: string; mode?: string }>(
+    apiFetch<{
+      success: boolean;
+      message: string;
+      reference_id: string;
+      masked_mobile?: string;
+      mode?: string;
+      sandbox_otp?: string;
+    }>(
       "/api/kyc/digilocker/send-otp",
       { method: "POST", body: { aadhaar_number }, auth: true }
     ),
@@ -458,8 +472,38 @@ export const kycApi = {
       kyc_status: string;
       aadhaar_masked?: string;
       message: string;
+      verification_id?: string;
       verified_details?: { name?: string; date_of_birth?: string; gender?: string; address?: string };
     }>("/api/kyc/digilocker/verify-otp", { method: "POST", body: { reference_id, otp }, auth: true }),
+};
+
+/* Official DigiLocker OAuth 2.0 (MeitY Govt of India) */
+export const digilockerApi = {
+  getAuthorizeUrl: (user_email?: string, redirect_uri?: string) =>
+    apiFetch<{
+      success: boolean;
+      authorization_url: string;
+      state: string;
+      redirect_uri: string;
+      message: string;
+    }>("/api/digilocker/authorize", {
+      query: {
+        format: "json",
+        ...(user_email ? { user_email } : {}),
+        ...(redirect_uri ? { redirect_uri } : {}),
+      },
+      auth: true,
+    }),
+  status: (user_email?: string) =>
+    apiFetch<KycStatus>("/api/digilocker/status", {
+      query: user_email ? { user_email } : undefined,
+      auth: true,
+    }),
+  revoke: (user_email?: string) =>
+    apiFetch<{ success: boolean; user_email: string; message: string }>(
+      "/api/digilocker/revoke",
+      { method: "POST", body: user_email ? { user_email } : {}, auth: true }
+    ),
 };
 
 /* ─────────────── JUDGE AUTH (OTP-based, passwordless) ─────────────── */
