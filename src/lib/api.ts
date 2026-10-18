@@ -354,8 +354,30 @@ export const authApi = {
 
 export const profileApi = {
   get: () => apiFetch<any>("/api/profile/me", { auth: true, cache: "no-store" }),
-  update: (body: any) => apiFetch<any>("/api/profile/me", { method: "PUT", body, auth: true }),
+  update: (form: FormData) => apiFetch<any>("/api/profile/me", { method: "PUT", form, auth: true }),
   dashboard: () => apiFetch<any>("/api/profile/dashboard", { auth: true, cache: "no-store" }),
+};
+
+/* ─────────────── REWARDS & COINS ─────────────── */
+
+export const rewardsApi = {
+  coins: () => apiFetch<{ total_coins: number; history: any[] }>("/api/rewards/coins", { auth: true, cache: "no-store" }),
+  wallet: () => apiFetch<any>("/api/rewards/wallet", { auth: true, cache: "no-store" }),
+  referralProfile: () => apiFetch<any>("/api/rewards/referral-profile", { auth: true, cache: "no-store" }),
+};
+
+/* ─────────────── CERTIFICATES & BADGES ─────────────── */
+
+export const certificatesApi = {
+  myCertificates: () => apiFetch<{ total: number; certificates: any[] }>("/api/users/me/certificates", { auth: true, cache: "no-store" }),
+  myBadges: () => apiFetch<{ total: number; badges: any[] }>("/api/users/me/badges", { auth: true, cache: "no-store" }),
+  downloadPdf: async (certId: string) => {
+    const res = await fetch(`${API_BASE}/api/users/me/certificates/${certId}/download`, {
+      headers: { Authorization: `Bearer ${tokenStore.get() || ""}` },
+    });
+    if (!res.ok) throw new Error("Could not download certificate");
+    return res.blob();
+  },
 };
 
 /* ─────────────── BOOKINGS + TICKETS ─────────────── */
