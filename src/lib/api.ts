@@ -481,15 +481,15 @@ export interface JudgeContestant {
 export const judgeCompetitionsApi = {
   /** List assigned competitions for current judge */
   listAssigned: () =>
-    apiFetch<JudgeCompetition[]>("/api/judge/competitions/", { auth: true }),
+    apiFetch<JudgeCompetition[]>("/api/judge/", { auth: true }),
 
   /** List scorable contestants/submissions for a competition */
   listContestants: (compId: string) =>
-    apiFetch<JudgeContestant[]>(`/api/judge/competitions/${compId}/contestants`, { auth: true }),
+    apiFetch<JudgeContestant[]>(`/api/judge/${compId}/contestants`, { auth: true }),
 
   /** Verify live session PIN to unlock scoring */
   verifyPin: (compId: string, pin: string) =>
-    apiFetch<{ message: string }>(`/api/judge/competitions/${compId}/verify-pin`, {
+    apiFetch<{ message: string }>(`/api/judge/${compId}/verify-pin`, {
       method: "POST",
       body: { pin },
       auth: true,
@@ -497,7 +497,7 @@ export const judgeCompetitionsApi = {
 
   /** Auto-save partial draft score */
   saveDraft: (compId: string, subId: string, scores: Record<string, number>, comments?: string) =>
-    apiFetch<{ message: string }>(`/api/judge/competitions/${compId}/contestants/${subId}/draft`, {
+    apiFetch<{ message: string }>(`/api/judge/${compId}/contestants/${subId}/draft`, {
       method: "POST",
       body: { scores, comments },
       auth: true,
@@ -506,13 +506,13 @@ export const judgeCompetitionsApi = {
   /** Retrieve saved draft score */
   getDraft: (compId: string, subId: string) =>
     apiFetch<{ scores?: Record<string, number>; comments?: string }>(
-      `/api/judge/competitions/${compId}/contestants/${subId}/draft`,
+      `/api/judge/${compId}/contestants/${subId}/draft`,
       { auth: true }
     ),
 
   /** Declare Conflict of Interest (COI) and skip contestant */
   skipContestant: (compId: string, subId: string, reason: string) =>
-    apiFetch<{ message: string }>(`/api/judge/competitions/${compId}/contestants/${subId}/skip`, {
+    apiFetch<{ message: string }>(`/api/judge/${compId}/contestants/${subId}/skip`, {
       method: "POST",
       body: { reason },
       auth: true,
@@ -520,7 +520,7 @@ export const judgeCompetitionsApi = {
 
   /** Final score submission */
   submitScore: (subId: string, scores: Record<string, number>, comments?: string) =>
-    apiFetch<{ message: string }>(`/api/judge/competitions/submissions/${subId}/scores`, {
+    apiFetch<{ message: string }>(`/api/judge/submissions/${subId}/scores`, {
       method: "POST",
       body: { scores, comments },
       auth: true,
