@@ -17,7 +17,7 @@ import {
   bookingsApi, vipApi, profileApi, rewardsApi, certificatesApi,
   ApiError, type MyTicket,
 } from "@/lib/api";
-import { useAuth } from "@/components/motion/Providers";
+import { useAuth, setPageScrollLocked } from "@/components/motion/Providers";
 import { Badge, Button, SectionLabel, Spotlights } from "@/components/ui/Primitives";
 import { Reveal, SplitHeading } from "@/components/motion/Reveal";
 import { cn, formatEventDate, formatINR } from "@/lib/utils";
@@ -855,9 +855,11 @@ function EditProfileModal({
     const onKey = (e: KeyboardEvent) => { if (e.key === "Escape") onClose(); };
     const prevOverflow = document.body.style.overflow;
     document.body.style.overflow = "hidden";
+    setPageScrollLocked(true);
     document.addEventListener("keydown", onKey);
     return () => {
       document.body.style.overflow = prevOverflow;
+      setPageScrollLocked(false);
       document.removeEventListener("keydown", onKey);
     };
   }, [isOpen, onClose]);
@@ -924,7 +926,10 @@ function EditProfileModal({
         </div>
 
         <form onSubmit={handleSubmit} className="flex min-h-0 flex-1 flex-col">
-          <div className="min-h-0 flex-1 space-y-5 overflow-y-auto px-6 py-6">
+          <div
+            data-lenis-prevent
+            className="min-h-0 flex-1 space-y-5 overflow-y-auto overscroll-contain px-6 py-6"
+          >
           {err && (
             <div className="flex items-center gap-2 rounded-xl border border-red-500/30 bg-red-500/10 p-3 text-xs text-red-400">
               <AlertCircle className="size-4 shrink-0" />

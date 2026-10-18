@@ -35,6 +35,18 @@ export function ThemeProvider({ children }: { children: React.ReactNode }) {
 
 /* ─────────────── SMOOTH SCROLL (Lenis) ─────────────── */
 
+/**
+ * The live Lenis instance. Lenis drives the page scroll itself, so CSS like
+ * `overflow: hidden` on <body> does not hold it back — overlays have to stop it.
+ */
+let lenisInstance: Lenis | null = null;
+
+/** Freezes (or releases) the page scroll behind a modal or drawer. */
+export function setPageScrollLocked(locked: boolean) {
+  if (locked) lenisInstance?.stop();
+  else lenisInstance?.start();
+}
+
 export function SmoothScroll({ children }: { children: React.ReactNode }) {
   useEffect(() => {
     if (window.matchMedia("(prefers-reduced-motion: reduce)").matches) return;
@@ -45,6 +57,8 @@ export function SmoothScroll({ children }: { children: React.ReactNode }) {
       wheelMultiplier: 1,
       touchMultiplier: 1.6,
     });
+
+    lenisInstance = lenis;
 
     let frame = 0;
     const raf = (time: number) => {
@@ -69,6 +83,7 @@ export function SmoothScroll({ children }: { children: React.ReactNode }) {
       document.removeEventListener("click", onAnchor);
       cancelAnimationFrame(frame);
       lenis.destroy();
+      if (lenisInstance === lenis) lenisInstance = null;
     };
   }, []);
 
