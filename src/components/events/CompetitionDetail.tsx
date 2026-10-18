@@ -18,6 +18,7 @@ type Comp = {
   _id?: string; id?: string; title?: string; name?: string;
   description?: string; prize?: string; rules?: string;
   registration_deadline?: string; min_age?: number; max_age?: number;
+  participation_fee?: number; fee?: number; currency?: string;
   judging_criteria?: { name: string; max_score?: number }[];
   dynamic_submission_fields?: Field[];
 };
@@ -44,19 +45,105 @@ export default function CompetitionDetail({ comp, initialLeaderboard }: { comp: 
   const [voted, setVoted] = useState<Set<string>>(new Set());
   const [votingId, setVotingId] = useState<string | null>(null);
 
+  const loadRazorpay = () =>
+    new Promise<boolean>((resolve) => {
+      if ((window as any).Razorpay) return resolve(true);
+      const s = document.createElement("script");
+      s.src = "https://checkout.razorpay.com/v1/checkout.js";
+      s.onload = () => resolve(true);
+      s.onerror = () => resolve(false);
+      document.body.appendChild(s);
+    });
+
   async function doRegister() {
     setBusy(true); setMsg(null);
     try {
       const el = await competeApi.eligibility(id);
       if (!el.eligible) { setMsg({ tone: "err", text: el.reason || "You are not eligible." }); return; }
-      await competeApi.register(id, true);
-      setStep(fields.length ? "submit" : "done");
-      setMsg({ tone: "ok", text: "You're registered!" });
+
+      const regRes = await competeApi.register(id, true);
+
+      // If free registration or already confirmed
+      if (regRes.status === "CONFIRMED" || !regRes.payment_info) {
+        setStep(fields.length ? "submit" : "done");
+        setMsg({ tone: "ok", text: "You're registered!" });
+        return;
+      }
+
+      // Paid registration — open Razorpay checkout
+      const pInfo = regRes.payment_info;
+      const checkout = pInfo.checkout_data || {};
+      const keyId = checkout.key || pInfo.key_id || process.env.NEXT_PUBLIC_RAZORPAY_KEY_ID;
+
+      if (!keyId) {
+        setMsg({ tone: "err", text: "Payment gateway is being configured. Please try again shortly." });
+        return;
+      }
+
+      const rzpLoaded = await loadRazorpay();
+      if (!rzpLoaded) {
+        setMsg({ tone: "err", text: "Could not reach Razorpay payment gateway. Check your connection." });
+        return;
+      }
+
+      const feeAmount = comp.participation_fee || comp.fee || (checkout.amount ? checkout.amount / 100 : 0);
+
+      const rzp = new (window as any).Razorpay({
+        key: keyId,
+        amount: checkout.amount || Math.round(feeAmount * 100),
+        currency: checkout.currency || "INR",
+        name: "Upgrade Talents India",
+        description: `Entry Fee — ${comp.title || comp.name || "Competition"}`,
+        order_id: checkout.order_id || pInfo.order_id,
+        prefill: {
+          email: user?.email || "",
+          name: user?.name || "",
+          contact: user?.phone_number || "",
+        },
+        theme: { color: "#bfff2e" },
+        modal: {
+          ondismiss: () => {
+            setBusy(false);
+            setMsg({ tone: "err", text: "Payment was cancelled. Pay entry fee to confirm registration and submit your entry." });
+          },
+        },
+        handler: async (resp: any) => {
+          try {
+            setBusy(true);
+            setMsg({ tone: "ok", text: "Verifying payment…" });
+            await competeApi.verifyPayment(id, {
+              registration_reference: regRes.reference,
+              razorpay_order_id: resp.razorpay_order_id,
+              razorpay_payment_id: resp.razorpay_payment_id,
+              razorpay_signature: resp.razorpay_signature,
+            });
+            setStep(fields.length ? "submit" : "done");
+            setMsg({ tone: "ok", text: "Payment verified! You are registered. Please upload your entry below." });
+          } catch (e: any) {
+            setMsg({ tone: "err", text: e?.message || "Payment verification failed. Please contact support." });
+          } finally {
+            setBusy(false);
+          }
+        },
+      });
+
+      rzp.on("payment.failed", (r: any) => {
+        setMsg({ tone: "err", text: r?.error?.description || "Payment failed. Please try again." });
+        setBusy(false);
+      });
+
+      rzp.open();
     } catch (e: any) {
       const m = String(e?.message || "");
-      if (/already/i.test(m)) { setStep(fields.length ? "submit" : "done"); setMsg({ tone: "ok", text: "You're already registered." }); }
-      else setMsg({ tone: "err", text: m || "Could not register." });
-    } finally { setBusy(false); }
+      if (/already/i.test(m)) {
+        setStep(fields.length ? "submit" : "done");
+        setMsg({ tone: "ok", text: "You're already registered. Upload your entry below." });
+      } else {
+        setMsg({ tone: "err", text: m || "Could not register." });
+      }
+    } finally {
+      setBusy(false);
+    }
   }
 
   async function doSubmit() {
@@ -239,13 +326,22 @@ export default function CompetitionDetail({ comp, initialLeaderboard }: { comp: 
               </>
             ) : step === "register" ? (
               <>
+                {!!(comp.participation_fee || comp.fee) && (
+                  <div className="mb-4 flex items-center justify-between rounded-xl border border-[var(--border)] bg-[var(--surface-2)] p-3">
+                    <span className="text-[12.5px] font-medium text-[var(--fg-muted)]">Entry fee</span>
+                    <span className="font-display text-base font-bold text-[var(--accent)]">
+                      ₹{comp.participation_fee || comp.fee}
+                    </span>
+                  </div>
+                )}
                 <label className="flex cursor-pointer items-start gap-2.5 text-[13px] text-[var(--fg-muted)]">
                   <input type="checkbox" checked={rules} onChange={(e) => setRules(e.target.checked)} className="mt-0.5 size-4 accent-[var(--accent)]" />
                   <span>I have read and accept the competition rules and eligibility criteria.</span>
                 </label>
                 <button onClick={doRegister} disabled={!rules || busy || !open}
                   className="mt-4 inline-flex w-full items-center justify-center gap-2 rounded-full py-3 text-[13.5px] font-bold text-[var(--on-accent)] transition-opacity disabled:opacity-50" style={{ background: "var(--grad-brand)" }}>
-                  {busy ? <Loader2 className="size-4 animate-spin" aria-hidden /> : <ShieldCheck className="size-4" aria-hidden />} Register to compete
+                  {busy ? <Loader2 className="size-4 animate-spin" aria-hidden /> : <ShieldCheck className="size-4" aria-hidden />}
+                  {(comp.participation_fee || comp.fee) ? `Pay ₹${comp.participation_fee || comp.fee} & Register` : "Register to compete"}
                 </button>
               </>
             ) : step === "submit" ? (

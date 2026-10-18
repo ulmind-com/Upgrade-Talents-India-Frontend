@@ -263,6 +263,12 @@ export const competeApi = {
     fd.append("field_names", fieldNames.join(", "));
     return apiFetch<any>(`/api/v1/competitions/${id}/submissions`, { method: "POST", auth: true, form: fd });
   },
+  verifyPayment: (compId: string, body: {
+    registration_reference: string;
+    razorpay_order_id: string;
+    razorpay_payment_id: string;
+    razorpay_signature: string;
+  }) => apiFetch<any>(`/api/v1/competitions/${compId}/verify-payment`, { method: "POST", auth: true, body }),
   vote: (id: string, participant_id: string) =>
     apiFetch<any>(`/api/v1/competitions/${id}/vote`, { method: "POST", auth: true, body: { participant_id, source: "WEBSITE" } }),
 };
