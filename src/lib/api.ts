@@ -234,7 +234,16 @@ export const publicApi = {
   contactInfo: () => apiFetch<Record<string, any>>("/api/v1/contact-info", { revalidate: 300 }),
   importantLinks: () => apiFetch<any[]>("/api/v1/important-links", { revalidate: 300 }),
   competitions: (p: { skip?: number; limit?: number; search?: string } = {}) =>
-    apiFetch<any[]>("/api/activities/competitions", { query: { limit: 50, ...p }, cache: "no-store" }),
+    apiFetch<any[]>("/api/activities/competitions", { query: { limit: 200, ...p }, cache: "no-store" }).then(
+      (list) =>
+        Array.isArray(list)
+          ? [...list].sort(
+              (a, b) =>
+                new Date(b.created_at || b.start_date || 0).getTime() -
+                new Date(a.created_at || a.start_date || 0).getTime()
+            )
+          : []
+    ),
   leaderboard: (id: string) =>
     apiFetch<{ ranking_mode?: string; leaderboard?: any[] }>(`/api/v1/competitions/${id}/leaderboard`, { cache: "no-store" }),
   verifyCertificate: (token: string) =>
