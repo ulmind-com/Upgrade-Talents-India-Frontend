@@ -544,7 +544,7 @@ export interface TicketScanVerifyResult {
 export const volunteerScannerApi = {
   /** Scan or enter QR token to verify ticket validity */
   verifyTicket: (qr_token: string) =>
-    apiFetch<TicketScanVerifyResult>("/api/admin/checkin/verify", {
+    apiFetch<TicketScanVerifyResult>("/api/admin/tickets/verify", {
       method: "POST",
       body: { qr_token },
       auth: true,
@@ -552,7 +552,7 @@ export const volunteerScannerApi = {
 
   /** Atomically mark ticket as checked in */
   checkInTicket: (qr_token: string) =>
-    apiFetch<{ message: string; ticket_ref: string }>("/api/admin/checkin/check-in", {
+    apiFetch<{ message: string; ticket_ref: string }>("/api/admin/tickets/check-in", {
       method: "POST",
       body: { qr_token },
       auth: true,
