@@ -1,5 +1,6 @@
 "use client";
 
+import { usePathname } from "next/navigation";
 import Navbar from "./Navbar";
 import Footer from "./Footer";
 import { ScrollProgress } from "@/components/motion/Reveal";
@@ -19,6 +20,13 @@ export default function Shell({
   contact?: any;
   links?: any[];
 }) {
+  const pathname = usePathname();
+  const isKiosk = pathname.startsWith("/volunteer") || pathname.startsWith("/judge");
+
+  if (isKiosk) {
+    return <main id="main" className="min-h-dvh">{children}</main>;
+  }
+
   return (
     <>
       <ScrollProgress />
