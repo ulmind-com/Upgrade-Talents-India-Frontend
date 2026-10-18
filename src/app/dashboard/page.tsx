@@ -929,6 +929,22 @@ function EditProfileModal({
 
           <div>
             <label className="block font-mono text-[11px] uppercase tracking-wider text-[var(--fg-subtle)] mb-1.5">
+              Email Address
+            </label>
+            <input
+              type="email"
+              value={user?.email || ""}
+              readOnly
+              disabled
+              className="w-full cursor-not-allowed rounded-xl border border-[var(--border)] bg-[var(--surface-2)] px-4 py-2.5 text-sm font-semibold text-[var(--fg-muted)] outline-none"
+            />
+            <p className="mt-1 text-[11px] text-[var(--fg-subtle)]">
+              Your email is your login and cannot be changed here.
+            </p>
+          </div>
+
+          <div>
+            <label className="block font-mono text-[11px] uppercase tracking-wider text-[var(--fg-subtle)] mb-1.5">
               Full Name
             </label>
             <input
