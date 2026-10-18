@@ -808,6 +808,15 @@ function RewardsTab({ coinsData, referralData, user }: { coinsData: any; referra
    EDIT PROFILE MODAL — Photo Upload + Details
    ═══════════════════════════════════════════════════════════════════ */
 
+/** Normalises a stored date_of_birth into the yyyy-mm-dd an <input type="date"> needs. */
+function toDateInput(value?: string | null): string {
+  if (!value) return "";
+  const s = String(value);
+  if (/^\d{4}-\d{2}-\d{2}/.test(s)) return s.slice(0, 10);
+  const d = new Date(s);
+  return Number.isNaN(d.getTime()) ? "" : d.toISOString().slice(0, 10);
+}
+
 function EditProfileModal({
   isOpen,
   user,
@@ -824,6 +833,7 @@ function EditProfileModal({
   const [photoPreview, setPhotoPreview] = useState<string | null>(user?.profile_photo || null);
   const [name, setName] = useState(user?.name || "");
   const [phone, setPhone] = useState(user?.phone_number ? String(user.phone_number) : "");
+  const [dob, setDob] = useState(toDateInput(user?.date_of_birth));
   const [address, setAddress] = useState(user?.address || "");
   const [parentPhone, setParentPhone] = useState(user?.parent_phone_number ? String(user.parent_phone_number) : "");
   const [busy, setBusy] = useState(false);
@@ -832,6 +842,7 @@ function EditProfileModal({
   useEffect(() => {
     setName(user?.name || "");
     setPhone(user?.phone_number ? String(user.phone_number) : "");
+    setDob(toDateInput(user?.date_of_birth));
     setAddress(user?.address || "");
     setParentPhone(user?.parent_phone_number ? String(user.parent_phone_number) : "");
     setPhotoPreview(user?.profile_photo || null);
@@ -857,6 +868,7 @@ function EditProfileModal({
       const fd = new FormData();
       if (name.trim()) fd.append("name", name.trim());
       if (phone.trim()) fd.append("phone_number", phone.trim());
+      if (dob) fd.append("date_of_birth", dob);
       if (address.trim()) fd.append("address", address.trim());
       if (parentPhone.trim()) fd.append("parent_phone_number", parentPhone.trim());
       if (photoFile) fd.append("profile_photo", photoFile);
@@ -965,6 +977,19 @@ function EditProfileModal({
               value={phone}
               onChange={(e) => setPhone(e.target.value)}
               placeholder="e.g. 9876543210"
+              className="w-full rounded-xl border border-[var(--border)] bg-[var(--surface)] px-4 py-2.5 text-sm font-semibold outline-none focus:border-[var(--accent)]"
+            />
+          </div>
+
+          <div>
+            <label className="block font-mono text-[11px] uppercase tracking-wider text-[var(--fg-subtle)] mb-1.5">
+              Date of Birth
+            </label>
+            <input
+              type="date"
+              value={dob}
+              onChange={(e) => setDob(e.target.value)}
+              max={new Date().toISOString().slice(0, 10)}
               className="w-full rounded-xl border border-[var(--border)] bg-[var(--surface)] px-4 py-2.5 text-sm font-semibold outline-none focus:border-[var(--accent)]"
             />
           </div>
