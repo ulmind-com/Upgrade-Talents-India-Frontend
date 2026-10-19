@@ -52,7 +52,7 @@ export default function ProductDetail({ product, related }: { product: P; relate
   }
 
   return (
-    <section className="container-x relative pb-24 pt-10 md:pt-14">
+    <section className="container-x relative pb-24 pt-28 md:pt-36">
       {/* breadcrumb */}
       <nav className="flex items-center gap-1.5 text-[12px] text-[var(--fg-subtle)]">
         <Link href="/shop" className="hover:text-[var(--fg)]">Shop</Link>

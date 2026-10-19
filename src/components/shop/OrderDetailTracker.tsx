@@ -163,7 +163,7 @@ export default function OrderDetailTracker({ orderId }: OrderDetailTrackerProps)
   const timeline = tracking?.timeline || order.status_history || [];
 
   return (
-    <div className="container-x relative pb-28 pt-10 md:pt-14">
+    <div className="container-x relative pb-28 pt-28 md:pt-36">
       {/* ── Breadcrumb & Navigation ── */}
       <nav className="flex items-center justify-between text-xs text-[var(--fg-subtle)]">
         <div className="flex items-center gap-2">

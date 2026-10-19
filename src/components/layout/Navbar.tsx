@@ -2,9 +2,12 @@
 
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import { useEffect, useState } from "react";
+import { useEffect, useState, useRef } from "react";
 import { AnimatePresence, motion, useScroll, useMotionValueEvent } from "framer-motion";
-import { Menu, X, Moon, Sparkles, Ticket, User, LogOut, LayoutDashboard, ShoppingBag, ChevronDown } from "lucide-react";
+import {
+  Menu, X, Moon, Sparkles, Ticket, User, LogOut, LayoutDashboard,
+  ShoppingBag, ChevronDown, Package, Crown, Award, Coins
+} from "lucide-react";
 import { NotificationBell } from "@/components/notifications/NotificationPanel";
 import { useCart } from "@/components/shop/CartProvider";
 import { Button, Magnetic } from "@/components/ui/Primitives";
@@ -42,23 +45,41 @@ export default function Navbar({ brandName = "UPGRADE TALENTS", logo }: { brandN
   const { user, logout } = useAuth();
   const [scrolled, setScrolled] = useState(false);
   const [open, setOpen] = useState(false);
+  const [userDropdownOpen, setUserDropdownOpen] = useState(false);
+  const userDropdownRef = useRef<HTMLDivElement>(null);
   const { scrollY } = useScroll();
 
-  useMotionValueEvent(scrollY, "change", (v) => setScrolled(v > 40));
+  useMotionValueEvent(scrollY, "change", (v) => setScrolled(v > 30));
 
-  useEffect(() => { setOpen(false); }, [pathname]);
+  useEffect(() => {
+    setOpen(false);
+    setUserDropdownOpen(false);
+  }, [pathname]);
 
   useEffect(() => {
     document.body.style.overflow = open ? "hidden" : "";
     return () => { document.body.style.overflow = ""; };
   }, [open]);
 
+  // Click outside listener for user dropdown
+  useEffect(() => {
+    function handleClickOutside(event: MouseEvent) {
+      if (userDropdownRef.current && !userDropdownRef.current.contains(event.target as Node)) {
+        setUserDropdownOpen(false);
+      }
+    }
+    if (userDropdownOpen) {
+      document.addEventListener("mousedown", handleClickOutside);
+    }
+    return () => document.removeEventListener("mousedown", handleClickOutside);
+  }, [userDropdownOpen]);
+
   return (
     <>
       <header
         className={cn(
           "fixed inset-x-0 top-0 z-[80] transition-all duration-500 ease-[cubic-bezier(0.16,1,0.3,1)]",
-          scrolled ? "py-3" : "py-5"
+          scrolled ? "py-2.5 sm:py-3" : "py-4 sm:py-5"
         )}
       >
         {/* Top scrim — keeps nav legible over bright hero imagery (both themes) */}
@@ -73,37 +94,39 @@ export default function Navbar({ brandName = "UPGRADE TALENTS", logo }: { brandN
               "linear-gradient(180deg, rgba(0,0,0,0.62) 0%, rgba(0,0,0,0.34) 45%, transparent 100%)",
           }}
         />
-        <div className="container-x relative">
+
+        {/* Outer container with optimized padding preventing right-side overflow */}
+        <div className="mx-auto w-full max-w-[1440px] px-3 sm:px-5 lg:px-6 xl:px-8 relative">
           <nav
             className={cn(
-              "flex items-center justify-between gap-6 rounded-full px-4 py-2.5 transition-all duration-500 md:px-5",
+              "flex items-center justify-between gap-2.5 sm:gap-4 xl:gap-5 rounded-full px-3.5 py-2 transition-all duration-500 sm:px-4 md:px-5 md:py-2.5",
               scrolled
                 ? "glass shadow-[0_20px_60px_-28px_rgba(0,0,0,0.9)]"
-                : "on-media border border-transparent bg-transparent"
+                : "on-media border border-white/10 bg-black/25 backdrop-blur-md"
             )}
           >
             {/* Brand */}
-            <Link href="/" className="group flex shrink-0 items-center gap-3" aria-label={`${brandName} home`}>
+            <Link href="/" className="group flex shrink-0 items-center gap-2.5 sm:gap-3" aria-label={`${brandName} home`}>
               <span
-                className="relative grid size-10 shrink-0 place-items-center rounded-xl transition-transform duration-500 group-hover:rotate-[12deg]"
+                className="relative grid size-9 sm:size-10 shrink-0 place-items-center rounded-xl transition-transform duration-500 group-hover:rotate-[12deg]"
                 style={{ background: "var(--grad-brand)" }}
               >
                 {isUsableImageUrl(logo) ? (
-                  <img src={logo} alt="" className="size-7 rounded-lg object-contain" />
+                  <img src={logo} alt="" className="size-6 sm:size-7 rounded-lg object-contain" />
                 ) : (
-                  <Sparkles className="size-5 text-white" aria-hidden />
+                  <Sparkles className="size-4.5 sm:size-5 text-white" aria-hidden />
                 )}
               </span>
-              <span className="hidden text-[15px] font-bold uppercase leading-[1.05] tracking-[0.14em] sm:block">
+              <span className="hidden text-[14px] sm:text-[15px] font-bold uppercase leading-[1.05] tracking-[0.14em] sm:block">
                 {brandName.split(" ")[0]}
-                <span className="block text-[9px] font-medium tracking-[0.42em] text-[var(--fg-subtle)]">
+                <span className="block text-[8.5px] sm:text-[9px] font-medium tracking-[0.42em] text-[var(--fg-subtle)]">
                   {brandName.split(" ").slice(1).join(" ") || "INDIA"}
                 </span>
               </span>
             </Link>
 
-            {/* Desktop nav */}
-            <ul className="hidden items-center gap-0.5 xl:flex">
+            {/* Desktop nav links */}
+            <ul className="hidden items-center gap-0.5 xl:flex shrink-0">
               {DESKTOP.map((item) => {
                 if (item.children) {
                   const active = item.children.some((c) => pathname.startsWith(c.href));
@@ -111,7 +134,7 @@ export default function Navbar({ brandName = "UPGRADE TALENTS", logo }: { brandN
                     <li key={item.label} className="group relative">
                       <button
                         className={cn(
-                          "relative flex items-center gap-1 whitespace-nowrap rounded-full px-3 py-2 text-[13px] font-medium transition-colors duration-300",
+                          "relative flex items-center gap-1 whitespace-nowrap rounded-full px-2.5 py-1.5 text-[12.5px] 2xl:px-3 2xl:text-[13px] font-medium transition-colors duration-300",
                           active ? "text-[var(--fg)]" : "text-[var(--fg-muted)] group-hover:text-[var(--fg)]"
                         )}
                       >
@@ -125,7 +148,7 @@ export default function Navbar({ brandName = "UPGRADE TALENTS", logo }: { brandN
                               key={c.href}
                               href={c.href}
                               className={cn(
-                                "block rounded-xl px-3.5 py-2.5 text-[13px] font-medium transition-colors",
+                                "block rounded-xl px-3.5 py-2.5 text-[12.5px] font-medium transition-colors",
                                 pathname.startsWith(c.href) ? "bg-[var(--surface-2)] text-[var(--fg)]" : "text-[var(--fg-muted)] hover:bg-[var(--surface-2)] hover:text-[var(--fg)]"
                               )}
                             >
@@ -144,7 +167,7 @@ export default function Navbar({ brandName = "UPGRADE TALENTS", logo }: { brandN
                       href={item.href!}
                       aria-current={active ? "page" : undefined}
                       className={cn(
-                        "relative block whitespace-nowrap rounded-full px-3 py-2 text-[13px] font-medium transition-colors duration-300",
+                        "relative block whitespace-nowrap rounded-full px-2.5 py-1.5 text-[12.5px] 2xl:px-3 2xl:text-[13px] font-medium transition-colors duration-300",
                         active ? "text-[var(--fg)]" : "text-[var(--fg-muted)] hover:text-[var(--fg)]"
                       )}
                     >
@@ -162,26 +185,29 @@ export default function Navbar({ brandName = "UPGRADE TALENTS", logo }: { brandN
               })}
             </ul>
 
-            {/* Actions */}
-            <div className="flex items-center gap-2">
+            {/* Actions group with shrink-0 protection */}
+            <div className="flex shrink-0 items-center gap-1.5 sm:gap-2">
+              {/* Theme toggle */}
               <button
                 onClick={toggle}
                 aria-label={`Switch to ${theme === "dark" ? "blue" : "dark"} theme`}
-                className="grid size-10 cursor-pointer place-items-center rounded-full border border-[var(--border)] bg-[var(--surface)] text-[var(--fg-muted)] transition-all duration-300 hover:border-[var(--border-strong)] hover:text-[var(--fg)]"
+                className="grid size-9 sm:size-10 cursor-pointer place-items-center rounded-full border border-[var(--border)] bg-[var(--surface)] text-[var(--fg-muted)] transition-all duration-300 hover:border-[var(--border-strong)] hover:text-[var(--fg)]"
               >
                 <motion.span key={theme} initial={{ rotate: -90, opacity: 0 }} animate={{ rotate: 0, opacity: 1 }} transition={{ duration: 0.4 }}>
-                  {theme === "dark" ? <Moon className="size-[18px]" aria-hidden /> : <Sparkles className="size-[18px]" aria-hidden />}
+                  {theme === "dark" ? <Moon className="size-4 sm:size-[18px]" aria-hidden /> : <Sparkles className="size-4 sm:size-[18px]" aria-hidden />}
                 </motion.span>
               </button>
 
+              {/* Notification bell (when logged in) */}
               {user && <NotificationBell />}
 
+              {/* Shopping bag cart button */}
               <button
                 onClick={() => openCart(true)}
                 aria-label={`Open cart${count ? `, ${count} items` : ""}`}
-                className="relative grid size-10 cursor-pointer place-items-center rounded-full border border-[var(--border)] bg-[var(--surface)] text-[var(--fg-muted)] transition-all duration-300 hover:border-[var(--border-strong)] hover:text-[var(--fg)]"
+                className="relative grid size-9 sm:size-10 cursor-pointer place-items-center rounded-full border border-[var(--border)] bg-[var(--surface)] text-[var(--fg-muted)] transition-all duration-300 hover:border-[var(--border-strong)] hover:text-[var(--fg)]"
               >
-                <ShoppingBag className="size-[18px]" aria-hidden />
+                <ShoppingBag className="size-4 sm:size-[18px]" aria-hidden />
                 {count > 0 && (
                   <span className="absolute -right-1 -top-1 grid min-h-[18px] min-w-[18px] place-items-center rounded-full px-1 text-[10px] font-bold text-[var(--on-accent)]" style={{ background: "var(--grad-brand)" }}>
                     <span aria-hidden>{count}</span>
@@ -192,58 +218,125 @@ export default function Navbar({ brandName = "UPGRADE TALENTS", logo }: { brandN
                 )}
               </button>
 
+              {/* User Account Menu / Login Button */}
               {user ? (
-                <div className="hidden items-center gap-2 md:flex">
-                  <Link
-                    href="/dashboard"
-                    className="grid size-10 cursor-pointer place-items-center rounded-full border border-[var(--border)] bg-[var(--surface)] text-[var(--fg-muted)] transition-colors hover:text-[var(--fg)]"
-                    aria-label="My dashboard"
-                  >
-                    <LayoutDashboard className="size-[18px]" aria-hidden />
-                  </Link>
+                <div ref={userDropdownRef} className="relative hidden md:block">
                   <button
-                    onClick={logout}
-                    aria-label="Log out"
-                    className="grid size-10 cursor-pointer place-items-center rounded-full border border-[var(--border)] bg-[var(--surface)] text-[var(--fg-muted)] transition-colors hover:text-[var(--danger)]"
+                    onClick={() => setUserDropdownOpen(!userDropdownOpen)}
+                    aria-expanded={userDropdownOpen}
+                    aria-label="User account menu"
+                    className={cn(
+                      "flex size-9 sm:size-10 items-center justify-center rounded-full border bg-[var(--surface)] transition-all duration-300 cursor-pointer overflow-hidden",
+                      userDropdownOpen ? "border-[var(--accent)] ring-2 ring-[var(--accent)]/30" : "border-[var(--border)] hover:border-[var(--border-strong)]"
+                    )}
                   >
-                    <LogOut className="size-[18px]" aria-hidden />
+                    {user.profile_photo ? (
+                      <img src={user.profile_photo} alt={user.name || "User"} className="size-full object-cover" />
+                    ) : (
+                      <span className="font-display text-xs font-bold text-[var(--accent)]">
+                        {(user.name || user.email || "U")[0].toUpperCase()}
+                      </span>
+                    )}
                   </button>
+
+                  {/* Dropdown Menu */}
+                  <AnimatePresence>
+                    {userDropdownOpen && (
+                      <motion.div
+                        initial={{ opacity: 0, y: 8, scale: 0.96 }}
+                        animate={{ opacity: 1, y: 0, scale: 1 }}
+                        exit={{ opacity: 0, y: 8, scale: 0.96 }}
+                        transition={{ duration: 0.2 }}
+                        className="absolute right-0 top-full mt-2 w-56 overflow-hidden rounded-2xl border border-[var(--border)] bg-[var(--surface)] p-2 shadow-2xl z-50 backdrop-blur-xl"
+                      >
+                        <div className="border-b border-[var(--border)] px-3 py-2.5">
+                          <p className="truncate text-xs font-bold text-white">{user.name || "Valued Artist"}</p>
+                          <p className="truncate font-mono text-[11px] text-[var(--fg-subtle)]">{user.email}</p>
+                        </div>
+
+                        <div className="py-1.5">
+                          <Link
+                            href="/dashboard"
+                            onClick={() => setUserDropdownOpen(false)}
+                            className="flex items-center gap-2.5 rounded-xl px-3 py-2 text-xs font-medium text-[var(--fg)] hover:bg-[var(--surface-2)] transition-colors"
+                          >
+                            <LayoutDashboard className="size-4 text-[var(--accent)]" /> Dashboard
+                          </Link>
+                          <Link
+                            href="/dashboard?tab=orders"
+                            onClick={() => setUserDropdownOpen(false)}
+                            className="flex items-center gap-2.5 rounded-xl px-3 py-2 text-xs font-medium text-[var(--fg)] hover:bg-[var(--surface-2)] transition-colors"
+                          >
+                            <Package className="size-4 text-[var(--accent)]" /> My Orders & Tracking
+                          </Link>
+                          <Link
+                            href="/dashboard?tab=vip"
+                            onClick={() => setUserDropdownOpen(false)}
+                            className="flex items-center gap-2.5 rounded-xl px-3 py-2 text-xs font-medium text-[var(--fg)] hover:bg-[var(--surface-2)] transition-colors"
+                          >
+                            <Crown className="size-4 text-[var(--accent)]" /> VIP Passes
+                          </Link>
+                          <Link
+                            href="/dashboard?tab=certificates"
+                            onClick={() => setUserDropdownOpen(false)}
+                            className="flex items-center gap-2.5 rounded-xl px-3 py-2 text-xs font-medium text-[var(--fg)] hover:bg-[var(--surface-2)] transition-colors"
+                          >
+                            <Award className="size-4 text-[var(--accent)]" /> Certificates
+                          </Link>
+                        </div>
+
+                        <div className="border-t border-[var(--border)] pt-1.5">
+                          <button
+                            onClick={() => {
+                              setUserDropdownOpen(false);
+                              logout();
+                            }}
+                            className="flex w-full items-center gap-2.5 rounded-xl px-3 py-2 text-xs font-semibold text-red-400 hover:bg-red-500/10 transition-colors cursor-pointer"
+                          >
+                            <LogOut className="size-4" /> Sign Out
+                          </button>
+                        </div>
+                      </motion.div>
+                    )}
+                  </AnimatePresence>
                 </div>
               ) : (
                 <Link
                   href="/login"
                   aria-label="Sign in"
                   title="Sign in"
-                  className="hidden size-10 cursor-pointer place-items-center rounded-full border border-[var(--border)] bg-[var(--surface)] text-[var(--fg-muted)] transition-colors hover:border-[var(--border-strong)] hover:text-[var(--fg)] md:grid"
+                  className="hidden size-9 sm:size-10 cursor-pointer place-items-center rounded-full border border-[var(--border)] bg-[var(--surface)] text-[var(--fg-muted)] transition-colors hover:border-[var(--border-strong)] hover:text-[var(--fg)] md:grid"
                 >
-                  <User className="size-[18px]" aria-hidden />
+                  <User className="size-4 sm:size-[18px]" aria-hidden />
                 </Link>
               )}
 
-              <Magnetic className="hidden sm:block">
-                <Button href="/events" size="sm" className="px-5">
-                  <Ticket className="size-4" aria-hidden /> Tickets
+              {/* Tickets Button with shrink-0 protection */}
+              <Magnetic className="hidden sm:block shrink-0">
+                <Button href="/events" size="sm" className="px-4 text-[12.5px] tracking-wider shrink-0">
+                  <Ticket className="size-3.5" aria-hidden /> Tickets
                 </Button>
               </Magnetic>
 
+              {/* Hamburger button for screens below xl */}
               <button
                 onClick={() => setOpen(true)}
                 aria-label="Open menu"
                 aria-expanded={open}
-                className="grid size-10 cursor-pointer place-items-center rounded-full border border-[var(--border)] bg-[var(--surface)] xl:hidden"
+                className="grid size-9 sm:size-10 cursor-pointer place-items-center rounded-full border border-[var(--border)] bg-[var(--surface)] xl:hidden shrink-0"
               >
-                <Menu className="size-[18px]" aria-hidden />
+                <Menu className="size-4 sm:size-[18px]" aria-hidden />
               </button>
             </div>
           </nav>
         </div>
       </header>
 
-      {/* Mobile overlay menu */}
+      {/* Mobile overlay menu (cleanly active on xl:hidden) */}
       <AnimatePresence>
         {open && (
           <motion.div
-            className="fixed inset-0 z-[95] lg:hidden"
+            className="fixed inset-0 z-[95] xl:hidden"
             initial={{ opacity: 0 }}
             animate={{ opacity: 1 }}
             exit={{ opacity: 0 }}
