@@ -1,14 +1,14 @@
 "use client";
 
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import Link from "next/link";
 import { ShoppingBag, Minus, Plus, Check, Truck, ShieldCheck, RefreshCcw, ChevronRight, Heart } from "lucide-react";
 import { Reveal, StaggerGroup, StaggerItem } from "@/components/motion/Reveal";
 import { useCart } from "@/components/shop/CartProvider";
 import { formatINR } from "@/lib/utils";
-import type { Product } from "@/components/shop/ShopListing";
+import { availableOf, type Product } from "@/components/shop/ShopListing";
 
-type Variant = { variant_id?: string; size?: string; color?: string; price_override?: number; stock_quantity?: number };
+type Variant = { variant_id?: string; size?: string; color?: string; price_override?: number; stock_quantity?: number; reserved_quantity?: number };
 type P = Product & { variants?: Variant[]; shipping_fee?: number };
 
 const pid = (p: P) => p._id || p.id || "";
@@ -31,6 +31,16 @@ export default function ProductDetail({ product, related }: { product: P; relate
 
   const variant = variants.find((v) => (!colors.length || v.color === color) && (!v.size || v.size === size));
   const price = variant?.price_override ?? product.price ?? 0;
+
+  /* The variant decides availability once one is picked; otherwise the
+     product's own count stands in. null means stock isn't tracked. */
+  const available = availableOf(variant ?? product);
+  const soldOut = available === 0;
+  const maxQty = Math.min(20, available ?? 20);
+
+  useEffect(() => {
+    setQty((q) => Math.min(Math.max(1, q), Math.max(1, maxQty)));
+  }, [maxQty]);
 
   function addToCart() {
     if (sizes.length && !size) { setSize(sizes[0]); }
@@ -106,14 +116,20 @@ export default function ProductDetail({ product, related }: { product: P; relate
               </div>
             </div>
 
-            <div className="mt-7 flex items-stretch gap-3">
+            {available !== null && (
+              <p className={`mt-6 text-[12.5px] font-semibold ${soldOut ? "text-[var(--danger)]" : available <= 5 ? "text-[var(--warning)]" : "text-[var(--success)]"}`}>
+                {soldOut ? "Sold out" : available <= 5 ? `Only ${available} left in stock` : "In stock"}
+              </p>
+            )}
+
+            <div className="mt-4 flex items-stretch gap-3">
               <div className="inline-flex items-center rounded-full border border-[var(--border)]">
                 <button onClick={() => setQty((q) => Math.max(1, q - 1))} aria-label="Decrease quantity" className="grid size-11 place-items-center rounded-full hover:bg-[var(--surface-2)]"><Minus className="size-4" aria-hidden /></button>
                 <span className="w-9 text-center text-[15px] font-bold tabular-nums">{qty}</span>
-                <button onClick={() => setQty((q) => Math.min(20, q + 1))} aria-label="Increase quantity" className="grid size-11 place-items-center rounded-full hover:bg-[var(--surface-2)]"><Plus className="size-4" aria-hidden /></button>
+                <button onClick={() => setQty((q) => Math.min(maxQty, q + 1))} disabled={qty >= maxQty} aria-label="Increase quantity" className="grid size-11 place-items-center rounded-full hover:bg-[var(--surface-2)] disabled:pointer-events-none disabled:opacity-35"><Plus className="size-4" aria-hidden /></button>
               </div>
-              <button onClick={addToCart} className="inline-flex flex-1 items-center justify-center gap-2 rounded-full text-[14px] font-bold text-[var(--on-accent)] transition-transform active:scale-[0.99]" style={{ background: "var(--grad-brand)" }}>
-                <ShoppingBag className="size-4.5" aria-hidden /> Add to cart
+              <button onClick={addToCart} disabled={soldOut} className="inline-flex flex-1 items-center justify-center gap-2 rounded-full text-[14px] font-bold text-[var(--on-accent)] transition-transform active:scale-[0.99] disabled:pointer-events-none disabled:opacity-45" style={{ background: "var(--grad-brand)" }}>
+                <ShoppingBag className="size-4.5" aria-hidden /> {soldOut ? "Sold out" : "Add to cart"}
               </button>
               <button onClick={() => setOpen(true)} aria-label="Open cart" className="grid size-11 shrink-0 place-items-center rounded-full border border-[var(--border)] hover:border-[var(--border-strong)]"><Heart className="size-4.5" aria-hidden /></button>
             </div>

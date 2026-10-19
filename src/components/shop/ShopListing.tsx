@@ -12,13 +12,17 @@ import { DEMO_PRODUCTS } from "@/lib/shopDemo";
 export type Product = {
   _id?: string; id?: string; name?: string; description?: string;
   category?: string; price?: number; currency?: string;
-  images?: string[]; stock_quantity?: number;
+  images?: string[]; stock_quantity?: number; reserved_quantity?: number;
 };
 
 export { DEMO_PRODUCTS };
 
 const pid = (p: Product) => p._id || p.id || "";
 const img = (p: Product) => p.images?.[0] || "";
+/* Backend holds stock and reservations separately; what a shopper can
+   actually buy is the difference. Undefined stock means "not tracked". */
+export const availableOf = (p: { stock_quantity?: number; reserved_quantity?: number } | Record<string, any>) =>
+  p?.stock_quantity == null ? null : Math.max(0, p.stock_quantity - (p.reserved_quantity || 0));
 
 export default function ShopListing({ items }: { items: Product[] }) {
   const { add } = useCart();
@@ -83,6 +87,9 @@ export default function ShopListing({ items }: { items: Product[] }) {
                 <Link href={`/shop/${pid(p)}`} className="relative block aspect-[4/5] overflow-hidden bg-[var(--surface-2)]">
                   <img src={img(p)} alt={p.name || ""} loading="lazy" className="size-full object-cover transition-transform duration-[1.1s] group-hover:scale-105" />
                   {p.category && <span className="absolute left-3 top-3 rounded-full bg-black/45 px-2.5 py-1 text-[10px] font-bold uppercase tracking-wider text-white backdrop-blur-md">{p.category}</span>}
+                  {availableOf(p) === 0 && (
+                    <span className="absolute inset-0 grid place-items-center bg-black/55 text-[11px] font-bold uppercase tracking-[0.18em] text-white backdrop-blur-[2px]">Sold out</span>
+                  )}
                 </Link>
                 <div className="flex flex-1 flex-col p-4">
                   <Link href={`/shop/${pid(p)}`}><h3 className="line-clamp-1 text-[14px] font-semibold hover:text-[var(--accent)]">{p.name}</h3></Link>
@@ -90,8 +97,9 @@ export default function ShopListing({ items }: { items: Product[] }) {
                     <p className="font-display text-[1.05rem] font-bold tabular-nums">{formatINR(p.price)}</p>
                     <button
                       onClick={() => add({ productId: pid(p), name: p.name || "", price: Number(p.price || 0), image: img(p) })}
-                      aria-label={`Add ${p.name} to cart`}
-                      className="grid size-9 place-items-center rounded-full text-[var(--on-accent)] transition-transform hover:scale-105 active:scale-95"
+                      disabled={availableOf(p) === 0}
+                      aria-label={availableOf(p) === 0 ? `${p.name} is sold out` : `Add ${p.name} to cart`}
+                      className="grid size-9 place-items-center rounded-full text-[var(--on-accent)] transition-transform hover:scale-105 active:scale-95 disabled:pointer-events-none disabled:opacity-40"
                       style={{ background: "var(--grad-brand)" }}>
                       <Plus className="size-4" aria-hidden />
                     </button>
