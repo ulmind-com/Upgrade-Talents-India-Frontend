@@ -8,6 +8,7 @@ import { ArrowRight, ArrowLeft, Eye, EyeOff, Upload, Check, Mail, KeyRound, User
 import { authApi, tokenStore } from "@/lib/api";
 import { useAuth } from "@/components/motion/Providers";
 import { AuthShell, Field, FormAlert, Input } from "@/components/ui/Form";
+import { OtpVerify } from "@/components/ui/OtpVerify";
 import { Button } from "@/components/ui/Primitives";
 import { cn, imageFor } from "@/lib/utils";
 
@@ -31,8 +32,6 @@ export default function RegisterPage() {
   // step 1
   const [email, setEmail] = useState("");
   const [referral, setReferral] = useState("");
-  // step 2
-  const [otp, setOtp] = useState("");
   // step 3
   const [name, setName] = useState("");
   const [phone, setPhone] = useState("");
@@ -74,31 +73,20 @@ export default function RegisterPage() {
     setLoading(true);
     try {
       await authApi.registerStep1(email.trim(), referral.trim() || undefined);
-      setNotice(`We sent a 6-digit code to ${email}. It expires shortly.`);
+      setNotice("Code sent — it expires shortly.");
       setStep(2);
     } catch (err: any) {
       setFormError(err?.message || "Could not start registration. Try again.");
     } finally { setLoading(false); }
   };
 
-  const submitStep2 = async (e: React.FormEvent) => {
-    e.preventDefault();
+  // The card drives the choreography; this just does the network bit
+  // and throws, which the card reads as "wrong code".
+  const verifyCode = async (otp: string) => {
     setFormError(null);
-    const errs: Record<string, string> = {};
-    if (!/^\d{4,8}$/.test(otp.trim())) errs.otp = "Enter the code exactly as it appears in your email.";
-    setErrors(errs);
-    if (Object.keys(errs).length) return;
-
-    setLoading(true);
-    try {
-      const res = await authApi.registerStep2(email.trim(), otp.trim());
-      const regToken = res?.access_token || res?.registration_token || res?.token;
-      if (regToken) tokenStore.setReg(regToken);
-      setNotice("Email verified. Finish your profile to activate the account.");
-      setStep(3);
-    } catch (err: any) {
-      setFormError(err?.message || "That code wasn't accepted. Request a new one and try again.");
-    } finally { setLoading(false); }
+    const res = await authApi.registerStep2(email.trim(), otp);
+    const regToken = res?.access_token || res?.registration_token || res?.token;
+    if (regToken) tokenStore.setReg(regToken);
   };
 
   const submitStep3 = async (e: React.FormEvent) => {
@@ -249,34 +237,34 @@ export default function RegisterPage() {
         )}
 
         {step === 2 && (
-          <motion.form
-            key="s2" onSubmit={submitStep2} noValidate
+          <motion.div
+            key="s2"
             initial={{ opacity: 0, x: 24 }} animate={{ opacity: 1, x: 0 }} exit={{ opacity: 0, x: -24 }}
             transition={{ duration: 0.4, ease: [0.16, 1, 0.3, 1] }}
-            className="flex flex-col gap-5"
           >
-            <Field label="Verification code" hint={`Sent to ${email}`} error={errors.otp} required>
-              {({ id, describedBy, invalid }) => (
-                <Input id={id} type="text" inputMode="numeric" autoComplete="one-time-code" maxLength={8}
-                  value={otp} onChange={(e) => setOtp(e.target.value.replace(/\D/g, ""))}
-                  aria-describedby={describedBy} invalid={invalid} placeholder="------"
-                  className="text-center font-mono text-2xl tracking-[0.5em]" />
-              )}
-            </Field>
-
-            <Button type="submit" size="lg" loading={loading} className="w-full">
-              Verify email <ArrowRight className="size-4" aria-hidden />
-            </Button>
-
-            <div className="flex items-center justify-between gap-4">
-              <Button onClick={() => { setStep(1); setFormError(null); }} variant="ghost" size="sm">
-                <ArrowLeft className="size-4" aria-hidden /> Change email
-              </Button>
-              <Button onClick={() => submitStep1(new Event("submit") as any)} variant="ghost" size="sm">
-                Resend code
-              </Button>
-            </div>
-          </motion.form>
+            <OtpVerify
+              length={6}
+              email={email}
+              onVerify={verifyCode}
+              onSuccess={() => {
+                setNotice("Email verified. Finish your profile to activate the account.");
+                setStep(3);
+              }}
+              successTitle="Email Verified"
+              successSubtitle="Taking you to your profile details…"
+              footer={
+                <div className="flex items-center justify-center gap-3">
+                  <Button onClick={() => { setStep(1); setFormError(null); setNotice(null); }} variant="ghost" size="sm">
+                    <ArrowLeft className="size-4" aria-hidden /> Change email
+                  </Button>
+                  <span className="size-1 rounded-full bg-[var(--border-strong)]" aria-hidden />
+                  <Button onClick={() => submitStep1(new Event("submit") as any)} variant="ghost" size="sm" loading={loading}>
+                    Resend code
+                  </Button>
+                </div>
+              }
+            />
+          </motion.div>
         )}
 
         {step === 3 && (
