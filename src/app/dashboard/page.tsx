@@ -18,6 +18,7 @@ import {
   ApiError, type MyTicket,
 } from "@/lib/api";
 import { useAuth, usePageScrollLock } from "@/components/motion/Providers";
+import CoinLedger from "@/components/account/CoinLedger";
 import AadhaarKyc from "@/components/account/AadhaarKyc";
 import { Badge, Button, SectionLabel, Spotlights } from "@/components/ui/Primitives";
 import { Reveal, SplitHeading } from "@/components/motion/Reveal";
@@ -151,7 +152,7 @@ export default function DashboardPage() {
     { key: "tickets", label: "My Tickets", Icon: Ticket, count: tickets.length },
     { key: "competitions", label: "My Competitions", Icon: Trophy, count: competitions.length },
     { key: "certificates", label: "Certificates", Icon: Award, count: certificates.length },
-    { key: "rewards", label: "Rewards & Coins", Icon: Coins, count: `${coinsData.total_coins} 🪙` },
+    { key: "rewards", label: "Rewards & Coins", Icon: Coins, count: coinsData.total_coins },
     { key: "vip", label: "VIP Passes", Icon: Crown, count: vipCount },
     { key: "events", label: "Events & Courses", Icon: CalendarDays, count: eventsRegistered.length + coursesRegistered.length },
     { key: "orders", label: "Shop Orders", Icon: Package, count: merchOrders.length },
@@ -223,7 +224,7 @@ export default function DashboardPage() {
               )}
               <t.Icon className="size-4" aria-hidden />
               <span>{t.label}</span>
-              {t.count !== undefined && t.count !== 0 && t.count !== "0 🪙" && (
+              {t.count !== undefined && t.count !== 0 && (
                 <span className={cn(
                   "rounded-full px-2 py-0.5 text-[10px] font-bold tabular-nums",
                   tab === t.key ? "bg-black/30 text-white" : "bg-[var(--surface-2)] text-[var(--fg-muted)]"
@@ -592,25 +593,34 @@ export default function DashboardPage() {
                         })}
                       </div>
 
-                      {/* Delivery Address */}
-                      {ord.shipping_address && (
-                        <div className="mt-4 flex items-start gap-2 rounded-xl bg-[var(--surface-2)]/40 p-3.5 text-xs text-[var(--fg-muted)]">
-                          <MapPin className="size-4 shrink-0 text-[var(--accent)] mt-0.5" />
-                          <div>
-                            <span className="font-semibold text-white">{ord.shipping_address.full_name || ord.user_name}</span>
-                            {ord.shipping_address.phone && <span className="ml-2 font-mono text-[var(--fg-subtle)]">({ord.shipping_address.phone})</span>}
-                            <p className="mt-0.5 text-[var(--fg-subtle)]">
-                              {[
-                                ord.shipping_address.address_line1,
-                                ord.shipping_address.address_line2,
-                                ord.shipping_address.city,
-                                ord.shipping_address.state,
-                                ord.shipping_address.postal_code,
-                              ].filter(Boolean).join(", ")}
-                            </p>
+                      {/* Delivery Address & Actions */}
+                      <div className="mt-4 flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between border-t border-[var(--border)] pt-4">
+                        {ord.shipping_address && (
+                          <div className="flex items-start gap-2 text-xs text-[var(--fg-muted)]">
+                            <MapPin className="size-4 shrink-0 text-[var(--accent)] mt-0.5" />
+                            <div className="min-w-0">
+                              <span className="font-semibold text-white">{ord.shipping_address.full_name || ord.user_name}</span>
+                              <span className="ml-1 text-[var(--fg-subtle)]">
+                                · {[ord.shipping_address.city, ord.shipping_address.state].filter(Boolean).join(", ")}
+                              </span>
+                            </div>
                           </div>
+                        )}
+
+                        <div className="flex items-center gap-2 self-end sm:self-auto">
+                          {(ord.courier_name || ord.tracking_number) && (
+                            <span className="rounded-full bg-[var(--surface-2)] px-2.5 py-1 text-[11px] font-mono text-[var(--fg-muted)]">
+                              {ord.courier_name ? `${ord.courier_name}: ` : ""}{ord.tracking_number || "Dispatched"}
+                            </span>
+                          )}
+                          <Link
+                            href={`/merchandise/orders/${ord.order_number || ord._id}`}
+                            className="inline-flex items-center gap-1 rounded-full border border-[var(--border)] bg-[var(--surface-2)] px-3.5 py-1.5 text-xs font-bold text-[var(--fg)] hover:border-[var(--accent)] hover:text-[var(--accent)] transition-colors"
+                          >
+                            Track & Details <ArrowUpRight className="size-3.5" />
+                          </Link>
                         </div>
-                      )}
+                      </div>
                     </motion.div>
                   );
                 })}
@@ -928,29 +938,7 @@ function RewardsTab({ coinsData, referralData, user }: { coinsData: any; referra
         </div>
       </div>
 
-      {/* Coin Ledger History */}
-      {coinsData.history && coinsData.history.length > 0 && (
-        <div className="overflow-hidden rounded-[var(--radius-xl)] border border-[var(--border)] bg-[var(--surface)]">
-          <div className="border-b border-[var(--border)] px-6 py-4">
-            <h4 className="font-display text-sm font-bold uppercase tracking-wider text-[var(--fg)]">
-              Coin History & Transactions
-            </h4>
-          </div>
-          <ul className="divide-y divide-[var(--border)]">
-            {coinsData.history.map((h: any, i: number) => (
-              <li key={i} className="flex items-center justify-between px-6 py-4 text-xs">
-                <div>
-                  <p className="font-semibold text-white">{h.reason || h.description || "Reward Points"}</p>
-                  <p className="text-[11px] text-[var(--fg-subtle)]">{formatEventDate(h.created_at || h.date)}</p>
-                </div>
-                <span className="font-mono text-sm font-bold text-amber-400">
-                  +{h.coins || h.amount || 0} 🪙
-                </span>
-              </li>
-            ))}
-          </ul>
-        </div>
-      )}
+      <CoinLedger fallback={coinsData.history} />
     </div>
   );
 }

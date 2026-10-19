@@ -5,6 +5,7 @@ import { usePathname } from "next/navigation";
 import { useEffect, useState } from "react";
 import { AnimatePresence, motion, useScroll, useMotionValueEvent } from "framer-motion";
 import { Menu, X, Moon, Sparkles, Ticket, User, LogOut, LayoutDashboard, ShoppingBag, ChevronDown } from "lucide-react";
+import { NotificationBell } from "@/components/notifications/NotificationPanel";
 import { useCart } from "@/components/shop/CartProvider";
 import { Button, Magnetic } from "@/components/ui/Primitives";
 import { useAuth, useTheme } from "@/components/motion/Providers";
@@ -173,6 +174,8 @@ export default function Navbar({ brandName = "UPGRADE TALENTS", logo }: { brandN
                 </motion.span>
               </button>
 
+              {user && <NotificationBell />}
+
               <button
                 onClick={() => openCart(true)}
                 aria-label={`Open cart${count ? `, ${count} items` : ""}`}
@@ -181,7 +184,10 @@ export default function Navbar({ brandName = "UPGRADE TALENTS", logo }: { brandN
                 <ShoppingBag className="size-[18px]" aria-hidden />
                 {count > 0 && (
                   <span className="absolute -right-1 -top-1 grid min-h-[18px] min-w-[18px] place-items-center rounded-full px-1 text-[10px] font-bold text-[var(--on-accent)]" style={{ background: "var(--grad-brand)" }}>
-                    {count}
+                    <span aria-hidden>{count}</span>
+                    <span role="status" aria-atomic="true" className="sr-only">
+                      {count} item{count === 1 ? "" : "s"} in cart
+                    </span>
                   </span>
                 )}
               </button>

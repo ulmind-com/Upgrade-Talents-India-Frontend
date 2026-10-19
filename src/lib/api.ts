@@ -378,6 +378,60 @@ export const rewardsApi = {
   coins: () => apiFetch<{ total_coins: number; history: any[] }>("/api/rewards/coins", { auth: true, cache: "no-store" }),
   wallet: () => apiFetch<any>("/api/rewards/wallet", { auth: true, cache: "no-store" }),
   referralProfile: () => apiFetch<any>("/api/rewards/referral-profile", { auth: true, cache: "no-store" }),
+  transactions: (p: { limit?: number; skip?: number } = {}) =>
+    apiFetch<any>("/api/rewards/transactions", { auth: true, cache: "no-store", query: { limit: 50, ...p } }),
+  /** Un-expired coin lots, so the wallet can warn before coins lapse. */
+  lots: () => apiFetch<any>("/api/rewards/lots", { auth: true, cache: "no-store" }),
+  calculateDiscount: (body: { item_id: string; item_type: "course" | "workshop"; coins_to_use?: number }) =>
+    apiFetch<any>("/api/rewards/calculate-discount", { method: "POST", auth: true, body }),
+  reserveDiscount: (body: { item_id: string; item_type: "course" | "workshop"; coins_to_reserve: number; order_reference: string }) =>
+    apiFetch<any>("/api/rewards/reserve-discount", { method: "POST", auth: true, body }),
+};
+
+/* ─────────────── NOTIFICATIONS ─────────────── */
+
+export type NotificationItem = {
+  id: string;
+  notification_type: string;
+  title: string;
+  message: string;
+  action_url?: string | null;
+  priority?: "LOW" | "NORMAL" | "HIGH" | "URGENT";
+  is_read: boolean;
+  read_at?: string | null;
+  created_at: string;
+  resource_type?: string | null;
+  resource_id?: string | null;
+  metadata?: Record<string, any> | null;
+};
+
+export type NotificationPrefs = {
+  in_app_enabled?: boolean;
+  email_enabled?: boolean;
+  push_enabled?: boolean;
+  web_push_enabled?: boolean;
+  sound_enabled?: boolean;
+  event_reminders?: boolean;
+  voting_reminders?: boolean;
+  leaderboard_updates?: boolean;
+  competition_results?: boolean;
+};
+
+export const notificationsApi = {
+  list: (p: { is_read?: boolean; notification_type?: string; page?: number; page_size?: number } = {}) =>
+    apiFetch<{ items: NotificationItem[]; total: number; unread_count: number; page: number; page_size: number; has_next: boolean }>(
+      "/api/notifications", { auth: true, cache: "no-store", query: { page: 1, page_size: 20, ...p } }
+    ),
+  unreadCount: () => apiFetch<{ unread_count: number }>("/api/notifications/unread-count", { auth: true, cache: "no-store" }),
+  markRead: (id: string) => apiFetch<any>(`/api/notifications/${id}/read`, { method: "PATCH", auth: true }),
+  markUnread: (id: string) => apiFetch<any>(`/api/notifications/${id}/unread`, { method: "PATCH", auth: true }),
+  markAllRead: () => apiFetch<any>("/api/notifications/read-all", { method: "PATCH", auth: true }),
+  preferences: () => apiFetch<NotificationPrefs>("/api/notifications/preferences", { auth: true, cache: "no-store" }),
+  updatePreferences: (body: NotificationPrefs) =>
+    apiFetch<NotificationPrefs>("/api/notifications/preferences", { method: "PATCH", auth: true, body }),
+  /** Live stream; the backend reads the JWT off the query string. */
+  socketUrl: (token: string) =>
+    `${API_BASE.replace(/^http/, "ws")}/api/notifications/ws?token=${encodeURIComponent(token)}`,
 };
 
 /* ─────────────── CERTIFICATES & BADGES ─────────────── */

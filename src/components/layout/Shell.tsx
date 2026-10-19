@@ -4,6 +4,7 @@ import { usePathname } from "next/navigation";
 import Navbar from "./Navbar";
 import Footer from "./Footer";
 import { ScrollProgress } from "@/components/motion/Reveal";
+import { NotificationPanel } from "@/components/notifications/NotificationPanel";
 
 export default function Shell({
   children,
@@ -31,6 +32,7 @@ export default function Shell({
     <>
       <ScrollProgress />
       <Navbar brandName={brandName} logo={logo} />
+      <NotificationPanel />
       <main id="main" className="min-h-dvh">{children}</main>
       <Footer brandName={brandName} tagline={tagline} contact={contact} links={links} />
     </>

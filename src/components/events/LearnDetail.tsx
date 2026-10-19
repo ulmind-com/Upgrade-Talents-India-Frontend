@@ -12,6 +12,7 @@ import { useAuth } from "@/components/motion/Providers";
 import { Badge, Button, SectionLabel } from "@/components/ui/Primitives";
 import { Reveal } from "@/components/motion/Reveal";
 import { formatEventDate, formatINR, imageFor } from "@/lib/utils";
+import CoinRedeem from "@/components/account/CoinRedeem";
 
 declare global {
   interface Window { Razorpay?: any }
@@ -34,6 +35,9 @@ export default function LearnDetail({ item, kind }: { item: CourseItem; kind: "c
   const [busy, setBusy] = useState(false);
   const [done, setDone] = useState(false);
   const [msg, setMsg] = useState<{ tone: Tone; text: string } | null>(null);
+  const [coinsToUse, setCoinsToUse] = useState(0);
+  // What the backend says is payable once coins are applied; null until quoted.
+  const [payable, setPayable] = useState<number | null>(null);
 
   const label = kind === "course" ? "Course" : "Workshop";
   const isFree = !item.price || item.price <= 0;
@@ -76,7 +80,11 @@ export default function LearnDetail({ item, kind }: { item: CourseItem; kind: "c
     setBusy(true);
     setMsg(null);
     try {
-      const res = await registrationsApi.create({ activity_id: item._id, activity_type: kind });
+      const res = await registrationsApi.create({
+        activity_id: item._id,
+        activity_type: kind,
+        ...(coinsToUse > 0 ? { coins_to_use: coinsToUse } : {}),
+      });
 
       if (res.status === "CONFIRMED" || !res.payment_info) {
         setDone(true);
@@ -214,6 +222,15 @@ export default function LearnDetail({ item, kind }: { item: CourseItem; kind: "c
               </span>
             </div>
 
+            {user && !isFree && !done && !blocked && item._id && (
+              <CoinRedeem
+                itemId={String(item._id)}
+                itemType={kind}
+                disabled={busy}
+                onChange={(c, p) => { setCoinsToUse(c); if (p !== null) setPayable(p); }}
+              />
+            )}
+
             {msg && (
               <div
                 className={`mt-6 flex items-start gap-2 rounded-xl border p-3 text-xs ${
@@ -245,7 +262,7 @@ export default function LearnDetail({ item, kind }: { item: CourseItem; kind: "c
               ) : (
                 <Button onClick={enrol} disabled={busy || blocked}>
                   {busy ? <Loader2 className="size-4 animate-spin" aria-hidden /> : <IndianRupee className="size-4" aria-hidden />}
-                  {busy ? "Processing…" : soldOut ? "Seats full" : closed ? "Registration closed" : upcoming ? "Opens soon" : isFree ? "Enrol for free" : `Pay ${formatINR(item.price)}`}
+                  {busy ? "Processing…" : soldOut ? "Seats full" : closed ? "Registration closed" : upcoming ? "Opens soon" : isFree ? "Enrol for free" : payable !== null && payable <= 0 ? "Enrol with coins" : `Pay ${formatINR(payable ?? item.price)}`}
                 </Button>
               )}
 

@@ -302,8 +302,29 @@ function CartDrawer() {
                   )}
                   <p className="mt-1.5 text-[13.5px] text-[var(--fg-muted)]">Your order has been placed and payment confirmed. Track it in your dashboard.</p>
                   <div className="mt-6 flex flex-col gap-2.5">
-                    <Link href="/dashboard?tab=orders" onClick={close} className="inline-flex items-center justify-center gap-2 rounded-full py-3 text-[13.5px] font-bold text-[var(--on-accent)]" style={{ background: "var(--grad-brand)" }}>View my orders</Link>
-                    <button onClick={close} className="rounded-full border border-[var(--border)] py-3 text-[13.5px] font-semibold hover:border-[var(--border-strong)]">Continue shopping</button>
+                    {placedOrder?.order_number && (
+                      <Link
+                        href={`/merchandise/orders/${placedOrder.order_number}`}
+                        onClick={close}
+                        className="inline-flex items-center justify-center gap-2 rounded-full py-3 text-[13.5px] font-bold text-[var(--on-accent)]"
+                        style={{ background: "var(--grad-brand)" }}
+                      >
+                        Track This Order <ArrowRight className="size-4" aria-hidden />
+                      </Link>
+                    )}
+                    <Link
+                      href="/dashboard?tab=orders"
+                      onClick={close}
+                      className="rounded-full border border-[var(--border)] py-2.5 text-[13px] font-semibold hover:border-[var(--border-strong)]"
+                    >
+                      View all orders in dashboard
+                    </Link>
+                    <button
+                      onClick={close}
+                      className="rounded-full py-2 text-[12.5px] text-[var(--fg-muted)] hover:text-white"
+                    >
+                      Continue shopping
+                    </button>
                   </div>
                 </div>
               </div>
