@@ -9,6 +9,7 @@ import {
 } from "lucide-react";
 import { Reveal, StaggerGroup, StaggerItem, SplitHeading, Parallax } from "@/components/motion/Reveal";
 import { Badge, Button, Magnetic, SectionLabel, Spotlights, TiltCard } from "@/components/ui/Primitives";
+import { GooglePlayIcon, AppleIcon } from "@/components/ui/Icons";
 import { cn, formatINR, imageFor, isUsableImageUrl, splitDate, truncate, isEventExpired, isDeadlinePassed } from "@/lib/utils";
 import type { BannerItem, ContestPromotion, CourseItem, EventItem, LiveEventItem, TestimonialItem } from "@/lib/api";
 import CoverflowCarousel from "./CoverflowCarousel";
@@ -465,9 +466,36 @@ export function AppPromo({ promo }: { promo: Record<string, any> | null }) {
               {promo.description || "Get instant ticket access, live results and backstage updates on the official app."}
             </p>
             <div className="mt-8 flex flex-wrap gap-4">
-              {promo.android_url && <Button href={promo.android_url} size="lg">Google Play</Button>}
-              {promo.ios_url && <Button href={promo.ios_url} variant="outline" size="lg">App Store</Button>}
-              {!promo.android_url && !promo.ios_url && <Button href="/events" size="lg">Explore events</Button>}
+              {promo.android_url && (
+                <Button
+                  href={promo.android_url}
+                  size="lg"
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="gap-2.5"
+                >
+                  <GooglePlayIcon className="size-5 shrink-0" />
+                  Google Play
+                </Button>
+              )}
+              {promo.ios_url && (
+                <Button
+                  href={promo.ios_url}
+                  variant="outline"
+                  size="lg"
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="gap-2.5"
+                >
+                  <AppleIcon className="size-5 shrink-0" />
+                  App Store
+                </Button>
+              )}
+              {!promo.android_url && !promo.ios_url && (
+                <Button href="/events" size="lg">
+                  Explore events
+                </Button>
+              )}
             </div>
           </Reveal>
 

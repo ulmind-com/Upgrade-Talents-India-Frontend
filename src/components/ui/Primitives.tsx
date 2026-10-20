@@ -18,6 +18,8 @@ type ButtonProps = {
   loading?: boolean;
   disabled?: boolean;
   type?: "button" | "submit";
+  target?: string;
+  rel?: string;
   "aria-label"?: string;
 };
 
