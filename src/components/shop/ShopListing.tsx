@@ -74,6 +74,8 @@ export default function ShopListing({ items }: { items: Product[] }) {
   const [ownHanger, setOwnHanger] = useState<Record<string, boolean>>({});
   const [leaving, setLeaving] = useState<{ i: number; dx: number; dy: number; scale: number; originY: number } | null>(null);
   const stageRef = useRef<HTMLDivElement>(null);
+  const rowRef = useRef<HTMLDivElement>(null);
+  const [rowW, setRowW] = useState(0);
   const itemRefs = useRef<(HTMLDivElement | null)[]>([]);
   const imgRefs = useRef<(HTMLImageElement | null)[]>([]);
   const gridImgRefs = useRef<Record<string, HTMLImageElement | null>>({});
@@ -112,6 +114,24 @@ export default function ShopListing({ items }: { items: Product[] }) {
     () => rest.filter((p) => (cat === "All" || p.category === cat) && (!q || (p.name || "").toLowerCase().includes(q.toLowerCase()))),
     [rest, q, cat]
   );
+
+  useEffect(() => {
+    const el = rowRef.current;
+    if (!el || typeof ResizeObserver === "undefined") return;
+    const ro = new ResizeObserver(([e]) => setRowW(e.contentRect.width));
+    ro.observe(el);   // its first callback carries the content box
+    return () => ro.disconnect();
+  }, [rail.length]);
+
+  /* The rack shares one rod: the piece in play takes most of it and the rest
+     squeeze up beside it, cropped by their own panel rather than shrunk. */
+  const GAP = 14;
+  const SPREAD = 3.4;
+  const usable = Math.max(0, rowW - GAP * Math.max(rail.length - 1, 0));
+  const unit = rail.length ? usable / (SPREAD + rail.length - 1) : 0;
+  const wideW = Math.max(150, Math.round(unit * SPREAD));
+  const idleW = Math.max(64, Math.round(unit));
+  const mobileW = 150;
 
   const current = rail[Math.min(active, Math.max(0, rail.length - 1))];
 
@@ -158,7 +178,12 @@ export default function ShopListing({ items }: { items: Product[] }) {
                 <div className="mx-auto h-px w-[92%] opacity-15" style={{ background: "linear-gradient(90deg, transparent 0%, currentColor 50%, transparent 100%)" }} />
               </div>
 
-              <div className="flex snap-x snap-mandatory items-start justify-center gap-2 overflow-x-auto overflow-y-hidden px-4 pb-10 pt-8 sm:gap-5 sm:px-10 [scrollbar-width:none] [&::-webkit-scrollbar]:hidden" role="list">
+              <div
+                ref={rowRef}
+                className="flex snap-x snap-mandatory items-start justify-center overflow-x-auto overflow-y-hidden px-4 pb-10 pt-8 sm:px-10 [scrollbar-width:none] [&::-webkit-scrollbar]:hidden"
+                style={{ gap: GAP }}
+                role="list"
+              >
                 {rail.map((p, i) => {
                   const stock = availableOf(p);
                   const sold = stock === 0;
@@ -167,8 +192,10 @@ export default function ShopListing({ items }: { items: Product[] }) {
                   const flying = leaving?.i === i;
                   const href = `/shop/${pid(p)}`;
                   const src = img(p);
-                  /* Neighbours lean away, the way clothes get pushed aside. */
-                  const shove = !hoverable || leaving ? 0 : i === active ? 0 : (i < active ? -1 : 1) * (Math.abs(i - active) === 1 ? 10 : 4);
+                  /* The piece in play takes the rod; the rest squeeze up beside
+                     it, cropped by their panel instead of shrinking. */
+                  const panelW = !hoverable ? mobileW : isActive || leaving ? wideW : idleW;
+                  const innerW = hoverable ? wideW : mobileW;
                   return (
                     <motion.div
                       key={pid(p) || i}
@@ -176,16 +203,16 @@ export default function ShopListing({ items }: { items: Product[] }) {
                       role="listitem"
                       className="relative flex shrink-0 snap-center flex-col items-center pb-5"
                       style={{
-                        width: "clamp(124px, 16vw, 190px)",
                         zIndex: flying ? 60 : isActive ? 30 : 10,
                         transformOrigin: flying ? `50% ${leaving!.originY}px` : "50% 34px",
+                        overflow: flying || !hoverable ? "visible" : "hidden",
                       }}
                       animate={
                         flying
-                          ? { x: leaving!.dx, y: leaving!.dy, scale: leaving!.scale, opacity: 1 }
+                          ? { x: leaving!.dx, y: leaving!.dy, scale: leaving!.scale, opacity: 1, width: panelW }
                           : leaving
-                            ? { opacity: 0, y: 14, scale: 0.97 }
-                            : { opacity: quiet ? 0.78 : 1, scale: isActive ? 1.2 : 1, x: shove, y: 0 }
+                            ? { opacity: 0, y: 14, scale: 0.97, width: panelW }
+                            : { opacity: quiet ? 0.82 : 1, scale: 1, x: 0, y: 0, width: panelW }
                       }
                       transition={
                         flying
@@ -198,8 +225,8 @@ export default function ShopListing({ items }: { items: Product[] }) {
                       onMouseEnter={() => { if (hoverable && !leaving) { setActive(i); router.prefetch(href); } }}
                     >
                       <motion.div
-                        className="flex w-full flex-col items-center"
-                        style={{ transformOrigin: "50% 6px" }}
+                        className="flex shrink-0 flex-col items-center"
+                        style={{ transformOrigin: "50% 6px", width: innerW }}
                         animate={
                           reduce || isActive || leaving
                             ? { rotate: isActive ? 0 : TILT[i % TILT.length] * 0.4 }
