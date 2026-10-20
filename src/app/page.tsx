@@ -6,6 +6,7 @@ import {
 } from "@/components/home/Sections";
 import GalleryReveal from "@/components/home/GalleryReveal";
 import ScrollMorphShowcase from "@/components/home/ScrollMorphShowcase";
+import StudioShowcase from "@/components/home/StudioShowcase";
 import { publicApi, safe, type HomepagePayload } from "@/lib/api";
 
 export const dynamic = "force-dynamic";
@@ -44,6 +45,7 @@ export default async function HomePage() {
       <Marquee />
       <GalleryReveal events={data.upcoming_events} />
       <UpcomingEvents events={data.upcoming_events} />
+      <StudioShowcase events={data.upcoming_events} />
       <Stats eventCount={data.upcoming_events.length} courseCount={data.courses.length + data.workshops.length} />
       <LiveNow items={data.live_events} />
       <ContestBand items={data.contest_promotions} />
