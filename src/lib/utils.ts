@@ -28,6 +28,90 @@ export function formatEventDate(input?: string | null) {
   return d.toLocaleDateString("en-IN", { day: "2-digit", month: "short", year: "numeric" });
 }
 
+/**
+ * Checks whether an event date (and optional time) has passed.
+ * Returns true if the event has concluded.
+ * If only a date is provided without a specific time, it expires after 23:59:59.999 of that day.
+ * If a time is provided, it incorporates a buffer or end of day, whichever is later.
+ */
+export function isEventExpired(dateInput?: string | Date | null, timeInput?: string | null): boolean {
+  if (!dateInput) return false;
+
+  let eventYear: number;
+  let eventMonth: number;
+  let eventDay: number;
+  let eventHours = 23;
+  let eventMinutes = 59;
+  let hasSpecificTime = false;
+
+  if (dateInput instanceof Date) {
+    if (isNaN(dateInput.getTime())) return false;
+    eventYear = dateInput.getFullYear();
+    eventMonth = dateInput.getMonth();
+    eventDay = dateInput.getDate();
+    eventHours = dateInput.getHours();
+    eventMinutes = dateInput.getMinutes();
+    hasSpecificTime = eventHours !== 0 || eventMinutes !== 0;
+  } else if (typeof dateInput === "string") {
+    const trimmed = dateInput.trim();
+    if (!trimmed) return false;
+
+    // Matches YYYY-MM-DD
+    const ymdMatch = trimmed.match(/^(\d{4})-(\d{1,2})-(\d{1,2})/);
+    if (ymdMatch) {
+      eventYear = parseInt(ymdMatch[1], 10);
+      eventMonth = parseInt(ymdMatch[2], 10) - 1;
+      eventDay = parseInt(ymdMatch[3], 10);
+      // Check if there was also an inline time in the ISO string
+      const isoTimeMatch = trimmed.match(/T(\d{1,2}):(\d{2})/);
+      if (isoTimeMatch) {
+        eventHours = parseInt(isoTimeMatch[1], 10);
+        eventMinutes = parseInt(isoTimeMatch[2], 10);
+        hasSpecificTime = true;
+      }
+    } else {
+      const parsed = new Date(trimmed);
+      if (isNaN(parsed.getTime())) return false;
+      eventYear = parsed.getFullYear();
+      eventMonth = parsed.getMonth();
+      eventDay = parsed.getDate();
+      eventHours = parsed.getHours();
+      eventMinutes = parsed.getMinutes();
+      hasSpecificTime = eventHours !== 0 || eventMinutes !== 0;
+    }
+  } else {
+    return false;
+  }
+
+  // Parse timeInput if supplied separately (e.g. "10:00 PM", "6:30 PM", "18:00")
+  if (timeInput && typeof timeInput === "string") {
+    const timeMatch = timeInput.match(/(\d{1,2}):(\d{2})(?:\s*([aApP][mM]))?/);
+    if (timeMatch) {
+      let h = parseInt(timeMatch[1], 10);
+      const m = parseInt(timeMatch[2], 10);
+      const mer = timeMatch[3]?.toUpperCase();
+      if (mer === "PM" && h < 12) h += 12;
+      else if (mer === "AM" && h === 12) h = 0;
+      eventHours = h;
+      eventMinutes = m;
+      hasSpecificTime = true;
+    }
+  }
+
+  // End of that calendar day
+  const endOfDay = new Date(eventYear, eventMonth, eventDay, 23, 59, 59, 999).getTime();
+
+  let expiryTime = endOfDay;
+  if (hasSpecificTime) {
+    const startDateTime = new Date(eventYear, eventMonth, eventDay, eventHours, eventMinutes, 0, 0).getTime();
+    // 4 hours buffer after start time
+    const bufferTime = startDateTime + (4 * 60 * 60 * 1000);
+    expiryTime = Math.max(bufferTime, endOfDay);
+  }
+
+  return Date.now() > expiryTime;
+}
+
 export function splitDate(input?: string | null) {
   const d = parseDate(input);
   if (!d) return { day: "--", month: "TBA", weekday: "", year: "" };

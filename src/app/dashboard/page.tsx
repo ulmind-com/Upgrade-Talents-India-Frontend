@@ -22,7 +22,7 @@ import CoinLedger from "@/components/account/CoinLedger";
 import AadhaarKyc from "@/components/account/AadhaarKyc";
 import { Badge, Button, SectionLabel, Spotlights } from "@/components/ui/Primitives";
 import { Reveal, SplitHeading } from "@/components/motion/Reveal";
-import { cn, formatEventDate, formatINR } from "@/lib/utils";
+import { cn, formatEventDate, formatINR, isEventExpired } from "@/lib/utils";
 import { TicketPass } from "@/components/ticket/TicketPass";
 
 declare global { interface Window { Razorpay?: any } }
@@ -260,11 +260,18 @@ export default function DashboardPage() {
         {!loading && tab === "tickets" && (
           tickets.length ? (
             <div className="mt-10 flex flex-col gap-10">
-              {tickets.map((t, idx) => (
-                <Reveal key={t.ticket_ref} delay={idx * 0.08}>
-                  <TicketPass ticket={t} />
-                </Reveal>
-              ))}
+              {[...tickets]
+                .sort((a, b) => {
+                  const aExp = isEventExpired(a.event_date || a.issued_at, a.event_time);
+                  const bExp = isEventExpired(b.event_date || b.issued_at, b.event_time);
+                  if (aExp !== bExp) return aExp ? 1 : -1;
+                  return 0;
+                })
+                .map((t, idx) => (
+                  <Reveal key={t.ticket_ref} delay={idx * 0.08}>
+                    <TicketPass ticket={t} />
+                  </Reveal>
+                ))}
             </div>
           ) : (
             <EmptyState
@@ -468,17 +475,44 @@ export default function DashboardPage() {
               <div className="grid gap-6 sm:grid-cols-2">
                 {eventsRegistered.map((ev, i) => {
                   const isPaid = ev.is_confirmed || ev.status === "CONFIRMED" || ev.payment_status === "PAID" || ev.payment_status === "NOT_REQUIRED";
+                  const isExpired = isEventExpired(ev.date || ev.event_date);
                   return (
-                    <div key={i} className="rounded-[var(--radius-lg)] border border-[var(--border)] bg-[var(--surface)] p-6">
-                      <Badge tone={isPaid ? "success" : "warning"}>{isPaid ? "Registered Event" : "Payment Pending"}</Badge>
-                      <h3 className="mt-3 font-display text-xl font-bold uppercase">{ev.activity_title || ev.title || "Live Event"}</h3>
-                      <p className="mt-2 text-xs text-[var(--fg-muted)]">
-                        Ref: <span className="font-mono text-[var(--fg)]">{ev.registration_id || ev._id || ev.order_reference}</span>
-                      </p>
-                      {ev.date && (
-                        <p className="mt-1 flex items-center gap-1.5 text-xs text-[var(--fg-muted)]">
-                          <CalendarDays className="size-3.5" /> {formatEventDate(ev.date)}
+                    <div
+                      key={i}
+                      className={cn(
+                        "relative overflow-hidden rounded-[var(--radius-lg)] border bg-[var(--surface)] p-6 transition-all",
+                        isExpired ? "border-red-500/30" : "border-[var(--border)]"
+                      )}
+                    >
+                      <div className={cn("transition-all duration-300", isExpired && "filter blur-[1.5px] opacity-50 select-none pointer-events-none")}>
+                        <Badge tone={isExpired ? "danger" : isPaid ? "success" : "warning"}>
+                          {isExpired ? "Expired Event" : isPaid ? "Registered Event" : "Payment Pending"}
+                        </Badge>
+                        <h3 className="mt-3 font-display text-xl font-bold uppercase">{ev.activity_title || ev.title || "Live Event"}</h3>
+                        <p className="mt-2 text-xs text-[var(--fg-muted)]">
+                          Ref: <span className="font-mono text-[var(--fg)]">{ev.registration_id || ev._id || ev.order_reference}</span>
                         </p>
+                        {ev.date && (
+                          <p className="mt-1 flex items-center gap-1.5 text-xs text-[var(--fg-muted)]">
+                            <CalendarDays className="size-3.5" /> {formatEventDate(ev.date)}
+                          </p>
+                        )}
+                      </div>
+
+                      {isExpired && (
+                        <div className="absolute inset-0 z-10 flex flex-col items-center justify-center p-4 bg-black/35 backdrop-blur-[1px]">
+                          <div className="flex items-center gap-2 rounded-xl border border-red-500/50 bg-black/85 px-4 py-2 shadow-xl">
+                            <TicketX className="size-4 text-red-400" />
+                            <span className="font-display text-sm font-bold uppercase tracking-wider text-red-400">
+                              Event Expired
+                            </span>
+                          </div>
+                          {ev.date && (
+                            <span className="mt-1.5 font-mono text-[10px] uppercase tracking-wider text-zinc-300">
+                              Passed on {formatEventDate(ev.date)}
+                            </span>
+                          )}
+                        </div>
                       )}
                     </div>
                   );
@@ -1300,57 +1334,76 @@ function VipDashboardTab({ vipBookings, vipPasses, user }: { vipBookings: any[];
           </h3>
 
           <div className="grid gap-6 sm:grid-cols-2 lg:grid-cols-3">
-            {vipPasses.map((p, i) => (
-              <motion.div
-                key={p._id || p.pass_reference || i}
-                initial={{ opacity: 0, y: 18 }}
-                animate={{ opacity: 1, y: 0 }}
-                transition={{ duration: 0.5, delay: i * 0.08 }}
-                className="relative overflow-hidden rounded-[var(--radius-xl)] border border-[var(--border)] bg-[var(--surface)] p-6 shadow-xl"
-              >
-                <div className="absolute top-0 right-0 h-28 w-28 bg-[var(--accent)]/5 rounded-full blur-2xl" />
-                <div className="flex items-center justify-between">
-                  <Badge tone={p.status === "VALID" || p.status === "ACTIVE" ? "success" : "danger"}>
-                    {p.status}
-                  </Badge>
-                  <span className="font-mono text-[11px] text-[var(--fg-subtle)]">
-                    {p.entry_policy?.replace(/_/g, " ") || "Single Entry"}
-                  </span>
-                </div>
-
-                <div className="mt-4">
-                  <h4 className="font-display text-2xl font-bold">{p.pass_name || p.category || "VIP Pass"}</h4>
-                  <p className="mt-1 text-sm font-semibold text-[var(--accent)]">{p.event_title || "Event"}</p>
-                </div>
-
-                {p.access_areas && p.access_areas.length > 0 && (
-                  <div className="mt-4 flex flex-wrap gap-1.5">
-                    {p.access_areas.map((area: string) => (
-                      <span key={area} className="rounded-full bg-[var(--surface-2)] px-2.5 py-0.5 font-mono text-[10px] uppercase text-[var(--fg-muted)]">
-                        {area.replace(/_/g, " ")}
-                      </span>
-                    ))}
-                  </div>
-                )}
-
-                <div className="mt-6 border-t border-[var(--border)] pt-4">
-                  <div className="text-xs text-[var(--fg-muted)] space-y-1">
-                    <p className="flex items-center gap-1.5"><User className="size-3.5" /> {p.holder_name || "Guest"}</p>
-                    <p className="font-mono text-[11px] text-[var(--fg-subtle)]">Ref: {p.pass_reference || p._id}</p>
-                  </div>
-
-                  {(p.status === "VALID" || p.status === "ACTIVE") && (
-                    <button
-                      onClick={() => setQrModal(p)}
-                      className="mt-4 inline-flex w-full items-center justify-center gap-2 rounded-full py-2.5 text-xs font-bold text-[var(--on-accent)]"
-                      style={{ background: "var(--grad-brand)" }}
-                    >
-                      <QrCode className="size-4" /> View Admission QR
-                    </button>
+            {vipPasses.map((p, i) => {
+              const isExpired = p.status === "EXPIRED" || isEventExpired(p.valid_until || p.event_date || p.date);
+              return (
+                <motion.div
+                  key={p._id || p.pass_reference || i}
+                  initial={{ opacity: 0, y: 18 }}
+                  animate={{ opacity: 1, y: 0 }}
+                  transition={{ duration: 0.5, delay: i * 0.08 }}
+                  className={cn(
+                    "relative overflow-hidden rounded-[var(--radius-xl)] border bg-[var(--surface)] p-6 shadow-xl transition-all",
+                    isExpired ? "border-red-500/30" : "border-[var(--border)]"
                   )}
-                </div>
-              </motion.div>
-            ))}
+                >
+                  <div className={cn("transition-all duration-300", isExpired && "filter blur-[1.5px] opacity-50 select-none pointer-events-none")}>
+                    <div className="absolute top-0 right-0 h-28 w-28 bg-[var(--accent)]/5 rounded-full blur-2xl" />
+                    <div className="flex items-center justify-between">
+                      <Badge tone={isExpired ? "danger" : (p.status === "VALID" || p.status === "ACTIVE") ? "success" : "danger"}>
+                        {isExpired ? "EXPIRED" : p.status}
+                      </Badge>
+                      <span className="font-mono text-[11px] text-[var(--fg-subtle)]">
+                        {p.entry_policy?.replace(/_/g, " ") || "Single Entry"}
+                      </span>
+                    </div>
+
+                    <div className="mt-4">
+                      <h4 className="font-display text-2xl font-bold">{p.pass_name || p.category || "VIP Pass"}</h4>
+                      <p className="mt-1 text-sm font-semibold text-[var(--accent)]">{p.event_title || "Event"}</p>
+                    </div>
+
+                    {p.access_areas && p.access_areas.length > 0 && (
+                      <div className="mt-4 flex flex-wrap gap-1.5">
+                        {p.access_areas.map((area: string) => (
+                          <span key={area} className="rounded-full bg-[var(--surface-2)] px-2.5 py-0.5 font-mono text-[10px] uppercase text-[var(--fg-muted)]">
+                            {area.replace(/_/g, " ")}
+                          </span>
+                        ))}
+                      </div>
+                    )}
+
+                    <div className="mt-6 border-t border-[var(--border)] pt-4">
+                      <div className="text-xs text-[var(--fg-muted)] space-y-1">
+                        <p className="flex items-center gap-1.5"><User className="size-3.5" /> {p.holder_name || "Guest"}</p>
+                        <p className="font-mono text-[11px] text-[var(--fg-subtle)]">Ref: {p.pass_reference || p._id}</p>
+                      </div>
+
+                      {!isExpired && (p.status === "VALID" || p.status === "ACTIVE") && (
+                        <button
+                          onClick={() => setQrModal(p)}
+                          className="mt-4 inline-flex w-full items-center justify-center gap-2 rounded-full py-2.5 text-xs font-bold text-[var(--on-accent)]"
+                          style={{ background: "var(--grad-brand)" }}
+                        >
+                          <QrCode className="size-4" /> View Admission QR
+                        </button>
+                      )}
+                    </div>
+                  </div>
+
+                  {isExpired && (
+                    <div className="absolute inset-0 z-20 flex flex-col items-center justify-center p-4 bg-black/35 backdrop-blur-[1px]">
+                      <div className="flex items-center gap-2 rounded-xl border border-red-500/50 bg-black/85 px-4 py-2 shadow-xl">
+                        <TicketX className="size-4 text-red-400" />
+                        <span className="font-display text-sm font-bold uppercase tracking-wider text-red-400">
+                          VIP Pass Expired
+                        </span>
+                      </div>
+                    </div>
+                  )}
+                </motion.div>
+              );
+            })}
           </div>
         </Reveal>
       )}

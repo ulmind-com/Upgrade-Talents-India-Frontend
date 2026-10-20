@@ -7,7 +7,7 @@ import { EventCard } from "@/components/home/Sections";
 import { Reveal, StaggerGroup, StaggerItem, SplitHeading } from "@/components/motion/Reveal";
 import { Badge, Button, SectionLabel, Spotlights } from "@/components/ui/Primitives";
 import { getEventById, getRelatedEvents } from "@/lib/events";
-import { formatEventDate, formatINR } from "@/lib/utils";
+import { formatEventDate, formatINR, isEventExpired } from "@/lib/utils";
 import Countdown from "@/components/events/Countdown";
 
 export const revalidate = 60;
@@ -27,7 +27,8 @@ export default async function EventDetailPage({ params }: { params: Promise<{ id
   if (!ev) notFound();
 
   const related = await getRelatedEvents(id);
-  const bookable = ev.registration_enabled !== false && ev.event_status !== "completed" && ev.event_status !== "cancelled";
+  const expired = isEventExpired(ev.date, ev.time);
+  const bookable = !expired && ev.registration_enabled !== false && ev.event_status !== "completed" && ev.event_status !== "cancelled";
 
   const facts = [
     { Icon: CalendarDays, label: "Date", value: formatEventDate(ev.date) },
@@ -54,7 +55,11 @@ export default async function EventDetailPage({ params }: { params: Promise<{ id
             <Reveal>
               <div className="flex flex-wrap items-center gap-3">
                 {ev.event_status === "live" && <Badge tone="live">Live now</Badge>}
-                <Badge tone={bookable ? "success" : "danger"}>{bookable ? "Booking open" : "Booking closed"}</Badge>
+                {expired ? (
+                  <Badge tone="danger">Event Expired</Badge>
+                ) : (
+                  <Badge tone={bookable ? "success" : "danger"}>{bookable ? "Booking open" : "Booking closed"}</Badge>
+                )}
                 {!ev.price && <Badge tone="brand">Free entry</Badge>}
               </div>
 
@@ -108,7 +113,7 @@ export default async function EventDetailPage({ params }: { params: Promise<{ id
 
                   <div className="mt-7 flex flex-col gap-3">
                     <Button href={`/events/${ev._id}/book`} size="lg" disabled={!bookable} className="w-full">
-                      <Ticket className="size-4" aria-hidden /> {bookable ? "Book tickets" : "Booking closed"}
+                      <Ticket className="size-4" aria-hidden /> {expired ? "Event Expired" : bookable ? "Book tickets" : "Booking closed"}
                     </Button>
                     <Button href="/events" variant="outline" size="lg" className="w-full">
                       Other events <ArrowUpRight className="size-4" aria-hidden />

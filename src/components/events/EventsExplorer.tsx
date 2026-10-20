@@ -6,7 +6,7 @@ import { motion } from "framer-motion";
 import { Search, MapPin, ChevronLeft, ChevronRight, ChevronDown, CalendarX2 } from "lucide-react";
 import { publicApi, type BannerItem, type EventItem } from "@/lib/api";
 import { Button } from "@/components/ui/Primitives";
-import { cn, formatINR, imageFor, parseDate } from "@/lib/utils";
+import { cn, formatINR, imageFor, parseDate, isEventExpired } from "@/lib/utils";
 
 const PAGE_SIZE = 8;
 
@@ -67,7 +67,7 @@ export default function EventsExplorer({
   const filtered = useMemo(() => {
     let list = [...all];
     if (filter === "live") list = list.filter((e) => e.event_status === "live");
-    if (filter === "upcoming") list = list.filter((e) => e.event_status !== "completed" && e.event_status !== "cancelled");
+    if (filter === "upcoming") list = list.filter((e) => !isEventExpired(e.date, e.time) && e.event_status !== "completed" && e.event_status !== "cancelled");
     if (filter === "free") list = list.filter((e) => !e.price);
     if (filter === "paid") list = list.filter((e) => (e.price ?? 0) > 0);
 
@@ -263,8 +263,9 @@ function EventRow({ ev, index }: { ev: EventItem; index: number }) {
     ? `${dayNum}${["th", "st", "nd", "rd"][(dayNum % 100 > 10 && dayNum % 100 < 14) || dayNum % 10 > 3 ? 0 : dayNum % 10]}`
     : "--";
 
+  const expired = isEventExpired(ev.date, ev.time);
   const lowStock = typeof ev.capacity === "number" && ev.capacity > 0 && ev.capacity <= 10;
-  const closed = ev.registration_enabled === false || ev.event_status === "completed" || ev.event_status === "cancelled";
+  const closed = expired || ev.registration_enabled === false || ev.event_status === "completed" || ev.event_status === "cancelled";
 
   return (
     <motion.li
@@ -293,15 +294,23 @@ function EventRow({ ev, index }: { ev: EventItem; index: number }) {
             src={imageFor(ev.image_url, index)}
             alt=""
             loading="lazy"
-            className="size-full object-cover transition-transform duration-700 group-hover:scale-110"
+            className={cn(
+              "size-full object-cover transition-transform duration-700 group-hover:scale-110",
+              expired && "filter blur-[1.5px] grayscale-[40%] opacity-60"
+            )}
           />
         </Link>
 
         {/* Info */}
         <div className="min-w-0 flex-1">
-          {(lowStock || ev.event_status === "live" || !ev.price) && (
+          {(lowStock || ev.event_status === "live" || !ev.price || expired) && (
             <div className="mb-1.5 flex flex-wrap gap-2">
-              {lowStock && (
+              {expired && (
+                <span className="inline-flex items-center rounded-sm bg-red-500/20 border border-red-500/30 px-2 py-[3px] text-[10px] font-semibold tracking-wide text-red-400">
+                  Expired
+                </span>
+              )}
+              {lowStock && !expired && (
                 <span className="inline-flex items-center rounded-sm bg-[#e8395f] px-2 py-[3px] text-[10px] font-semibold tracking-wide text-white">
                   {ev.capacity} Tickets Remaining
                 </span>
@@ -358,7 +367,7 @@ function EventRow({ ev, index }: { ev: EventItem; index: number }) {
                 : "bg-[var(--accent)] text-[var(--on-accent)] hover:-translate-y-0.5 hover:bg-[var(--accent-hover)]"
             )}
           >
-            {closed ? "Closed" : "Buy Ticket"}
+            {expired ? "Expired" : closed ? "Closed" : "Buy Ticket"}
           </Link>
           <Link
             href={`/events/${ev._id}`}

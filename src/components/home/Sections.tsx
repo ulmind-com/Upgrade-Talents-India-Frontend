@@ -9,7 +9,7 @@ import {
 } from "lucide-react";
 import { Reveal, StaggerGroup, StaggerItem, SplitHeading, Parallax } from "@/components/motion/Reveal";
 import { Badge, Button, Magnetic, SectionLabel, Spotlights, TiltCard } from "@/components/ui/Primitives";
-import { formatINR, imageFor, isUsableImageUrl, splitDate, truncate } from "@/lib/utils";
+import { cn, formatINR, imageFor, isUsableImageUrl, splitDate, truncate, isEventExpired } from "@/lib/utils";
 import type { BannerItem, ContestPromotion, CourseItem, EventItem, LiveEventItem, TestimonialItem } from "@/lib/api";
 import CoverflowCarousel from "./CoverflowCarousel";
 
@@ -86,17 +86,24 @@ export function LiveNow({ items }: { items: LiveEventItem[] }) {
 
 export function EventCard({ ev, index = 0 }: { ev: EventItem; index?: number }) {
   const d = splitDate(ev.date);
-  const soldOut = ev.event_status === "completed" || ev.registration_enabled === false;
+  const expired = isEventExpired(ev.date, ev.time);
+  const soldOut = expired || ev.event_status === "completed" || ev.registration_enabled === false;
 
   return (
     <TiltCard className="group h-full" intensity={7}>
-      <article className="glow-ring relative flex h-full flex-col overflow-hidden rounded-[var(--radius-lg)] border border-[var(--border)] bg-[var(--surface)] transition-shadow duration-500 hover:shadow-[0_40px_90px_-50px_var(--accent)]">
+      <article className={cn(
+        "glow-ring relative flex h-full flex-col overflow-hidden rounded-[var(--radius-lg)] border bg-[var(--surface)] transition-all duration-500",
+        expired ? "border-red-500/30" : "border-[var(--border)] hover:shadow-[0_40px_90px_-50px_var(--accent)]"
+      )}>
         <div className="relative aspect-[4/3] overflow-hidden">
           <img
             src={imageFor(ev.image_url, index)}
             alt=""
             loading="lazy"
-            className="size-full object-cover transition-transform duration-[1.2s] ease-[cubic-bezier(0.16,1,0.3,1)] group-hover:scale-110"
+            className={cn(
+              "size-full object-cover transition-transform duration-[1.2s] ease-[cubic-bezier(0.16,1,0.3,1)] group-hover:scale-110",
+              expired && "filter blur-[1.5px] grayscale-[40%] opacity-60"
+            )}
           />
           <div className="absolute inset-0 bg-gradient-to-t from-[var(--surface)] via-transparent to-transparent" aria-hidden />
 
@@ -108,7 +115,11 @@ export function EventCard({ ev, index = 0 }: { ev: EventItem; index?: number }) 
 
           <div className="absolute right-4 top-4 flex flex-col items-end gap-2">
             {ev.event_status === "live" && <Badge tone="live">Live</Badge>}
-            {soldOut && <Badge tone="danger">Closed</Badge>}
+            {expired ? (
+              <Badge tone="danger">Expired</Badge>
+            ) : soldOut ? (
+              <Badge tone="danger">Closed</Badge>
+            ) : null}
           </div>
         </div>
 
@@ -135,9 +146,14 @@ export function EventCard({ ev, index = 0 }: { ev: EventItem; index?: number }) 
             </div>
             <Link
               href={`/events/${ev._id}`}
-              className="inline-flex min-h-[44px] items-center gap-2 rounded-full border border-[var(--border-strong)] px-5 text-[12px] font-semibold uppercase tracking-[0.12em] transition-all duration-300 hover:border-transparent hover:bg-[var(--accent)] hover:text-[var(--on-accent)]"
+              className={cn(
+                "inline-flex min-h-[44px] items-center gap-2 rounded-full border px-5 text-[12px] font-semibold uppercase tracking-[0.12em] transition-all duration-300",
+                expired
+                  ? "border-red-500/30 bg-red-500/10 text-red-400 hover:bg-red-500/20"
+                  : "border-[var(--border-strong)] hover:border-transparent hover:bg-[var(--accent)] hover:text-[var(--on-accent)]"
+              )}
             >
-              <Ticket className="size-4" aria-hidden /> Book
+              <Ticket className="size-4" aria-hidden /> {expired ? "Expired" : "Book"}
             </Link>
           </div>
         </div>

@@ -3,12 +3,12 @@
 import { useRef, useState, useEffect } from "react";
 import {
   Download, Printer, Calendar, MapPin,
-  Clock, User, Sparkles, ShieldCheck, Loader2, CheckCircle2
+  Clock, User, Sparkles, ShieldCheck, Loader2, CheckCircle2, TicketX
 } from "lucide-react";
 import QRCode from "qrcode";
 import { toPng } from "html-to-image";
 import { type MyTicket } from "@/lib/api";
-import { formatEventDate, formatINR, cn, imageFor, isUsableImageUrl } from "@/lib/utils";
+import { formatEventDate, formatINR, cn, imageFor, isUsableImageUrl, isEventExpired } from "@/lib/utils";
 import { Button } from "@/components/ui/Primitives";
 
 import { TICKET_DANCER_BASE64 } from "./ticketDancerBase64";
@@ -382,18 +382,32 @@ export function TicketPass({ ticket, qrData, defaultVariant }: TicketPassProps) 
   const coverImage = coverBase64 || rawCover;
 
 
+  const isExpired = isEventExpired(ticket.event_date || ticket.issued_at, ticket.event_time);
+
   return (
     <div className="w-full flex flex-col items-center">
       {/* ── TOOLBAR: Official Pass Indicator & Actions (Print / Download) ── */}
       <div className="w-full max-w-[920px] mb-4 flex flex-wrap items-center justify-between gap-3 px-1">
         <div className="flex items-center gap-2">
-          <span
-            className="size-2 rounded-full animate-pulse"
-            style={{ background: v.primary }}
-          />
-          <span className="text-[11px] font-mono uppercase tracking-[0.2em] text-[var(--fg-muted)]">
-            Official Pass • {v.name}
-          </span>
+          {isExpired ? (
+            <div className="flex items-center gap-2">
+              <span className="size-2 rounded-full bg-rose-500" />
+              <span className="inline-flex items-center gap-1.5 rounded-full bg-rose-500/15 border border-rose-500/30 px-3 py-1 text-[11px] font-mono font-bold uppercase tracking-[0.15em] text-rose-400">
+                <Clock className="size-3 text-rose-400" />
+                Expired Pass • Event Ended
+              </span>
+            </div>
+          ) : (
+            <div className="flex items-center gap-2">
+              <span
+                className="size-2 rounded-full animate-pulse"
+                style={{ background: v.primary }}
+              />
+              <span className="text-[11px] font-mono uppercase tracking-[0.2em] text-[var(--fg-muted)]">
+                Official Pass • {v.name}
+              </span>
+            </div>
+          )}
         </div>
 
         <div className="flex items-center gap-2">
@@ -402,24 +416,27 @@ export function TicketPass({ ticket, qrData, defaultVariant }: TicketPassProps) 
             disabled={printing}
             variant="outline"
             size="sm"
-            className="gap-2 text-xs"
+            className={cn("gap-2 text-xs", isExpired && "opacity-75")}
           >
             {printing ? (
               <Loader2 className="size-3.5 animate-spin" />
             ) : (
               <Printer className="size-3.5" />
             )}
-            <span>{printing ? "Preparing…" : "Print"}</span>
+            <span>{printing ? "Preparing…" : isExpired ? "Print (Expired)" : "Print"}</span>
           </Button>
 
           <button
             type="button"
             onClick={handleDownload}
             disabled={downloading}
-            className="inline-flex items-center gap-2 rounded-full px-4 py-2 text-xs font-bold text-white shadow-lg transition-transform hover:scale-105 active:scale-95 disabled:opacity-50 cursor-pointer"
+            className={cn(
+              "inline-flex items-center gap-2 rounded-full px-4 py-2 text-xs font-bold text-white shadow-lg transition-transform hover:scale-105 active:scale-95 disabled:opacity-50 cursor-pointer",
+              isExpired && "opacity-85"
+            )}
             style={{
-              background: v.gradient,
-              boxShadow: `0 8px 24px ${v.primary}40`,
+              background: isExpired ? "linear-gradient(145deg, #4b5563 0%, #1f2937 100%)" : v.gradient,
+              boxShadow: isExpired ? "0 4px 14px rgba(0,0,0,0.3)" : `0 8px 24px ${v.primary}40`,
             }}
           >
             {downloading ? (
@@ -435,7 +452,7 @@ export function TicketPass({ ticket, qrData, defaultVariant }: TicketPassProps) 
             ) : (
               <>
                 <Download className="size-3.5" />
-                <span>Download Ticket (PNG)</span>
+                <span>{isExpired ? "Download Pass (Expired)" : "Download Ticket (PNG)"}</span>
               </>
             )}
           </button>
@@ -450,7 +467,7 @@ export function TicketPass({ ticket, qrData, defaultVariant }: TicketPassProps) 
           <div
             ref={ticketRef}
             id="printable-ticket"
-            className="relative flex text-zinc-900 select-none"
+            className="relative flex text-zinc-900 select-none overflow-hidden rounded-[26px]"
             style={{
               width: "920px",
               height: "290px",
@@ -463,7 +480,14 @@ export function TicketPass({ ticket, qrData, defaultVariant }: TicketPassProps) 
               border: "none",
             }}
           >
-            {/* ══════════ LEFT SECTION: EVENT PHOTO WITH ORGANIC WAVE ══════════ */}
+            {/* ── INNER WRAPPER: BLURRED WHEN EXPIRED ── */}
+            <div
+              className={cn(
+                "relative flex size-full transition-all duration-300",
+                isExpired && "filter blur-[2.5px] opacity-60 grayscale-[30%]"
+              )}
+            >
+              {/* ══════════ LEFT SECTION: EVENT PHOTO WITH ORGANIC WAVE ══════════ */}
             <div className="relative w-[280px] h-[290px] shrink-0 rounded-l-[26px] overflow-hidden bg-zinc-900">
               <img
                 src={coverImage}
@@ -568,9 +592,12 @@ export function TicketPass({ ticket, qrData, defaultVariant }: TicketPassProps) 
                     </span>
                     <span
                       className="rounded-full px-2.5 py-0.5 text-[10px] font-bold uppercase tracking-wider shrink-0"
-                      style={{ background: v.pillBg, color: v.pillText }}
+                      style={{
+                        background: isExpired ? "#fee2e2" : v.pillBg,
+                        color: isExpired ? "#dc2626" : v.pillText,
+                      }}
                     >
-                      {ticket.is_checked_in ? "Used Pass" : "Verified Ticket"}
+                      {isExpired ? "Expired" : ticket.is_checked_in ? "Used Pass" : "Verified Ticket"}
                     </span>
                   </div>
 
@@ -711,13 +738,49 @@ export function TicketPass({ ticket, qrData, defaultVariant }: TicketPassProps) 
 
                 {/* Stub Footer */}
                 <div>
-                  <div className="inline-flex items-center gap-1 rounded-full bg-black/25 px-2.5 py-0.5 text-[8.5px] font-bold text-white shadow-sm">
-                    <ShieldCheck className="size-2.5 text-emerald-300" />
-                    <span>Scan for gate check-in</span>
+                  <div
+                    className={cn(
+                      "inline-flex items-center gap-1 rounded-full px-2.5 py-0.5 text-[8.5px] font-bold text-white shadow-sm",
+                      isExpired ? "bg-red-950/80 text-red-200 border border-red-500/40" : "bg-black/25"
+                    )}
+                  >
+                    {isExpired ? (
+                      <>
+                        <TicketX className="size-2.5 text-red-400" />
+                        <span>Pass expired</span>
+                      </>
+                    ) : (
+                      <>
+                        <ShieldCheck className="size-2.5 text-emerald-300" />
+                        <span>Scan for gate check-in</span>
+                      </>
+                    )}
                   </div>
                 </div>
               </div>
             </div>
+            {/* ── END INNER WRAPPER ── */}
+            </div>
+
+            {/* ── EXPIRED BADGE / WATERMARK OVERLAY (CAPTURED IN DOWNLOAD PNG) ── */}
+            {isExpired && (
+              <div className="absolute inset-0 z-40 flex flex-col items-center justify-center p-6 pointer-events-none select-none">
+                <div className="flex flex-col items-center justify-center gap-1.5 rounded-2xl border-2 border-red-500/90 bg-zinc-950/92 px-8 py-4 shadow-[0_0_50px_rgba(239,68,68,0.55)] backdrop-blur-md transform -rotate-2">
+                  <div className="flex items-center gap-2.5">
+                    <TicketX className="size-6 text-red-500" />
+                    <span className="font-display text-3xl md:text-4xl font-black uppercase tracking-[0.28em] text-red-500 drop-shadow">
+                      EXPIRED
+                    </span>
+                  </div>
+                  <p className="font-mono text-[11px] font-bold uppercase tracking-wider text-red-200">
+                    Event Concluded ({dateFormatted})
+                  </p>
+                  <span className="inline-flex items-center rounded-full bg-red-500/20 px-2.5 py-0.5 font-mono text-[9px] font-bold uppercase tracking-widest text-red-300">
+                    Void for gate admission
+                  </span>
+                </div>
+              </div>
+            )}
           </div>
         </div>
       </div>
