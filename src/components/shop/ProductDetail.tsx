@@ -6,6 +6,7 @@ import { ShoppingBag, Minus, Plus, Check, Truck, ShieldCheck, RefreshCcw, Chevro
 import { motion } from "framer-motion";
 import { Reveal, StaggerGroup, StaggerItem } from "@/components/motion/Reveal";
 import { useCart } from "@/components/shop/CartProvider";
+import { hasOwnHanger } from "@/lib/hasHanger";
 import { useTheme } from "@/components/motion/Providers";
 import { formatINR } from "@/lib/utils";
 import { availableOf, type Product } from "@/components/shop/ShopListing";
@@ -36,6 +37,7 @@ export default function ProductDetail({ product, related }: { product: P; relate
   const imgs = product.images?.length ? product.images : [""];
   const [active, setActive] = useState(0);
   const [qty, setQty] = useState(1);
+  const [ownHanger, setOwnHanger] = useState(false);
 
   const variants = product.variants || [];
   const colors = useMemo(() => Array.from(new Set(variants.map((v) => v.color).filter(Boolean) as string[])), [variants]);
@@ -59,6 +61,13 @@ export default function ProductDetail({ product, related }: { product: P; relate
   useEffect(() => {
     setQty((q) => Math.min(Math.max(1, q), Math.max(1, maxQty)));
   }, [maxQty]);
+
+  /* Shots taken on a real hanger keep theirs; ours would be a second one. */
+  useEffect(() => {
+    let alive = true;
+    hasOwnHanger(imgs[active] || "").then((own) => { if (alive) setOwnHanger(own); });
+    return () => { alive = false; };
+  }, [imgs, active]);
 
   function addToCart() {
     if (sizes.length && !size) { setSize(sizes[0]); }
@@ -99,10 +108,10 @@ export default function ProductDetail({ product, related }: { product: P; relate
             transition={{ duration: 0.55, ease: [0.16, 1, 0.3, 1] }}
             className="relative flex flex-col items-center px-6 pb-7 pt-9"
           >
-            <Hanger className="w-[clamp(60px,8vw,92px)] text-[#b08457]" />
+            {!ownHanger && <Hanger className="w-[clamp(60px,8vw,92px)] text-[#b08457]" />}
             <img
               ref={heroRef} src={imgs[active]} alt={product.name || ""}
-              className="-mt-2 h-[clamp(300px,46vh,520px)] w-full object-contain object-top"
+              className={`h-[clamp(300px,46vh,520px)] w-full object-contain object-top ${ownHanger ? "mt-0" : "-mt-2"}`}
               style={{ mixBlendMode: light ? "multiply" : "normal" }}
             />
             {light && <span aria-hidden className="mt-1 block h-3 w-[46%] rounded-[50%] bg-black/25 blur-[6px]" />}

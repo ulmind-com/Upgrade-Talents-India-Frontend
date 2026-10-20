@@ -8,6 +8,7 @@ import { Search, ShoppingBag, Plus, ArrowRight } from "lucide-react";
 import { Reveal, StaggerGroup, StaggerItem } from "@/components/motion/Reveal";
 import { SectionLabel } from "@/components/ui/Primitives";
 import { useCart } from "@/components/shop/CartProvider";
+import { hasOwnHanger } from "@/lib/hasHanger";
 import { useTheme } from "@/components/motion/Providers";
 import { formatINR } from "@/lib/utils";
 import { DEMO_PRODUCTS } from "@/lib/shopDemo";
@@ -70,6 +71,7 @@ export default function ShopListing({ items }: { items: Product[] }) {
   const [preview, setPreview] = useState(false);
   const [active, setActive] = useState(0);
   const [hoverable, setHoverable] = useState(false);
+  const [ownHanger, setOwnHanger] = useState<Record<string, boolean>>({});
   const [leaving, setLeaving] = useState<{ i: number; dx: number; dy: number; scale: number; originY: number } | null>(null);
   const stageRef = useRef<HTMLDivElement>(null);
   const itemRefs = useRef<(HTMLDivElement | null)[]>([]);
@@ -91,6 +93,19 @@ export default function ShopListing({ items }: { items: Product[] }) {
 
   const railIds = useMemo(() => new Set(rail.map(pid)), [rail]);
   const rest = useMemo(() => data.filter((p) => !railIds.has(pid(p))), [data, railIds]);
+
+  /* A piece photographed on its own hanger must not get a second one. */
+  useEffect(() => {
+    let alive = true;
+    rail.forEach((p) => {
+      const src = img(p);
+      if (!src) return;
+      hasOwnHanger(src).then((own) => {
+        if (alive && own) setOwnHanger((m) => (m[src] ? m : { ...m, [src]: true }));
+      });
+    });
+    return () => { alive = false; };
+  }, [rail]);
 
   const cats = useMemo(() => ["All", ...Array.from(new Set(rest.map((p) => p.category).filter(Boolean) as string[]))], [rest]);
   const list = useMemo(
@@ -199,7 +214,7 @@ export default function ShopListing({ items }: { items: Product[] }) {
                         {!sold && stock !== null && stock <= 5 && <Tag text={`Only ${stock} left`} tone="low" />}
                         {stock === null && i === 0 && <Tag text="New" tone="new" />}
 
-                        <Hanger className="w-[clamp(58px,9vw,90px)] shrink-0 text-[#b08457]" />
+                        {!ownHanger[src] && <Hanger className="w-[clamp(58px,9vw,90px)] shrink-0 text-[#b08457]" />}
 
                         <button
                           type="button"
