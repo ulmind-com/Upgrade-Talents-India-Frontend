@@ -125,15 +125,12 @@ export default function ShopListing({ items }: { items: Product[] }) {
     return () => ro.disconnect();
   }, [rail.length]);
 
-  /* The rack shares one rod: the piece in play takes most of it and the rest
-     squeeze up beside it, cropped by their own panel rather than shrunk. */
-  const GAP = 14;
-  const SPREAD = 3.4;
-  const usable = Math.max(0, rowW - GAP * Math.max(rail.length - 1, 0));
-  const unit = rail.length ? usable / (SPREAD + rail.length - 1) : 0;
-  const wideW = Math.max(150, Math.round(unit * SPREAD));
-  const idleW = Math.max(64, Math.round(unit));
-  const mobileW = 150;
+  /* Consistent natural hanger spacing: clothes hang side by side on the rod
+     without accordion distortion, clipping boxes, or sudden left/right gaps. */
+  const GAP = 20;
+  const count = Math.max(rail.length, 1);
+  const calculatedW = rowW > 0 ? Math.floor((rowW - GAP * (count - 1)) / count) : 155;
+  const itemW = Math.min(175, Math.max(125, calculatedW));
 
   const current = rail[Math.min(active, Math.max(0, rail.length - 1))];
 
@@ -182,75 +179,70 @@ export default function ShopListing({ items }: { items: Product[] }) {
 
               <div
                 ref={rowRef}
-                className="flex snap-x snap-mandatory items-start justify-center overflow-x-auto overflow-y-hidden px-4 pb-10 pt-8 sm:px-10 [scrollbar-width:none] [&::-webkit-scrollbar]:hidden"
+                className="flex snap-x snap-mandatory items-start justify-center overflow-x-auto overflow-y-visible px-4 pb-10 pt-8 sm:px-10 [scrollbar-width:none] [&::-webkit-scrollbar]:hidden"
                 style={{ gap: GAP }}
                 role="list"
               >
                 {rail.map((p, i) => {
                   const stock = availableOf(p);
                   const sold = stock === 0;
-                  const isActive = hoverable && active === i;
+                  const isActive = active === i;
                   const quiet = hoverable && leaving === null && active !== i;
                   const flying = leaving?.i === i;
                   const href = `/shop/${pid(p)}`;
                   const src = img(p);
-                  /* The piece in play takes the rod; the rest squeeze up beside
-                     it, cropped by their panel instead of shrinking. */
                   const m = shot[src];
                   const display = m?.src || src;
                   const ownHanger = !!m?.hanger;
-                  /* Zoom each shot until the garment itself fills the rod. */
-                  const fit = m ? Math.min(1.9, 1 / Math.max(m.height, 0.25)) : 1;
-                  const lift = m ? -m.top * fit * 100 : 0;
-                  const panelW = !hoverable ? mobileW : isActive || leaving ? wideW : idleW;
-                  const innerW = hoverable ? wideW : mobileW;
+                  /* Natural fit without distortion */
+                  const fit = m ? Math.min(1.4, 1 / Math.max(m.height, 0.35)) : 1;
+                  const lift = m ? -m.top * fit * 80 : 0;
                   return (
                     <motion.div
                       key={pid(p) || i}
                       ref={(el) => { itemRefs.current[i] = el; }}
                       role="listitem"
-                      className="relative flex shrink-0 snap-center flex-col items-center pb-5"
+                      className="relative flex shrink-0 snap-center flex-col items-center pb-5 cursor-pointer"
                       style={{
                         zIndex: flying ? 60 : isActive ? 30 : 10,
                         transformOrigin: flying ? `50% ${leaving!.originY}px` : "50% 34px",
-                        overflow: flying || !hoverable ? "visible" : "hidden",
+                        overflow: "visible",
+                        width: itemW,
                       }}
                       animate={
                         flying
-                          ? { x: leaving!.dx, y: leaving!.dy, scale: leaving!.scale, opacity: 1, width: panelW }
+                          ? { x: leaving!.dx, y: leaving!.dy, scale: leaving!.scale, opacity: 1 }
                           : leaving
-                            ? { opacity: 0, y: 14, scale: 0.97, width: panelW }
-                            : { opacity: quiet ? 0.82 : 1, scale: 1, x: 0, y: 0, width: panelW }
+                            ? { opacity: 0, y: 14, scale: 0.97 }
+                            : { opacity: quiet ? 0.75 : 1, scale: isActive ? 1.05 : 0.98, x: 0, y: isActive ? 6 : 0 }
                       }
                       transition={
                         flying
                           ? { duration: 0.78, ease: [0.16, 1, 0.3, 1] }
                           : leaving
                             ? { duration: 0.3, ease: "easeIn" }
-                            : { type: "spring", stiffness: 240, damping: 24 }
+                            : { type: "spring", stiffness: 260, damping: 25 }
                       }
                       onAnimationComplete={() => { if (flying) router.push(href); }}
                       onMouseEnter={() => { if (hoverable && !leaving) { setActive(i); router.prefetch(href); } }}
+                      onClick={() => {
+                        if (active !== i) {
+                          setActive(i);
+                        } else {
+                          openProduct(i, href);
+                        }
+                      }}
                     >
                       <motion.div
-                        className="flex shrink-0 flex-col items-center"
+                        className="flex w-full shrink-0 flex-col items-center"
                         style={{
                           transformOrigin: "50% 6px",
-                          width: innerW,
-                          /* A squeezed panel cuts the garment off mid-sleeve;
-                             feather that edge so it reads as cloth carrying on
-                             behind its neighbour, not as a box around it. */
-                          ...(hoverable && !isActive && !leaving
-                            ? {
-                                maskImage: "linear-gradient(to right, transparent 0%, #000 14%, #000 86%, transparent 100%)",
-                                WebkitMaskImage: "linear-gradient(to right, transparent 0%, #000 14%, #000 86%, transparent 100%)",
-                              }
-                            : {}),
+                          width: "100%",
                         }}
                         animate={
                           reduce || isActive || leaving
-                            ? { rotate: isActive ? 0 : TILT[i % TILT.length] * 0.4 }
-                            : { rotate: [TILT[i % TILT.length] - 0.5, TILT[i % TILT.length] + 0.5, TILT[i % TILT.length] - 0.5] }
+                            ? { rotate: isActive ? 0 : TILT[i % TILT.length] * 0.3 }
+                            : { rotate: [TILT[i % TILT.length] - 0.4, TILT[i % TILT.length] + 0.4, TILT[i % TILT.length] - 0.4] }
                         }
                         transition={
                           reduce || isActive || leaving
@@ -261,41 +253,38 @@ export default function ShopListing({ items }: { items: Product[] }) {
                         {!sold && stock !== null && stock <= 5 && <Tag text={`Only ${stock} left`} tone="low" />}
                         {stock === null && i === 0 && <Tag text="New" tone="new" />}
 
-                        {!ownHanger && <Hanger className="w-[clamp(58px,9vw,90px)] shrink-0 text-[#b08457]" />}
+                        {!ownHanger && <Hanger className="w-[clamp(58px,9vw,85px)] shrink-0 text-[#b08457]" />}
 
-                        <button
-                          type="button"
-                          onClick={() => openProduct(i, href)}
-                          onFocus={() => setActive(i)}
-                          aria-label={`${p.name || "Product"}${sold ? " — sold out" : ""}, ${formatINR(p.price)}. View product`}
+                        <div
                           style={{ height: `calc(clamp(180px, 30vh, 300px) * ${LEN[i % LEN.length]})` }}
-                          className="relative -mt-2 flex w-full cursor-pointer items-start justify-center rounded-2xl outline-none focus-visible:ring-2 focus-visible:ring-[var(--accent)]"
+                          className="relative -mt-2 flex w-full items-start justify-center rounded-2xl"
                         >
                           <img
                             ref={(el) => { imgRefs.current[i] = el; }}
                             src={display}
                             alt={p.name || ""}
                             loading={i < 4 ? "eager" : "lazy"}
-                            className="h-full w-full object-contain object-top"
+                            className="h-full w-full object-contain object-top select-none pointer-events-none"
                             style={{
                               transformOrigin: "50% 0%",
                               transform: `translateY(${lift}%) scale(${fit})`,
+                              mixBlendMode: light ? "multiply" : "normal",
                               filter: sold
                                 ? "grayscale(1) opacity(0.5)"
-                                : "drop-shadow(0 22px 26px rgba(0,0,0,0.28))",
+                                : undefined,
                             }}
                           />
                           {sold && (
                             <span className="absolute inset-x-2 top-1/2 -translate-y-1/2 rounded-full bg-[var(--fg)] py-1 text-center text-[9.5px] font-bold uppercase tracking-[0.18em] text-[var(--bg)]">Sold out</span>
                           )}
-                        </button>
+                        </div>
                       </motion.div>
 
                       {light && (
                         <motion.span
                           aria-hidden
                           className="pointer-events-none mt-1 block h-3 rounded-[50%] bg-black/25 blur-[6px]"
-                          animate={{ width: isActive ? "62%" : "48%", opacity: isActive ? 0.3 : 0.18 }}
+                          animate={{ width: isActive ? "65%" : "45%", opacity: isActive ? 0.32 : 0.16 }}
                           transition={{ type: "spring", stiffness: 260, damping: 26 }}
                         />
                       )}
@@ -303,13 +292,14 @@ export default function ShopListing({ items }: { items: Product[] }) {
                       {!sold && (
                         <motion.button
                           type="button"
-                          onClick={() =>
+                          onClick={(e) => {
+                            e.stopPropagation();
                             add(
                               { productId: pid(p), name: p.name || "", price: Number(p.price || 0), image: img(p) },
                               1,
                               { fly: { src: display, rect: imgRefs.current[i]?.getBoundingClientRect() ?? null } }
-                            )
-                          }
+                            );
+                          }}
                           aria-label={`Add ${p.name || "product"} to cart`}
                           className="mt-3 grid size-9 cursor-pointer place-items-center rounded-full bg-[var(--fg)] text-[var(--bg)] shadow-[0_12px_26px_-12px_rgba(0,0,0,0.9)] transition-transform hover:scale-110 active:scale-95"
                           animate={{ opacity: isActive || !hoverable ? 1 : 0, y: isActive || !hoverable ? 0 : 8 }}
