@@ -174,9 +174,21 @@ export default function Footer({ brandName = "UPGRADE TALENTS INDIA", tagline, c
         <p className="font-mono text-[11px] uppercase tracking-[0.2em] text-[var(--fg-subtle)]">
           © {year} {brandName}. All rights reserved.
         </p>
-        <p className="font-mono text-[11px] uppercase tracking-[0.2em] text-[var(--fg-subtle)]">
-          Powered by <span className="text-gradient font-semibold">Eventora</span>
-        </p>
+        <a
+          href="https://www.ulmind.com"
+          target="_blank"
+          rel="noopener noreferrer"
+          className="group flex items-center gap-2.5 text-[13px] font-medium text-[var(--fg)]/90"
+        >
+          <span className="opacity-80 transition-opacity group-hover:opacity-100">
+            Designed and Developed by
+          </span>
+          <img
+            src="/assets/ulmind.png"
+            alt="Ulmind"
+            className="h-10 w-auto object-contain transition-all group-hover:scale-105 sm:h-12"
+          />
+        </a>
       </div>
     </footer>
   );
