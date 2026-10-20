@@ -9,7 +9,6 @@ import { Reveal, StaggerGroup, StaggerItem } from "@/components/motion/Reveal";
 import { SectionLabel } from "@/components/ui/Primitives";
 import { useCart } from "@/components/shop/CartProvider";
 import { useTheme } from "@/components/motion/Providers";
-import { cutout } from "@/lib/cutout";
 import { formatINR } from "@/lib/utils";
 import { DEMO_PRODUCTS } from "@/lib/shopDemo";
 
@@ -71,7 +70,6 @@ export default function ShopListing({ items }: { items: Product[] }) {
   const [preview, setPreview] = useState(false);
   const [active, setActive] = useState(0);
   const [hoverable, setHoverable] = useState(false);
-  const [cut, setCut] = useState<Record<string, string>>({});
   const [leaving, setLeaving] = useState<{ i: number; dx: number; dy: number; scale: number; originY: number } | null>(null);
   const stageRef = useRef<HTMLDivElement>(null);
   const itemRefs = useRef<(HTMLDivElement | null)[]>([]);
@@ -93,18 +91,6 @@ export default function ShopListing({ items }: { items: Product[] }) {
 
   const railIds = useMemo(() => new Set(rail.map(pid)), [rail]);
   const rest = useMemo(() => data.filter((p) => !railIds.has(pid(p))), [data, railIds]);
-
-  /* The rail shots get their backdrop knocked out so the shirts hang in the
-     room rather than floating inside a photo. */
-  useEffect(() => {
-    let alive = true;
-    rail.forEach((p) => {
-      const src = img(p);
-      if (!src) return;
-      cutout(src).then((url) => { if (alive && url) setCut((c) => (c[src] ? c : { ...c, [src]: url })); });
-    });
-    return () => { alive = false; };
-  }, [rail]);
 
   const cats = useMemo(() => ["All", ...Array.from(new Set(rest.map((p) => p.category).filter(Boolean) as string[]))], [rest]);
   const list = useMemo(
@@ -165,8 +151,7 @@ export default function ShopListing({ items }: { items: Product[] }) {
                   const quiet = hoverable && leaving === null && active !== i;
                   const flying = leaving?.i === i;
                   const href = `/shop/${pid(p)}`;
-                  const src = cut[img(p)] || img(p);
-                  const knocked = !!cut[img(p)];
+                  const src = img(p);
                   /* Neighbours lean away, the way clothes get pushed aside. */
                   const shove = !hoverable || leaving ? 0 : i === active ? 0 : (i < active ? -1 : 1) * (Math.abs(i - active) === 1 ? 10 : 4);
                   return (
@@ -231,14 +216,12 @@ export default function ShopListing({ items }: { items: Product[] }) {
                             loading={i < 4 ? "eager" : "lazy"}
                             className="h-full w-full object-contain object-top"
                             style={{
-                              /* A clean cut-out needs no blending; a photo that
-                                 kept its backdrop still loses a white one. */
-                              mixBlendMode: !knocked && light ? "multiply" : "normal",
+                              /* On the daytime wall a white studio backdrop
+                                 blends away; cut-outs are unaffected either way. */
+                              mixBlendMode: light ? "multiply" : "normal",
                               filter: sold
                                 ? "grayscale(1) opacity(0.5)"
-                                : knocked
-                                  ? "drop-shadow(0 22px 26px rgba(0,0,0,0.22))"
-                                  : undefined,
+                                : "drop-shadow(0 22px 26px rgba(0,0,0,0.28))",
                             }}
                           />
                           {sold && (
@@ -247,7 +230,7 @@ export default function ShopListing({ items }: { items: Product[] }) {
                         </button>
                       </motion.div>
 
-                      {!knocked && light && (
+                      {light && (
                         <motion.span
                           aria-hidden
                           className="pointer-events-none mt-1 block h-3 rounded-[50%] bg-black/25 blur-[6px]"
