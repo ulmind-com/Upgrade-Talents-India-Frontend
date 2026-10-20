@@ -6,6 +6,7 @@ import { ShoppingBag, Minus, Plus, Check, Truck, ShieldCheck, RefreshCcw, Chevro
 import { motion } from "framer-motion";
 import { Reveal, StaggerGroup, StaggerItem } from "@/components/motion/Reveal";
 import { useCart } from "@/components/shop/CartProvider";
+import { useTheme } from "@/components/motion/Providers";
 import { formatINR } from "@/lib/utils";
 import { availableOf, type Product } from "@/components/shop/ShopListing";
 
@@ -29,6 +30,8 @@ function Hanger({ className = "" }: { className?: string }) {
 
 export default function ProductDetail({ product, related }: { product: P; related: Product[] }) {
   const { add, setOpen } = useCart();
+  const { theme } = useTheme();
+  const light = theme === "blue";
   const heroRef = useRef<HTMLImageElement>(null);
   const imgs = product.images?.length ? product.images : [""];
   const [active, setActive] = useState(0);
@@ -82,13 +85,12 @@ export default function ProductDetail({ product, related }: { product: P; relate
         {/* ── Gallery ── */}
         {/* The piece arrives still hanging, on the same lit wall it left --
             the shop rail and this page read as one move. */}
-        <div className="relative overflow-hidden rounded-[28px] bg-[#F6F4F0] text-[#16181d] shadow-[0_60px_120px_-60px_rgba(0,0,0,0.85)] ring-1 ring-black/5">
+        <div className="relative">
           <div
+            className="pointer-events-none absolute inset-x-6 top-[34px] h-[2px] rounded-full text-[var(--fg)] opacity-35"
+            style={{ background: "linear-gradient(90deg, transparent 0%, currentColor 12%, currentColor 88%, transparent 100%)" }}
             aria-hidden
-            className="pointer-events-none absolute inset-0"
-            style={{ background: "radial-gradient(120% 70% at 50% 0%, rgba(255,255,255,0.95) 0%, rgba(246,244,240,0) 60%), linear-gradient(180deg, rgba(0,0,0,0) 62%, rgba(0,0,0,0.055) 100%)" }}
           />
-          <div className="pointer-events-none absolute inset-x-10 top-9 h-px bg-gradient-to-r from-transparent via-black/30 to-transparent" aria-hidden />
 
           <motion.div
             key={active}
@@ -97,19 +99,19 @@ export default function ProductDetail({ product, related }: { product: P; relate
             transition={{ duration: 0.55, ease: [0.16, 1, 0.3, 1] }}
             className="relative flex flex-col items-center px-6 pb-7 pt-9"
           >
-            <Hanger className="w-[clamp(60px,8vw,92px)] text-[#8a6a4a]" />
+            <Hanger className="w-[clamp(60px,8vw,92px)] text-[#b08457]" />
             <img
               ref={heroRef} src={imgs[active]} alt={product.name || ""}
               className="-mt-2 h-[clamp(300px,46vh,520px)] w-full object-contain object-top"
-              style={{ mixBlendMode: "multiply" }}
+              style={{ mixBlendMode: light ? "multiply" : "normal" }}
             />
-            <span aria-hidden className="mt-1 block h-3 w-[46%] rounded-[50%] bg-black/25 blur-[6px]" />
+            {light && <span aria-hidden className="mt-1 block h-3 w-[46%] rounded-[50%] bg-black/25 blur-[6px]" />}
           </motion.div>
 
           <div className="relative pb-8 text-center">
             {imgs.length > 1 && (
               <>
-                <p className="font-mono text-[10.5px] tracking-[0.3em] text-[#16181d]/45">
+                <p className="font-mono text-[10.5px] tracking-[0.3em] text-[var(--fg-subtle)]">
                   {String(active + 1).padStart(2, "0")} / {String(imgs.length).padStart(2, "0")}
                 </p>
                 <div className="mt-3 flex items-center justify-center gap-6">
@@ -117,7 +119,7 @@ export default function ProductDetail({ product, related }: { product: P; relate
                     <button
                       key={i} onClick={() => setActive(i)} aria-pressed={active === i}
                       className={`cursor-pointer pb-1 text-[12.5px] font-semibold transition-colors ${
-                        active === i ? "border-b border-[#16181d] text-[#16181d]" : "text-[#16181d]/45 hover:text-[#16181d]/80"
+                        active === i ? "border-b border-[var(--fg)] text-[var(--fg)]" : "text-[var(--fg-subtle)] hover:text-[var(--fg)]"
                       }`}
                     >
                       {VIEW_LABELS[i] || `View ${i + 1}`}
@@ -126,8 +128,8 @@ export default function ProductDetail({ product, related }: { product: P; relate
                 </div>
               </>
             )}
-            <div className="mx-auto mt-6 h-px w-[78%] bg-black/10" aria-hidden />
-            <p className="mt-4 text-[12.5px] text-[#16181d]/55">{product.name}</p>
+            <div className="mx-auto mt-6 h-px w-[78%] bg-[var(--border)]" aria-hidden />
+            <p className="mt-4 text-[12.5px] text-[var(--fg-muted)]">{product.name}</p>
           </div>
         </div>
 

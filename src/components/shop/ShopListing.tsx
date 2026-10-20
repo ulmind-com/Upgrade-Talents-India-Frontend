@@ -8,6 +8,7 @@ import { Search, ShoppingBag, Plus, ArrowRight } from "lucide-react";
 import { Reveal, StaggerGroup, StaggerItem } from "@/components/motion/Reveal";
 import { SectionLabel } from "@/components/ui/Primitives";
 import { useCart } from "@/components/shop/CartProvider";
+import { useTheme } from "@/components/motion/Providers";
 import { cutout } from "@/lib/cutout";
 import { formatINR } from "@/lib/utils";
 import { DEMO_PRODUCTS } from "@/lib/shopDemo";
@@ -50,9 +51,9 @@ function Hanger({ className = "" }: { className?: string }) {
 function Tag({ text, tone }: { text: string; tone: "new" | "low" }) {
   return (
     <span className="pointer-events-none absolute -top-1 left-1/2 z-20 origin-top -translate-x-[150%] rotate-[-7deg] select-none" aria-hidden>
-      <span className="mx-auto block h-7 w-px bg-black/25" />
+      <span className="mx-auto block h-7 w-px bg-[var(--border-strong)]" />
       <span className={`block rounded-[3px] px-2 py-1 text-[8.5px] font-bold uppercase tracking-[0.16em] shadow-[0_6px_14px_-8px_rgba(0,0,0,0.6)] ${
-        tone === "new" ? "bg-[#16181d] text-white" : "bg-white text-[#16181d] ring-1 ring-black/10"
+        tone === "new" ? "bg-[var(--fg)] text-[var(--bg)]" : "bg-[var(--surface)] text-[var(--fg)] ring-1 ring-[var(--border)]"
       }`}>{text}</span>
     </span>
   );
@@ -60,6 +61,9 @@ function Tag({ text, tone }: { text: string; tone: "new" | "low" }) {
 
 export default function ShopListing({ items }: { items: Product[] }) {
   const { add } = useCart();
+  const { theme } = useTheme();
+  /* "blue" is the daytime theme; the rail has to read on either wall. */
+  const light = theme === "blue";
   const router = useRouter();
   const reduce = useReducedMotion();
   const [q, setQ] = useState("");
@@ -139,27 +143,21 @@ export default function ShopListing({ items }: { items: Product[] }) {
       {/* ─────────── The rail: trending pieces, hanging ─────────── */}
       {rail.length > 0 && (
         <div className="container-x">
-          <div className="relative overflow-hidden rounded-[28px] bg-[#F6F4F0] text-[#16181d] shadow-[0_60px_120px_-60px_rgba(0,0,0,0.85)] ring-1 ring-black/5">
-            <div
-              aria-hidden
-              className="pointer-events-none absolute inset-0"
-              style={{ background: "radial-gradient(120% 70% at 50% 0%, rgba(255,255,255,0.95) 0%, rgba(246,244,240,0) 60%), linear-gradient(180deg, rgba(0,0,0,0) 62%, rgba(0,0,0,0.055) 100%)" }}
-            />
-
-            <div className="relative flex flex-wrap items-center justify-center gap-x-3 gap-y-1 px-6 pt-9 text-[10.5px] font-bold uppercase tracking-[0.3em] text-[#16181d]/70 md:pt-12">
+          <div className="relative">
+            <div className="relative flex flex-wrap items-center justify-center gap-x-3 gap-y-1 px-6 text-[10.5px] font-bold uppercase tracking-[0.3em] text-[var(--fg-muted)]">
               <span>Trending now</span>
-              <span className="h-3 w-px bg-black/20" aria-hidden />
-              <span className="text-[#16181d]/45">Official merch</span>
+              <span className="h-3 w-px bg-[var(--border-strong)]" aria-hidden />
+              <span className="text-[var(--fg-subtle)]">Official merch</span>
             </div>
 
             {/* ── the rod ── */}
             <div ref={stageRef} className="relative mt-7 md:mt-9">
-              <div className="pointer-events-none absolute inset-x-6 top-[38px] z-0 sm:inset-x-12" aria-hidden>
-                <div className="h-[2px] w-full rounded-full" style={{ background: "linear-gradient(90deg, rgba(22,24,29,0) 0%, rgba(22,24,29,0.45) 12%, rgba(22,24,29,0.45) 88%, rgba(22,24,29,0) 100%)" }} />
-                <div className="mx-auto h-px w-[92%]" style={{ background: "linear-gradient(90deg, rgba(255,255,255,0) 0%, rgba(255,255,255,0.9) 50%, rgba(255,255,255,0) 100%)" }} />
+              <div className="pointer-events-none absolute inset-x-6 top-[38px] z-0 text-[var(--fg)] sm:inset-x-12" aria-hidden>
+                <div className="h-[2px] w-full rounded-full opacity-35" style={{ background: "linear-gradient(90deg, transparent 0%, currentColor 12%, currentColor 88%, transparent 100%)" }} />
+                <div className="mx-auto h-px w-[92%] opacity-15" style={{ background: "linear-gradient(90deg, transparent 0%, currentColor 50%, transparent 100%)" }} />
               </div>
 
-              <div className="flex snap-x snap-mandatory items-start justify-center gap-2 overflow-x-auto overflow-y-hidden px-4 pt-8 sm:gap-5 sm:px-10 [scrollbar-width:none] [&::-webkit-scrollbar]:hidden" role="list">
+              <div className="flex snap-x snap-mandatory items-start justify-center gap-2 overflow-x-auto overflow-y-hidden px-4 pb-10 pt-8 sm:gap-5 sm:px-10 [scrollbar-width:none] [&::-webkit-scrollbar]:hidden" role="list">
                 {rail.map((p, i) => {
                   const stock = availableOf(p);
                   const sold = stock === 0;
@@ -216,7 +214,7 @@ export default function ShopListing({ items }: { items: Product[] }) {
                         {!sold && stock !== null && stock <= 5 && <Tag text={`Only ${stock} left`} tone="low" />}
                         {stock === null && i === 0 && <Tag text="New" tone="new" />}
 
-                        <Hanger className="w-[clamp(58px,9vw,90px)] shrink-0 text-[#8a6a4a]" />
+                        <Hanger className="w-[clamp(58px,9vw,90px)] shrink-0 text-[#b08457]" />
 
                         <button
                           type="button"
@@ -235,7 +233,7 @@ export default function ShopListing({ items }: { items: Product[] }) {
                             style={{
                               /* A clean cut-out needs no blending; a photo that
                                  kept its backdrop still loses a white one. */
-                              mixBlendMode: knocked ? "normal" : "multiply",
+                              mixBlendMode: !knocked && light ? "multiply" : "normal",
                               filter: sold
                                 ? "grayscale(1) opacity(0.5)"
                                 : knocked
@@ -244,12 +242,12 @@ export default function ShopListing({ items }: { items: Product[] }) {
                             }}
                           />
                           {sold && (
-                            <span className="absolute inset-x-2 top-1/2 -translate-y-1/2 rounded-full bg-[#16181d]/85 py-1 text-center text-[9.5px] font-bold uppercase tracking-[0.18em] text-white">Sold out</span>
+                            <span className="absolute inset-x-2 top-1/2 -translate-y-1/2 rounded-full bg-[var(--fg)] py-1 text-center text-[9.5px] font-bold uppercase tracking-[0.18em] text-[var(--bg)]">Sold out</span>
                           )}
                         </button>
                       </motion.div>
 
-                      {!knocked && (
+                      {!knocked && light && (
                         <motion.span
                           aria-hidden
                           className="pointer-events-none mt-1 block h-3 rounded-[50%] bg-black/25 blur-[6px]"
@@ -269,7 +267,7 @@ export default function ShopListing({ items }: { items: Product[] }) {
                             )
                           }
                           aria-label={`Add ${p.name || "product"} to cart`}
-                          className="mt-3 grid size-9 cursor-pointer place-items-center rounded-full bg-[#16181d] text-white shadow-[0_12px_26px_-12px_rgba(0,0,0,0.9)] transition-transform hover:scale-110 active:scale-95"
+                          className="mt-3 grid size-9 cursor-pointer place-items-center rounded-full bg-[var(--fg)] text-[var(--bg)] shadow-[0_12px_26px_-12px_rgba(0,0,0,0.9)] transition-transform hover:scale-110 active:scale-95"
                           animate={{ opacity: isActive || !hoverable ? 1 : 0, y: isActive || !hoverable ? 0 : 8 }}
                           transition={{ duration: 0.22 }}
                           tabIndex={isActive || !hoverable ? 0 : -1}
@@ -298,12 +296,12 @@ export default function ShopListing({ items }: { items: Product[] }) {
               >
                 <motion.div key={pid(current)} initial={{ opacity: 0, y: 8 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.32, ease: [0.16, 1, 0.3, 1] }}>
                   <p className="font-display text-[clamp(1.25rem,2.4vw,1.9rem)] font-bold leading-tight">{current.name}</p>
-                  <p className="mt-1 text-[12.5px] text-[#16181d]/55">{[current.category, formatINR(current.price)].filter(Boolean).join(" · ")}</p>
+                  <p className="mt-1 text-[12.5px] text-[var(--fg-muted)]">{[current.category, formatINR(current.price)].filter(Boolean).join(" · ")}</p>
                 </motion.div>
                 <Link
                   href={`/shop/${pid(current)}`}
                   onClick={(e) => { e.preventDefault(); openProduct(active, `/shop/${pid(current)}`); }}
-                  className="mt-4 inline-flex items-center gap-2 rounded-full border border-black/15 bg-white px-6 py-2.5 text-[12.5px] font-bold uppercase tracking-[0.12em] text-[#16181d] transition-colors hover:border-black/40"
+                  className="mt-4 inline-flex items-center gap-2 rounded-full border border-[var(--border)] bg-[var(--surface)] px-6 py-2.5 text-[12.5px] font-bold uppercase tracking-[0.12em] text-[var(--fg)] transition-colors hover:border-[var(--border-strong)]"
                 >
                   Shop the piece <ArrowRight className="size-3.5" aria-hidden />
                 </Link>
@@ -314,7 +312,7 @@ export default function ShopListing({ items }: { items: Product[] }) {
       )}
 
       {/* ─────────── Everything else, in the grid ─────────── */}
-      <div className="container-x mt-16 md:mt-20">
+      <div className="container-x mt-20 md:mt-24">
         <Reveal>
           <div className="flex flex-col gap-4 sm:flex-row sm:items-end sm:justify-between">
             <div>
