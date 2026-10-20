@@ -6,7 +6,7 @@ import { motion } from "framer-motion";
 import { Search, MapPin, ChevronLeft, ChevronRight, ChevronDown, CalendarX2 } from "lucide-react";
 import { publicApi, type BannerItem, type EventItem } from "@/lib/api";
 import { Button } from "@/components/ui/Primitives";
-import { cn, formatINR, imageFor, parseDate, isEventExpired } from "@/lib/utils";
+import { cn, formatINR, imageFor, parseDate, isEventExpired, isDeadlinePassed } from "@/lib/utils";
 
 const PAGE_SIZE = 8;
 
@@ -264,8 +264,9 @@ function EventRow({ ev, index }: { ev: EventItem; index: number }) {
     : "--";
 
   const expired = isEventExpired(ev.date, ev.time);
+  const deadlinePassed = isDeadlinePassed(ev.registration_deadline);
   const lowStock = typeof ev.capacity === "number" && ev.capacity > 0 && ev.capacity <= 10;
-  const closed = expired || ev.registration_enabled === false || ev.event_status === "completed" || ev.event_status === "cancelled";
+  const closed = expired || deadlinePassed || ev.registration_enabled === false || ev.event_status === "completed" || ev.event_status === "cancelled";
 
   return (
     <motion.li
@@ -367,7 +368,7 @@ function EventRow({ ev, index }: { ev: EventItem; index: number }) {
                 : "bg-[var(--accent)] text-[var(--on-accent)] hover:-translate-y-0.5 hover:bg-[var(--accent-hover)]"
             )}
           >
-            {expired ? "Expired" : closed ? "Closed" : "Buy Ticket"}
+            {expired ? "Expired" : deadlinePassed ? "Closed" : closed ? "Closed" : "Buy Ticket"}
           </Link>
           <Link
             href={`/events/${ev._id}`}
