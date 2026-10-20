@@ -110,7 +110,7 @@ export default function ProductDetail({ product, related }: { product: P; relate
           >
             {!shot?.hanger && <Hanger className="w-[clamp(60px,8vw,92px)] text-[#b08457]" />}
             <img
-              ref={heroRef} src={imgs[active]} alt={product.name || ""}
+              ref={heroRef} src={shot?.src || imgs[active]} alt={product.name || ""}
               className={`h-[clamp(300px,46vh,520px)] w-full object-contain object-top ${shot?.hanger ? "mt-0" : "-mt-2"}`}
               style={{
                 transformOrigin: "50% 0%",

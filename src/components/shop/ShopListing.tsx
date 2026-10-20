@@ -197,6 +197,7 @@ export default function ShopListing({ items }: { items: Product[] }) {
                   /* The piece in play takes the rod; the rest squeeze up beside
                      it, cropped by their panel instead of shrinking. */
                   const m = shot[src];
+                  const display = m?.src || src;
                   const ownHanger = !!m?.hanger;
                   /* Zoom each shot until the garment itself fills the rod. */
                   const fit = m ? Math.min(1.9, 1 / Math.max(m.height, 0.25)) : 1;
@@ -233,7 +234,19 @@ export default function ShopListing({ items }: { items: Product[] }) {
                     >
                       <motion.div
                         className="flex shrink-0 flex-col items-center"
-                        style={{ transformOrigin: "50% 6px", width: innerW }}
+                        style={{
+                          transformOrigin: "50% 6px",
+                          width: innerW,
+                          /* A squeezed panel cuts the garment off mid-sleeve;
+                             feather that edge so it reads as cloth carrying on
+                             behind its neighbour, not as a box around it. */
+                          ...(hoverable && !isActive && !leaving
+                            ? {
+                                maskImage: "linear-gradient(to right, transparent 0%, #000 14%, #000 86%, transparent 100%)",
+                                WebkitMaskImage: "linear-gradient(to right, transparent 0%, #000 14%, #000 86%, transparent 100%)",
+                              }
+                            : {}),
+                        }}
                         animate={
                           reduce || isActive || leaving
                             ? { rotate: isActive ? 0 : TILT[i % TILT.length] * 0.4 }
@@ -260,7 +273,7 @@ export default function ShopListing({ items }: { items: Product[] }) {
                         >
                           <img
                             ref={(el) => { imgRefs.current[i] = el; }}
-                            src={src}
+                            src={display}
                             alt={p.name || ""}
                             loading={i < 4 ? "eager" : "lazy"}
                             className="h-full w-full object-contain object-top"
@@ -294,7 +307,7 @@ export default function ShopListing({ items }: { items: Product[] }) {
                             add(
                               { productId: pid(p), name: p.name || "", price: Number(p.price || 0), image: img(p) },
                               1,
-                              { fly: { src, rect: imgRefs.current[i]?.getBoundingClientRect() ?? null } }
+                              { fly: { src: display, rect: imgRefs.current[i]?.getBoundingClientRect() ?? null } }
                             )
                           }
                           aria-label={`Add ${p.name || "product"} to cart`}

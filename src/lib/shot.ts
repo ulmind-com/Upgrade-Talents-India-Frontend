@@ -1,3 +1,5 @@
+import { knockOut } from "@/lib/cutout";
+
 /* What a product shot is actually made of: whether it brings its own hanger,
    and how much of the file the garment fills -- a shot with wide empty
    margins would otherwise hang much smaller than its neighbours. Drawing ours
@@ -12,6 +14,8 @@ export type Shot = {
   /** Where the garment starts and how tall it is, as fractions of the file. */
   top: number;
   height: number;
+  /** Set when a flat backdrop was lifted off and this copy should be shown. */
+  src?: string;
 };
 
 const cache = new Map<string, Promise<Shot | null>>();
@@ -81,7 +85,20 @@ export function measureShot(src: string): Promise<Shot | null> {
     const img = new Image();
     img.crossOrigin = "anonymous";
     img.decoding = "async";
-    img.onload = () => { try { resolve(look(img)); } catch { resolve(null); } };
+    img.onload = () => {
+      try {
+        const lifted = knockOut(img);
+        if (!lifted) { resolve(look(img)); return; }
+        /* Measure the cut-out, not the original: its margins are different. */
+        const clean = new Image();
+        clean.onload = () => {
+          const m = look(clean);
+          resolve(m ? { ...m, src: lifted } : { hanger: false, top: 0, height: 1, src: lifted });
+        };
+        clean.onerror = () => resolve(look(img));
+        clean.src = lifted;
+      } catch { resolve(null); }
+    };
     img.onerror = () => resolve(null);
     img.src = src;
   });
