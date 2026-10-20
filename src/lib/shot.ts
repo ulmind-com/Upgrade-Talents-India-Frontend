@@ -1,29 +1,39 @@
-/* Some product shots come with a hanger already in the picture. Drawing ours
+/* What a product shot is actually made of: whether it brings its own hanger,
+   and how much of the file the garment fills -- a shot with wide empty
+   margins would otherwise hang much smaller than its neighbours. Drawing ours
    on top of those gives the piece two hangers, so the rail asks the image
    first: a hook is a narrow spike at the top of the subject, while a hood or
    a collar fills most of the width. Measures only -- the pixels are never
    touched -- and any shot it cannot read keeps the drawn hanger. */
 
-const cache = new Map<string, Promise<boolean>>();
+export type Shot = {
+  /** The shot already contains a hanger hook of its own. */
+  hanger: boolean;
+  /** Where the garment starts and how tall it is, as fractions of the file. */
+  top: number;
+  height: number;
+};
+
+const cache = new Map<string, Promise<Shot | null>>();
 
 /** A hook is this slim compared with the garment under it. */
 const HOOK_MAX_WIDTH = 0.16;
 /** The slice of the subject's height that counts as "the top". */
 const TOP_BAND = 0.09;
 
-function look(img: HTMLImageElement): boolean {
+function look(img: HTMLImageElement): Shot | null {
   const w = img.naturalWidth, h = img.naturalHeight;
-  if (!w || !h) return false;
+  if (!w || !h) return null;
   const s = Math.min(1, 220 / Math.max(w, h));
   const cw = Math.max(8, Math.round(w * s)), ch = Math.max(8, Math.round(h * s));
   const c = document.createElement("canvas");
   c.width = cw; c.height = ch;
   const ctx = c.getContext("2d", { willReadFrequently: true });
-  if (!ctx) return false;
+  if (!ctx) return null;
   ctx.drawImage(img, 0, 0, cw, ch);
 
   let px: Uint8ClampedArray;
-  try { px = ctx.getImageData(0, 0, cw, ch).data; } catch { return false; }
+  try { px = ctx.getImageData(0, 0, cw, ch).data; } catch { return null; }
 
   /* On a cut-out the subject is simply what is opaque; on a photo it is
      whatever differs from the colour in the corner. */
@@ -50,25 +60,29 @@ function look(img: HTMLImageElement): boolean {
       if (hi > right) right = hi;
     }
   }
-  if (top < 0 || right <= left) return false;
+  if (top < 0 || right <= left) return null;
 
   const subjectW = right - left + 1;
   const band = Math.max(1, Math.round((bottom - top + 1) * TOP_BAND));
   const widest = Math.max(...rowWidth.slice(top, top + band));
-  return widest / subjectW < HOOK_MAX_WIDTH;
+  return {
+    hanger: widest / subjectW < HOOK_MAX_WIDTH,
+    top: top / ch,
+    height: (bottom - top + 1) / ch,
+  };
 }
 
-/** True when the shot already contains a hanger hook of its own. */
-export function hasOwnHanger(src: string): Promise<boolean> {
-  if (!src || typeof window === "undefined") return Promise.resolve(false);
+/** What the rail needs to know about a product shot before hanging it. */
+export function measureShot(src: string): Promise<Shot | null> {
+  if (!src || typeof window === "undefined") return Promise.resolve(null);
   const hit = cache.get(src);
   if (hit) return hit;
-  const job = new Promise<boolean>((resolve) => {
+  const job = new Promise<Shot | null>((resolve) => {
     const img = new Image();
     img.crossOrigin = "anonymous";
     img.decoding = "async";
-    img.onload = () => { try { resolve(look(img)); } catch { resolve(false); } };
-    img.onerror = () => resolve(false);
+    img.onload = () => { try { resolve(look(img)); } catch { resolve(null); } };
+    img.onerror = () => resolve(null);
     img.src = src;
   });
   cache.set(src, job);
