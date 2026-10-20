@@ -83,9 +83,9 @@ export default function ShopListing({ items }: { items: Product[] }) {
         <StaggerGroup className="mt-8 grid grid-cols-2 gap-5 lg:grid-cols-4">
           {list.map((p, i) => (
             <StaggerItem key={pid(p) || i}>
-              <div className="group relative flex h-full flex-col overflow-hidden rounded-[var(--radius-lg)] border border-[var(--border)] bg-[var(--surface)] transition-all duration-500 hover:-translate-y-1 hover:border-[var(--border-strong)]">
+              <div data-shop-card className="group relative flex h-full flex-col overflow-hidden rounded-[var(--radius-lg)] border border-[var(--border)] bg-[var(--surface)] transition-all duration-500 hover:-translate-y-1 hover:border-[var(--border-strong)]">
                 <Link href={`/shop/${pid(p)}`} className="relative block aspect-[4/5] overflow-hidden bg-[var(--surface-2)]">
-                  <img src={img(p)} alt={p.name || ""} loading="lazy" className="size-full object-cover transition-transform duration-[1.1s] group-hover:scale-105" />
+                  <img data-shop-img src={img(p)} alt={p.name || ""} loading="lazy" className="size-full object-cover transition-transform duration-[1.1s] group-hover:scale-105" />
                   {p.category && <span className="absolute left-3 top-3 rounded-full bg-black/45 px-2.5 py-1 text-[10px] font-bold uppercase tracking-wider text-white backdrop-blur-md">{p.category}</span>}
                   {availableOf(p) === 0 && (
                     <span className="absolute inset-0 grid place-items-center bg-black/55 text-[11px] font-bold uppercase tracking-[0.18em] text-white backdrop-blur-[2px]">Sold out</span>
@@ -96,7 +96,15 @@ export default function ShopListing({ items }: { items: Product[] }) {
                   <div className="mt-auto flex items-center justify-between pt-3">
                     <p className="font-display text-[1.05rem] font-bold tabular-nums">{formatINR(p.price)}</p>
                     <button
-                      onClick={() => add({ productId: pid(p), name: p.name || "", price: Number(p.price || 0), image: img(p) })}
+                      onClick={(e) => {
+                        const card = (e.currentTarget as HTMLElement).closest("[data-shop-card]");
+                        const thumb = card?.querySelector<HTMLImageElement>("[data-shop-img]");
+                        add(
+                          { productId: pid(p), name: p.name || "", price: Number(p.price || 0), image: img(p) },
+                          1,
+                          { fly: { src: img(p), rect: thumb?.getBoundingClientRect() ?? null } }
+                        );
+                      }}
                       disabled={availableOf(p) === 0}
                       aria-label={availableOf(p) === 0 ? `${p.name} is sold out` : `Add ${p.name} to cart`}
                       className="grid size-9 place-items-center rounded-full text-[var(--on-accent)] transition-transform hover:scale-105 active:scale-95 disabled:pointer-events-none disabled:opacity-40"

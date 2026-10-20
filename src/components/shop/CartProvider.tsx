@@ -1,6 +1,6 @@
 "use client";
 
-import { createContext, useContext, useEffect, useMemo, useState, useCallback, type ReactNode } from "react";
+import { createContext, useContext, useEffect, useMemo, useRef, useState, useCallback, type ReactNode } from "react";
 import Link from "next/link";
 import { AnimatePresence, motion } from "framer-motion";
 import { X, Minus, Plus, Trash2, ShoppingBag, ArrowRight, Loader2, CheckCircle2, ArrowLeft, Lock, AlertCircle } from "lucide-react";
@@ -26,9 +26,20 @@ export type CartItem = {
   qty: number;
 };
 
+/* Where a flying product image starts from: the thumbnail the shopper
+   clicked next to. Passed straight from getBoundingClientRect(). */
+export type FlyOrigin = { src?: string; rect: DOMRect | null };
+
+type Flight = {
+  id: number;
+  src: string;
+  from: { x: number; y: number; w: number; h: number };
+  to: { x: number; y: number };
+};
+
 type CartState = {
   items: CartItem[];
-  add: (i: Omit<CartItem, "key" | "qty">, qty?: number) => void;
+  add: (i: Omit<CartItem, "key" | "qty">, qty?: number, opts?: { fly?: FlyOrigin }) => void;
   remove: (key: string) => void;
   setQty: (key: string, qty: number) => void;
   clear: () => void;
@@ -50,6 +61,8 @@ export function CartProvider({ children }: { children: ReactNode }) {
   const [items, setItems] = useState<CartItem[]>([]);
   const [open, setOpen] = useState(false);
   const [ready, setReady] = useState(false);
+  const [flights, setFlights] = useState<Flight[]>([]);
+  const flightSeq = useRef(0);
 
   useEffect(() => {
     try { const s = localStorage.getItem(KEY); if (s) setItems(JSON.parse(s)); } catch {}
@@ -60,14 +73,45 @@ export function CartProvider({ children }: { children: ReactNode }) {
     try { localStorage.setItem(KEY, JSON.stringify(items)); } catch {}
   }, [items, ready]);
 
-  const add: CartState["add"] = (i, qty = 1) => {
+  /* Sends the product image arcing to the navbar cart icon. Returns false
+     when there is nothing to fly to (no navbar, no image, reduced motion),
+     so the caller can fall back to opening the drawer instead. */
+  const launchFlight = useCallback((src: string, rect: DOMRect | null) => {
+    if (typeof window === "undefined" || !src || !rect || !rect.width) return false;
+    if (window.matchMedia?.("(prefers-reduced-motion: reduce)").matches) return false;
+    const target = document.querySelector<HTMLElement>("[data-cart-target]");
+    if (!target) return false;
+    const t = target.getBoundingClientRect();
+    const id = ++flightSeq.current;
+    setFlights((f) => [
+      ...f,
+      {
+        id, src,
+        from: { x: rect.left, y: rect.top, w: rect.width, h: rect.height },
+        to: { x: t.left + t.width / 2, y: t.top + t.height / 2 },
+      },
+    ]);
+    return true;
+  }, []);
+
+  const endFlight = useCallback((id: number) => {
+    setFlights((f) => f.filter((x) => x.id !== id));
+    const target = document.querySelector<HTMLElement>("[data-cart-target]");
+    target?.animate?.(
+      [{ transform: "scale(1)" }, { transform: "scale(1.22)" }, { transform: "scale(1)" }],
+      { duration: 420, easing: "cubic-bezier(.34,1.56,.64,1)" }
+    );
+  }, []);
+
+  const add: CartState["add"] = (i, qty = 1, opts) => {
     const key = i.productId + (i.variantId || "");
     setItems((prev) => {
       const ex = prev.find((p) => p.key === key);
       if (ex) return prev.map((p) => (p.key === key ? { ...p, qty: Math.min(20, p.qty + qty) } : p));
       return [...prev, { ...i, key, qty }];
     });
-    setOpen(true);
+    const flew = opts?.fly ? launchFlight(opts.fly.src || i.image || "", opts.fly.rect) : false;
+    if (!flew) setOpen(true);
   };
   const remove = (key: string) => setItems((p) => p.filter((x) => x.key !== key));
   const setQty = (key: string, qty: number) => setItems((p) => p.map((x) => (x.key === key ? { ...x, qty: Math.max(1, Math.min(20, qty)) } : x)));
@@ -81,8 +125,55 @@ export function CartProvider({ children }: { children: ReactNode }) {
   return (
     <CartCtx.Provider value={value}>
       {children}
+      <FlightLayer flights={flights} onDone={endFlight} />
       <CartDrawer />
     </CartCtx.Provider>
+  );
+}
+
+/* The image travels on its own above everything else: no card, no border,
+   no background -- just the product picture shrinking into the cart icon. */
+function FlightLayer({ flights, onDone }: { flights: Flight[]; onDone: (id: number) => void }) {
+  if (!flights.length) return null;
+  return (
+    <div className="pointer-events-none fixed inset-0 z-[300] overflow-hidden" aria-hidden>
+      {flights.map((f) => {
+        const dx = f.to.x - (f.from.x + f.from.w / 2);
+        const dy = f.to.y - (f.from.y + f.from.h / 2);
+        const endScale = Math.max(0.08, Math.min(1, 34 / Math.max(f.from.w, f.from.h, 1)));
+        const lift = Math.min(190, Math.abs(dy) * 0.45 + 90);
+        return (
+          <motion.img
+            key={f.id}
+            src={f.src}
+            alt=""
+            initial={{ x: 0, y: 0, scale: 1, opacity: 0.98, rotate: 0 }}
+            animate={{
+              x: [0, dx * 0.62, dx],
+              y: [0, dy * 0.42 - lift, dy],
+              scale: [1, 0.6, endScale],
+              rotate: [0, -6, 8],
+              opacity: [0.98, 1, 0.3],
+            }}
+            transition={{ duration: 0.8, times: [0, 0.45, 1], ease: ["easeOut", "easeIn"] }}
+            onAnimationComplete={() => onDone(f.id)}
+            style={{
+              position: "absolute",
+              left: f.from.x,
+              top: f.from.y,
+              width: f.from.w,
+              height: f.from.h,
+              objectFit: "cover",
+              background: "transparent",
+              border: "none",
+              borderRadius: 14,
+              filter: "drop-shadow(0 18px 34px rgba(0,0,0,0.45))",
+              willChange: "transform, opacity",
+            }}
+          />
+        );
+      })}
+    </div>
   );
 }
 

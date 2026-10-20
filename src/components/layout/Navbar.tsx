@@ -203,6 +203,7 @@ export default function Navbar({ brandName = "UPGRADE TALENTS", logo }: { brandN
 
               {/* Shopping bag cart button */}
               <button
+                data-cart-target
                 onClick={() => openCart(true)}
                 aria-label={`Open cart${count ? `, ${count} items` : ""}`}
                 className="relative grid size-9 sm:size-10 cursor-pointer place-items-center rounded-full border border-[var(--border)] bg-[var(--surface)] text-[var(--fg-muted)] transition-all duration-300 hover:border-[var(--border-strong)] hover:text-[var(--fg)]"

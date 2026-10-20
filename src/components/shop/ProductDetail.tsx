@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import Link from "next/link";
 import { ShoppingBag, Minus, Plus, Check, Truck, ShieldCheck, RefreshCcw, ChevronRight, Heart } from "lucide-react";
 import { Reveal, StaggerGroup, StaggerItem } from "@/components/motion/Reveal";
@@ -15,6 +15,7 @@ const pid = (p: P) => p._id || p.id || "";
 
 export default function ProductDetail({ product, related }: { product: P; related: Product[] }) {
   const { add, setOpen } = useCart();
+  const heroRef = useRef<HTMLImageElement>(null);
   const imgs = product.images?.length ? product.images : [""];
   const [active, setActive] = useState(0);
   const [qty, setQty] = useState(1);
@@ -46,9 +47,11 @@ export default function ProductDetail({ product, related }: { product: P; relate
     if (sizes.length && !size) { setSize(sizes[0]); }
     add({
       productId: pid(product), variantId: variant?.variant_id,
-      name: product.name || "", price: Number(price), image: imgs[0],
+      name: product.name || "", price: Number(price), image: imgs[active] || imgs[0],
       size: size || (sizes.length ? sizes[0] : undefined), color: color || undefined,
-    }, qty);
+    }, qty, {
+      fly: { src: imgs[active] || imgs[0], rect: heroRef.current?.getBoundingClientRect() ?? null },
+    });
   }
 
   return (
@@ -76,7 +79,7 @@ export default function ProductDetail({ product, related }: { product: P; relate
               </div>
             )}
             <div className="relative flex-1 overflow-hidden rounded-[var(--radius-xl)] border border-[var(--border)] bg-[var(--surface-2)]">
-              <img src={imgs[active]} alt={product.name || ""} className="aspect-[4/5] w-full object-cover" />
+              <img ref={heroRef} src={imgs[active]} alt={product.name || ""} className="aspect-[4/5] w-full object-cover" />
             </div>
           </div>
         </Reveal>
