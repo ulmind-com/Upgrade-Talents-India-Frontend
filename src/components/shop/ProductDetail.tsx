@@ -3,6 +3,7 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 import Link from "next/link";
 import { ShoppingBag, Minus, Plus, Check, Truck, ShieldCheck, RefreshCcw, ChevronRight, Heart } from "lucide-react";
+import { motion } from "framer-motion";
 import { Reveal, StaggerGroup, StaggerItem } from "@/components/motion/Reveal";
 import { useCart } from "@/components/shop/CartProvider";
 import { formatINR } from "@/lib/utils";
@@ -12,6 +13,19 @@ type Variant = { variant_id?: string; size?: string; color?: string; price_overr
 type P = Product & { variants?: Variant[]; shipping_fee?: number };
 
 const pid = (p: P) => p._id || p.id || "";
+const VIEW_LABELS = ["Front", "Back", "Detail", "On body", "Side", "Flat"];
+
+/* Same drawn hanger the shop rail uses, so the piece lands looking identical. */
+function Hanger({ className = "" }: { className?: string }) {
+  return (
+    <svg viewBox="0 0 80 38" className={className} fill="none" aria-hidden>
+      <path d="M40 3.5c3.6 0 5.6 2.3 5.6 5 0 2.7-2.4 3.8-4 4.7-1.1.6-1.6 1.3-1.6 2.5"
+        stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" />
+      <path d="M40 15.8 6.6 31.4c-1.5.7-1 3 .7 3h65.4c1.7 0 2.2-2.3.7-3L40 15.8Z"
+        stroke="currentColor" strokeWidth="1.6" strokeLinejoin="round" />
+    </svg>
+  );
+}
 
 export default function ProductDetail({ product, related }: { product: P; related: Product[] }) {
   const { add, setOpen } = useCart();
@@ -66,23 +80,56 @@ export default function ProductDetail({ product, related }: { product: P; relate
 
       <div className="mt-6 grid gap-10 lg:grid-cols-[1.05fr_1fr]">
         {/* ── Gallery ── */}
-        <Reveal>
-          <div className="flex flex-col-reverse gap-3 sm:flex-row">
+        {/* The piece arrives still hanging, on the same lit wall it left --
+            the shop rail and this page read as one move. */}
+        <div className="relative overflow-hidden rounded-[28px] bg-[#F6F4F0] text-[#16181d] shadow-[0_60px_120px_-60px_rgba(0,0,0,0.85)] ring-1 ring-black/5">
+          <div
+            aria-hidden
+            className="pointer-events-none absolute inset-0"
+            style={{ background: "radial-gradient(120% 70% at 50% 0%, rgba(255,255,255,0.95) 0%, rgba(246,244,240,0) 60%), linear-gradient(180deg, rgba(0,0,0,0) 62%, rgba(0,0,0,0.055) 100%)" }}
+          />
+          <div className="pointer-events-none absolute inset-x-10 top-9 h-px bg-gradient-to-r from-transparent via-black/30 to-transparent" aria-hidden />
+
+          <motion.div
+            key={active}
+            initial={{ opacity: 0, scale: 1.05, y: -6 }}
+            animate={{ opacity: 1, scale: 1, y: 0 }}
+            transition={{ duration: 0.55, ease: [0.16, 1, 0.3, 1] }}
+            className="relative flex flex-col items-center px-6 pb-7 pt-9"
+          >
+            <Hanger className="w-[clamp(60px,8vw,92px)] text-[#8a6a4a]" />
+            <img
+              ref={heroRef} src={imgs[active]} alt={product.name || ""}
+              className="-mt-2 h-[clamp(300px,46vh,520px)] w-full object-contain object-top"
+              style={{ mixBlendMode: "multiply" }}
+            />
+            <span aria-hidden className="mt-1 block h-3 w-[46%] rounded-[50%] bg-black/25 blur-[6px]" />
+          </motion.div>
+
+          <div className="relative pb-8 text-center">
             {imgs.length > 1 && (
-              <div className="flex gap-3 sm:flex-col">
-                {imgs.map((im, i) => (
-                  <button key={i} onClick={() => setActive(i)} aria-label={`View image ${i + 1}`}
-                    className={`size-16 shrink-0 overflow-hidden rounded-xl border bg-[var(--surface-2)] transition-colors ${active === i ? "border-[var(--accent)]" : "border-[var(--border)] hover:border-[var(--border-strong)]"}`}>
-                    <img src={im} alt="" className="size-full object-cover" />
-                  </button>
-                ))}
-              </div>
+              <>
+                <p className="font-mono text-[10.5px] tracking-[0.3em] text-[#16181d]/45">
+                  {String(active + 1).padStart(2, "0")} / {String(imgs.length).padStart(2, "0")}
+                </p>
+                <div className="mt-3 flex items-center justify-center gap-6">
+                  {imgs.map((_, i) => (
+                    <button
+                      key={i} onClick={() => setActive(i)} aria-pressed={active === i}
+                      className={`cursor-pointer pb-1 text-[12.5px] font-semibold transition-colors ${
+                        active === i ? "border-b border-[#16181d] text-[#16181d]" : "text-[#16181d]/45 hover:text-[#16181d]/80"
+                      }`}
+                    >
+                      {VIEW_LABELS[i] || `View ${i + 1}`}
+                    </button>
+                  ))}
+                </div>
+              </>
             )}
-            <div className="relative flex-1 overflow-hidden rounded-[var(--radius-xl)] border border-[var(--border)] bg-[var(--surface-2)]">
-              <img ref={heroRef} src={imgs[active]} alt={product.name || ""} className="aspect-[4/5] w-full object-cover" />
-            </div>
+            <div className="mx-auto mt-6 h-px w-[78%] bg-black/10" aria-hidden />
+            <p className="mt-4 text-[12.5px] text-[#16181d]/55">{product.name}</p>
           </div>
-        </Reveal>
+        </div>
 
         {/* ── Details ── */}
         <Reveal>
