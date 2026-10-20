@@ -45,20 +45,33 @@ export default function BookingFlow({ event }: { event: EventItem }) {
   /* ── Ticket tiers from the backend ── */
   useEffect(() => {
     let cancelled = false;
-    activitiesApi
-      .tickets(event._id, { limit: 20 })
-      .then((d) => {
-        if (cancelled) return;
-        const visible = (Array.isArray(d) ? d : []).filter((t) => t.is_visible !== false);
-        visible.sort((a, b) => (a.display_order ?? 0) - (b.display_order ?? 0) || a.price - b.price);
-        setTiers(visible);
-        const firstOpen = visible.find((t) => (t.available ?? 0) > 0);
-        if (firstOpen) setSelected(firstOpen._id);
-      })
-      .catch((e) => { if (!cancelled) setTiersError(e?.message || "Could not load ticket types."); })
-      .finally(() => { if (!cancelled) setLoadingTiers(false); });
+    let attempts = 0;
+
+    const fetchTiers = () => {
+      activitiesApi
+        .tickets(event._id, { limit: 20 })
+        .then((d) => {
+          if (cancelled) return;
+          const visible = (Array.isArray(d) ? d : []).filter((t) => t.is_visible !== false);
+          visible.sort((a, b) => (a.display_order ?? 0) - (b.display_order ?? 0) || a.price - b.price);
+
+          if (!visible.length && attempts < 2 && event.ticket_enabled !== false) {
+            attempts++;
+            setTimeout(fetchTiers, 1200);
+            return;
+          }
+
+          setTiers(visible);
+          const firstOpen = visible.find((t) => (t.available ?? 0) > 0);
+          if (firstOpen) setSelected(firstOpen._id);
+        })
+        .catch((e) => { if (!cancelled) setTiersError(e?.message || "Could not load ticket types."); })
+        .finally(() => { if (!cancelled) setLoadingTiers(false); });
+    };
+
+    fetchTiers();
     return () => { cancelled = true; };
-  }, [event._id]);
+  }, [event._id, event.ticket_enabled]);
 
   const tier = useMemo(() => tiers.find((t) => t._id === selected) || null, [tiers, selected]);
   const maxQty = Math.max(1, Math.min(MAX_QTY, tier?.available ?? MAX_QTY));
@@ -214,11 +227,28 @@ export default function BookingFlow({ event }: { event: EventItem }) {
           )}
 
           {!loadingTiers && !tiersError && !tiers.length && (
-            <div className="mx-auto mt-12 max-w-xl border border-dashed border-[var(--street-line)] px-6 py-20 text-center">
-              <h3 className="font-cond text-2xl font-bold uppercase">Ticketing not open yet</h3>
+            <div className="mx-auto mt-12 max-w-xl border border-dashed border-[var(--street-line)] px-6 py-16 text-center">
+              <h3 className="font-cond text-2xl font-bold uppercase">Ticketing not ready yet</h3>
               <p className="font-cond mt-3 text-[15px] uppercase tracking-wide text-white/60">
-                Passes for this event haven&apos;t been released.
+                Passes for this event haven&apos;t been released or are currently being prepared.
               </p>
+              <button
+                type="button"
+                onClick={() => {
+                  setLoadingTiers(true);
+                  activitiesApi.tickets(event._id, { limit: 20 }).then((d) => {
+                    const visible = (Array.isArray(d) ? d : []).filter((t) => t.is_visible !== false);
+                    visible.sort((a, b) => (a.display_order ?? 0) - (b.display_order ?? 0) || a.price - b.price);
+                    setTiers(visible);
+                    const firstOpen = visible.find((t) => (t.available ?? 0) > 0);
+                    if (firstOpen) setSelected(firstOpen._id);
+                  }).finally(() => setLoadingTiers(false));
+                }}
+                className="font-cond mt-5 inline-flex min-h-[44px] cursor-pointer items-center justify-center px-6 text-[13px] font-semibold uppercase tracking-widest text-[var(--acid-ink)] transition-transform hover:scale-105"
+                style={{ background: "var(--acid)" }}
+              >
+                Refresh passes
+              </button>
             </div>
           )}
 

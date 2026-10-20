@@ -7,7 +7,8 @@ import {
 import GalleryReveal from "@/components/home/GalleryReveal";
 import { publicApi, safe, type HomepagePayload } from "@/lib/api";
 
-export const revalidate = 60;
+export const dynamic = "force-dynamic";
+export const revalidate = 0;
 
 const EMPTY: HomepagePayload = {
   brand: {},

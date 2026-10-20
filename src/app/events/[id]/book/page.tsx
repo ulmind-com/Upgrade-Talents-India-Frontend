@@ -4,7 +4,8 @@ import TicketsHero from "@/components/events/TicketsHero";
 import BookingFlow from "@/components/events/BookingFlow";
 import { getEventById } from "@/lib/events";
 
-export const revalidate = 30;
+export const dynamic = "force-dynamic";
+export const revalidate = 0;
 
 export async function generateMetadata({ params }: { params: Promise<{ id: string }> }): Promise<Metadata> {
   const { id } = await params;

@@ -78,6 +78,7 @@ export async function apiFetch<T = any>(path: string, opts: Opts = {}): Promise<
     method,
     headers,
     body: form ? form : body ? JSON.stringify(body) : undefined,
+    cache: cache || (revalidate !== undefined ? undefined : "no-store"),
   };
   if (cache) init.cache = cache;
   if (revalidate !== undefined) init.next = { revalidate };
@@ -231,21 +232,21 @@ export type MyTicket = {
 /* ─────────────── PUBLIC (/api/v1) ─────────────── */
 
 export const publicApi = {
-  homepage: () => apiFetch<HomepagePayload>("/api/v1/homepage", { revalidate: 60 }),
-  settings: () => apiFetch<Record<string, any>>("/api/v1/website-settings", { revalidate: 300 }),
+  homepage: () => apiFetch<HomepagePayload>("/api/v1/homepage", { cache: "no-store" }),
+  settings: () => apiFetch<Record<string, any>>("/api/v1/website-settings", { cache: "no-store" }),
   upcomingEvents: (p: { skip?: number; limit?: number; search?: string } = {}) =>
-    apiFetch<EventItem[]>("/api/v1/events/upcoming", { query: p, revalidate: 60 }),
+    apiFetch<EventItem[]>("/api/v1/events/upcoming", { query: p, cache: "no-store" }),
   liveEvents: () => apiFetch<LiveEventItem[]>("/api/v1/events/live", { cache: "no-store" }),
-  banners: () => apiFetch<BannerItem[]>("/api/v1/banners", { revalidate: 300 }),
-  testimonials: () => apiFetch<TestimonialItem[]>("/api/v1/testimonials", { revalidate: 300 }),
+  banners: () => apiFetch<BannerItem[]>("/api/v1/banners", { cache: "no-store" }),
+  testimonials: () => apiFetch<TestimonialItem[]>("/api/v1/testimonials", { cache: "no-store" }),
   courses: (p: { skip?: number; limit?: number } = {}) =>
-    apiFetch<CourseItem[]>("/api/v1/courses", { query: p, revalidate: 120 }),
+    apiFetch<CourseItem[]>("/api/v1/courses", { query: p, cache: "no-store" }),
   workshops: (p: { skip?: number; limit?: number } = {}) =>
-    apiFetch<CourseItem[]>("/api/v1/workshops", { query: p, revalidate: 120 }),
-  contestPromotions: () => apiFetch<ContestPromotion[]>("/api/v1/contest-promotions", { revalidate: 300 }),
-  appPromotion: () => apiFetch<Record<string, any>>("/api/v1/app-promotion", { revalidate: 300 }),
-  contactInfo: () => apiFetch<Record<string, any>>("/api/v1/contact-info", { revalidate: 300 }),
-  importantLinks: () => apiFetch<any[]>("/api/v1/important-links", { revalidate: 300 }),
+    apiFetch<CourseItem[]>("/api/v1/workshops", { query: p, cache: "no-store" }),
+  contestPromotions: () => apiFetch<ContestPromotion[]>("/api/v1/contest-promotions", { cache: "no-store" }),
+  appPromotion: () => apiFetch<Record<string, any>>("/api/v1/app-promotion", { cache: "no-store" }),
+  contactInfo: () => apiFetch<Record<string, any>>("/api/v1/contact-info", { cache: "no-store" }),
+  importantLinks: () => apiFetch<any[]>("/api/v1/important-links", { cache: "no-store" }),
   competitions: (p: { skip?: number; limit?: number; search?: string } = {}) =>
     apiFetch<any[]>("/api/activities/competitions", { query: { limit: 200, ...p }, cache: "no-store" }).then(
       (list) =>
@@ -295,7 +296,7 @@ export const shopApi = {
     ),
   product: (id: string) =>
     apiFetch<any>(`/api/merchandise/products/${id}`, { cache: "no-store" }).then((d) => d?.product ?? d),
-  categories: () => apiFetch<any[]>("/api/merchandise/categories", { revalidate: 300 }),
+  categories: () => apiFetch<any[]>("/api/merchandise/categories", { cache: "no-store" }),
   createOrder: (payload: { items: { product_id: string; variant_id?: string; quantity: number }[]; shipping_address: Record<string, string> }) =>
     apiFetch<any>("/api/merchandise/orders", { method: "POST", auth: true, body: payload }),
   verifyPayment: (body: {
@@ -721,7 +722,7 @@ export const extrasApi = {
   notifications: () => apiFetch<any>("/api/notifications/", { auth: true, cache: "no-store" }),
   rewards: () => apiFetch<any>("/api/rewards/", { auth: true, cache: "no-store" }),
   myCertificates: () => apiFetch<any>("/api/users/me/certificates", { auth: true, cache: "no-store" }),
-  publicCompetitions: () => apiFetch<any[]>("/api/v1/competitions", { revalidate: 60 }),
+  publicCompetitions: () => apiFetch<any[]>("/api/v1/competitions", { cache: "no-store" }),
 };
 
 /** Safe fetch — returns fallback instead of throwing (for optional homepage sections). */

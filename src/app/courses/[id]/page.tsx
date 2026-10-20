@@ -3,7 +3,8 @@ import { notFound } from "next/navigation";
 import LearnDetail from "@/components/events/LearnDetail";
 import { publicApi, safe } from "@/lib/api";
 
-export const revalidate = 120;
+export const dynamic = "force-dynamic";
+export const revalidate = 0;
 
 async function findCourse(id: string) {
   const items = await safe(publicApi.courses({ limit: 200 }), []);

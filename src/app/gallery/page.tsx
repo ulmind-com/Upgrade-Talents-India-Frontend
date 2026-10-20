@@ -4,7 +4,8 @@ import GalleryGrid from "@/components/events/GalleryGrid";
 import { publicApi, safe } from "@/lib/api";
 
 export const metadata: Metadata = { title: "Gallery", description: "Moments from the stage — past events, battles and showcases." };
-export const revalidate = 300;
+export const dynamic = "force-dynamic";
+export const revalidate = 0;
 
 export default async function GalleryPage() {
   const [events, banners] = await Promise.all([

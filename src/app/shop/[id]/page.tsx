@@ -4,7 +4,8 @@ import ProductDetail from "@/components/shop/ProductDetail";
 import { DEMO_PRODUCTS } from "@/lib/shopDemo";
 import { shopApi, safe } from "@/lib/api";
 
-export const revalidate = 60;
+export const dynamic = "force-dynamic";
+export const revalidate = 0;
 
 const DEMO_VARIANTS = [
   { variant_id: "v1", color: "Black", size: "M", stock_quantity: 10 },

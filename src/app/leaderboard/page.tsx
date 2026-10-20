@@ -7,7 +7,8 @@ export const metadata: Metadata = {
   title: "Leaderboard",
   description: "Live contestant rankings, scores and results across Upgrade Talents competitions.",
 };
-export const revalidate = 30;
+export const dynamic = "force-dynamic";
+export const revalidate = 0;
 
 export default async function LeaderboardPage() {
   const comps = await safe(publicApi.competitions({ limit: 50 }), []);

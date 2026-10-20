@@ -7,7 +7,8 @@ import { SectionLabel, Spotlights } from "@/components/ui/Primitives";
 import { publicApi, safe } from "@/lib/api";
 
 export const metadata: Metadata = { title: "Contact", description: "Reach the Upgrade Talents India team — support, partnerships and bookings." };
-export const revalidate = 300;
+export const dynamic = "force-dynamic";
+export const revalidate = 0;
 
 const SOCIAL_ICONS: Record<string, any> = { instagram: Instagram, facebook: Facebook, twitter: Twitter, youtube: Youtube, linkedin: Linkedin };
 

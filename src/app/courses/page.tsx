@@ -4,7 +4,8 @@ import LearnListing from "@/components/events/LearnListing";
 import { publicApi, safe } from "@/lib/api";
 
 export const metadata: Metadata = { title: "Courses", description: "Dance courses and masterclasses led by professional choreographers." };
-export const revalidate = 120;
+export const dynamic = "force-dynamic";
+export const revalidate = 0;
 
 export default async function CoursesPage() {
   const items = await safe(publicApi.courses({ limit: 50 }), []);

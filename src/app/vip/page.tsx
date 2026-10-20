@@ -7,7 +7,8 @@ export const metadata: Metadata = {
   title: "VIP Passes",
   description: "VIP and backstage passes for Upgrade Talents events — lounge access, meet & greet and more.",
 };
-export const revalidate = 60;
+export const dynamic = "force-dynamic";
+export const revalidate = 0;
 
 export default async function VipPage() {
   const events = await safe(publicApi.upcomingEvents({ limit: 15 }), []);
