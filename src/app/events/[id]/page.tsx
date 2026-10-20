@@ -7,7 +7,7 @@ import { EventCard } from "@/components/home/Sections";
 import { Reveal, StaggerGroup, StaggerItem, SplitHeading } from "@/components/motion/Reveal";
 import { Badge, Button, SectionLabel, Spotlights } from "@/components/ui/Primitives";
 import { getEventById, getRelatedEvents } from "@/lib/events";
-import { formatEventDate, formatINR, isEventExpired } from "@/lib/utils";
+import { formatEventDate, formatINR, isEventExpired, isDeadlinePassed } from "@/lib/utils";
 import Countdown from "@/components/events/Countdown";
 
 export const dynamic = "force-dynamic";
@@ -29,7 +29,8 @@ export default async function EventDetailPage({ params }: { params: Promise<{ id
 
   const related = await getRelatedEvents(id);
   const expired = isEventExpired(ev.date, ev.time);
-  const bookable = !expired && ev.registration_enabled !== false && ev.event_status !== "completed" && ev.event_status !== "cancelled";
+  const deadlinePassed = isDeadlinePassed(ev.registration_deadline);
+  const bookable = !expired && !deadlinePassed && ev.registration_enabled !== false && ev.event_status !== "completed" && ev.event_status !== "cancelled";
 
   const facts = [
     { Icon: CalendarDays, label: "Date", value: formatEventDate(ev.date) },
@@ -113,8 +114,8 @@ export default async function EventDetailPage({ params }: { params: Promise<{ id
                   <Countdown target={ev.registration_deadline || ev.date} />
 
                   <div className="mt-7 flex flex-col gap-3">
-                    <Button href={`/events/${ev._id}/book`} size="lg" disabled={!bookable} className="w-full">
-                      <Ticket className="size-4" aria-hidden /> {expired ? "Event Expired" : bookable ? "Book tickets" : "Booking closed"}
+                    <Button href={bookable ? `/events/${ev._id}/book` : undefined} size="lg" disabled={!bookable} className="w-full">
+                      <Ticket className="size-4" aria-hidden /> {expired ? "Event Expired" : deadlinePassed ? "Registration Closed" : bookable ? "Book tickets" : "Booking closed"}
                     </Button>
                     <Button href="/events" variant="outline" size="lg" className="w-full">
                       Other events <ArrowUpRight className="size-4" aria-hidden />

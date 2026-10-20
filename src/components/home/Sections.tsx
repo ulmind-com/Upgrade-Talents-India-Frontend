@@ -9,7 +9,7 @@ import {
 } from "lucide-react";
 import { Reveal, StaggerGroup, StaggerItem, SplitHeading, Parallax } from "@/components/motion/Reveal";
 import { Badge, Button, Magnetic, SectionLabel, Spotlights, TiltCard } from "@/components/ui/Primitives";
-import { cn, formatINR, imageFor, isUsableImageUrl, splitDate, truncate, isEventExpired } from "@/lib/utils";
+import { cn, formatINR, imageFor, isUsableImageUrl, splitDate, truncate, isEventExpired, isDeadlinePassed } from "@/lib/utils";
 import type { BannerItem, ContestPromotion, CourseItem, EventItem, LiveEventItem, TestimonialItem } from "@/lib/api";
 import CoverflowCarousel from "./CoverflowCarousel";
 
@@ -87,7 +87,8 @@ export function LiveNow({ items }: { items: LiveEventItem[] }) {
 export function EventCard({ ev, index = 0 }: { ev: EventItem; index?: number }) {
   const d = splitDate(ev.date);
   const expired = isEventExpired(ev.date, ev.time);
-  const soldOut = expired || ev.event_status === "completed" || ev.registration_enabled === false;
+  const deadlinePassed = isDeadlinePassed(ev.registration_deadline);
+  const soldOut = expired || deadlinePassed || ev.event_status === "completed" || ev.registration_enabled === false;
 
   return (
     <TiltCard className="group h-full" intensity={7}>

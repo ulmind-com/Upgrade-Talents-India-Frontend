@@ -9,7 +9,7 @@ import {
 import { activitiesApi, bookingsApi, paymentsApi, type EventItem, type TicketTier, ApiError } from "@/lib/api";
 import { useAuth } from "@/components/motion/Providers";
 import { Reveal } from "@/components/motion/Reveal";
-import { cn, formatEventDate, formatINR, imageFor, isEventExpired } from "@/lib/utils";
+import { cn, formatEventDate, formatINR, imageFor, isEventExpired, isDeadlinePassed } from "@/lib/utils";
 
 declare global { interface Window { Razorpay?: any } }
 
@@ -105,8 +105,17 @@ export default function BookingFlow({ event }: { event: EventItem }) {
       return;
     }
     const isExpired = isEventExpired(event.date, event.time);
+    const isDeadlineOver = isDeadlinePassed(event.registration_deadline);
     if (isExpired) {
       setError("This event has already taken place on " + formatEventDate(event.date) + ". Ticket booking is closed.");
+      return;
+    }
+    if (isDeadlineOver) {
+      setError("The registration deadline (" + formatEventDate(event.registration_deadline) + ") has passed. Ticket booking is closed.");
+      return;
+    }
+    if (event.registration_enabled === false || event.ticket_enabled === false) {
+      setError("Ticketing is currently closed for this event.");
       return;
     }
     if (!chosen) { setError("Select a ticket type to continue."); return; }
@@ -264,6 +273,18 @@ export default function BookingFlow({ event }: { event: EventItem }) {
             </div>
           )}
 
+          {isDeadlinePassed(event.registration_deadline) && !isEventExpired(event.date, event.time) && (
+            <div className="mx-auto mt-8 max-w-2xl rounded-2xl border border-amber-500/50 bg-amber-950/40 p-6 text-center backdrop-blur-md">
+              <div className="inline-flex items-center gap-2 rounded-full bg-amber-500/20 px-3 py-1 font-mono text-xs font-bold uppercase tracking-wider text-amber-400">
+                <AlertCircle className="size-3.5" /> Registration Closed
+              </div>
+              <h3 className="mt-3 font-display text-xl font-bold uppercase text-white">Deadline Passed</h3>
+              <p className="mt-1 font-mono text-xs text-amber-200/80">
+                Registration for this event closed on {formatEventDate(event.registration_deadline)}. New ticket bookings are disabled.
+              </p>
+            </div>
+          )}
+
           {!loadingTiers && tiers.length > 0 && (
             <div className="mt-12 grid gap-6 md:grid-cols-2">
               {tiers.map((t, i) => (
@@ -353,13 +374,16 @@ export default function BookingFlow({ event }: { event: EventItem }) {
                   </div>
                   <button
                     onClick={() => purchase()}
-                    disabled={submitting || !!success || isEventExpired(event.date, event.time)}
+                    disabled={submitting || !!success || isEventExpired(event.date, event.time) || isDeadlinePassed(event.registration_deadline) || event.registration_enabled === false || event.ticket_enabled === false}
                     aria-busy={submitting || undefined}
-                    className="font-cond inline-flex min-h-[52px] cursor-pointer items-center justify-center gap-2.5 px-9 text-[14px] font-semibold uppercase tracking-[0.18em] text-[var(--acid-ink)] transition-transform duration-300 hover:-translate-y-0.5 disabled:opacity-50"
-                    style={{ background: isEventExpired(event.date, event.time) ? "#52525b" : "var(--acid)", color: isEventExpired(event.date, event.time) ? "#d4d4d8" : "var(--acid-ink)" }}
+                    className="font-cond inline-flex min-h-[52px] cursor-pointer items-center justify-center gap-2.5 px-9 text-[14px] font-semibold uppercase tracking-[0.18em] text-[var(--acid-ink)] transition-transform duration-300 hover:-translate-y-0.5 disabled:cursor-not-allowed disabled:opacity-50"
+                    style={{
+                      background: (isEventExpired(event.date, event.time) || isDeadlinePassed(event.registration_deadline) || event.registration_enabled === false || event.ticket_enabled === false) ? "#52525b" : "var(--acid)",
+                      color: (isEventExpired(event.date, event.time) || isDeadlinePassed(event.registration_deadline) || event.registration_enabled === false || event.ticket_enabled === false) ? "#d4d4d8" : "var(--acid-ink)"
+                    }}
                   >
                     {submitting && <Loader2 className="size-4 animate-spin" aria-hidden />}
-                    {isEventExpired(event.date, event.time) ? "Event Expired" : submitting ? "Processing" : total > 0 ? `Pay ${formatINR(total)}` : "Confirm free ticket"}
+                    {isEventExpired(event.date, event.time) ? "Event Expired" : isDeadlinePassed(event.registration_deadline) ? "Registration Closed" : (event.registration_enabled === false || event.ticket_enabled === false) ? "Booking Closed" : submitting ? "Processing" : total > 0 ? `Pay ${formatINR(total)}` : "Confirm free ticket"}
                   </button>
                 </div>
               </div>

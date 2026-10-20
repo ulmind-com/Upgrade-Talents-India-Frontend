@@ -42,7 +42,7 @@ export function Button({
   const isDisabled = disabled || loading;
 
   const base = cn(
-    "group relative inline-flex items-center justify-center gap-2 overflow-hidden rounded-full font-semibold uppercase tracking-[0.1em]",
+    "group relative inline-flex items-center justify-center gap-2 overflow-hidden rounded-full font-semibold uppercase tracking-[0.1em] isolate",
     "transition-[transform,box-shadow,background-color,color] duration-300 ease-[cubic-bezier(0.16,1,0.3,1)]",
     "cursor-pointer select-none whitespace-nowrap",
     sizes[size],
@@ -51,31 +51,43 @@ export function Button({
   );
 
   const styles: Record<string, string> = {
-    primary: "text-[var(--on-accent)] shadow-[0_10px_40px_-12px_var(--accent)] hover:-translate-y-0.5 active:translate-y-0 active:scale-[0.98]",
-    accent: "bg-[var(--surface-2)] text-[var(--fg)] border border-[var(--border-strong)] hover:border-transparent hover:-translate-y-0.5",
-    outline: "border border-[var(--border-strong)] text-[var(--fg)] hover:bg-[var(--surface-2)] hover:-translate-y-0.5",
-    ghost: "text-[var(--fg-muted)] hover:text-[var(--fg)]",
+    primary:
+      "bg-[var(--primary)] text-white font-bold shadow-[0_10px_35px_-10px_rgba(232,68,15,0.45)] hover:shadow-[0_14px_40px_-8px_rgba(232,68,15,0.6)] hover:-translate-y-0.5 active:translate-y-0 active:scale-[0.98]",
+    accent:
+      "bg-[var(--surface-2)] text-[var(--fg)] border border-[var(--border-strong)] hover:border-transparent hover:text-white hover:-translate-y-0.5",
+    outline:
+      "border border-[var(--border-strong)] text-[var(--fg)] hover:bg-[var(--surface-2)] hover:text-[var(--fg)] hover:-translate-y-0.5",
+    ghost:
+      "text-[var(--fg-muted)] hover:text-[var(--fg)] hover:bg-[var(--surface-2)]",
   };
 
   const inner = (
     <>
       {variant === "primary" && (
         <>
-          <span className="absolute inset-0 -z-10" style={{ background: "var(--grad-brand)" }} />
           <span
-            className="absolute inset-0 -z-10 translate-y-full transition-transform duration-500 ease-[cubic-bezier(0.16,1,0.3,1)] group-hover:translate-y-0"
-            style={{ background: "linear-gradient(115deg,#ffab52,#ff7a33 55%,#f0471e)" }}
+            aria-hidden
+            className="pointer-events-none absolute inset-0 z-0"
+            style={{ background: "var(--grad-brand)" }}
+          />
+          <span
+            aria-hidden
+            className="pointer-events-none absolute inset-0 z-0 translate-y-full transition-transform duration-500 ease-[cubic-bezier(0.16,1,0.3,1)] group-hover:translate-y-0"
+            style={{ background: "linear-gradient(115deg, #ff7a33 0%, #e0390a 50%, #b82602 100%)" }}
           />
         </>
       )}
       {variant === "accent" && (
         <span
-          className="absolute inset-0 -z-10 opacity-0 transition-opacity duration-400 group-hover:opacity-100"
+          aria-hidden
+          className="pointer-events-none absolute inset-0 z-0 opacity-0 transition-opacity duration-400 group-hover:opacity-100"
           style={{ background: "var(--grad-brand)" }}
         />
       )}
-      {loading && <Loader2 className="size-4 animate-spin" aria-hidden />}
-      <span className="relative z-10 flex items-center gap-2">{children}</span>
+      {loading && <Loader2 className="relative z-10 size-4 animate-spin text-white" aria-hidden />}
+      <span className={cn("relative z-10 flex items-center gap-2", variant === "primary" ? "text-white font-bold drop-shadow-sm" : "")}>
+        {children}
+      </span>
     </>
   );
 

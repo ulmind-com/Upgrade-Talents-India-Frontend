@@ -112,6 +112,26 @@ export function isEventExpired(dateInput?: string | Date | null, timeInput?: str
   return Date.now() > expiryTime;
 }
 
+export function isDeadlinePassed(deadlineInput?: string | Date | null): boolean {
+  if (!deadlineInput) return false;
+  if (deadlineInput instanceof Date) {
+    return Date.now() > deadlineInput.getTime();
+  }
+  const trimmed = String(deadlineInput).trim();
+  if (!trimmed) return false;
+  const ymdMatch = trimmed.match(/^(\d{4})-(\d{1,2})-(\d{1,2})/);
+  if (ymdMatch) {
+    const y = parseInt(ymdMatch[1], 10);
+    const m = parseInt(ymdMatch[2], 10) - 1;
+    const d = parseInt(ymdMatch[3], 10);
+    // Deadline closes at end of that day (23:59:59.999)
+    const endOfDay = new Date(y, m, d, 23, 59, 59, 999).getTime();
+    return Date.now() > endOfDay;
+  }
+  const parsed = new Date(trimmed).getTime();
+  return !isNaN(parsed) && Date.now() > parsed;
+}
+
 export function splitDate(input?: string | null) {
   const d = parseDate(input);
   if (!d) return { day: "--", month: "TBA", weekday: "", year: "" };
