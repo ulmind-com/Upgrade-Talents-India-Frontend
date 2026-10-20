@@ -32,14 +32,18 @@ export const viewport: Viewport = {
 const THEME_BOOT = `(function(){try{var t=localStorage.getItem('uti_theme');document.documentElement.setAttribute('data-theme',t==='blue'?'blue':'dark');}catch(e){document.documentElement.setAttribute('data-theme','dark');}})();`;
 
 export default async function RootLayout({ children }: { children: React.ReactNode }) {
-  const settings = await safe(publicApi.settings(), {} as Record<string, any>);
+  /* Both calls sit on every page render, so they go out together rather
+     than one after the other. */
+  const [settings, links] = await Promise.all([
+    safe(publicApi.settings(), {} as Record<string, any>),
+    safe(publicApi.importantLinks(), [] as Awaited<ReturnType<typeof publicApi.importantLinks>>),
+  ]);
   const contact = {
     contact_email: settings?.contact_email,
     contact_phone: settings?.contact_phone,
     office_address: settings?.office_address,
     social_media: settings?.social_media,
   };
-  const links = await safe(publicApi.importantLinks(), []);
 
   return (
     <html lang="en" data-theme="dark" suppressHydrationWarning>

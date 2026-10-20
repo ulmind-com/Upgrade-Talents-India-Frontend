@@ -44,6 +44,10 @@ type Opts = {
   revalidate?: number;
 };
 
+/* Long enough for a cold start, short enough that nobody stares at a
+   skeleton forever. */
+const READ_TIMEOUT_MS = 12_000;
+
 export async function apiFetch<T = any>(path: string, opts: Opts = {}): Promise<T> {
   const { method = "GET", body, auth, regAuth, form, query, cache, revalidate } = opts;
 
@@ -77,11 +81,20 @@ export async function apiFetch<T = any>(path: string, opts: Opts = {}): Promise<
   };
   if (cache) init.cache = cache;
   if (revalidate !== undefined) init.next = { revalidate };
+  /* A sleeping API instance must not hold a page render hostage — reads give
+     up so the caller can fall back to its empty state. Writes are untouched:
+     an order must never be abandoned mid-flight. */
+  if (method === "GET" && typeof AbortSignal !== "undefined" && "timeout" in AbortSignal) {
+    init.signal = AbortSignal.timeout(READ_TIMEOUT_MS);
+  }
 
   let res: Response;
   try {
     res = await fetch(url, init);
-  } catch {
+  } catch (e: any) {
+    if (e?.name === "TimeoutError" || e?.name === "AbortError") {
+      throw new ApiError("The server took too long to respond. Please try again.", 0);
+    }
     throw new ApiError("Network unreachable. Check your connection and try again.", 0);
   }
 
