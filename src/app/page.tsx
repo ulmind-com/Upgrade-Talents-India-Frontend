@@ -5,6 +5,7 @@ import {
   Sponsors, Stats, Testimonials, UpcomingEvents,
 } from "@/components/home/Sections";
 import GalleryReveal from "@/components/home/GalleryReveal";
+import ScrollMorphShowcase from "@/components/home/ScrollMorphShowcase";
 import { publicApi, safe, type HomepagePayload } from "@/lib/api";
 
 export const dynamic = "force-dynamic";
@@ -49,6 +50,7 @@ export default async function HomePage() {
       <LearnGrid title="Masterclasses" label="Courses" items={data.courses} href="/courses" />
       <LearnGrid title="Workshops" label="Workshops" items={data.workshops} href="/workshops" />
       <Testimonials items={data.testimonials} />
+      <ScrollMorphShowcase />
       <PhotoStrip events={data.upcoming_events} banners={data.sponsored_banners} />
       <Sponsors items={data.sponsored_banners} />
       <AppPromo promo={data.app_promotion} />
