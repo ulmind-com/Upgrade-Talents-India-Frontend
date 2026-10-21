@@ -4,7 +4,7 @@ import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { motion, useReducedMotion } from "framer-motion";
-import { Search, ShoppingBag, Plus, ArrowRight } from "lucide-react";
+import { Search, ShoppingBag, Plus, ArrowRight, Sparkles } from "lucide-react";
 import { Reveal, StaggerGroup, StaggerItem } from "@/components/motion/Reveal";
 import { SectionLabel } from "@/components/ui/Primitives";
 import { useCart } from "@/components/shop/CartProvider";
@@ -56,6 +56,109 @@ function Tag({ text, tone }: { text: string; tone: "new" | "low" }) {
         tone === "new" ? "bg-[var(--fg)] text-[var(--bg)]" : "bg-[var(--surface)] text-[var(--fg)] ring-1 ring-[var(--border)]"
       }`}>{text}</span>
     </span>
+  );
+}
+
+/* Premium grid card — the image sits inset inside the card so both radii
+   read as one nested round shape, with the buy actions paired at the foot. */
+function ProductCard({
+  p, onAdd, bindImg,
+}: {
+  p: Product;
+  onAdd: (p: Product) => void;
+  bindImg: (el: HTMLImageElement | null) => void;
+}) {
+  const shots = p.images?.length ? p.images : [""];
+  const [shotIdx, setShotIdx] = useState(0);
+  const left = availableOf(p);
+  const soldOut = left === 0;
+  const href = `/shop/${pid(p)}`;
+
+  const badge = soldOut ? "Sold out" : left !== null && left <= 5 ? `Only ${left} left` : p.category;
+
+  return (
+    <div className="group relative flex h-full flex-col rounded-[28px] border border-[var(--border)] bg-[var(--surface)] p-2.5 transition-all duration-500 hover:-translate-y-1.5 hover:border-[var(--border-strong)] hover:shadow-[0_30px_60px_-34px_rgba(0,0,0,0.55)]">
+      {/* ── shot ── */}
+      <Link href={href} className="relative block overflow-hidden rounded-[21px] bg-[var(--surface-2)]">
+        <div className="aspect-[4/5] w-full">
+          <img
+            ref={bindImg}
+            src={shots[shotIdx]}
+            alt={p.name || ""}
+            loading="lazy"
+            className="size-full object-cover transition-transform duration-[1.2s] ease-out group-hover:scale-[1.06]"
+          />
+        </div>
+
+        {badge && (
+          <span className={`absolute left-3 top-3 rounded-full px-3 py-1.5 text-[10.5px] font-semibold tracking-wide backdrop-blur-md ${
+            soldOut ? "bg-black/65 text-white" : "bg-white/85 text-[#101410]"
+          }`}>
+            {badge}
+          </span>
+        )}
+
+        <span aria-hidden className="absolute right-3 top-3 grid size-8 place-items-center rounded-full bg-white/85 backdrop-blur-md">
+          <Sparkles className="size-4 text-[#101410]" />
+        </span>
+
+        {/* shot dots, only when there is more than one */}
+        {shots.length > 1 && (
+          <span className="absolute inset-x-0 bottom-3 flex items-center justify-center gap-1.5">
+            {shots.map((_, i) => (
+              <button
+                key={i}
+                type="button"
+                onClick={(e) => { e.preventDefault(); setShotIdx(i); }}
+                aria-label={`View ${i + 1} of ${p.name || "product"}`}
+                aria-pressed={shotIdx === i}
+                className="grid size-5 place-items-center"
+              >
+                <span className={`block rounded-full transition-all ${shotIdx === i ? "size-[7px] bg-white" : "size-[5px] bg-white/55"}`} />
+              </button>
+            ))}
+          </span>
+        )}
+
+        {soldOut && <span aria-hidden className="absolute inset-0 rounded-[21px] bg-black/35" />}
+      </Link>
+
+      {/* ── copy ── */}
+      <div className="flex flex-1 flex-col px-2.5 pb-1 pt-4">
+        <Link href={href}>
+          <h3 className="line-clamp-1 font-display text-[1.02rem] font-bold leading-tight tracking-[-0.01em] transition-colors group-hover:text-[var(--accent)]">
+            {p.name}
+          </h3>
+        </Link>
+        {/* the category already rides in the badge, so this stays the pitch */}
+        {p.description && <p className="mt-1.5 line-clamp-2 text-[12.5px] leading-relaxed text-[var(--fg-muted)]">{p.description}</p>}
+
+        <div className="mt-auto pt-4">
+          <span className="inline-flex items-center rounded-full bg-[var(--surface-2)] px-3.5 py-1.5 font-display text-[1.02rem] font-bold tabular-nums">
+            {formatINR(p.price)}
+          </span>
+
+          <div className="mt-2.5 flex flex-col gap-2 sm:flex-row">
+            <button
+              type="button"
+              onClick={() => onAdd(p)}
+              disabled={soldOut}
+              aria-label={soldOut ? `${p.name} is sold out` : `Add ${p.name} to cart`}
+              className="inline-flex h-11 w-full shrink-0 cursor-pointer items-center justify-center gap-1.5 rounded-full text-[12.5px] font-bold text-[var(--on-accent)] sm:flex-1 transition-transform active:scale-[0.97] disabled:pointer-events-none disabled:opacity-40"
+              style={{ background: "var(--grad-brand)" }}
+            >
+              <ShoppingBag className="size-4" aria-hidden /> Add to cart
+            </button>
+            <Link
+              href={href}
+              className="inline-flex h-11 w-full shrink-0 items-center justify-center gap-1.5 rounded-full border border-[var(--border-strong)] text-[12.5px] font-bold transition-colors hover:bg-[var(--surface-2)] sm:flex-1"
+            >
+              Shop now <ArrowRight className="size-4" aria-hidden />
+            </Link>
+          </div>
+        </div>
+      </div>
+    </div>
   );
 }
 
@@ -385,42 +488,20 @@ export default function ShopListing({ items }: { items: Product[] }) {
             </div>
           </Reveal>
         ) : (
-          <StaggerGroup className="mt-8 grid grid-cols-2 gap-5 lg:grid-cols-4">
+          <StaggerGroup className="mt-8 grid grid-cols-1 gap-5 sm:grid-cols-2 lg:grid-cols-3">
             {list.map((p, i) => (
               <StaggerItem key={pid(p) || i}>
-                <div className="group relative flex h-full flex-col overflow-hidden rounded-[var(--radius-lg)] border border-[var(--border)] bg-[var(--surface)] transition-all duration-500 hover:-translate-y-1 hover:border-[var(--border-strong)]">
-                  <Link href={`/shop/${pid(p)}`} className="relative block aspect-[4/5] overflow-hidden bg-[var(--surface-2)]">
-                    <img
-                      ref={(el) => { gridImgRefs.current[pid(p)] = el; }}
-                      src={img(p)} alt={p.name || ""} loading="lazy"
-                      className="size-full object-cover transition-transform duration-[1.1s] group-hover:scale-105"
-                    />
-                    {p.category && <span className="absolute left-3 top-3 rounded-full bg-black/45 px-2.5 py-1 text-[10px] font-bold uppercase tracking-wider text-white backdrop-blur-md">{p.category}</span>}
-                    {availableOf(p) === 0 && (
-                      <span className="absolute inset-0 grid place-items-center bg-black/55 text-[11px] font-bold uppercase tracking-[0.18em] text-white backdrop-blur-[2px]">Sold out</span>
-                    )}
-                  </Link>
-                  <div className="flex flex-1 flex-col p-4">
-                    <Link href={`/shop/${pid(p)}`}><h3 className="line-clamp-1 text-[14px] font-semibold hover:text-[var(--accent)]">{p.name}</h3></Link>
-                    <div className="mt-auto flex items-center justify-between pt-3">
-                      <p className="font-display text-[1.05rem] font-bold tabular-nums">{formatINR(p.price)}</p>
-                      <button
-                        onClick={() =>
-                          add(
-                            { productId: pid(p), name: p.name || "", price: Number(p.price || 0), image: img(p) },
-                            1,
-                            { fly: { src: img(p), rect: gridImgRefs.current[pid(p)]?.getBoundingClientRect() ?? null } }
-                          )
-                        }
-                        disabled={availableOf(p) === 0}
-                        aria-label={availableOf(p) === 0 ? `${p.name} is sold out` : `Add ${p.name} to cart`}
-                        className="grid size-9 cursor-pointer place-items-center rounded-full text-[var(--on-accent)] transition-transform hover:scale-105 active:scale-95 disabled:pointer-events-none disabled:opacity-40"
-                        style={{ background: "var(--grad-brand)" }}>
-                        <Plus className="size-4" aria-hidden />
-                      </button>
-                    </div>
-                  </div>
-                </div>
+                <ProductCard
+                  p={p}
+                  bindImg={(el) => { gridImgRefs.current[pid(p)] = el; }}
+                  onAdd={(prod) =>
+                    add(
+                      { productId: pid(prod), name: prod.name || "", price: Number(prod.price || 0), image: img(prod) },
+                      1,
+                      { fly: { src: img(prod), rect: gridImgRefs.current[pid(prod)]?.getBoundingClientRect() ?? null } }
+                    )
+                  }
+                />
               </StaggerItem>
             ))}
           </StaggerGroup>

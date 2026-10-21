@@ -3,8 +3,9 @@
 import { createContext, useContext, useEffect, useMemo, useRef, useState, useCallback, type ReactNode } from "react";
 import Link from "next/link";
 import { AnimatePresence, motion } from "framer-motion";
-import { X, Minus, Plus, Trash2, ShoppingBag, ArrowRight, Loader2, CheckCircle2, ArrowLeft, Lock, AlertCircle } from "lucide-react";
-import { useAuth } from "@/components/motion/Providers";
+import { X, Minus, Plus, Trash2, ShoppingBag, ArrowRight, CheckCircle2, ArrowLeft, Lock, AlertCircle } from "lucide-react";
+import { useAuth, useTheme } from "@/components/motion/Providers";
+import SlideCommit from "@/components/ui/SlideCommit";
 import { shopApi } from "@/lib/api";
 import { formatINR } from "@/lib/utils";
 
@@ -185,6 +186,21 @@ function CartDrawer() {
   const [step, setStep] = useState<"cart" | "address" | "done">("cart");
   const [addr, setAddr] = useState(EMPTY_ADDR);
   const [busy, setBusy] = useState(false);
+
+  /* the slide control is laid out in pixels, so it tracks the drawer's width */
+  const { theme } = useTheme();
+  const light = theme === "blue";
+  const payRef = useRef<HTMLDivElement>(null);
+  const [payWidth, setPayWidth] = useState(320);
+  useEffect(() => {
+    const el = payRef.current;
+    if (!el) return;
+    const read = () => setPayWidth(Math.max(200, Math.round(el.clientWidth)));
+    read();
+    const ro = new ResizeObserver(read);
+    ro.observe(el);
+    return () => ro.disconnect();
+  }, [step]);
   const [err, setErr] = useState("");
   const [placedOrder, setPlacedOrder] = useState<any>(null);
 
@@ -245,15 +261,15 @@ function CartDrawer() {
 
       if (!full_name || !phone || !address_line1 || !city || !state || !postal_code) {
         setErr("Please fill all required shipping fields.");
-        return;
+        throw new Error("Please fill all required shipping fields.");
       }
       if (phone.length < 10) {
         setErr("Please enter a valid 10-digit mobile number.");
-        return;
+        throw new Error("Please enter a valid 10-digit mobile number.");
       }
       if (address_line1.length < 5) {
         setErr("Address line 1 must be at least 5 characters.");
-        return;
+        throw new Error("Address line 1 must be at least 5 characters.");
       }
 
       setBusy(true);
@@ -355,6 +371,7 @@ function CartDrawer() {
       console.error("placeOrder exception:", e);
       setErr(e?.message || "Could not place order. Please try again.");
       setBusy(false);
+      throw e;   // the slide control springs home on a rejection
     }
   }
 
@@ -493,18 +510,23 @@ function CartDrawer() {
                       {user ? <>Checkout <ArrowRight className="size-4" aria-hidden /></> : <><Lock className="size-4" aria-hidden /> Sign in to checkout</>}
                     </button>
                   ) : (
-                    <button type="button" onClick={placeOrder} disabled={busy}
-                      className="inline-flex w-full items-center justify-center gap-2 rounded-full py-3.5 text-[14px] font-bold text-[var(--on-accent)] disabled:opacity-60 cursor-pointer" style={{ background: "var(--grad-brand)" }}>
-                      {busy ? (
-                        <>
-                          <Loader2 className="size-4 animate-spin" aria-hidden /> Processing payment...
-                        </>
-                      ) : (
-                        <>
-                          <Lock className="size-4" aria-hidden /> Pay with Razorpay · {formatINR(subtotal)}
-                        </>
-                      )}
-                    </button>
+                    <div ref={payRef} className="w-full">
+                      <SlideCommit
+                        width={payWidth}
+                        height={54}
+                        radius={27}
+                        label={`Slide to pay · ${formatINR(subtotal)}`}
+                        doneLabel="Opening Razorpay"
+                        errorLabel="Payment could not start"
+                        disabled={busy}
+                        onConfirm={placeOrder}
+                        trackColor={light ? "#2a1810" : "#11203f"}
+                        handleColor={light ? "#fff7f1" : "#f5f7ff"}
+                        successColor="#2fb36a"
+                        dangerColor="#e5484d"
+                        holdMs={1800}
+                      />
+                    </div>
                   )}
                 </div>
               </>

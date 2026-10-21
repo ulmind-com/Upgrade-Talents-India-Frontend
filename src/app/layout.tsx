@@ -70,7 +70,7 @@ export default async function RootLayout({ children }: { children: React.ReactNo
             <CartProvider>
             <SmoothScroll>
               <Shell
-                brandName={settings?.brand_name || "UPGRADE TALENTS"}
+                brandName="UPGRADE TALENTS INDIA"
                 logo={settings?.logo_url}
                 tagline={settings?.tagline}
                 contact={contact}

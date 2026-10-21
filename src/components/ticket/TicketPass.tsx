@@ -508,7 +508,7 @@ export function TicketPass({ ticket, qrData, defaultVariant }: TicketPassProps) 
               <div className="absolute left-4 top-4 z-10 flex items-center gap-1.5 rounded-full bg-black/50 px-3 py-1 backdrop-blur-md border border-white/10">
                 <Sparkles className="size-3 text-amber-400" />
                 <span className="text-[10px] font-black uppercase tracking-widest text-white">
-                  Eventora 2026
+                  Upgrade Talents India
                 </span>
               </div>
 

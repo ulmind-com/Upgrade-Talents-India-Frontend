@@ -1,5 +1,5 @@
 /**
- * Eventora API client — Upgrade Talents India
+ * Upgrade Talents India API client
  * Mirrors the FastAPI backend exactly. No backend contract is modified here.
  */
 

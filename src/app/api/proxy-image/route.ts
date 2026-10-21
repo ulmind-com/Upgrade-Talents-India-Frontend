@@ -11,7 +11,7 @@ export async function GET(req: NextRequest) {
   try {
     const res = await fetch(imageUrl, {
       headers: {
-        "User-Agent": "Mozilla/5.0 (Eventora-Ticket-Proxy)",
+        "User-Agent": "Mozilla/5.0 (UpgradeTalents-Ticket-Proxy)",
       },
     });
 
