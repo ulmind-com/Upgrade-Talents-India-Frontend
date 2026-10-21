@@ -5,13 +5,14 @@ import { usePathname } from "next/navigation";
 import { useEffect, useState, useRef } from "react";
 import { AnimatePresence, motion, useScroll, useMotionValueEvent } from "framer-motion";
 import {
-  Menu, X, Moon, Sparkles, Ticket, User, LogOut, LayoutDashboard,
+  Menu, X, Sparkles, Ticket, User, LogOut, LayoutDashboard,
   ShoppingBag, ChevronDown, Package, Crown, Award, Coins
 } from "lucide-react";
 import { NotificationBell } from "@/components/notifications/NotificationPanel";
 import { useCart } from "@/components/shop/CartProvider";
+import ThemeSwitch from "@/components/ui/ThemeSwitch";
 import { Button, Magnetic } from "@/components/ui/Primitives";
-import { useAuth, useTheme } from "@/components/motion/Providers";
+import { useAuth } from "@/components/motion/Providers";
 import { cn, isUsableImageUrl } from "@/lib/utils";
 
 const NAV = [
@@ -38,9 +39,12 @@ const DESKTOP: { label: string; href?: string; children?: { label: string; href:
   { label: "Contact", href: "/contact" },
 ];
 
-export default function Navbar({ brandName = "UPGRADE TALENTS", logo }: { brandName?: string; logo?: string }) {
+export default function Navbar({ brandName = "UPGRADE TALENTS INDIA", logo }: { brandName?: string; logo?: string }) {
+  // the last word sits small under the rest — "UPGRADE TALENTS" over "INDIA"
+  const words = brandName.trim().split(/\s+/);
+  const lead = words.length > 1 ? words.slice(0, -1).join(" ") : words[0];
+  const sub = words.length > 1 ? words[words.length - 1] : "INDIA";
   const pathname = usePathname();
-  const { theme, toggle } = useTheme();
   const { count, setOpen: openCart } = useCart();
   const { user, logout } = useAuth();
   const [scrolled, setScrolled] = useState(false);
@@ -118,9 +122,9 @@ export default function Navbar({ brandName = "UPGRADE TALENTS", logo }: { brandN
                 )}
               </span>
               <span className="hidden text-[14px] sm:text-[15px] font-bold uppercase leading-[1.05] tracking-[0.14em] sm:block">
-                {brandName.split(" ")[0]}
+                {lead}
                 <span className="block text-[8.5px] sm:text-[9px] font-medium tracking-[0.42em] text-[var(--fg-subtle)]">
-                  {brandName.split(" ").slice(1).join(" ") || "INDIA"}
+                  {sub}
                 </span>
               </span>
             </Link>
@@ -188,15 +192,7 @@ export default function Navbar({ brandName = "UPGRADE TALENTS", logo }: { brandN
             {/* Actions group with shrink-0 protection */}
             <div className="flex shrink-0 items-center gap-1.5 sm:gap-2">
               {/* Theme toggle */}
-              <button
-                onClick={toggle}
-                aria-label={`Switch to ${theme === "dark" ? "blue" : "dark"} theme`}
-                className="grid size-9 sm:size-10 cursor-pointer place-items-center rounded-full border border-[var(--border)] bg-[var(--surface)] text-[var(--fg-muted)] transition-all duration-300 hover:border-[var(--border-strong)] hover:text-[var(--fg)]"
-              >
-                <motion.span key={theme} initial={{ rotate: -90, opacity: 0 }} animate={{ rotate: 0, opacity: 1 }} transition={{ duration: 0.4 }}>
-                  {theme === "dark" ? <Moon className="size-4 sm:size-[18px]" aria-hidden /> : <Sparkles className="size-4 sm:size-[18px]" aria-hidden />}
-                </motion.span>
-              </button>
+              <ThemeSwitch />
 
               {/* Notification bell (when logged in) */}
               {user && <NotificationBell />}

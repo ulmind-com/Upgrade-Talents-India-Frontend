@@ -222,6 +222,9 @@ const CSS = `
 export default function Footer({ brandName = "UPGRADE TALENTS INDIA", tagline, contact, links = [] }: Props) {
   const socials = Object.entries(contact?.social_media || {}).filter(([, v]) => !!v) as [string, string][];
   const year = new Date().getFullYear();
+  // the giant wordmark carries just the lead word — the full name would have
+  // to shrink to fit the width and lose its weight
+  const wordmark = brandName.trim().split(/\s+/)[0];
 
   const wordRef = useRef<HTMLParagraphElement>(null);
 
@@ -289,7 +292,7 @@ export default function Footer({ brandName = "UPGRADE TALENTS INDIA", tagline, c
           <video className="dfoot__video" src={VIDEO} poster={POSTER} autoPlay muted loop playsInline preload="auto" />
         </div>
 
-        <p className="dfoot__wordmark" ref={wordRef} aria-hidden>{brandName}</p>
+        <p className="dfoot__wordmark" ref={wordRef} aria-hidden>{wordmark}</p>
 
         <div className="dfoot__fog" aria-hidden />
 

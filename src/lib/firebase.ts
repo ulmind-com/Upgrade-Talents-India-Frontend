@@ -1,5 +1,5 @@
 /**
- * Firebase Client SDK — Google Sign-In for Eventora
+ * Firebase Client SDK — Google Sign-In for Upgrade Talents India
  * Uses environment variables for configuration.
  * Falls back to the project's known config for development.
  */
