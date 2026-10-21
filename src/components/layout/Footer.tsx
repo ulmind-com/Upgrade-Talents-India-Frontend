@@ -24,10 +24,9 @@ const SOCIAL_ICONS: Record<string, typeof Facebook> = {
   linkedin: Linkedin,
 };
 
-const VIDEO =
-  "https://d2ol7oe51mr4n9.cloudfront.net/user_38xzZboKViGWJOttwIXH07lWA1P/4d01c727-d9c5-47c8-a778-35a451ffd39f.mp4";
-const POSTER =
-  "https://d8j0ntlcm91z4.cloudfront.net/user_38xzZboKViGWJOttwIXH07lWA1P/hf_20261014_121838_c97d0940-f430-4304-8573-4f47ee44f447.png";
+const CLIPS = ["/assets/dance1.mp4", "/assets/dance2.mp4", "/assets/dance3.mp4"];
+const MAX_PLAY = 11;   // seconds any one clip holds the floor
+const FADE = 1;        // crossfade between clips, in seconds
 
 const CSS = `
 /* ── tokens ─────────────────────────────────────────────────────────
@@ -39,7 +38,7 @@ const CSS = `
   --ink:#f5f7ff;
   --body:#9aa6cc;
   --muted:#6b7aa3;
-  --mist:#121a38;   --mist-rgb:18 26 56;
+  --mist:#0d1830;   --mist-rgb:13 24 48;
   --list-fg:#dde3f5;
   --line:255 255 255;
   --chip-bg:rgb(255 255 255 / .07);
@@ -68,7 +67,7 @@ const CSS = `
   --ink:#2a1810;
   --body:#6b5546;
   --muted:#957d6c;
-  --mist:#ece2ee;   --mist-rgb:236 226 238;
+  --mist:#fff0e6;   --mist-rgb:255 240 230;
   --list-fg:#2b1b11;
   --line:120 60 20;
   --chip-bg:rgb(255 255 255 / .62);
@@ -89,7 +88,12 @@ const CSS = `
 .dfoot ul{margin:0;padding:0;list-style:none}
 
 .dfoot__stage{position:absolute;inset:0;z-index:0}
-.dfoot__video{display:block;width:100%;height:100%;object-fit:cover;object-position:50% 100%;transform:translateY(9%)}
+.dfoot__video{
+  position:absolute;inset:0;width:100%;height:100%;
+  object-fit:cover;object-position:50% 50%;
+  opacity:0;transition:opacity ${FADE}s ease;
+}
+.dfoot__video[data-on]{opacity:1}
 .dfoot__stage::after{
   content:"";position:absolute;inset:0;
   background:linear-gradient(to bottom,var(--paper) 0%,rgb(var(--paper-rgb) / .96) 26%,rgb(var(--paper-rgb) / .72) 44%,rgb(var(--paper-rgb) / 0) 70%);
@@ -219,6 +223,96 @@ const CSS = `
 }
 `;
 
+/* Three clips, one after another, crossfading on two stacked layers so the
+   cut never shows black. Silent, and parked while the footer is off screen. */
+function FooterReel() {
+  const aRef = useRef<HTMLVideoElement>(null);
+  const bRef = useRef<HTMLVideoElement>(null);
+  const stageRef = useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    const A = aRef.current;
+    const B = bRef.current;
+    const stage = stageRef.current;
+    if (!A || !B || !stage) return;
+
+    A.dataset.on = "";
+    const reduce = window.matchMedia("(prefers-reduced-motion: reduce)").matches;
+
+    let showing = 0;        // which layer is lit
+    let queued = 0;         // index of the clip currently on that layer
+    let swapping = false;
+    let visible = false;
+    let started = false;
+    let raf = 0;
+
+    const play = (v: HTMLVideoElement) => { v.play().catch(() => {}); };
+
+    /* the clips are several MB each, so nothing is fetched until the footer
+       is close — most visits never reach it */
+    const start = () => {
+      if (started) return;
+      started = true;
+      A.src = CLIPS[0];
+      B.src = CLIPS[1 % CLIPS.length];
+      if (reduce) A.load();   // first frame only, nothing moves
+      else play(A);
+    };
+
+    const tick = () => {
+      raf = requestAnimationFrame(tick);
+      if (swapping || !visible || !started || reduce) return;
+      const cur = showing === 0 ? A : B;
+      const nxt = showing === 0 ? B : A;
+      const dur = Number.isFinite(cur.duration) && cur.duration > 0 ? cur.duration : MAX_PLAY;
+      const limit = Math.min(MAX_PLAY, dur);
+      if (cur.currentTime < limit - FADE) return;
+
+      swapping = true;
+      nxt.currentTime = 0;
+      play(nxt);
+      nxt.dataset.on = "";
+      delete cur.dataset.on;
+      showing = 1 - showing;
+      queued = (queued + 1) % CLIPS.length;
+
+      // once it has faded out, park the old layer and load the clip after next
+      window.setTimeout(() => {
+        cur.pause();
+        cur.src = CLIPS[(queued + 1) % CLIPS.length];
+        swapping = false;
+      }, FADE * 1000);
+    };
+    raf = requestAnimationFrame(tick);
+
+    const io = new IntersectionObserver(([e]) => {
+      visible = e.isIntersecting;
+      if (visible) {
+        start();
+        if (!reduce) play(showing === 0 ? A : B);
+      } else {
+        A.pause();
+        B.pause();
+      }
+    }, { rootMargin: "500px 0px", threshold: 0 });
+    io.observe(stage);
+
+    return () => {
+      cancelAnimationFrame(raf);
+      io.disconnect();
+      A.pause();
+      B.pause();
+    };
+  }, []);
+
+  return (
+    <div className="dfoot__stage" ref={stageRef} aria-hidden>
+      <video ref={aRef} className="dfoot__video" muted playsInline preload="auto" />
+      <video ref={bRef} className="dfoot__video" muted playsInline preload="auto" />
+    </div>
+  );
+}
+
 export default function Footer({ brandName = "UPGRADE TALENTS INDIA", tagline, contact, links = [] }: Props) {
   const socials = Object.entries(contact?.social_media || {}).filter(([, v]) => !!v) as [string, string][];
   const year = new Date().getFullYear();
@@ -288,9 +382,7 @@ export default function Footer({ brandName = "UPGRADE TALENTS INDIA", tagline, c
       <style>{CSS}</style>
 
       <footer className="dfoot">
-        <div className="dfoot__stage" aria-hidden>
-          <video className="dfoot__video" src={VIDEO} poster={POSTER} autoPlay muted loop playsInline preload="auto" />
-        </div>
+        <FooterReel />
 
         <p className="dfoot__wordmark" ref={wordRef} aria-hidden>{wordmark}</p>
 
