@@ -1,116 +1,263 @@
 "use client";
 
-import { useCallback, useEffect, useRef, useState } from "react";
+import { useEffect, useLayoutEffect, useRef, useState } from "react";
 import Link from "next/link";
-import { motion } from "framer-motion";
-import { ChevronLeft, ChevronRight, MapPin, CalendarDays, Ticket, ArrowUpRight } from "lucide-react";
-import { imageFor, formatEventDate, splitDate } from "@/lib/utils";
+import { MapPin, Ticket } from "lucide-react";
+import { imageFor, splitDate } from "@/lib/utils";
 import type { EventItem } from "@/lib/api";
 
-/* Glassy 3D coverflow carousel — center card flat & crisp, neighbours
-   recede in perspective (rotateY + scale + dim). Auto-advances, arrow
-   + dot controls, click a side card to bring it forward. */
+/* Arched card row — every panel's geometry comes from its x position, like
+   the inside of a cylinder: panels widen and grow taller towards the screen
+   edges, with their outer edge taller than the inner one. Drifts right to
+   left, drag to scrub, momentum on release. */
 
-function placement(d: number) {
-  const ad = Math.abs(d);
-  if (ad > 2) return { x: `${d > 0 ? 170 : -170}%`, rotateY: 0, scale: 0.5, z: 0, opacity: 0, blur: 6 };
-  if (d === 0) return { x: "0%", rotateY: 0, scale: 1, z: 40, opacity: 1, blur: 0 };
-  const dir = d > 0 ? 1 : -1;
-  if (ad === 1) return { x: `${dir * 56}%`, rotateY: -dir * 34, scale: 0.84, z: 25, opacity: 0.72, blur: 1.5 };
-  return { x: `${dir * 100}%`, rotateY: -dir * 42, scale: 0.68, z: 12, opacity: 0.38, blur: 3 };
+const PITCH = 196;     // design units between card centres
+const SPEED = 50;      // units per second, right -> left
+const CX = 720;        // design-unit centre of the arch
+const SPREAD = 706;    // normalising distance
+const RADIUS = 15;     // corner radius, design units
+const DECAY = 0.05;    // share of the throw velocity kept per second
+const BAND = 460;     // design-unit height of the row
+
+type Panel = { ev: EventItem; key: string; idx: number };
+
+const r2 = (v: number) => Math.round(v * 100) / 100;
+
+function along(from: number[], to: number[], r: number) {
+  const dx = to[0] - from[0];
+  const dy = to[1] - from[1];
+  const len = Math.hypot(dx, dy) || 1;
+  const k = Math.min(r, len / 2) / len;
+  return [from[0] + dx * k, from[1] + dy * k];
+}
+
+/* rounded quad — the four corners are cut back and joined with a curve */
+function quadPath(pts: number[][], r: number) {
+  const n = pts.length;
+  const seg = pts.map((cur, i) => ({
+    cur,
+    a: along(cur, pts[(i + n - 1) % n], r),
+    b: along(cur, pts[(i + 1) % n], r),
+  }));
+  let d = `M ${r2(seg[0].a[0])} ${r2(seg[0].a[1])}`;
+  for (let i = 0; i < n; i++) {
+    const s = seg[i];
+    const nx = seg[(i + 1) % n];
+    d += ` Q ${r2(s.cur[0])} ${r2(s.cur[1])} ${r2(s.b[0])} ${r2(s.b[1])}`;
+    d += ` L ${r2(nx.a[0])} ${r2(nx.a[1])}`;
+  }
+  return `${d} Z`;
 }
 
 export default function CoverflowCarousel({ events }: { events: EventItem[] }) {
-  const items = (events || []).slice(0, 7);
-  const n = items.length;
-  const [active, setActive] = useState(0);
-  const [paused, setPaused] = useState(false);
-  const timer = useRef<ReturnType<typeof setInterval> | null>(null);
+  const source = (events || []).slice(0, 12);
+  const panels: Panel[] = source.length
+    ? Array.from({ length: Math.max(10, source.length) }, (_, i) => {
+        const ev = source[i % source.length];
+        return { ev, key: `${ev._id || i}-${i}`, idx: i % source.length };
+      })
+    : [];
+  const n = panels.length;
+  const loop = n * PITCH;
 
-  const go = useCallback((dir: number) => setActive((a) => (a + dir + n) % n), [n]);
+  const hostRef = useRef<HTMLDivElement>(null);
+  const cardRefs = useRef<(HTMLDivElement | null)[]>([]);
+  const scroll = useRef(0);
+  const vel = useRef(0);
+  const drag = useRef({ active: false, x: 0, t: 0, moved: 0 });
+  const [height, setHeight] = useState(400);
+
+  /* reserve the row's height before anything paints */
+  useLayoutEffect(() => {
+    const read = () => {
+      const w = hostRef.current?.clientWidth || window.innerWidth;
+      const narrow = window.innerWidth <= 820;
+      const s = narrow ? w / 640 : w / 1440;
+      // only a 640 unit window shows on phones, so the arch needs less room
+      setHeight(Math.max(230, Math.round((narrow ? 320 : BAND) * s)));
+    };
+    read();
+    window.addEventListener("resize", read);
+    return () => window.removeEventListener("resize", read);
+  }, []);
 
   useEffect(() => {
-    if (paused || n <= 1) return;
-    timer.current = setInterval(() => setActive((a) => (a + 1) % n), 4500);
-    return () => { if (timer.current) clearInterval(timer.current); };
-  }, [paused, n]);
+    if (!n) return;
+    const host = hostRef.current;
+    if (!host) return;
+    const reduce = window.matchMedia("(prefers-reduced-motion: reduce)").matches;
+
+    const scaleOf = () => {
+      const w = host.clientWidth || 1;
+      return window.innerWidth <= 820 ? w / 640 : w / 1440;
+    };
+
+    const layout = () => {
+      const bw = host.clientWidth;
+      const bh = host.clientHeight;
+      if (!bw) return;
+      const s = scaleOf();
+      const ox = bw / 2;
+      const oy = bh / 2;
+
+      for (let i = 0; i < n; i++) {
+        const el = cardRefs.current[i];
+        if (!el) continue;
+
+        // even pitch, wrapped into [-loop/2, loop/2)
+        let t = (i * PITCH - scroll.current) % loop;
+        if (t < 0) t += loop;
+        t -= loop / 2;
+        // each centre is pushed outward so the gap survives the curve
+        const x = CX + t * (1 + 0.083 * Math.pow(t / SPREAD, 2));
+
+        const d = Math.abs(x - CX) / SPREAD;
+        const w = 170 + 48 * d * d;
+        const xL = x - w / 2;
+        const xR = x + w / 2;
+        const qL = Math.abs(xL - CX) / SPREAD;
+        const qR = Math.abs(xR - CX) / SPREAD;
+        const hL = 280 + 92 * Math.pow(qL, 2.6);
+        const hR = 280 + 92 * Math.pow(qR, 2.6);
+        const cy = 687 - 12 * d * d;
+
+        const leftPx = (xL - CX) * s + ox;
+        const wPx = w * s;
+        if (leftPx > bw + 40 || leftPx + wPx < -40) {
+          el.style.display = "none";
+          continue;
+        }
+        el.style.display = "";
+
+        const topU = Math.min(cy - hL / 2, cy - hR / 2);
+        const botU = Math.max(cy + hL / 2, cy + hR / 2);
+        const topPx = (topU - 687) * s + oy;
+        const hPx = (botU - topU) * s;
+
+        el.style.transform = `translate(${r2(leftPx)}px, ${r2(topPx)}px)`;
+        el.style.width = `${r2(wPx)}px`;
+        el.style.height = `${r2(hPx)}px`;
+
+        const yTL = (cy - hL / 2 - topU) * s;
+        const yBL = (cy + hL / 2 - topU) * s;
+        const yTR = (cy - hR / 2 - topU) * s;
+        const yBR = (cy + hR / 2 - topU) * s;
+        el.style.clipPath = `path("${quadPath(
+          [[0, yTL], [wPx, yTR], [wPx, yBR], [0, yBL]],
+          RADIUS * s
+        )}")`;
+
+        const shade = el.querySelector<HTMLElement>("[data-shade]");
+        if (shade) shade.style.opacity = String(Math.min(0.6, d * 0.52));
+      }
+    };
+
+    layout();
+    window.addEventListener("resize", layout);
+    if (reduce) return () => window.removeEventListener("resize", layout);
+
+    let raf = 0;
+    let last = performance.now();
+    const tick = (now: number) => {
+      const dt = Math.min(0.05, (now - last) / 1000);
+      last = now;
+      if (!drag.current.active) {
+        scroll.current += (SPEED + vel.current) * dt;
+        vel.current *= Math.pow(DECAY, dt);
+        if (Math.abs(vel.current) < 0.5) vel.current = 0;
+      }
+      layout();
+      raf = requestAnimationFrame(tick);
+    };
+    raf = requestAnimationFrame(tick);
+    return () => {
+      cancelAnimationFrame(raf);
+      window.removeEventListener("resize", layout);
+    };
+  }, [n, loop]);
 
   if (!n) return null;
 
+  const unitsPerPx = () => {
+    const w = hostRef.current?.clientWidth || 1;
+    return 1 / ((window.innerWidth <= 820 ? w / 640 : w / 1440) || 1);
+  };
+
+  const onDown = (e: React.PointerEvent) => {
+    drag.current = { active: true, x: e.clientX, t: performance.now(), moved: 0 };
+    vel.current = 0;
+    (e.currentTarget as HTMLElement).setPointerCapture(e.pointerId);
+  };
+  const onMove = (e: React.PointerEvent) => {
+    if (!drag.current.active) return;
+    const now = performance.now();
+    const dx = e.clientX - drag.current.x;
+    const dt = Math.max(1 / 240, (now - drag.current.t) / 1000);
+    drag.current.x = e.clientX;
+    drag.current.t = now;
+    drag.current.moved += Math.abs(dx);
+    const du = dx * unitsPerPx();
+    scroll.current -= du;     // follows the pointer 1:1
+    vel.current = -du / dt;   // carries the throw
+  };
+  const onUp = () => { drag.current.active = false; };
+
   return (
     <div
-      className="relative"
-      onMouseEnter={() => setPaused(true)}
-      onMouseLeave={() => setPaused(false)}
+      ref={hostRef}
+      className="relative w-screen cursor-grab overflow-hidden touch-pan-y active:cursor-grabbing"
+      style={{ height, marginLeft: "calc(50% - 50vw)" }}
+      onPointerDown={onDown}
+      onPointerMove={onMove}
+      onPointerUp={onUp}
+      onPointerCancel={onUp}
     >
-      {/* stage */}
-      <div className="relative mx-auto h-[460px] md:h-[520px]" style={{ perspective: "1500px" }}>
-        {items.map((ev, i) => {
-          let d = i - active;
-          if (d > n / 2) d -= n;
-          if (d < -n / 2) d += n;
-          const p = placement(d);
-          const isActive = d === 0;
-          const sd = splitDate(ev.date);
-          return (
-            <div key={ev._id || i} className="pointer-events-none absolute inset-0 flex items-center justify-center" style={{ zIndex: p.z, perspective: "1500px" }}>
-              <motion.article
-                className={`w-[78vw] max-w-[340px] ${isActive ? "" : "pointer-events-auto"} cursor-pointer`}
-                animate={{ x: p.x, rotateY: p.rotateY, scale: p.scale, opacity: p.opacity, filter: `blur(${p.blur}px)` }}
-                transition={{ type: "spring", stiffness: 170, damping: 24 }}
-                onClick={() => (isActive ? null : setActive(i))}
-                aria-hidden={!isActive}
-                style={{ transformStyle: "preserve-3d" }}
-              >
-                <div
-                  className="group pointer-events-auto relative h-[420px] overflow-hidden rounded-[var(--radius-xl)] border border-[var(--border-strong)] md:h-[470px]"
-                  style={{ boxShadow: isActive ? "0 36px 70px -42px rgba(0,0,0,0.4), 0 0 60px -28px color-mix(in srgb, var(--accent) 55%, transparent)" : "0 22px 48px -40px rgba(0,0,0,0.38)" }}
-                >
-                  <img src={imageFor(ev.image_url, i)} alt="" className="absolute inset-0 size-full object-cover" />
-                  <span aria-hidden className="absolute inset-0" style={{ background: "linear-gradient(180deg, rgba(5,6,16,0.15) 0%, rgba(5,6,16,0.35) 45%, rgba(5,6,16,0.92) 100%)" }} />
+      {panels.map((p, i) => {
+        const ev = p.ev;
+        const sd = splitDate(ev.date);
+        return (
+          <div
+            key={p.key}
+            ref={(el) => { cardRefs.current[i] = el; }}
+            className="absolute left-0 top-0 overflow-hidden bg-[var(--surface)]"
+            style={{ willChange: "transform, clip-path, width, height" }}
+          >
+            <Link
+              href={`/events/${ev._id}`}
+              onClick={(e) => { if (drag.current.moved > 6) e.preventDefault(); }}
+              draggable={false}
+              className="group relative block size-full"
+            >
+              <img
+                src={imageFor(ev.image_url, p.idx)}
+                alt=""
+                draggable={false}
+                className="absolute inset-0 size-full object-cover"
+              />
+              {/* distance shade — panels darken towards the edges of the arch */}
+              <span data-shade aria-hidden className="absolute inset-0 bg-[#04050c]" style={{ opacity: 0 }} />
 
-                  {/* top row */}
-                  <div className="absolute inset-x-0 top-0 flex items-start justify-between p-4">
-                    <span className="inline-flex items-center gap-1.5 rounded-full px-3 py-1 text-[10.5px] font-bold uppercase tracking-wider text-white backdrop-blur-md" style={{ background: "rgba(255,255,255,0.14)" }}>
-                      <CalendarDays className="size-3" aria-hidden /> {sd.month} {sd.day}
-                    </span>
-                    <span className="rounded-full px-2.5 py-1 text-[11px] font-bold text-white backdrop-blur-md" style={{ background: "rgba(0,0,0,0.35)" }}>{i + 1} / {n}</span>
-                  </div>
-
-                  {/* glass info panel */}
-                  <div className="absolute inset-x-3 bottom-3 rounded-[var(--radius-lg)] border border-white/15 p-4 text-white backdrop-blur-xl" style={{ background: "rgba(10,12,24,0.42)" }}>
-                    <h3 className="font-display text-[1.35rem] font-bold leading-tight">{ev.title}</h3>
-                    <p className="mt-1.5 flex items-center gap-1.5 text-[12px] text-white/75"><MapPin className="size-3.5 shrink-0" aria-hidden /> {ev.venue || "Venue TBA"}</p>
-                    {isActive && (
-                      <motion.div initial={{ opacity: 0, y: 8 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.15 }}>
-                        <p className="mt-2 flex items-center gap-1.5 text-[12px] text-white/75"><CalendarDays className="size-3.5 shrink-0" aria-hidden /> {formatEventDate(ev.date)}{ev.time ? ` · ${ev.time}` : ""}</p>
-                        <Link href={`/events/${ev._id}`} onClick={(e) => e.stopPropagation()} className="mt-4 inline-flex items-center justify-center gap-2 rounded-full px-5 py-2.5 text-[12.5px] font-bold text-[var(--on-accent)]" style={{ background: "var(--grad-brand)" }}>
-                          <Ticket className="size-4" aria-hidden /> Book tickets
-                        </Link>
-                      </motion.div>
-                    )}
-                  </div>
-                </div>
-              </motion.article>
-            </div>
-          );
-        })}
-      </div>
-
-      {/* controls */}
-      {n > 1 && (
-        <div className="mt-6 flex items-center justify-center gap-5">
-          <button onClick={() => go(-1)} aria-label="Previous event" className="grid size-11 place-items-center rounded-full border border-[var(--border)] bg-[var(--surface)] transition-colors hover:border-[var(--accent)] hover:text-[var(--accent)]"><ChevronLeft className="size-5" aria-hidden /></button>
-          <div className="flex items-center gap-2">
-            {items.map((_, i) => (
-              <button key={i} onClick={() => setActive(i)} aria-label={`Go to event ${i + 1}`}
-                className="h-2 rounded-full transition-all duration-300"
-                style={i === active ? { width: 26, background: "var(--grad-brand)" } : { width: 8, background: "var(--border-strong)" }} />
-            ))}
+              {/* details ride in on hover so the arch stays pure image at rest */}
+              <span
+                aria-hidden
+                className="absolute inset-0 opacity-0 transition-opacity duration-300 group-hover:opacity-100"
+                style={{ background: "linear-gradient(180deg, rgba(4,5,12,0) 32%, rgba(4,5,12,0.8) 74%, rgba(4,5,12,0.96) 100%)" }}
+              />
+              <div className="absolute inset-x-0 bottom-0 translate-y-3 p-3.5 text-white opacity-0 transition-all duration-300 group-hover:translate-y-0 group-hover:opacity-100">
+                <p className="font-mono text-[10px] uppercase tracking-[0.2em] text-[var(--accent)]">{sd.month} {sd.day}</p>
+                <h3 className="mt-1 font-display text-[0.98rem] font-bold leading-tight line-clamp-2">{ev.title}</h3>
+                <p className="mt-1 flex items-center gap-1.5 text-[11px] text-white/70">
+                  <MapPin className="size-3 shrink-0" aria-hidden />
+                  <span className="truncate">{ev.venue || "Venue TBA"}</span>
+                </p>
+                <span className="mt-2.5 inline-flex items-center gap-1.5 rounded-full px-3 py-1.5 text-[11px] font-bold text-[var(--on-accent)]" style={{ background: "var(--grad-brand)" }}>
+                  <Ticket className="size-3.5" aria-hidden /> Book tickets
+                </span>
+              </div>
+            </Link>
           </div>
-          <button onClick={() => go(1)} aria-label="Next event" className="grid size-11 place-items-center rounded-full border border-[var(--border)] bg-[var(--surface)] transition-colors hover:border-[var(--accent)] hover:text-[var(--accent)]"><ChevronRight className="size-5" aria-hidden /></button>
-        </div>
-      )}
+        );
+      })}
     </div>
   );
 }
