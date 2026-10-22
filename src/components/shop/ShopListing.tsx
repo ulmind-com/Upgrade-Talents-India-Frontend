@@ -12,6 +12,7 @@ import { measureShot, type Shot } from "@/lib/shot";
 import { useTheme } from "@/components/motion/Providers";
 import { formatINR } from "@/lib/utils";
 import { DEMO_PRODUCTS } from "@/lib/shopDemo";
+import Shop3DExperience from "@/components/shop/animation/Shop3DExperience";
 
 export type Product = {
   _id?: string; id?: string; name?: string; description?: string;
@@ -448,64 +449,9 @@ export default function ShopListing({ items }: { items: Product[] }) {
         </div>
       )}
 
-      {/* ─────────── Everything else, in the grid ─────────── */}
-      <div className="container-x mt-20 md:mt-24">
-        <Reveal>
-          <div className="flex flex-col gap-4 sm:flex-row sm:items-end sm:justify-between">
-            <div>
-              <SectionLabel>All merchandise</SectionLabel>
-              <h2 className="mt-2 font-display text-[clamp(1.6rem,4vw,2.6rem)] font-bold leading-[0.95]">The Shop</h2>
-            </div>
-            <div className="relative w-full max-w-[280px]">
-              <Search className="pointer-events-none absolute left-3.5 top-1/2 size-4 -translate-y-1/2 text-[var(--fg-subtle)]" aria-hidden />
-              <label htmlFor="shop-search" className="sr-only">Search products</label>
-              <input id="shop-search" value={q} onChange={(e) => setQ(e.target.value)} placeholder="Search products"
-                className="w-full rounded-full border border-[var(--border)] bg-[var(--surface)] py-2.5 pl-10 pr-4 text-[13px] outline-none focus-visible:ring-2 focus-visible:ring-[var(--ring)]" />
-            </div>
-          </div>
-        </Reveal>
-
-        {cats.length > 1 && (
-          <Reveal className="mt-6">
-            <div className="flex flex-wrap gap-2">
-              {cats.map((c) => (
-                <button key={c} onClick={() => setCat(c)} aria-pressed={cat === c}
-                  className={`cursor-pointer rounded-full border px-4 py-1.5 text-[12.5px] font-semibold transition-colors ${cat === c ? "border-transparent text-[var(--on-accent)]" : "border-[var(--border)] text-[var(--fg-muted)] hover:border-[var(--border-strong)]"}`}
-                  style={cat === c ? { background: "var(--grad-brand)" } : undefined}>
-                  {c}
-                </button>
-              ))}
-            </div>
-          </Reveal>
-        )}
-
-        {list.length === 0 ? (
-          <Reveal>
-            <div className="mt-10 grid place-items-center rounded-[var(--radius-xl)] border border-dashed border-[var(--border-strong)] bg-[var(--surface)] px-6 py-20 text-center">
-              <span className="grid size-16 place-items-center rounded-full bg-[var(--surface-2)]"><ShoppingBag className="size-7 text-[var(--fg-subtle)]" aria-hidden /></span>
-              <p className="mt-5 font-display text-xl font-bold">Nothing else here yet</p>
-              <p className="mt-1.5 max-w-sm text-[13.5px] text-[var(--fg-muted)]">More official merchandise lands soon. Stay tuned.</p>
-            </div>
-          </Reveal>
-        ) : (
-          <StaggerGroup className="mt-8 grid grid-cols-1 gap-5 sm:grid-cols-2 lg:grid-cols-3">
-            {list.map((p, i) => (
-              <StaggerItem key={pid(p) || i}>
-                <ProductCard
-                  p={p}
-                  bindImg={(el) => { gridImgRefs.current[pid(p)] = el; }}
-                  onAdd={(prod) =>
-                    add(
-                      { productId: pid(prod), name: prod.name || "", price: Number(prod.price || 0), image: img(prod) },
-                      1,
-                      { fly: { src: img(prod), rect: gridImgRefs.current[pid(prod)]?.getBoundingClientRect() ?? null } }
-                    )
-                  }
-                />
-              </StaggerItem>
-            ))}
-          </StaggerGroup>
-        )}
+      {/* ─────────── 3D Animated Clothing Experience ─────────── */}
+      <div className="mt-14 md:mt-18">
+        <Shop3DExperience products={data} />
       </div>
     </section>
   );
