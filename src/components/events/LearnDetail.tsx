@@ -4,10 +4,10 @@ import { useState, useEffect } from "react";
 import Link from "next/link";
 import {
   GraduationCap, CalendarRange, User2, Clock, Loader2, CheckCircle2,
-  AlertCircle, LogIn, ArrowUpRight, IndianRupee,
+  AlertCircle, LogIn, ArrowUpRight, IndianRupee, Coins, Sparkles,
 } from "lucide-react";
 import type { CourseItem } from "@/lib/api";
-import { registrationsApi, profileApi } from "@/lib/api";
+import { registrationsApi, profileApi, walletApi } from "@/lib/api";
 import { useAuth } from "@/components/motion/Providers";
 import { Badge, Button, SectionLabel } from "@/components/ui/Primitives";
 import { Reveal } from "@/components/motion/Reveal";
@@ -50,12 +50,17 @@ export default function LearnDetail({ item, kind }: { item: CourseItem; kind: "c
     if (!user || !item._id) return;
     profileApi.dashboard().then((d) => {
       const myCourses = Array.isArray(d?.my_courses) ? d.my_courses : [];
-      const match = myCourses.find(
-        (c: any) =>
-          String(c.activity_id || c._id) === String(item._id) ||
-          String(c.activity_title || c.title || "").toLowerCase().trim() ===
-            String(item.title || "").toLowerCase().trim()
-      );
+      const match = myCourses.find((c: any) => {
+        if (String(c.activity_id || "") === String(item._id)) return true;
+        const cTitle = String(c.activity_title || c.title || "").trim().toLowerCase();
+        const itemTitle = String(item.title || "").trim().toLowerCase();
+        return (
+          cTitle.length > 3 &&
+          itemTitle.length > 3 &&
+          !["course", "workshop", "event"].includes(cTitle) &&
+          cTitle === itemTitle
+        );
+      });
       if (match) {
         const isConfirmed =
           match.status === "CONFIRMED" ||

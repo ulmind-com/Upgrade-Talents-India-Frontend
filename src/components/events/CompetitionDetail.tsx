@@ -50,55 +50,90 @@ export default function CompetitionDetail({ comp, initialLeaderboard }: { comp: 
   const [voted, setVoted] = useState<Set<string>>(new Set());
   const [votingId, setVotingId] = useState<string | null>(null);
 
-  // Auto-detect if user is already enrolled or submitted
+  // Authoritative enrollment check directly for this competition ID
   useEffect(() => {
     if (!user || !id) return;
     setCheckingEnrollment(true);
-    profileApi
-      .dashboard()
-      .then((d) => {
-        const myComps = Array.isArray(d?.my_competitions) ? d.my_competitions : [];
-        const match = myComps.find(
-          (c: any) =>
-            String(c.competition_id || c._id || c.activity_id) === String(id) ||
-            String(c.title || c.name || "").toLowerCase().trim() ===
-              String(comp.title || comp.name || "").toLowerCase().trim()
-        );
-        if (match) {
-          const isConfirmed =
-            match.status === "CONFIRMED" ||
-            match.payment_status === "PAID" ||
-            match.payment_status === "NOT_REQUIRED" ||
-            match.is_confirmed === true;
 
-          if (isConfirmed) {
+    competeApi
+      .myRegistration(id)
+      .then((res) => {
+        if (res && res.is_registered) {
+          if (res.is_confirmed) {
             setEnrollmentInfo({
-              reference: match.registration_reference,
-              registered_at: match.registered_at,
+              reference: res.registration_reference,
+              registered_at: res.registered_at,
             });
-            if (match.has_submitted || match.submission_id) {
+            if (res.has_submitted || res.submission_id) {
               setStep("done");
               setMsg({ tone: "ok", text: "You have submitted your entry for this competition!" });
             } else {
               setStep(fields.length ? "submit" : "done");
               setMsg({
                 tone: "ok",
-                text: `You are enrolled in this competition! (${match.registration_reference || "Confirmed"}) Upload your entry below.`,
+                text: `You are enrolled in this competition! (${res.registration_reference || "Confirmed"}) Upload your entry below.`,
               });
             }
           } else {
-            // Unconfirmed / Pending Payment — Keep registration step active so user can pay
+            // Unconfirmed / Pending Payment — Keep registration step active so user can complete payment
             setStep("register");
             setMsg({
               tone: "err",
               text: "You have a pending registration. Please complete entry fee payment below to confirm your registration and submit your entry.",
             });
           }
+        } else {
+          // Explicitly NOT registered: Keep registration step clean
+          setStep("register");
         }
       })
-      .catch(() => {})
+      .catch(() => {
+        // Fallback to strict ID-based check only from profile dashboard
+        profileApi
+          .dashboard()
+          .then((d) => {
+            const myComps = Array.isArray(d?.my_competitions) ? d.my_competitions : [];
+            const match = myComps.find(
+              (c: any) =>
+                String(c.competition_id || c.activity_id || "") === String(id)
+            );
+            if (match) {
+              const isConfirmed =
+                match.status === "CONFIRMED" ||
+                match.payment_status === "PAID" ||
+                match.payment_status === "NOT_REQUIRED" ||
+                match.is_confirmed === true;
+
+              if (isConfirmed) {
+                setEnrollmentInfo({
+                  reference: match.registration_reference,
+                  registered_at: match.registered_at,
+                });
+                if (match.has_submitted || match.submission_id) {
+                  setStep("done");
+                  setMsg({ tone: "ok", text: "You have submitted your entry for this competition!" });
+                } else {
+                  setStep(fields.length ? "submit" : "done");
+                  setMsg({
+                    tone: "ok",
+                    text: `You are enrolled in this competition! (${match.registration_reference || "Confirmed"}) Upload your entry below.`,
+                  });
+                }
+              } else {
+                setStep("register");
+                setMsg({
+                  tone: "err",
+                  text: "You have a pending registration. Please complete entry fee payment below to confirm your registration and submit your entry.",
+                });
+              }
+            } else {
+              setStep("register");
+            }
+          })
+          .catch(() => {});
+      })
       .finally(() => setCheckingEnrollment(false));
-  }, [user, id, comp.title, comp.name, fields.length]);
+  }, [user, id, fields.length]);
 
   const loadRazorpay = () =>
     new Promise<boolean>((resolve) => {
@@ -208,30 +243,54 @@ export default function CompetitionDetail({ comp, initialLeaderboard }: { comp: 
     const payloadFiles: File[] = [];
     const fieldNames: string[] = [];
 
+    const YT_REGEX = /^(https?:\/\/)?(www\.|m\.|music\.)?(youtube\.com\/(watch\?v=|embed\/|shorts\/|v\/)|youtu\.be\/)([a-zA-Z0-9_-]{11})/i;
+
     for (const f of fields) {
       const mode = entryModes[f.name] || (f.type === "URL" || f.type === "PORTFOLIO_LINK" ? "link" : "file");
       const file = files[f.name];
       const link = (links[f.name] || "").trim();
 
+      const isAudio = /audio|sound|singing|voice|music|song/i.test(f.name) || f.type === "AUDIO";
+      const isVideo = /video|dance|film|visual|acting|performance/i.test(f.name) || f.type === "VIDEO";
+      const displayName = f.name.replace(/video,\s*audio/gi, "Video/Audio");
+
       if (mode === "link") {
         if (!link) {
-          if (f.required) missing.push(f.name);
+          if (f.required) missing.push(displayName);
         } else {
           if (!/^https?:\/\//i.test(link)) {
-            setMsg({ tone: "err", text: `Please enter a valid link starting with http:// or https:// for ${f.name}` });
+            setMsg({ tone: "err", text: `Please enter a valid link starting with http:// or https:// for ${displayName}` });
             return;
           }
-          const safeName = f.name.replace(/[^a-zA-Z0-9_-]/g, "_");
+          if (isVideo || isAudio) {
+            if (!YT_REGEX.test(link)) {
+              setMsg({ tone: "err", text: `For video entries in ${displayName}, please provide a valid YouTube link (e.g. https://youtu.be/... or https://youtube.com/watch?v=...).` });
+              return;
+            }
+          }
+          const safeName = displayName.replace(/[^a-zA-Z0-9_-]/g, "_");
           const linkFile = new File([link], `${safeName}_link.txt`, { type: "text/plain" });
           payloadFiles.push(linkFile);
-          fieldNames.push(f.name);
+          fieldNames.push(displayName);
         }
       } else {
         if (!file) {
-          if (f.required) missing.push(f.name);
+          if (f.required) missing.push(displayName);
         } else {
+          const lowerName = file.name.toLowerCase();
+          const isDirectVideo = lowerName.endsWith(".mp4") || lowerName.endsWith(".mov") || lowerName.endsWith(".avi") || lowerName.endsWith(".mkv") || lowerName.endsWith(".webm") || file.type.startsWith("video/");
+          if (isDirectVideo) {
+            setMsg({ tone: "err", text: `Direct video file uploads are not supported for ${displayName}. Please switch to the Link tab and provide a YouTube link instead.` });
+            return;
+          }
+          if (isAudio || isVideo) {
+            if (!lowerName.endsWith(".mp3")) {
+              setMsg({ tone: "err", text: `Only MP3 audio files (.mp3) are permitted for audio submissions in ${displayName}.` });
+              return;
+            }
+          }
           payloadFiles.push(file);
-          fieldNames.push(f.name);
+          fieldNames.push(displayName);
         }
       }
     }
@@ -430,19 +489,17 @@ export default function CompetitionDetail({ comp, initialLeaderboard }: { comp: 
                     const selectedFile = files[f.name];
                     const enteredLink = links[f.name] || "";
 
+                    const displayName = f.name.replace(/video,\s*audio/gi, "Video/Audio");
                     const isAudio = /audio|sound|singing|voice|music|song/i.test(f.name) || f.type === "AUDIO";
                     const isVideo = /video|dance|film|visual|acting|performance/i.test(f.name) || f.type === "VIDEO";
-                    const acceptTypes = isAudio
-                      ? "audio/*,.mp3,.wav,.m4a,.aac,.ogg"
-                      : isVideo
-                      ? "video/*,audio/*,.mp4,.mov,.webm,.mkv,.mp3,.wav"
-                      : "video/*,audio/*,image/*,.pdf";
+                    const isAudioOrVideo = isAudio || isVideo;
+                    const acceptTypes = isAudioOrVideo ? ".mp3,audio/mpeg,audio/mp3" : "image/*,.pdf";
 
                     return (
                       <div key={f.name} className="flex flex-col gap-2 rounded-2xl border border-[var(--border)] bg-[var(--surface-2)]/50 p-3">
                         <div className="flex items-center justify-between gap-2">
                           <span className="text-[12px] font-semibold text-[var(--fg)]">
-                            {f.name}{f.required && <span className="text-[var(--accent)]"> *</span>}
+                            {displayName}{f.required && <span className="text-[var(--accent)]"> *</span>}
                           </span>
                           <div className="flex items-center rounded-lg border border-[var(--border)] bg-[var(--surface)] p-0.5 text-[11px]">
                             <button
@@ -454,7 +511,7 @@ export default function CompetitionDetail({ comp, initialLeaderboard }: { comp: 
                                   : "text-[var(--fg-muted)] hover:text-[var(--fg)]"
                               }`}
                             >
-                              <Upload className="size-3" /> File
+                              <Upload className="size-3" /> {isAudioOrVideo ? "Audio (MP3)" : "File"}
                             </button>
                             <button
                               type="button"
@@ -465,7 +522,7 @@ export default function CompetitionDetail({ comp, initialLeaderboard }: { comp: 
                                   : "text-[var(--fg-muted)] hover:text-[var(--fg)]"
                               }`}
                             >
-                              <Link2 className="size-3" /> Link
+                              <Link2 className="size-3" /> {isAudioOrVideo ? "YouTube Link" : "Link"}
                             </button>
                           </div>
                         </div>
@@ -475,9 +532,7 @@ export default function CompetitionDetail({ comp, initialLeaderboard }: { comp: 
                             {selectedFile ? (
                               <div className="flex items-center justify-between rounded-xl border border-[var(--border-strong)] bg-[var(--surface)] px-3 py-2 text-[12px]">
                                 <div className="flex min-w-0 flex-1 items-center gap-2 mr-2">
-                                  {selectedFile.type.startsWith("video") ? (
-                                    <Film className="size-4 shrink-0 text-[var(--accent)]" />
-                                  ) : selectedFile.type.startsWith("audio") ? (
+                                  {selectedFile.name.toLowerCase().endsWith(".mp3") ? (
                                     <Music className="size-4 shrink-0 text-[var(--accent)]" />
                                   ) : (
                                     <FileUp className="size-4 shrink-0 text-[var(--accent)]" />
@@ -485,7 +540,7 @@ export default function CompetitionDetail({ comp, initialLeaderboard }: { comp: 
                                   <div className="min-w-0 truncate">
                                     <p className="truncate font-medium">{selectedFile.name}</p>
                                     <p className="text-[10px] text-[var(--fg-subtle)]">
-                                      {(selectedFile.size / (1024 * 1024)).toFixed(2)} MB · {selectedFile.type || "file"}
+                                      {(selectedFile.size / (1024 * 1024)).toFixed(2)} MB · {selectedFile.type || "audio/mp3"}
                                     </p>
                                   </div>
                                 </div>
@@ -500,14 +555,12 @@ export default function CompetitionDetail({ comp, initialLeaderboard }: { comp: 
                               </div>
                             ) : (
                               <label className="group flex cursor-pointer items-center justify-center gap-2 rounded-xl border border-dashed border-[var(--border-strong)] bg-[var(--surface)] px-3.5 py-3 text-[12px] text-[var(--fg-muted)] transition-colors hover:border-[var(--accent)] hover:text-[var(--fg)]">
-                                {isAudio ? (
+                                {isAudioOrVideo ? (
                                   <Music className="size-4 shrink-0 text-[var(--fg-subtle)] group-hover:text-[var(--accent)]" />
-                                ) : isVideo ? (
-                                  <Film className="size-4 shrink-0 text-[var(--fg-subtle)] group-hover:text-[var(--accent)]" />
                                 ) : (
                                   <FileUp className="size-4 shrink-0 text-[var(--fg-subtle)] group-hover:text-[var(--accent)]" />
                                 )}
-                                <span className="truncate">Choose video, audio or photo…</span>
+                                <span className="truncate">{isAudioOrVideo ? "Choose MP3 audio file (.mp3)…" : "Choose file…"}</span>
                                 <input
                                   type="file"
                                   accept={acceptTypes}
@@ -520,11 +573,9 @@ export default function CompetitionDetail({ comp, initialLeaderboard }: { comp: 
                               </label>
                             )}
                             <p className="mt-1 text-[10.5px] text-[var(--fg-subtle)]">
-                              {isAudio
-                                ? "Accepts MP3, WAV, M4A, AAC audio"
-                                : isVideo
-                                ? "Accepts MP4, MOV, WebM, MKV video or audio"
-                                : "Accepts video, audio, image (JPG/PNG) or PDF"}
+                              {isAudioOrVideo
+                                ? "Accepts MP3 audio files only (.mp3). For videos, use the YouTube Link tab."
+                                : "Accepts image (JPG/PNG) or PDF"}
                             </p>
                           </div>
                         ) : (
@@ -535,12 +586,14 @@ export default function CompetitionDetail({ comp, initialLeaderboard }: { comp: 
                                 type="url"
                                 value={enteredLink}
                                 onChange={(e) => setLinks((s) => ({ ...s, [f.name]: e.target.value }))}
-                                placeholder="https://youtu.be/... or Google Drive link"
+                                placeholder={isAudioOrVideo ? "https://youtu.be/... or https://youtube.com/watch?v=..." : "https://..."}
                                 className="w-full rounded-xl border border-[var(--border)] bg-[var(--surface)] py-2 pl-9 pr-3 text-[12px] text-[var(--fg)] placeholder:text-[var(--fg-subtle)] focus:border-[var(--accent)] focus:outline-none"
                               />
                             </div>
                             <p className="mt-1 text-[10.5px] text-[var(--fg-subtle)]">
-                              Paste YouTube, Vimeo, Google Drive, SoundCloud, or portfolio URL
+                              {isAudioOrVideo
+                                ? "YouTube video link only (e.g. https://youtu.be/... or https://youtube.com/watch?v=...)"
+                                : "Paste portfolio or web link"}
                             </p>
                           </div>
                         )}

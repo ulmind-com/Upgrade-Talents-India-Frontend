@@ -43,7 +43,12 @@ export default function DashboardPage() {
   const [ranks, setRanks] = useState<any[]>([]);
   const [certificates, setCertificates] = useState<any[]>([]);
   const [badges, setBadges] = useState<any[]>([]);
-  const [coinsData, setCoinsData] = useState<{ total_coins: number; history: any[] }>({ total_coins: 0, history: [] });
+  const [coinsData, setCoinsData] = useState<{
+    total_coins: number;
+    total_earned_coins?: number;
+    total_redeemed_coins?: number;
+    history: any[];
+  }>({ total_coins: 0, total_earned_coins: 0, total_redeemed_coins: 0, history: [] });
   const [referralData, setReferralData] = useState<any>(null);
   const [eventsRegistered, setEventsRegistered] = useState<any[]>([]);
   const [coursesRegistered, setCoursesRegistered] = useState<any[]>([]);
@@ -105,9 +110,14 @@ export default function DashboardPage() {
           setCertificates(d.my_certificates);
         }
         if (d.my_rewards_and_coins?.total_coins != null) {
+          const hist = Array.isArray(d.my_rewards_and_coins.coin_history) && d.my_rewards_and_coins.coin_history.length
+            ? d.my_rewards_and_coins.coin_history
+            : (Array.isArray(d.my_rewards_and_coins.reward_history) ? d.my_rewards_and_coins.reward_history : []);
           setCoinsData({
             total_coins: Number(d.my_rewards_and_coins.total_coins || 0),
-            history: Array.isArray(d.my_rewards_and_coins.reward_history) ? d.my_rewards_and_coins.reward_history : [],
+            total_earned_coins: Number(d.my_rewards_and_coins.total_earned_coins || 0),
+            total_redeemed_coins: Number(d.my_rewards_and_coins.total_redeemed_coins || 0),
+            history: hist,
           });
         }
       }
@@ -115,6 +125,8 @@ export default function DashboardPage() {
       if (cnRes.status === "fulfilled" && cnRes.value) {
         setCoinsData((prev) => ({
           total_coins: Math.max(prev.total_coins, Number(cnRes.value.total_coins || 0)),
+          total_earned_coins: Number(cnRes.value.total_earned_coins ?? prev.total_earned_coins ?? 0),
+          total_redeemed_coins: Number(cnRes.value.total_redeemed_coins ?? prev.total_redeemed_coins ?? 0),
           history: cnRes.value.history?.length ? cnRes.value.history : prev.history,
         }));
       }
@@ -886,7 +898,9 @@ function RewardsTab({ coinsData, referralData, user }: { coinsData: any; referra
   return (
     <div className="mt-10 flex flex-col gap-8">
       {/* Coin Balance & Value Card */}
+      {/* Coin Balance & Breakdown Cards */}
       <div className="grid gap-6 md:grid-cols-3">
+        {/* Available Balance */}
         <div className="relative overflow-hidden rounded-[var(--radius-xl)] border border-amber-500/30 bg-gradient-to-br from-amber-500/15 via-[var(--surface)] to-[var(--surface)] p-6 shadow-xl">
           <span className="font-mono text-[11px] font-bold uppercase tracking-wider text-amber-400">Available Coin Balance</span>
           <div className="mt-3 flex items-baseline gap-2">
@@ -896,38 +910,36 @@ function RewardsTab({ coinsData, referralData, user }: { coinsData: any; referra
             <span className="font-bold text-amber-400">UTI Coins</span>
           </div>
           <p className="mt-2 text-xs text-[var(--fg-muted)]">
-            Redeemable value: <span className="font-bold text-white">₹{coinsData.total_coins} INR</span> on ticket and fee checkouts.
+            Active balance available for course/workshop discounts & fee checkouts.
           </p>
         </div>
 
-        {/* Referral Earnings Card */}
-        <div className="relative overflow-hidden rounded-[var(--radius-xl)] border border-[var(--border)] bg-[var(--surface)] p-6">
-          <span className="font-mono text-[11px] font-bold uppercase tracking-wider text-[var(--accent)]">Referral Earnings</span>
+        {/* Total Earned Coins */}
+        <div className="relative overflow-hidden rounded-[var(--radius-xl)] border border-emerald-500/30 bg-gradient-to-br from-emerald-500/10 via-[var(--surface)] to-[var(--surface)] p-6">
+          <span className="font-mono text-[11px] font-bold uppercase tracking-wider text-emerald-400">Total Coins Earned</span>
           <div className="mt-3 flex items-baseline gap-2">
-            <span className="font-display text-4xl font-black text-white tabular-nums">
-              {referralData?.rewards_earned ?? referralData?.total_coins_earned ?? coinsData.total_coins}
+            <span className="font-display text-4xl font-black text-emerald-300 tabular-nums">
+              {coinsData.total_earned_coins ?? referralData?.rewards_earned ?? coinsData.total_coins}
             </span>
-            <span className="font-bold text-[var(--fg-muted)]">Earned</span>
+            <span className="font-bold text-emerald-500/80">Earned</span>
           </div>
           <p className="mt-2 text-xs text-[var(--fg-muted)]">
-            Friends referred: <span className="font-bold text-white">{referralData?.total_referrals ?? 0}</span>
+            Referrals: <span className="font-bold text-white">{referralData?.total_referrals ?? 0}</span> friends joined
           </p>
         </div>
 
-        {/* Benefits Card */}
-        <div className="relative overflow-hidden rounded-[var(--radius-xl)] border border-[var(--border)] bg-[var(--surface)] p-6">
-          <span className="font-mono text-[11px] font-bold uppercase tracking-wider text-green-400">Coin Perks</span>
-          <ul className="mt-3 space-y-1.5 text-xs text-[var(--fg-muted)]">
-            <li className="flex items-center gap-1.5 text-white">
-              <Check className="size-3.5 text-green-400" /> Instant discount on paid event tickets
-            </li>
-            <li className="flex items-center gap-1.5 text-white">
-              <Check className="size-3.5 text-green-400" /> Use coins for competition entries
-            </li>
-            <li className="flex items-center gap-1.5 text-white">
-              <Check className="size-3.5 text-green-400" /> Exclusive merchandise discounts
-            </li>
-          </ul>
+        {/* Total Spent / Redeemed Coins */}
+        <div className="relative overflow-hidden rounded-[var(--radius-xl)] border border-rose-500/30 bg-gradient-to-br from-rose-500/10 via-[var(--surface)] to-[var(--surface)] p-6">
+          <span className="font-mono text-[11px] font-bold uppercase tracking-wider text-rose-400">Total Coins Spent / Redeemed</span>
+          <div className="mt-3 flex items-baseline gap-2">
+            <span className="font-display text-4xl font-black text-rose-300 tabular-nums">
+              {coinsData.total_redeemed_coins ?? 0}
+            </span>
+            <span className="font-bold text-rose-500/80">Redeemed</span>
+          </div>
+          <p className="mt-2 text-xs text-[var(--fg-muted)]">
+            Used as discounts on courses, workshops, and purchases.
+          </p>
         </div>
       </div>
 

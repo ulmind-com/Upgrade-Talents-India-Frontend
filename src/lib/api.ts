@@ -258,6 +258,8 @@ export const publicApi = {
             )
           : []
     ),
+  competition: (id: string) =>
+    apiFetch<any>(`/api/activities/competitions/${id}`, { cache: "no-store" }),
   leaderboard: (id: string) =>
     apiFetch<{ ranking_mode?: string; leaderboard?: any[] }>(`/api/v1/competitions/${id}/leaderboard`, { cache: "no-store" }),
   verifyCertificate: (token: string) =>
@@ -267,6 +269,17 @@ export const publicApi = {
 /* ─────────────── COMPETE (register / submit / vote — auth) ─────────────── */
 
 export const competeApi = {
+  myRegistration: (id: string) =>
+    apiFetch<{
+      is_registered: boolean;
+      is_confirmed: boolean;
+      status: string;
+      payment_status: string;
+      registration_reference?: string;
+      has_submitted?: boolean;
+      submission_id?: string;
+      registered_at?: string;
+    }>(`/api/v1/competitions/${id}/my-registration`, { auth: true, cache: "no-store" }),
   eligibility: (id: string) =>
     apiFetch<{ eligible: boolean; status: string; reason: string }>(`/api/v1/competitions/${id}/eligibility`, { auth: true, cache: "no-store" }),
   register: (id: string, rules_accepted = true) =>
@@ -274,7 +287,7 @@ export const competeApi = {
   submit: (id: string, files: File[], fieldNames: string[]) => {
     const fd = new FormData();
     files.forEach((f) => fd.append("files", f));
-    fd.append("field_names", fieldNames.join(", "));
+    fd.append("field_names", JSON.stringify(fieldNames));
     return apiFetch<any>(`/api/v1/competitions/${id}/submissions`, { method: "POST", auth: true, form: fd });
   },
   verifyPayment: (compId: string, body: {
@@ -497,6 +510,18 @@ export const registrationsApi = {
   remove: (id: string) => apiFetch<any>(`/api/registrations/${id}`, { method: "DELETE", auth: true }),
   verifyPayment: (body: any) =>
     apiFetch<any>("/api/registrations/verify-payment", { method: "POST", body, auth: true }),
+};
+
+/* ─────────────── WALLET & REWARDS ─────────────── */
+
+export const walletApi = {
+  wallet: () => apiFetch<any>("/api/rewards/wallet", { auth: true, cache: "no-store" }),
+  coins: () => apiFetch<any>("/api/rewards/coins", { auth: true, cache: "no-store" }),
+  calculateDiscount: (body: { item_id: string; item_type: string; coins_to_use?: number }) =>
+    apiFetch<any>("/api/rewards/calculate-discount", { method: "POST", auth: true, body }),
+  transactions: (p: { limit?: number; skip?: number } = {}) =>
+    apiFetch<any>("/api/rewards/transactions", { query: p, auth: true, cache: "no-store" }),
+  referralProfile: () => apiFetch<any>("/api/rewards/referral-profile", { auth: true, cache: "no-store" }),
 };
 
 /* ─────────────── AADHAAR KYC (DigiLocker) ─────────────── */

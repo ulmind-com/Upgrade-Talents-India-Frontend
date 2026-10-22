@@ -2,7 +2,7 @@
 
 import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { useRef, useState } from "react";
+import { useRef, useState, useEffect } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import { ArrowRight, ArrowLeft, Eye, EyeOff, Upload, Check, Mail, KeyRound, UserRound } from "lucide-react";
 import { authApi, tokenStore } from "@/lib/api";
@@ -32,6 +32,19 @@ export default function RegisterPage() {
   // step 1
   const [email, setEmail] = useState("");
   const [referral, setReferral] = useState("");
+  // Auto-detect referral code from URL query ?ref=XYZ
+  useEffect(() => {
+    if (typeof window !== "undefined") {
+      const p = new URLSearchParams(window.location.search);
+      const r = p.get("ref") || p.get("referral");
+      if (r) {
+        setReferral(r.toUpperCase().trim());
+      }
+    }
+  }, []);
+
+  // step 2
+  const [otp, setOtp] = useState("");
   // step 3
   const [name, setName] = useState("");
   const [phone, setPhone] = useState("");
