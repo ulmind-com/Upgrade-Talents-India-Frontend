@@ -402,7 +402,7 @@ export const profileApi = {
 /* ─────────────── REWARDS & COINS ─────────────── */
 
 export const rewardsApi = {
-  coins: () => apiFetch<{ total_coins: number; history: any[] }>("/api/rewards/coins", { auth: true, cache: "no-store" }),
+  coins: () => apiFetch<{ total_coins: number; total_earned_coins?: number; total_redeemed_coins?: number; history: any[] }>("/api/rewards/coins", { auth: true, cache: "no-store" }),
   wallet: () => apiFetch<any>("/api/rewards/wallet", { auth: true, cache: "no-store" }),
   referralProfile: () => apiFetch<any>("/api/rewards/referral-profile", { auth: true, cache: "no-store" }),
   transactions: (p: { limit?: number; skip?: number } = {}) =>

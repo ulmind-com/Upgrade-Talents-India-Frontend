@@ -17,6 +17,7 @@ type Row = {
   audience_votes?: number;
   judge_score?: number;
   final_score?: number;
+  points?: number;
 };
 
 type Comp = { _id?: string; id?: string; title?: string; name?: string };
