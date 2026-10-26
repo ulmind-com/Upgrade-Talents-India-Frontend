@@ -683,6 +683,14 @@ export interface JudgeContestant {
   submitted_at?: string;
   files?: Record<string, string>;
   parsed_files?: Array<{ label: string; url: string }>;
+  is_scored?: boolean;
+  has_scored?: boolean;
+  is_locked?: boolean;
+  total_score?: number;
+  my_score?: number;
+  my_scores?: Record<string, number>;
+  my_comments?: string;
+  scored_at?: string;
 }
 
 export const judgeCompetitionsApi = {
@@ -727,7 +735,7 @@ export const judgeCompetitionsApi = {
 
   /** Final score submission */
   submitScore: (subId: string, scores: Record<string, number>, comments?: string) =>
-    apiFetch<{ message: string }>(`/api/judge/submissions/${subId}/scores`, {
+    apiFetch<{ message: string; total_score?: number; is_locked?: boolean }>(`/api/judge/submissions/${subId}/scores`, {
       method: "POST",
       body: { scores, comments },
       auth: true,

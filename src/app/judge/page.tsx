@@ -180,6 +180,23 @@ export default function JudgeDashboardPage() {
       defaultScores[c.name] = Math.round(c.max_score * 0.7);
     });
 
+    const isAlreadyScored = Boolean(
+      activeContestant.is_scored ||
+      activeContestant.has_scored ||
+      activeContestant.status === "Scored" ||
+      activeContestant.is_locked
+    );
+
+    if (isAlreadyScored) {
+      if (activeContestant.my_scores && Object.keys(activeContestant.my_scores).length > 0) {
+        setScores(activeContestant.my_scores);
+      } else {
+        setScores(defaultScores);
+      }
+      setComments(activeContestant.my_comments || "");
+      return;
+    }
+
     judgeCompetitionsApi
       .getDraft(selectedComp._id, activeContestant._id)
       .then((draft) => {
@@ -242,17 +259,60 @@ export default function JudgeDashboardPage() {
   // Handle Official Score Submit
   const handleSubmitScore = async () => {
     if (!activeContestant) return;
+    const isAlreadyScored = Boolean(
+      activeContestant.is_scored ||
+      activeContestant.has_scored ||
+      activeContestant.status === "Scored" ||
+      activeContestant.is_locked
+    );
+    if (isAlreadyScored) {
+      setScoreNotice({ tone: "error", text: "You have already submitted an official score for this participant in this competition. Each participant can only be scored once." });
+      return;
+    }
+
     setSubmittingScore(true);
     setScoreNotice(null);
     try {
-      await judgeCompetitionsApi.submitScore(activeContestant._id, scores, comments);
+      const res = await judgeCompetitionsApi.submitScore(activeContestant._id, scores, comments);
       setScoreNotice({ tone: "success", text: "Official score successfully submitted!" });
+      const finalScore = res.total_score ?? calculatedTotal;
+      setContestants((prev) =>
+        prev.map((c) =>
+          c._id === activeContestant._id
+            ? {
+                ...c,
+                is_scored: true,
+                has_scored: true,
+                is_locked: true,
+                status: "Scored",
+                my_score: finalScore,
+                total_score: finalScore,
+                my_scores: scores,
+                my_comments: comments,
+              }
+            : c
+        )
+      );
+      setActiveContestant((prev) =>
+        prev
+          ? {
+              ...prev,
+              is_scored: true,
+              has_scored: true,
+              is_locked: true,
+              status: "Scored",
+              my_score: finalScore,
+              total_score: finalScore,
+              my_scores: scores,
+              my_comments: comments,
+            }
+          : null
+      );
       setTimeout(() => {
-        setActiveContestant(null);
         if (selectedComp) {
           loadContestantsForComp(selectedComp._id);
         }
-      }, 1200);
+      }, 1500);
     } catch (err: any) {
       setScoreNotice({ tone: "error", text: err?.message || "Failed to submit score. Verify session PIN or score range." });
     } finally {
@@ -315,6 +375,13 @@ export default function JudgeDashboardPage() {
     logout();
     router.replace("/judge/login");
   };
+
+  const isAlreadyScored = Boolean(
+    activeContestant?.is_scored ||
+    activeContestant?.has_scored ||
+    activeContestant?.status === "Scored" ||
+    activeContestant?.is_locked
+  );
 
   return (
     <div className="relative min-h-dvh bg-[var(--bg)] text-[var(--fg)]">
@@ -488,6 +555,9 @@ export default function JudgeDashboardPage() {
                       const isSelected = activeContestant?._id === c._id;
                       const hasVideo = c.submission_url && getYouTubeEmbedUrl(c.submission_url);
                       const hasAudio = c.submission_url && isAudio(c.submission_url);
+                      const isScored = Boolean(
+                        c.is_scored || c.has_scored || c.status === "Scored" || c.is_locked
+                      );
                       return (
                         <motion.div
                           key={c._id}
@@ -520,8 +590,8 @@ export default function JudgeDashboardPage() {
                                     {c.user_email}
                                   </p>
                                 </div>
-                                <Badge tone={isSelected ? "brand" : "neutral"} className="shrink-0 text-[10.5px]">
-                                  {c.status || "Submitted"}
+                                <Badge tone={isScored ? "success" : isSelected ? "brand" : "neutral"} className="shrink-0 text-[10.5px]">
+                                  {isScored ? "Scored" : c.status || "Submitted"}
                                 </Badge>
                               </div>
 
@@ -551,9 +621,18 @@ export default function JudgeDashboardPage() {
                               <Clock className="size-3" />
                               {c.submitted_at ? new Date(c.submitted_at).toLocaleDateString() : "Active Round"}
                             </span>
-                            <span className="inline-flex items-center gap-1 font-semibold text-[var(--accent)]">
-                              Score <ChevronRight className="size-3 transition-transform group-hover:translate-x-0.5" />
-                            </span>
+                            {isScored ? (
+                              <span className="inline-flex items-center gap-1.5 font-semibold text-emerald-400">
+                                <CheckCircle2 className="size-3.5 text-emerald-400" />
+                                {c.my_score != null || c.total_score != null ? `${c.my_score ?? c.total_score} pts` : "Scored"}
+                                <span className="text-[10px] text-[var(--fg-subtle)] font-normal">View</span>
+                                <ChevronRight className="size-3 transition-transform group-hover:translate-x-0.5" />
+                              </span>
+                            ) : (
+                              <span className="inline-flex items-center gap-1 font-semibold text-[var(--accent)]">
+                                Score <ChevronRight className="size-3 transition-transform group-hover:translate-x-0.5" />
+                              </span>
+                            )}
                           </div>
                         </motion.div>
                       );
@@ -674,6 +753,26 @@ export default function JudgeDashboardPage() {
                       </div>
                     )}
 
+                    {/* Locked / Already Scored Official Banner */}
+                    {isAlreadyScored && (
+                      <div className="flex items-center gap-3.5 rounded-2xl border border-emerald-500/35 bg-emerald-500/10 p-4 text-emerald-300 shadow-md">
+                        <div className="grid size-9 shrink-0 place-items-center rounded-xl bg-emerald-500/20 text-emerald-400">
+                          <CheckCircle2 className="size-5" />
+                        </div>
+                        <div className="min-w-0 flex-1">
+                          <div className="flex flex-wrap items-center gap-2">
+                            <span className="font-bold text-sm text-emerald-200">Official Score Submitted &amp; Finalized</span>
+                            <span className="rounded-full bg-emerald-500/25 px-2.5 py-0.5 text-[10.5px] font-black text-emerald-300">
+                              Total: {activeContestant.my_score ?? activeContestant.total_score ?? calculatedTotal} pts
+                            </span>
+                          </div>
+                          <p className="mt-0.5 text-xs text-emerald-300/80">
+                            You have already submitted your official score for this participant. Re-scoring is disabled to ensure fairness.
+                          </p>
+                        </div>
+                      </div>
+                    )}
+
                     {/* Notice */}
                     {scoreNotice && (
                       <div
@@ -692,12 +791,12 @@ export default function JudgeDashboardPage() {
                     <div className="flex flex-col gap-5">
                       <div className="flex items-center justify-between">
                         <span className="text-xs font-bold uppercase tracking-wider text-[var(--fg-subtle)]">
-                          Evaluation Criteria
+                          Evaluation Criteria {isAlreadyScored && "(Read-Only)"}
                         </span>
                         <div className="flex items-center gap-2 rounded-xl bg-[var(--bg)] px-3 py-1.5 border border-[var(--border)]">
                           <span className="text-xs text-[var(--fg-subtle)]">Total:</span>
                           <span className="text-base font-black text-[var(--accent)]">
-                            {calculatedTotal}
+                            {isAlreadyScored ? (activeContestant.my_score ?? activeContestant.total_score ?? calculatedTotal) : calculatedTotal}
                           </span>
                           <span className="text-xs text-[var(--fg-subtle)]">/ {maxPossibleTotal}</span>
                         </div>
@@ -708,7 +807,12 @@ export default function JudgeDashboardPage() {
                         return (
                           <div
                             key={crit.name}
-                            className="flex flex-col gap-2 rounded-2xl border border-[var(--border)] bg-[var(--bg)]/70 p-4"
+                            className={cn(
+                              "flex flex-col gap-2 rounded-2xl border p-4 transition-colors",
+                              isAlreadyScored
+                                ? "border-emerald-500/20 bg-[var(--bg)]/40"
+                                : "border-[var(--border)] bg-[var(--bg)]/70"
+                            )}
                           >
                             <div className="flex items-center justify-between">
                               <div>
@@ -717,7 +821,7 @@ export default function JudgeDashboardPage() {
                                   <p className="text-[11px] text-[var(--fg-subtle)]">{crit.description}</p>
                                 )}
                               </div>
-                              <span className="font-mono text-sm font-bold text-[var(--accent)]">
+                              <span className={cn("font-mono text-sm font-bold", isAlreadyScored ? "text-emerald-400" : "text-[var(--accent)]")}>
                                 {currentVal} / {crit.max_score}
                               </span>
                             </div>
@@ -728,13 +832,20 @@ export default function JudgeDashboardPage() {
                               max={crit.max_score}
                               step={1}
                               value={currentVal}
+                              disabled={isAlreadyScored}
                               onChange={(e) =>
+                                !isAlreadyScored &&
                                 setScores((prev) => ({
                                   ...prev,
                                   [crit.name]: parseFloat(e.target.value) || 0,
                                 }))
                               }
-                              className="h-2 w-full cursor-pointer appearance-none rounded-lg bg-[var(--border-strong)] accent-[var(--accent)]"
+                              className={cn(
+                                "h-2 w-full appearance-none rounded-lg",
+                                isAlreadyScored
+                                  ? "cursor-not-allowed bg-[var(--border)] opacity-60 accent-emerald-500"
+                                  : "cursor-pointer bg-[var(--border-strong)] accent-[var(--accent)]"
+                              )}
                             />
                           </div>
                         );
@@ -744,52 +855,74 @@ export default function JudgeDashboardPage() {
                     {/* Feedback / Comments */}
                     <div className="flex flex-col gap-2">
                       <label className="text-xs font-bold uppercase tracking-wider text-[var(--fg-subtle)]">
-                        Judges Feedback & Comments
+                        Judges Feedback &amp; Comments {isAlreadyScored && "(Submitted)"}
                       </label>
                       <textarea
                         rows={3}
                         value={comments}
-                        onChange={(e) => setComments(e.target.value)}
-                        placeholder="Constructive feedback for the participant…"
-                        className="w-full rounded-xl border border-[var(--border)] bg-[var(--bg)] p-3 text-xs text-[var(--fg)] placeholder:text-[var(--fg-subtle)] focus:border-[var(--accent)] focus:outline-none"
+                        disabled={isAlreadyScored}
+                        onChange={(e) => !isAlreadyScored && setComments(e.target.value)}
+                        placeholder={isAlreadyScored ? "No comments submitted." : "Constructive feedback for the participant…"}
+                        className={cn(
+                          "w-full rounded-xl border border-[var(--border)] bg-[var(--bg)] p-3 text-xs text-[var(--fg)] placeholder:text-[var(--fg-subtle)] focus:border-[var(--accent)] focus:outline-none",
+                          isAlreadyScored && "cursor-not-allowed opacity-75 bg-[var(--surface-2)]/60"
+                        )}
                       />
                     </div>
 
                     {/* Actions Bar */}
                     <div className="flex flex-wrap items-center justify-between gap-3 border-t border-[var(--border)] pt-4">
-                      <Button
-                        type="button"
-                        variant="ghost"
-                        size="sm"
-                        onClick={() => setShowCoiModal(true)}
-                        className="gap-1.5 text-[var(--fg-subtle)] hover:text-[var(--error)]"
-                      >
-                        <SkipForward className="size-4" /> Declare COI / Skip
-                      </Button>
+                      {isAlreadyScored ? (
+                        <div className="flex w-full items-center justify-between">
+                          <span className="inline-flex items-center gap-2 text-xs font-bold text-emerald-400">
+                            <CheckCircle2 className="size-4" /> Score Recorded ({activeContestant.my_score ?? activeContestant.total_score ?? calculatedTotal} pts)
+                          </span>
+                          <Button
+                            type="button"
+                            variant="outline"
+                            size="sm"
+                            onClick={() => setActiveContestant(null)}
+                          >
+                            Close Worksheet
+                          </Button>
+                        </div>
+                      ) : (
+                        <>
+                          <Button
+                            type="button"
+                            variant="ghost"
+                            size="sm"
+                            onClick={() => setShowCoiModal(true)}
+                            className="gap-1.5 text-[var(--fg-subtle)] hover:text-[var(--error)]"
+                          >
+                            <SkipForward className="size-4" /> Declare COI / Skip
+                          </Button>
 
-                      <div className="flex items-center gap-2">
-                        <Button
-                          type="button"
-                          variant="outline"
-                          size="md"
-                          loading={savingDraft}
-                          onClick={handleSaveDraft}
-                          className="gap-1.5"
-                        >
-                          <Save className="size-4" /> Save Draft
-                        </Button>
+                          <div className="flex items-center gap-2">
+                            <Button
+                              type="button"
+                              variant="outline"
+                              size="md"
+                              loading={savingDraft}
+                              onClick={handleSaveDraft}
+                              className="gap-1.5"
+                            >
+                              <Save className="size-4" /> Save Draft
+                            </Button>
 
-                        <Button
-                          type="button"
-                          variant="primary"
-                          size="md"
-                          loading={submittingScore}
-                          onClick={handleSubmitScore}
-                          className="gap-1.5"
-                        >
-                          <Send className="size-4" /> Submit Official Score
-                        </Button>
-                      </div>
+                            <Button
+                              type="button"
+                              variant="primary"
+                              size="md"
+                              loading={submittingScore}
+                              onClick={handleSubmitScore}
+                              className="gap-1.5"
+                            >
+                              <Send className="size-4" /> Submit Official Score
+                            </Button>
+                          </div>
+                        </>
+                      )}
                     </div>
                   </motion.div>
                 )}
