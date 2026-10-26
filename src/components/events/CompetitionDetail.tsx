@@ -903,19 +903,16 @@ export default function CompetitionDetail({
                 </div>
                 <div className="mt-3 flex flex-col gap-3.5">
                   {fields.map((f) => {
-                    const isVideo = /video|dance|film|acting|visual/i.test(f.name) || f.type === "VIDEO";
-                    const isAudio = /audio|sound|singing|voice|music/i.test(f.name) || f.type === "AUDIO";
-
-                    // Default video fields to "link" to match AudioValidator enforcement
-                    const mode = entryModes[f.name] || (isVideo || f.type === "URL" || f.type === "PORTFOLIO_LINK" ? "link" : "file");
-                    const selectedFile = files[f.name];
-                    const enteredLink = links[f.name] || "";
-
                     const displayName = f.name.replace(/video,\s*audio/gi, "Video/Audio");
                     const isAudio = /audio|sound|singing|voice|music|song/i.test(f.name) || f.type === "AUDIO";
                     const isVideo = /video|dance|film|visual|acting|performance/i.test(f.name) || f.type === "VIDEO";
                     const isAudioOrVideo = isAudio || isVideo;
                     const acceptTypes = isAudioOrVideo ? ".mp3,audio/mpeg,audio/mp3" : "image/*,.pdf";
+
+                    // Default video fields to "link" to match AudioValidator enforcement
+                    const mode = entryModes[f.name] || (isVideo || f.type === "URL" || f.type === "PORTFOLIO_LINK" ? "link" : "file");
+                    const selectedFile = files[f.name];
+                    const enteredLink = links[f.name] || "";
 
                     return (
                       <div key={f.name} className="flex flex-col gap-2 rounded-2xl border border-[var(--border)] bg-[var(--surface-2)]/50 p-3">
