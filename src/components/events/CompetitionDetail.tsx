@@ -126,6 +126,19 @@ export default function CompetitionDetail({
   const isResultsPublished = comp.result_status === "PUBLISHED" || comp.results_published === true;
   const isVotingOpen = comp.audience_voting_enabled && comp.voting_status !== "CLOSED";
 
+  const isParticipant = Boolean(
+    enrollmentInfo?.reference ||
+    enrollmentInfo?.submission_id ||
+    step === "submit" ||
+    step === "done" ||
+    (user?.email &&
+      rows.some(
+        (r) =>
+          r.email?.toLowerCase() === user.email.toLowerCase() ||
+          r.participant_id?.toLowerCase() === user.email.toLowerCase()
+      ))
+  );
+
   // Authoritative enrollment check directly for this competition ID
   useEffect(() => {
     if (!user || !id) return;
@@ -515,6 +528,32 @@ export default function CompetitionDetail({
 
   async function doVote(pid?: string) {
     if (!pid || !user || voted.has(pid) || !isVotingOpen) return;
+
+    const isSelfVote =
+      Boolean(user.email) &&
+      (pid.toLowerCase() === user.email.toLowerCase() ||
+        rows.some(
+          (r) =>
+            (r.participant_id === pid || r.email === pid) &&
+            r.email?.toLowerCase() === user.email.toLowerCase()
+        ));
+
+    if (isSelfVote) {
+      setMsg({
+        tone: "err",
+        text: "Contestants cannot vote for their own submission.",
+      });
+      return;
+    }
+
+    if (isParticipant) {
+      setMsg({
+        tone: "err",
+        text: "Participants of this competition are not eligible to vote. Audience voting is restricted to audience members and fans.",
+      });
+      return;
+    }
+
     setVotingId(pid);
     try {
       await competeApi.vote(id, pid, "WEBSITE");
@@ -524,8 +563,12 @@ export default function CompetitionDetail({
           r.participant_id === pid ? { ...r, audience_votes: (r.audience_votes || 0) + 1 } : r
         )
       );
-    } catch {
-      /* ignore vote errors silently in UI feedback */
+      setMsg({ tone: "ok", text: "Vote submitted successfully!" });
+    } catch (e: any) {
+      setMsg({
+        tone: "err",
+        text: e?.message || "Failed to submit vote. Audience voting is restricted to non-contestants.",
+      });
     } finally {
       setVotingId(null);
     }
@@ -771,6 +814,11 @@ export default function CompetitionDetail({
               {rows.slice(0, 8).map((r, i) => {
                 const pid = r.participant_id || r.email || "";
                 const top = (r.rank ?? i + 1) <= 3;
+                const isSelfRow =
+                  Boolean(user?.email) &&
+                  (r.email?.toLowerCase() === user?.email?.toLowerCase() ||
+                    r.participant_id?.toLowerCase() === user?.email?.toLowerCase());
+
                 return (
                   <div key={pid + i} className="flex items-center gap-3 border-t border-[var(--border)] px-4 py-3 first:border-t-0">
                     <span
@@ -781,26 +829,46 @@ export default function CompetitionDetail({
                     </span>
                     <img src={imageFor(r.profile_photo, i)} alt="" className="size-9 shrink-0 rounded-full object-cover" />
                     <div className="min-w-0 flex-1">
-                      <p className="truncate text-[13.5px] font-semibold leading-tight">
-                        {r.name || "—"}{" "}
-                        {top && i === 0 && <Crown className="ml-0.5 inline size-3.5 text-[var(--accent)]" aria-hidden />}
-                      </p>
+                      <div className="flex items-center gap-1.5">
+                        <p className="truncate text-[13.5px] font-semibold leading-tight">
+                          {r.name || "—"}{" "}
+                          {top && i === 0 && <Crown className="ml-0.5 inline size-3.5 text-[var(--accent)]" aria-hidden />}
+                        </p>
+                        {isSelfRow && (
+                          <span className="rounded-md bg-[var(--accent)]/15 px-1.5 py-0.5 text-[10px] font-bold uppercase tracking-wider text-[var(--accent)]">
+                            You
+                          </span>
+                        )}
+                      </div>
                       <p className="truncate text-[11px] text-[var(--fg-subtle)]">{nf(r.audience_votes)} votes</p>
                     </div>
                     {isVotingOpen ? (
-                      <button
-                        onClick={() => doVote(pid)}
-                        disabled={!user || voted.has(pid) || votingId === pid}
-                        aria-label={`Vote for ${r.name}`}
-                        className="inline-flex shrink-0 items-center gap-1.5 rounded-full border border-[var(--border)] px-3 py-1.5 text-[12px] font-semibold transition-all enabled:hover:border-[var(--accent)] enabled:hover:text-[var(--accent)] disabled:opacity-50"
-                      >
-                        {votingId === pid ? (
-                          <Loader2 className="size-3.5 animate-spin" aria-hidden />
-                        ) : (
-                          <Heart className={`size-3.5 ${voted.has(pid) ? "fill-[var(--accent)] text-[var(--accent)]" : ""}`} aria-hidden />
-                        )}
-                        {voted.has(pid) ? "Voted" : "Vote"}
-                      </button>
+                      isSelfRow ? (
+                        <span className="inline-flex shrink-0 items-center rounded-full border border-[var(--border)] bg-[var(--surface-2)] px-3 py-1.5 text-[11px] font-semibold text-[var(--accent)]">
+                          Your Entry
+                        </span>
+                      ) : isParticipant ? (
+                        <span
+                          title="Participants of this competition cannot vote"
+                          className="inline-flex shrink-0 items-center rounded-full border border-[var(--border)] bg-[var(--surface-2)]/60 px-2.5 py-1.5 text-[10.5px] font-medium text-[var(--fg-subtle)]"
+                        >
+                          Ineligible to vote
+                        </span>
+                      ) : (
+                        <button
+                          onClick={() => doVote(pid)}
+                          disabled={!user || voted.has(pid) || votingId === pid}
+                          aria-label={`Vote for ${r.name}`}
+                          className="inline-flex shrink-0 items-center gap-1.5 rounded-full border border-[var(--border)] px-3 py-1.5 text-[12px] font-semibold transition-all enabled:hover:border-[var(--accent)] enabled:hover:text-[var(--accent)] disabled:opacity-50"
+                        >
+                          {votingId === pid ? (
+                            <Loader2 className="size-3.5 animate-spin" aria-hidden />
+                          ) : (
+                            <Heart className={`size-3.5 ${voted.has(pid) ? "fill-[var(--accent)] text-[var(--accent)]" : ""}`} aria-hidden />
+                          )}
+                          {voted.has(pid) ? "Voted" : "Vote"}
+                        </button>
+                      )
                     ) : (
                       <span className="text-[11px] font-mono text-[var(--fg-subtle)]">
                         {r.final_score != null ? `${nf(r.final_score)} pts` : `${nf(r.audience_votes)} votes`}
@@ -810,6 +878,12 @@ export default function CompetitionDetail({
                 );
               })}
             </div>
+          )}
+          {isParticipant && isVotingOpen && (
+            <p className="mt-2.5 flex items-center gap-1.5 text-[11.5px] text-[var(--fg-subtle)]">
+              <ShieldCheck className="size-3.5 text-[var(--accent)] shrink-0" />
+              <span>You are an official competitor in this competition. Audience voting is restricted to fans and audience members only.</span>
+            </p>
           )}
           {!user && rows.length > 0 && isVotingOpen && (
             <p className="mt-2.5 text-[12px] text-[var(--fg-subtle)]">
