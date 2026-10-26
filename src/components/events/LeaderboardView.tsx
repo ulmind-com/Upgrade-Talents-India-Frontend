@@ -83,7 +83,7 @@ function PodiumCard({ row, place }: { row: Row; place: 0 | 1 | 2 }) {
       <p className="mt-4 line-clamp-1 font-display text-[clamp(1.05rem,2.4vw,1.4rem)] font-bold leading-tight">{row.name || "—"}</p>
       <p className="text-[12.5px] text-[var(--fg-subtle)]">{handle(row)}</p>
 
-      <p className="mt-3 font-display text-[clamp(1.6rem,4vw,2.4rem)] font-bold leading-none text-gradient">{nf(row.final_score ?? row.audience_votes)}</p>
+      <p className="mt-3 font-display text-[clamp(1.6rem,4vw,2.4rem)] font-bold leading-none text-gradient">{nf(row.points ?? row.final_score ?? row.audience_votes)}</p>
       <p className="text-[10.5px] font-semibold uppercase tracking-[0.18em] text-[var(--fg-subtle)]">Points</p>
 
       <div className="mt-5 grid w-full grid-cols-2 gap-2">
@@ -131,7 +131,16 @@ export default function LeaderboardView({
 
   useEffect(() => {
     if (typeof window !== "undefined" && new URLSearchParams(window.location.search).has("preview")) setPreview(true);
-  }, []);
+    if (compId) {
+      pick(compId);
+    } else if (competitions && competitions.length > 0) {
+      const firstId = competitions[0]._id || competitions[0].id || "";
+      if (firstId) {
+        setCompId(firstId);
+        pick(firstId);
+      }
+    }
+  }, [compId, competitions]);
 
   // Real-time live scores via WebSocket
   useEffect(() => {
@@ -163,6 +172,7 @@ export default function LeaderboardView({
   }, [compId]);
 
   async function pick(id: string) {
+    if (!id) return;
     setCompId(id);
     setLoading(true);
     try {
@@ -172,12 +182,20 @@ export default function LeaderboardView({
     finally { setLoading(false); }
   }
 
-  const data = (rows.length ? rows : preview ? DEMO : []).map((r: any, i) => ({
-    ...r,
-    rank: r.rank ?? i + 1,
-    audience_votes: r.audience_votes ?? r.raw_audience_votes,
-    judge_score: r.judge_score ?? r.raw_judge_score,
-  }));
+  const data = (rows.length ? rows : preview ? DEMO : []).map((r: any, i) => {
+    const rawFinal = r.final_score ?? r.total_score ?? r.score ?? r.points;
+    const votes = Number(r.audience_votes ?? r.raw_audience_votes ?? 0);
+    const judge = Number(r.judge_score ?? r.raw_judge_score ?? 0);
+    const effectivePoints = (rawFinal != null && rawFinal > 0) ? rawFinal : (judge > 0 ? judge : votes);
+    return {
+      ...r,
+      rank: r.rank ?? i + 1,
+      audience_votes: votes,
+      judge_score: judge,
+      final_score: effectivePoints,
+      points: effectivePoints,
+    };
+  });
   const podium = data.slice(0, 3);
   const podiumOrder = [podium[1], podium[0], podium[2]].filter(Boolean) as Row[]; // 2 · 1 · 3
   const filtered = useMemo(
@@ -291,7 +309,7 @@ export default function LeaderboardView({
                           </td>
                           <td className="px-3 py-3.5 text-right tabular-nums text-[var(--fg-muted)]">{nf(r.audience_votes)}</td>
                           <td className="px-3 py-3.5 text-right tabular-nums text-[var(--fg-muted)]">{nf(r.judge_score)}</td>
-                          <td className="px-5 py-3.5 text-right font-display font-bold tabular-nums">{nf(r.final_score ?? r.audience_votes)}</td>
+                          <td className="px-5 py-3.5 text-right font-display font-bold tabular-nums">{nf(r.points ?? r.final_score ?? r.audience_votes)}</td>
                         </motion.tr>
                       );
                     })}

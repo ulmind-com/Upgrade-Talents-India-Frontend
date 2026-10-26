@@ -279,8 +279,6 @@ export const publicApi = {
 /* ─────────────── COMPETE (register / submit / vote — auth) ─────────────── */
 
 export const competeApi = {
-  eligibility: (id: string) =>
-    apiFetch<{ eligible: boolean; status: string; reason: string }>(`/api/v1/competitions/${id}/eligibility`, { auth: true, cache: "no-store" }),
   myRegistration: (id: string) =>
     apiFetch<{
       is_registered: boolean;
@@ -292,12 +290,14 @@ export const competeApi = {
       submission_id?: string;
       registered_at?: string;
     }>(`/api/v1/competitions/${id}/my-registration`, { auth: true, cache: "no-store" }),
+  eligibility: (id: string) =>
+    apiFetch<{ eligible: boolean; status: string; reason: string }>(`/api/v1/competitions/${id}/eligibility`, { auth: true, cache: "no-store" }),
   register: (id: string, rules_accepted = true) =>
     apiFetch<any>(`/api/v1/competitions/${id}/register`, { method: "POST", auth: true, query: { rules_accepted } }),
   submit: (id: string, files: File[], fieldNames: string[]) => {
     const fd = new FormData();
     files.forEach((f) => fd.append("files", f));
-    fd.append("field_names", fieldNames.join(", "));
+    fd.append("field_names", JSON.stringify(fieldNames));
     return apiFetch<any>(`/api/v1/competitions/${id}/submissions`, { method: "POST", auth: true, form: fd });
   },
   verifyPayment: (compId: string, body: {
