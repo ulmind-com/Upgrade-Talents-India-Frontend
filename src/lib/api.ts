@@ -258,6 +258,18 @@ export const publicApi = {
             )
           : []
     ),
+  competition: (id: string) =>
+    apiFetch<any>(`/api/activities/competitions/${id}`, { cache: "no-store" }).catch(() =>
+      apiFetch<any>(`/api/v1/competitions/${id}`, { cache: "no-store" })
+    ),
+  results: (id: string) =>
+    apiFetch<any>(`/api/v1/competitions/${id}/results`, { cache: "no-store" }),
+  contestantFeedbacks: (compId: string, submissionId: string) =>
+    apiFetch<any[]>(`/api/v1/competitions/${compId}/contestants/${submissionId}/feedbacks`, { cache: "no-store" }),
+  liveVoting: () =>
+    apiFetch<any[]>("/api/v1/users/me/home/live-voting", { auth: true, cache: "no-store" }).catch(() =>
+      apiFetch<any[]>("/api/public/users/me/home/live-voting", { cache: "no-store" }).catch(() => [])
+    ),
   leaderboard: (id: string) =>
     apiFetch<{ ranking_mode?: string; leaderboard?: any[] }>(`/api/v1/competitions/${id}/leaderboard`, { cache: "no-store" }),
   verifyCertificate: (token: string) =>
@@ -269,6 +281,17 @@ export const publicApi = {
 export const competeApi = {
   eligibility: (id: string) =>
     apiFetch<{ eligible: boolean; status: string; reason: string }>(`/api/v1/competitions/${id}/eligibility`, { auth: true, cache: "no-store" }),
+  myRegistration: (id: string) =>
+    apiFetch<{
+      is_registered: boolean;
+      is_confirmed: boolean;
+      status: string;
+      payment_status: string;
+      registration_reference?: string;
+      has_submitted?: boolean;
+      submission_id?: string;
+      registered_at?: string;
+    }>(`/api/v1/competitions/${id}/my-registration`, { auth: true, cache: "no-store" }),
   register: (id: string, rules_accepted = true) =>
     apiFetch<any>(`/api/v1/competitions/${id}/register`, { method: "POST", auth: true, query: { rules_accepted } }),
   submit: (id: string, files: File[], fieldNames: string[]) => {
@@ -283,8 +306,17 @@ export const competeApi = {
     razorpay_payment_id: string;
     razorpay_signature: string;
   }) => apiFetch<any>(`/api/v1/competitions/${compId}/verify-payment`, { method: "POST", auth: true, body }),
-  vote: (id: string, participant_id: string) =>
-    apiFetch<any>(`/api/v1/competitions/${id}/vote`, { method: "POST", auth: true, body: { participant_id, source: "WEBSITE" } }),
+  vote: (id: string, participant_id: string, source: "WEBSITE" | "MOBILE_APP" = "WEBSITE") =>
+    apiFetch<any>(`/api/v1/competitions/${id}/vote`, { method: "POST", auth: true, body: { participant_id, source } }),
+  results: (id: string) =>
+    apiFetch<any>(`/api/v1/competitions/${id}/results`, { cache: "no-store" }),
+  feedbacks: (compId: string, submissionId: string) =>
+    apiFetch<any[]>(`/api/v1/competitions/${compId}/contestants/${submissionId}/feedbacks`, { cache: "no-store" }),
+  socketUrl: (compId: string) => {
+    const wsProto = API_BASE.startsWith("https") ? "wss" : "ws";
+    const host = API_BASE.replace(/^https?:\/\//, "");
+    return `${wsProto}://${host}/ws/competitions/${compId}/public`;
+  },
 };
 
 /* ─────────────── SHOP (merchandise) ─────────────── */
@@ -451,7 +483,8 @@ export const notificationsApi = {
 /* ─────────────── CERTIFICATES & BADGES ─────────────── */
 
 export const certificatesApi = {
-  myCertificates: () => apiFetch<{ total: number; certificates: any[] }>("/api/users/me/certificates", { auth: true, cache: "no-store" }),
+  myCertificates: (p: { activity_id?: string; cert_type?: string; limit?: number; skip?: number } = {}) =>
+    apiFetch<{ total: number; certificates: any[] }>("/api/users/me/certificates", { auth: true, query: p, cache: "no-store" }),
   myBadges: () => apiFetch<{ total: number; badges: any[] }>("/api/users/me/badges", { auth: true, cache: "no-store" }),
   downloadPdf: async (certId: string) => {
     const res = await fetch(`${API_BASE}/api/users/me/certificates/${certId}/download`, {
@@ -497,6 +530,18 @@ export const registrationsApi = {
   remove: (id: string) => apiFetch<any>(`/api/registrations/${id}`, { method: "DELETE", auth: true }),
   verifyPayment: (body: any) =>
     apiFetch<any>("/api/registrations/verify-payment", { method: "POST", body, auth: true }),
+};
+
+/* ─────────────── WALLET & REWARDS ─────────────── */
+
+export const walletApi = {
+  wallet: () => apiFetch<any>("/api/rewards/wallet", { auth: true, cache: "no-store" }),
+  coins: () => apiFetch<any>("/api/rewards/coins", { auth: true, cache: "no-store" }),
+  calculateDiscount: (body: { item_id: string; item_type: string; coins_to_use?: number }) =>
+    apiFetch<any>("/api/rewards/calculate-discount", { method: "POST", auth: true, body }),
+  transactions: (p: { limit?: number; skip?: number } = {}) =>
+    apiFetch<any>("/api/rewards/transactions", { query: p, auth: true, cache: "no-store" }),
+  referralProfile: () => apiFetch<any>("/api/rewards/referral-profile", { auth: true, cache: "no-store" }),
 };
 
 /* ─────────────── AADHAAR KYC (DigiLocker) ─────────────── */

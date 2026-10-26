@@ -43,7 +43,12 @@ export default function DashboardPage() {
   const [ranks, setRanks] = useState<any[]>([]);
   const [certificates, setCertificates] = useState<any[]>([]);
   const [badges, setBadges] = useState<any[]>([]);
-  const [coinsData, setCoinsData] = useState<{ total_coins: number; history: any[] }>({ total_coins: 0, history: [] });
+  const [coinsData, setCoinsData] = useState<{
+    total_coins: number;
+    total_earned_coins?: number;
+    total_redeemed_coins?: number;
+    history: any[];
+  }>({ total_coins: 0, total_earned_coins: 0, total_redeemed_coins: 0, history: [] });
   const [referralData, setReferralData] = useState<any>(null);
   const [eventsRegistered, setEventsRegistered] = useState<any[]>([]);
   const [coursesRegistered, setCoursesRegistered] = useState<any[]>([]);
@@ -105,9 +110,14 @@ export default function DashboardPage() {
           setCertificates(d.my_certificates);
         }
         if (d.my_rewards_and_coins?.total_coins != null) {
+          const hist = Array.isArray(d.my_rewards_and_coins.coin_history) && d.my_rewards_and_coins.coin_history.length
+            ? d.my_rewards_and_coins.coin_history
+            : (Array.isArray(d.my_rewards_and_coins.reward_history) ? d.my_rewards_and_coins.reward_history : []);
           setCoinsData({
             total_coins: Number(d.my_rewards_and_coins.total_coins || 0),
-            history: Array.isArray(d.my_rewards_and_coins.reward_history) ? d.my_rewards_and_coins.reward_history : [],
+            total_earned_coins: Number(d.my_rewards_and_coins.total_earned_coins || 0),
+            total_redeemed_coins: Number(d.my_rewards_and_coins.total_redeemed_coins || 0),
+            history: hist,
           });
         }
       }
@@ -115,6 +125,8 @@ export default function DashboardPage() {
       if (cnRes.status === "fulfilled" && cnRes.value) {
         setCoinsData((prev) => ({
           total_coins: Math.max(prev.total_coins, Number(cnRes.value.total_coins || 0)),
+          total_earned_coins: Number(cnRes.value.total_earned_coins ?? prev.total_earned_coins ?? 0),
+          total_redeemed_coins: Number(cnRes.value.total_redeemed_coins ?? prev.total_redeemed_coins ?? 0),
           history: cnRes.value.history?.length ? cnRes.value.history : prev.history,
         }));
       }
@@ -343,7 +355,7 @@ export default function DashboardPage() {
                           </Badge>
                           {c.rank && (
                             <span className="inline-flex items-center gap-1 rounded-full bg-yellow-400/20 px-2.5 py-0.5 font-mono text-[11px] font-bold text-yellow-300">
-                              <Medal className="size-3" /> Rank #{c.rank}
+                              <Medal className="size-3" /> Rank #{c.rank} {c.score != null ? `(${c.score} pts)` : ""}
                             </span>
                           )}
                         </div>
@@ -362,6 +374,12 @@ export default function DashboardPage() {
                             <Clock className="size-3.5 text-[var(--fg-subtle)]" />
                             Registered: {formatEventDate(c.registered_at || c.created_at)}
                           </p>
+                          {c.submitted_at && (
+                            <p className="flex items-center gap-1.5 text-[var(--success)]">
+                              <CheckCircle2 className="size-3.5" />
+                              Submitted: {formatEventDate(c.submitted_at)}
+                            </p>
+                          )}
                           <div className="flex items-center gap-2 pt-1">
                             <span className="text-[var(--fg-subtle)]">Entry Status:</span>
                             {!isPaid ? (
@@ -370,7 +388,7 @@ export default function DashboardPage() {
                               </span>
                             ) : hasSubmitted ? (
                               <span className="inline-flex items-center gap-1 font-semibold text-[var(--success)]">
-                                <CheckCircle2 className="size-3.5" /> Video/Entry Submitted
+                                <CheckCircle2 className="size-3.5" /> Entry Submitted
                               </span>
                             ) : (
                               <span className="inline-flex items-center gap-1 font-semibold text-amber-400">
@@ -381,15 +399,23 @@ export default function DashboardPage() {
                         </div>
                       </div>
 
-                      <div className="mt-6 border-t border-[var(--border)] pt-4">
+                      <div className="mt-6 flex flex-col gap-2 border-t border-[var(--border)] pt-4">
                         <Link
                           href={`/competitions/${compId}`}
                           className="inline-flex w-full items-center justify-center gap-2 rounded-full py-2.5 text-xs font-bold text-[var(--on-accent)] transition-transform active:scale-95"
                           style={{ background: !isPaid ? "linear-gradient(135deg, #f59e0b, #ef4444)" : "var(--grad-brand)" }}
                         >
-                          {!isPaid ? "Complete Payment" : hasSubmitted ? "View Competition & Leaderboard" : "Upload Your Entry"}
+                          {!isPaid ? "Complete Payment" : hasSubmitted ? "View Competition" : "Upload Your Entry"}
                           <ArrowUpRight className="size-3.5" />
                         </Link>
+                        {hasSubmitted && (
+                          <Link
+                            href={`/competitions/${compId}/results`}
+                            className="inline-flex w-full items-center justify-center gap-2 rounded-full border border-[var(--border)] py-2 text-xs font-semibold text-[var(--fg)] hover:border-[var(--border-strong)] transition-colors"
+                          >
+                            <Trophy className="size-3.5 text-[var(--accent)]" /> Official Results &amp; Feedback
+                          </Link>
+                        )}
                       </div>
                     </motion.div>
                   );
@@ -885,8 +911,9 @@ function RewardsTab({ coinsData, referralData, user }: { coinsData: any; referra
 
   return (
     <div className="mt-10 flex flex-col gap-8">
-      {/* Coin Balance & Value Card */}
+      {/* Coin Balance & Breakdown Cards */}
       <div className="grid gap-6 md:grid-cols-3">
+        {/* Available Balance */}
         <div className="relative overflow-hidden rounded-[var(--radius-xl)] border border-amber-500/30 bg-gradient-to-br from-amber-500/15 via-[var(--surface)] to-[var(--surface)] p-6 shadow-xl">
           <span className="font-mono text-[11px] font-bold uppercase tracking-wider text-amber-400">Available Coin Balance</span>
           <div className="mt-3 flex items-baseline gap-2">
@@ -896,38 +923,36 @@ function RewardsTab({ coinsData, referralData, user }: { coinsData: any; referra
             <span className="font-bold text-amber-400">UTI Coins</span>
           </div>
           <p className="mt-2 text-xs text-[var(--fg-muted)]">
-            Redeemable value: <span className="font-bold text-white">₹{coinsData.total_coins} INR</span> on ticket and fee checkouts.
+            Active balance available for course/workshop discounts &amp; fee checkouts.
           </p>
         </div>
 
-        {/* Referral Earnings Card */}
-        <div className="relative overflow-hidden rounded-[var(--radius-xl)] border border-[var(--border)] bg-[var(--surface)] p-6">
-          <span className="font-mono text-[11px] font-bold uppercase tracking-wider text-[var(--accent)]">Referral Earnings</span>
+        {/* Total Earned Coins */}
+        <div className="relative overflow-hidden rounded-[var(--radius-xl)] border border-emerald-500/30 bg-gradient-to-br from-emerald-500/10 via-[var(--surface)] to-[var(--surface)] p-6">
+          <span className="font-mono text-[11px] font-bold uppercase tracking-wider text-emerald-400">Total Coins Earned</span>
           <div className="mt-3 flex items-baseline gap-2">
-            <span className="font-display text-4xl font-black text-white tabular-nums">
-              {referralData?.rewards_earned ?? referralData?.total_coins_earned ?? coinsData.total_coins}
+            <span className="font-display text-4xl font-black text-emerald-300 tabular-nums">
+              {coinsData.total_earned_coins ?? referralData?.rewards_earned ?? coinsData.total_coins}
             </span>
-            <span className="font-bold text-[var(--fg-muted)]">Earned</span>
+            <span className="font-bold text-emerald-500/80">Earned</span>
           </div>
           <p className="mt-2 text-xs text-[var(--fg-muted)]">
-            Friends referred: <span className="font-bold text-white">{referralData?.total_referrals ?? 0}</span>
+            Referrals: <span className="font-bold text-white">{referralData?.total_referrals ?? 0}</span> friends joined
           </p>
         </div>
 
-        {/* Benefits Card */}
-        <div className="relative overflow-hidden rounded-[var(--radius-xl)] border border-[var(--border)] bg-[var(--surface)] p-6">
-          <span className="font-mono text-[11px] font-bold uppercase tracking-wider text-green-400">Coin Perks</span>
-          <ul className="mt-3 space-y-1.5 text-xs text-[var(--fg-muted)]">
-            <li className="flex items-center gap-1.5 text-white">
-              <Check className="size-3.5 text-green-400" /> Instant discount on paid event tickets
-            </li>
-            <li className="flex items-center gap-1.5 text-white">
-              <Check className="size-3.5 text-green-400" /> Use coins for competition entries
-            </li>
-            <li className="flex items-center gap-1.5 text-white">
-              <Check className="size-3.5 text-green-400" /> Exclusive merchandise discounts
-            </li>
-          </ul>
+        {/* Total Spent / Redeemed Coins */}
+        <div className="relative overflow-hidden rounded-[var(--radius-xl)] border border-rose-500/30 bg-gradient-to-br from-rose-500/10 via-[var(--surface)] to-[var(--surface)] p-6">
+          <span className="font-mono text-[11px] font-bold uppercase tracking-wider text-rose-400">Total Coins Spent / Redeemed</span>
+          <div className="mt-3 flex items-baseline gap-2">
+            <span className="font-display text-4xl font-black text-rose-300 tabular-nums">
+              {coinsData.total_redeemed_coins ?? 0}
+            </span>
+            <span className="font-bold text-rose-500/80">Redeemed</span>
+          </div>
+          <p className="mt-2 text-xs text-[var(--fg-muted)]">
+            Used as discounts on courses, workshops, and purchases.
+          </p>
         </div>
       </div>
 

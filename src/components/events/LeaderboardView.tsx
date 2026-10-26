@@ -5,8 +5,9 @@ import { motion } from "framer-motion";
 import { Crown, Medal, Trophy, Flame, Search, ChevronDown, Users, Sparkles, Vote, Gavel } from "lucide-react";
 import { Reveal, StaggerGroup, StaggerItem } from "@/components/motion/Reveal";
 import { SectionLabel } from "@/components/ui/Primitives";
-import { publicApi } from "@/lib/api";
+import { publicApi, competeApi } from "@/lib/api";
 import { imageFor } from "@/lib/utils";
+import Link from "next/link";
 
 type Row = {
   rank?: number;
@@ -131,6 +132,35 @@ export default function LeaderboardView({
   useEffect(() => {
     if (typeof window !== "undefined" && new URLSearchParams(window.location.search).has("preview")) setPreview(true);
   }, []);
+
+  // Real-time live scores via WebSocket
+  useEffect(() => {
+    if (!compId || typeof window === "undefined") return;
+    let ws: WebSocket | null = null;
+    try {
+      ws = new WebSocket(competeApi.socketUrl(compId));
+      ws.onmessage = (ev) => {
+        try {
+          const payload = JSON.parse(ev.data);
+          if (payload.type === "INITIAL_STATE" && Array.isArray(payload.leaderboard)) {
+            setRows(payload.leaderboard);
+          } else if (
+            payload.type === "LEADERBOARD_UPDATED" ||
+            payload.type === "SCORE_SUBMITTED" ||
+            payload.type === "LIVE_SCORE_BROADCAST"
+          ) {
+            publicApi.leaderboard(compId).then((d) => {
+              if (Array.isArray(d?.leaderboard)) setRows(d.leaderboard);
+            }).catch(() => {});
+          }
+        } catch {}
+      };
+    } catch {}
+
+    return () => {
+      if (ws && ws.readyState === WebSocket.OPEN) ws.close();
+    };
+  }, [compId]);
 
   async function pick(id: string) {
     setCompId(id);

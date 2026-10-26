@@ -13,6 +13,10 @@ type Comp = {
   description?: string; prize?: string;
   image_url?: string; registration_deadline?: string;
   is_published?: boolean; status?: string;
+  voting_status?: "OPEN" | "CLOSED";
+  result_status?: "PENDING" | "APPROVED" | "PUBLISHED";
+  results_published?: boolean;
+  audience_voting_enabled?: boolean;
 };
 
 const cid = (c: Comp) => c._id || c.id || "";
@@ -58,23 +62,40 @@ export default function CompetitionsListing({ items }: { items: Comp[] }) {
         <StaggerGroup className="mt-9 grid gap-6 sm:grid-cols-2 lg:grid-cols-3">
           {list.map((c, i) => {
             const open = isOpen(c);
+            const isResults = c.result_status === "PUBLISHED" || c.results_published === true;
+            const isLiveVoting = c.audience_voting_enabled && c.voting_status === "OPEN";
+
             return (
               <StaggerItem key={cid(c) || i}>
                 <Link
-                  href={`/competitions/${cid(c)}`}
+                  href={isResults ? `/competitions/${cid(c)}/results` : `/competitions/${cid(c)}`}
                   className="group relative flex h-full flex-col overflow-hidden rounded-[var(--radius-lg)] border border-[var(--border)] bg-[var(--surface)] transition-all duration-500 hover:-translate-y-1 hover:border-[var(--border-strong)]"
                 >
                   <div className="relative aspect-[16/10] overflow-hidden">
                     <img src={imageFor(c.image_url, i)} alt="" className="size-full object-cover transition-transform duration-[1.1s] group-hover:scale-110" />
                     <span className="absolute inset-0 bg-gradient-to-t from-black/70 via-black/10 to-transparent" aria-hidden />
-                    <span
-                      className="absolute left-3 top-3 rounded-full px-3 py-1 text-[10.5px] font-bold uppercase tracking-wider backdrop-blur-md"
-                      style={open
-                        ? { background: "color-mix(in srgb, var(--success) 22%, transparent)", color: "var(--success)" }
-                        : { background: "rgba(0,0,0,0.5)", color: "rgba(255,255,255,0.85)" }}
-                    >
-                      {open ? "Open" : "Closed"}
-                    </span>
+                    
+                    <div className="absolute left-3 top-3 flex flex-wrap gap-1.5">
+                      {isResults ? (
+                        <span className="rounded-full bg-emerald-500/90 px-3 py-1 text-[10.5px] font-bold uppercase tracking-wider text-black shadow-md backdrop-blur-md">
+                          Results Out
+                        </span>
+                      ) : isLiveVoting ? (
+                        <span className="rounded-full bg-rose-500/90 px-3 py-1 text-[10.5px] font-bold uppercase tracking-wider text-white shadow-md backdrop-blur-md animate-pulse">
+                          Live Voting
+                        </span>
+                      ) : (
+                        <span
+                          className="rounded-full px-3 py-1 text-[10.5px] font-bold uppercase tracking-wider backdrop-blur-md"
+                          style={open
+                            ? { background: "color-mix(in srgb, var(--success) 22%, transparent)", color: "var(--success)" }
+                            : { background: "rgba(0,0,0,0.5)", color: "rgba(255,255,255,0.85)" }}
+                        >
+                          {open ? "Open" : "Closed"}
+                        </span>
+                      )}
+                    </div>
+
                     {c.prize && (
                       <span className="absolute right-3 top-3 inline-flex items-center gap-1 rounded-full px-3 py-1 text-[11px] font-bold text-[var(--on-accent)]" style={{ background: "var(--grad-brand)" }}>
                         <Trophy className="size-3" aria-hidden /> {c.prize}
@@ -89,7 +110,7 @@ export default function CompetitionsListing({ items }: { items: Comp[] }) {
                         <Calendar className="size-3.5" aria-hidden /> {c.registration_deadline ? formatEventDate(c.registration_deadline) : "Open entry"}
                       </span>
                       <span className="inline-flex items-center gap-1 text-[12.5px] font-semibold text-[var(--accent)]">
-                        Enter <ArrowUpRight className="size-3.5 transition-transform group-hover:translate-x-0.5 group-hover:-translate-y-0.5" aria-hidden />
+                        {isResults ? "View Results" : "Enter"} <ArrowUpRight className="size-3.5 transition-transform group-hover:translate-x-0.5 group-hover:-translate-y-0.5" aria-hidden />
                       </span>
                     </div>
                   </div>
