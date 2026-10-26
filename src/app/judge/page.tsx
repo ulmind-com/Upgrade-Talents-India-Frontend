@@ -143,6 +143,36 @@ export default function JudgeDashboardPage() {
         };
       });
 
+      // Synchronize with public leaderboard participants so ALL enrolled competitors appear in judges panel
+      const existingEmails = new Set(
+        enriched.map((c) => (c.user_email || "").toLowerCase().trim()).filter(Boolean)
+      );
+
+      for (const r of lbRows) {
+        const em = (r.email || r.participant_id || "").toLowerCase().trim();
+        if (em && !existingEmails.has(em)) {
+          existingEmails.add(em);
+          const emailName = em
+            ? em.split("@")[0].replace(/[._-]/g, " ").replace(/\b\w/g, (l: string) => l.toUpperCase())
+            : "Contestant";
+
+          enriched.push({
+            _id: r.submission_id || `reg_${em}`,
+            competition_id: compId,
+            user_email: em,
+            user_name: r.name || emailName,
+            profile_photo: r.profile_photo || "",
+            status: r.submission_id ? "Submitted" : "Registered",
+            submission_url: "",
+            parsed_files: [],
+            is_scored: Boolean(r.judge_average && r.judge_average > 0),
+            has_scored: Boolean(r.judge_average && r.judge_average > 0),
+            total_score: r.judge_average,
+            my_score: r.judge_average,
+          });
+        }
+      }
+
       setContestants(enriched);
     } catch (err: any) {
       if (err?.message?.includes("PIN")) {
@@ -753,6 +783,19 @@ export default function JudgeDashboardPage() {
                       </div>
                     )}
 
+                    {/* Awaiting Media Upload Notice (When contestant has enrolled/registered but has not submitted files yet) */}
+                    {!activeContestant.submission_url && (!activeContestant.parsed_files || activeContestant.parsed_files.length === 0) && (
+                      <div className="flex items-start gap-3 rounded-2xl border border-amber-500/35 bg-amber-500/10 p-4 text-xs text-amber-300 shadow-sm">
+                        <AlertCircle className="size-5 shrink-0 text-amber-400 mt-0.5" />
+                        <div>
+                          <p className="font-bold text-sm text-amber-200">Awaiting Performance Media</p>
+                          <p className="mt-1 text-amber-300/80 leading-relaxed">
+                            This contestant is officially registered in this competition, but has not yet uploaded their performance audition (YouTube link or MP3 audio).
+                          </p>
+                        </div>
+                      </div>
+                    )}
+
                     {/* Locked / Already Scored Official Banner */}
                     {isAlreadyScored && (
                       <div className="flex items-center gap-3.5 rounded-2xl border border-emerald-500/35 bg-emerald-500/10 p-4 text-emerald-300 shadow-md">
@@ -903,9 +946,10 @@ export default function JudgeDashboardPage() {
                               type="button"
                               variant="outline"
                               size="md"
+                              disabled={activeContestant._id.startsWith("reg_")}
                               loading={savingDraft}
                               onClick={handleSaveDraft}
-                              className="gap-1.5"
+                              className="gap-1.5 disabled:opacity-50"
                             >
                               <Save className="size-4" /> Save Draft
                             </Button>
@@ -914,11 +958,12 @@ export default function JudgeDashboardPage() {
                               type="button"
                               variant="primary"
                               size="md"
+                              disabled={activeContestant._id.startsWith("reg_")}
                               loading={submittingScore}
                               onClick={handleSubmitScore}
-                              className="gap-1.5"
+                              className="gap-1.5 disabled:opacity-50"
                             >
-                              <Send className="size-4" /> Submit Official Score
+                              <Send className="size-4" /> {activeContestant._id.startsWith("reg_") ? "Awaiting Performance Upload" : "Submit Official Score"}
                             </Button>
                           </div>
                         </>
