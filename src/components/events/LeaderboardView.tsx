@@ -1,8 +1,9 @@
 "use client";
 
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useState, useCallback } from "react";
+import { useSearchParams, useRouter, usePathname } from "next/navigation";
 import { motion } from "framer-motion";
-import { Crown, Medal, Trophy, Flame, Search, ChevronDown, Users, Sparkles, Vote, Gavel } from "lucide-react";
+import { Crown, Medal, Trophy, Flame, Search, ChevronDown, Users, Sparkles, Vote, Gavel, ExternalLink } from "lucide-react";
 import { Reveal, StaggerGroup, StaggerItem } from "@/components/motion/Reveal";
 import { SectionLabel } from "@/components/ui/Primitives";
 import { publicApi, competeApi } from "@/lib/api";
@@ -123,24 +124,99 @@ export default function LeaderboardView({
   initialCompId?: string;
   initialRows: Row[];
 }) {
-  const [compId, setCompId] = useState(initialCompId || "");
+  const searchParams = useSearchParams();
+  const router = useRouter();
+  const pathname = usePathname();
+
+  const urlCompId =
+    searchParams?.get("competition") ||
+    searchParams?.get("comp_id") ||
+    searchParams?.get("id") ||
+    "";
+
+  // Prioritize URL query param, then initialCompId prop, then first competition
+  const effectiveInitialId =
+    urlCompId ||
+    initialCompId ||
+    competitions?.[0]?._id ||
+    competitions?.[0]?.id ||
+    "";
+
+  const [compId, setCompId] = useState<string>(effectiveInitialId);
+  const [compList, setCompList] = useState<Comp[]>(competitions || []);
   const [rows, setRows] = useState<Row[]>(initialRows || []);
   const [loading, setLoading] = useState(false);
   const [q, setQ] = useState("");
   const [preview, setPreview] = useState(false);
 
-  useEffect(() => {
-    if (typeof window !== "undefined" && new URLSearchParams(window.location.search).has("preview")) setPreview(true);
-    if (compId) {
-      pick(compId);
-    } else if (competitions && competitions.length > 0) {
-      const firstId = competitions[0]._id || competitions[0].id || "";
-      if (firstId) {
-        setCompId(firstId);
-        pick(firstId);
-      }
+  const pick = useCallback(async (id: string) => {
+    if (!id) return;
+    setLoading(true);
+    try {
+      const d = await publicApi.leaderboard(id);
+      setRows(Array.isArray(d?.leaderboard) ? d.leaderboard : []);
+    } catch {
+      setRows([]);
+    } finally {
+      setLoading(false);
     }
-  }, [compId, competitions]);
+  }, []);
+
+  // Sync competition list when competitions prop updates
+  useEffect(() => {
+    if (Array.isArray(competitions) && competitions.length > 0) {
+      setCompList((prev) => {
+        const map = new Map<string, Comp>();
+        for (const c of competitions) {
+          const cid = c._id || c.id;
+          if (cid) map.set(cid, c);
+        }
+        for (const c of prev) {
+          const cid = c._id || c.id;
+          if (cid && !map.has(cid)) map.set(cid, c);
+        }
+        return Array.from(map.values());
+      });
+    }
+  }, [competitions]);
+
+  // If active compId is not present in dropdown list, fetch single competition details
+  useEffect(() => {
+    if (compId && !compList.some((c) => (c._id || c.id) === compId)) {
+      publicApi.competition(compId).then((single) => {
+        if (single && (single._id || single.id)) {
+          setCompList((prev) => {
+            const sid = single._id || single.id;
+            if (prev.some((c) => (c._id || c.id) === sid)) return prev;
+            return [single, ...prev];
+          });
+        }
+      }).catch(() => {});
+    }
+  }, [compId, compList]);
+
+  // Detect URL search param change (e.g. user navigation or browser back/forward)
+  useEffect(() => {
+    if (urlCompId && urlCompId !== compId) {
+      setCompId(urlCompId);
+      pick(urlCompId);
+    }
+  }, [urlCompId, compId, pick]);
+
+  // Sync server initial props if initialCompId changed and no conflicting urlCompId
+  useEffect(() => {
+    if (initialCompId && initialCompId !== compId && !urlCompId) {
+      setCompId(initialCompId);
+      setRows(initialRows || []);
+    }
+  }, [initialCompId, initialRows, compId, urlCompId]);
+
+  // Preview query check
+  useEffect(() => {
+    if (typeof window !== "undefined" && new URLSearchParams(window.location.search).has("preview")) {
+      setPreview(true);
+    }
+  }, []);
 
   // Real-time live scores via WebSocket
   useEffect(() => {
@@ -171,16 +247,19 @@ export default function LeaderboardView({
     };
   }, [compId]);
 
-  async function pick(id: string) {
-    if (!id) return;
-    setCompId(id);
-    setLoading(true);
-    try {
-      const d = await publicApi.leaderboard(id);
-      setRows(d?.leaderboard || []);
-    } catch { setRows([]); }
-    finally { setLoading(false); }
-  }
+  const handleSelectComp = (newId: string) => {
+    if (!newId) return;
+    setCompId(newId);
+    pick(newId);
+    // Sync browser URL query string without reloading page
+    const params = new URLSearchParams(searchParams?.toString() || "");
+    params.set("competition", newId);
+    router.replace(`${pathname}?${params.toString()}`, { scroll: false });
+  };
+
+  const activeComp = useMemo(() => {
+    return compList.find((c) => (c._id || c.id) === compId);
+  }, [compList, compId]);
 
   const data = (rows.length ? rows : preview ? DEMO : []).map((r: any, i) => {
     const rawFinal = r.final_score ?? r.total_score ?? r.score ?? r.points;
@@ -196,6 +275,7 @@ export default function LeaderboardView({
       points: effectivePoints,
     };
   });
+
   const podium = data.slice(0, 3);
   const podiumOrder = [podium[1], podium[0], podium[2]].filter(Boolean) as Row[]; // 2 · 1 · 3
   const filtered = useMemo(
@@ -210,18 +290,40 @@ export default function LeaderboardView({
         <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
           <div>
             <SectionLabel>Live rankings</SectionLabel>
-            <h2 className="mt-2 font-display text-[clamp(1.8rem,4.5vw,3rem)] font-bold leading-[0.95]">Global Ranking</h2>
+            <h2 className="mt-2 font-display text-[clamp(1.8rem,4.5vw,3rem)] font-bold leading-[0.95]">
+              {activeComp?.title || activeComp?.name || "Global Ranking"}
+            </h2>
+            {compId && (
+              <div className="mt-2 flex flex-wrap items-center gap-3 text-xs text-[var(--fg-subtle)]">
+                <span>Official Live Standings</span>
+                <span>•</span>
+                <Link
+                  href={`/competitions/${compId}`}
+                  className="font-medium text-[var(--accent)] hover:underline inline-flex items-center gap-1"
+                >
+                  Competition info <ExternalLink className="size-3" />
+                </Link>
+                <Link
+                  href={`/competitions/${compId}/results`}
+                  className="font-medium text-[var(--fg-muted)] hover:text-[var(--accent)] hover:underline inline-flex items-center gap-1"
+                >
+                  Results &amp; winners →
+                </Link>
+              </div>
+            )}
           </div>
-          {competitions.length > 0 && (
+          {compList.length > 0 && (
             <div className="relative">
               <select
                 value={compId}
-                onChange={(e) => pick(e.target.value)}
+                onChange={(e) => handleSelectComp(e.target.value)}
                 aria-label="Choose competition"
                 className="appearance-none rounded-full border border-[var(--border)] bg-[var(--surface)] py-2.5 pl-5 pr-11 text-[13.5px] font-semibold text-[var(--fg)] outline-none transition-colors hover:border-[var(--border-strong)] focus-visible:ring-2 focus-visible:ring-[var(--ring)]"
               >
-                {competitions.map((c) => (
-                  <option key={c._id || c.id} value={c._id || c.id}>{c.title || c.name || "Competition"}</option>
+                {compList.map((c) => (
+                  <option key={c._id || c.id} value={c._id || c.id}>
+                    {c.title || c.name || "Competition"}
+                  </option>
                 ))}
               </select>
               <ChevronDown className="pointer-events-none absolute right-4 top-1/2 size-4 -translate-y-1/2 text-[var(--fg-subtle)]" aria-hidden />
@@ -233,11 +335,21 @@ export default function LeaderboardView({
       {data.length === 0 ? (
         <Reveal>
           <div className="mt-10 grid place-items-center rounded-[var(--radius-xl)] border border-dashed border-[var(--border-strong)] bg-[var(--surface)] px-6 py-20 text-center">
-            <span className="grid size-16 place-items-center rounded-full bg-[var(--surface-2)]"><Trophy className="size-7 text-[var(--fg-subtle)]" aria-hidden /></span>
+            <span className="grid size-16 place-items-center rounded-full bg-[var(--surface-2)]">
+              <Trophy className="size-7 text-[var(--fg-subtle)]" aria-hidden />
+            </span>
             <p className="mt-5 font-display text-xl font-bold">No rankings yet</p>
             <p className="mt-1.5 max-w-sm text-[13.5px] text-[var(--fg-muted)]">
-              Rankings appear here once a competition goes live and judging or voting begins.
+              Rankings for <span className="font-semibold text-[var(--fg)]">{activeComp?.title || "this competition"}</span> appear here once contestants are scored or audience votes begin.
             </p>
+            {compId && (
+              <Link
+                href={`/competitions/${compId}`}
+                className="mt-5 inline-flex items-center justify-center gap-2 rounded-full border border-[var(--border)] px-5 py-2.5 text-xs font-semibold hover:border-[var(--border-strong)] transition-colors"
+              >
+                View Competition &amp; Submit Entry
+              </Link>
+            )}
           </div>
         </Reveal>
       ) : (

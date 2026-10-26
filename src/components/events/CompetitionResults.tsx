@@ -237,8 +237,8 @@ export default function CompetitionResults({
               <ArrowLeft className="size-3.5" /> Back to Competition
             </Link>
             <Link
-              href="/leaderboard"
-              className="inline-flex items-center gap-2 rounded-full border border-[var(--border)] py-2.5 px-5 text-xs font-semibold hover:border-[var(--border-strong)]"
+              href={`/leaderboard?competition=${compId}`}
+              className="inline-flex items-center gap-2 rounded-full border border-[var(--border)] py-2.5 px-5 text-xs font-semibold hover:border-[var(--border-strong)] transition-colors"
             >
               View Provisional Leaderboard
             </Link>

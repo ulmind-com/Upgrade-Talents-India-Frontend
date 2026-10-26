@@ -756,7 +756,7 @@ export default function CompetitionDetail({
                 View Certified Results →
               </Link>
             ) : (
-              <Link href="/leaderboard" className="text-[12.5px] font-semibold text-[var(--accent)] hover:underline">
+              <Link href={`/leaderboard?competition=${id}`} className="text-[12.5px] font-semibold text-[var(--accent)] hover:underline">
                 Full leaderboard →
               </Link>
             )}
@@ -1096,10 +1096,10 @@ export default function CompetitionDetail({
                   )}
 
                   <Link
-                    href="/leaderboard"
-                    className="inline-flex w-full items-center justify-center gap-2 rounded-full border border-[var(--border)] py-2.5 text-xs font-semibold hover:border-[var(--border-strong)]"
+                    href={`/leaderboard?competition=${id}`}
+                    className="inline-flex w-full items-center justify-center gap-2 rounded-full border border-[var(--border)] py-2.5 text-xs font-semibold hover:border-[var(--border-strong)] transition-colors"
                   >
-                    View Global Leaderboard
+                    <Trophy className="size-3.5 text-[var(--accent)]" /> View Competition Leaderboard
                   </Link>
                 </div>
               </div>

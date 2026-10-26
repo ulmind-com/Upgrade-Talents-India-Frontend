@@ -1,4 +1,5 @@
 import type { Metadata } from "next";
+import { Suspense } from "react";
 import PageHero from "@/components/events/PageHero";
 import LeaderboardView from "@/components/events/LeaderboardView";
 import { publicApi, safe } from "@/lib/api";
@@ -10,11 +11,40 @@ export const metadata: Metadata = {
 export const dynamic = "force-dynamic";
 export const revalidate = 0;
 
-export default async function LeaderboardPage() {
+type Props = {
+  searchParams?: Promise<{ [key: string]: string | string[] | undefined }>;
+};
+
+export default async function LeaderboardPage({ searchParams }: Props) {
+  const resolvedParams = searchParams ? await searchParams : {};
+  const requestedCompId =
+    (typeof resolvedParams?.competition === "string"
+      ? resolvedParams.competition
+      : typeof resolvedParams?.comp_id === "string"
+      ? resolvedParams.comp_id
+      : typeof resolvedParams?.id === "string"
+      ? resolvedParams.id
+      : "") || "";
+
   const comps = await safe(publicApi.competitions({ limit: 50 }), []);
-  const first = comps?.[0];
-  const firstId = first?._id || first?.id || "";
-  const initial = firstId ? await safe(publicApi.leaderboard(firstId), { leaderboard: [] }) : { leaderboard: [] };
+
+  // Find if requested competition is already in the fetched list
+  let targetComp = requestedCompId
+    ? comps.find((c: any) => (c._id || c.id) === requestedCompId)
+    : null;
+
+  // If requested competition is not in the list (e.g. older/custom id), fetch directly
+  if (!targetComp && requestedCompId) {
+    const single = await safe(publicApi.competition(requestedCompId), null);
+    if (single && (single._id || single.id)) {
+      comps.unshift(single);
+      targetComp = single;
+    }
+  }
+
+  const selectedComp = targetComp || comps?.[0];
+  const selectedId = selectedComp?._id || selectedComp?.id || requestedCompId || "";
+  const initial = selectedId ? await safe(publicApi.leaderboard(selectedId), { leaderboard: [] }) : { leaderboard: [] };
 
   return (
     <>
@@ -24,7 +54,13 @@ export default async function LeaderboardPage() {
         seed={3}
         compact
       />
-      <LeaderboardView competitions={comps || []} initialCompId={firstId} initialRows={initial?.leaderboard || []} />
+      <Suspense fallback={<div className="container-x py-24 text-center text-sm text-[var(--fg-subtle)]">Loading competition standings…</div>}>
+        <LeaderboardView
+          competitions={comps || []}
+          initialCompId={selectedId}
+          initialRows={initial?.leaderboard || []}
+        />
+      </Suspense>
     </>
   );
 }
