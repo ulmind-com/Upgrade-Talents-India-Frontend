@@ -12,7 +12,7 @@ import { Reveal, StaggerGroup, StaggerItem } from "@/components/motion/Reveal";
 import { SectionLabel, Badge } from "@/components/ui/Primitives";
 import { useAuth } from "@/components/motion/Providers";
 import { competeApi, profileApi, publicApi, certificatesApi } from "@/lib/api";
-import { imageFor, formatEventDate } from "@/lib/utils";
+import { imageFor, formatEventDate, cn } from "@/lib/utils";
 
 type RulesObj = {
   terms_and_conditions?: string;
@@ -639,8 +639,8 @@ export default function CompetitionDetail({
   }
 
   return (
-    <section className="container-x relative grid gap-10 pb-24 pt-10 md:pt-14 lg:grid-cols-[1fr_380px]">
-      {/* ── Left: info ── */}
+    <section className={cn("container-x relative pb-24 pt-10 md:pt-14", step === "done" ? "max-w-5xl mx-auto" : "grid gap-10 lg:grid-cols-[1fr_380px]")}>
+      {/* ── Left / Main: info ── */}
       <div className="min-w-0">
         {/* Results Published Announcement Banner */}
         {isResultsPublished && (
@@ -667,6 +667,88 @@ export default function CompetitionDetail({
             >
               View Certified Results →
             </Link>
+          </motion.div>
+        )}
+
+        {/* Enrolled & Audition Entry Submitted Banner (Shows when user has submitted, replacing bulky right card) */}
+        {step === "done" && (
+          <motion.div
+            initial={{ opacity: 0, y: -10 }}
+            animate={{ opacity: 1, y: 0 }}
+            className="mb-8 overflow-hidden rounded-2xl border border-emerald-500/35 bg-gradient-to-br from-emerald-500/15 via-[var(--surface)] to-[var(--surface)] p-5 shadow-lg"
+          >
+            <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-4">
+              <div className="flex items-start sm:items-center gap-3.5">
+                <div className="grid size-12 shrink-0 place-items-center rounded-2xl border border-emerald-500/40 bg-emerald-500/20 text-emerald-400 shadow-sm">
+                  <CheckCircle2 className="size-6" />
+                </div>
+                <div>
+                  <div className="flex flex-wrap items-center gap-2">
+                    <span className="font-display font-bold text-sm sm:text-base text-emerald-200">
+                      Enrolled &amp; Audition Entry Submitted
+                    </span>
+                    <span className="rounded-full bg-emerald-500/20 px-2.5 py-0.5 text-[10px] font-bold text-emerald-300">
+                      {isResultsPublished ? "Completed & Judged" : "Under Review"}
+                    </span>
+                  </div>
+                  <p className="mt-1 text-xs text-[var(--fg-muted)]">
+                    Your audition entry is securely recorded and queued for the judging panel.
+                  </p>
+                </div>
+              </div>
+
+              {/* Status Badges & Quick Action Pills */}
+              <div className="flex flex-wrap items-center gap-2.5 pt-2 md:pt-0">
+                {enrollmentInfo?.reference && (
+                  <div className="rounded-xl border border-[var(--border)] bg-[var(--surface-2)] px-3 py-1.5 text-xs">
+                    <span className="text-[var(--fg-subtle)] mr-1.5">Ref:</span>
+                    <span className="font-mono font-bold text-[var(--fg)]">{enrollmentInfo.reference}</span>
+                  </div>
+                )}
+
+                {enrollmentInfo?.submitted_at && (
+                  <div className="rounded-xl border border-[var(--border)] bg-[var(--surface-2)] px-3 py-1.5 text-xs">
+                    <span className="text-[var(--fg-subtle)] mr-1.5">Submitted:</span>
+                    <span className="text-[var(--fg)] font-medium">{formatEventDate(enrollmentInfo.submitted_at)}</span>
+                  </div>
+                )}
+
+                {enrollmentInfo?.rank && (
+                  <div className="rounded-xl border border-[var(--border)] bg-[var(--surface-2)] px-3 py-1.5 text-xs">
+                    <span className="text-[var(--fg-subtle)] mr-1.5">Rank:</span>
+                    <span className="font-display font-bold text-[var(--accent)]">#{enrollmentInfo.rank}</span>
+                  </div>
+                )}
+
+                {userCert && (
+                  <button
+                    onClick={handleDownloadCert}
+                    disabled={downloadingCert}
+                    className="inline-flex items-center gap-1.5 rounded-full border border-amber-500/40 bg-amber-500/15 px-3.5 py-1.5 text-xs font-bold text-amber-300 transition-colors hover:bg-amber-500/25"
+                  >
+                    {downloadingCert ? <Loader2 className="size-3.5 animate-spin" /> : <Award className="size-3.5" />}
+                    Certificate
+                  </button>
+                )}
+
+                {isResultsPublished ? (
+                  <Link
+                    href={`/competitions/${id}/results`}
+                    className="inline-flex items-center gap-1.5 rounded-full px-4 py-1.5 text-xs font-bold text-[var(--on-accent)] shadow-md"
+                    style={{ background: "var(--grad-brand)" }}
+                  >
+                    <Trophy className="size-3.5" /> Results &amp; Feedback
+                  </Link>
+                ) : (
+                  <Link
+                    href={`/leaderboard?competition=${id}`}
+                    className="inline-flex items-center gap-1.5 rounded-full border border-[var(--border)] bg-[var(--surface)] px-3.5 py-1.5 text-xs font-semibold text-[var(--fg)] hover:border-[var(--border-strong)]"
+                  >
+                    Leaderboard →
+                  </Link>
+                )}
+              </div>
+            </div>
           </motion.div>
         )}
 
@@ -893,23 +975,22 @@ export default function CompetitionDetail({
         </Reveal>
       </div>
 
-      {/* ── Right: action card (sticky) ── */}
-      <div className="lg:sticky lg:top-28 lg:self-start">
-        <div className="overflow-hidden rounded-[var(--radius-xl)] border border-[var(--border)] bg-[var(--surface)] shadow-2xl" style={{ background: "var(--grad-surface), var(--surface)" }}>
-          <div className="border-b border-[var(--border)] p-5">
-            <p className="font-display text-lg font-bold">
-              {step === "submit" ? "Submit Your Entry" : step === "done" ? "Registration & Entry Status" : "Enter this competition"}
-            </p>
-            <p className="mt-1 text-[12.5px] text-[var(--fg-muted)]">
-              {step === "submit"
-                ? "You are enrolled. Upload your performance entry."
-                : step === "done"
-                ? "Your entry is on file. View details below."
-                : open
-                ? "Registration is open."
-                : "Registration has closed."}
-            </p>
-          </div>
+      {/* ── Right: action card (sticky, hidden when user has already submitted entry) ── */}
+      {step !== "done" && (
+        <div id="register-action" className="lg:sticky lg:top-28 lg:self-start">
+          <div className="overflow-hidden rounded-[var(--radius-xl)] border border-[var(--border)] bg-[var(--surface)] shadow-2xl" style={{ background: "var(--grad-surface), var(--surface)" }}>
+            <div className="border-b border-[var(--border)] p-5">
+              <p className="font-display text-lg font-bold">
+                {step === "submit" ? "Submit Your Entry" : "Enter this competition"}
+              </p>
+              <p className="mt-1 text-[12.5px] text-[var(--fg-muted)]">
+                {step === "submit"
+                  ? "You are enrolled. Upload your performance entry."
+                  : open
+                  ? "Registration is open."
+                  : "Registration has closed."}
+              </p>
+            </div>
 
           <div className="p-5">
             {loading ? (
@@ -1204,6 +1285,7 @@ export default function CompetitionDetail({
           </div>
         </div>
       </div>
+      )}
     </section>
   );
 }

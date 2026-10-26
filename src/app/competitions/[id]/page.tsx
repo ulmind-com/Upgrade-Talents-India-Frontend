@@ -1,5 +1,5 @@
 import type { Metadata } from "next";
-import PageHero from "@/components/events/PageHero";
+import CompetitionHero from "@/components/events/CompetitionHero";
 import CompetitionDetail from "@/components/events/CompetitionDetail";
 import { publicApi, safe } from "@/lib/api";
 
@@ -27,13 +27,7 @@ export default async function CompetitionDetailPage({ params }: { params: Promis
 
   return (
     <>
-      <PageHero
-        title={comp.title || comp.name || "Competition"}
-        subtitle={comp.prize ? `Prize pool · ${comp.prize}` : "Register, submit and compete."}
-        image={comp.image_url}
-        seed={6}
-        compact
-      />
+      <CompetitionHero comp={comp} />
       <CompetitionDetail comp={comp} initialLeaderboard={lb?.leaderboard || []} />
     </>
   );
