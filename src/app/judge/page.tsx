@@ -2,15 +2,17 @@
 
 import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { useEffect, useState, useMemo } from "react";
+import { useEffect, useState, useMemo, useCallback } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import {
   Gavel, ShieldCheck, CheckCircle2, AlertCircle, Clock, Search,
   Lock, Unlock, ChevronRight, Award, Trophy, Star, ExternalLink,
-  Save, SkipForward, LogOut, ArrowLeft, RefreshCw, Send, Check
+  Save, SkipForward, LogOut, ArrowLeft, RefreshCw, Send, Check,
+  Play, Music, Video, User, FileText
 } from "lucide-react";
 import {
   judgeCompetitionsApi,
+  publicApi,
   tokenStore,
   type JudgeCompetition,
   type JudgeContestant,
@@ -18,9 +20,20 @@ import {
 } from "@/lib/api";
 import { useAuth } from "@/components/motion/Providers";
 import { Badge, Button, Spotlights } from "@/components/ui/Primitives";
-import { cn } from "@/lib/utils";
+import { cn, imageFor } from "@/lib/utils";
 
 const EASE = [0.16, 1, 0.3, 1] as const;
+
+function getYouTubeEmbedUrl(url?: string): string | null {
+  if (!url) return null;
+  const match = url.match(/(?:youtu\.be\/|youtube\.com\/(?:embed\/|v\/|watch\?v=|watch\?.+&v=))([\w-]{11})/);
+  return match ? `https://www.youtube.com/embed/${match[1]}` : null;
+}
+
+function isAudio(url?: string): boolean {
+  if (!url) return false;
+  return /\.mp3(\?.*)?$/i.test(url) || url.includes("/audio/") || url.includes("format=mp3");
+}
 
 export default function JudgeDashboardPage() {
   const router = useRouter();
@@ -89,33 +102,63 @@ export default function JudgeDashboardPage() {
     loadCompetitions();
   }, []);
 
+  // Load contestants & enrich with contestant names/avatars and parsed submission files
+  const loadContestantsForComp = useCallback(async (compId: string) => {
+    setContestantsLoading(true);
+    try {
+      const [data, lb] = await Promise.all([
+        judgeCompetitionsApi.listContestants(compId),
+        publicApi.leaderboard(compId).catch(() => ({ leaderboard: [] })),
+      ]);
+
+      const lbRows = Array.isArray(lb?.leaderboard) ? lb.leaderboard : [];
+      const userMap = new Map<string, { name?: string; profile_photo?: string }>();
+      for (const r of lbRows) {
+        const em = (r.email || r.participant_id || "").toLowerCase().trim();
+        if (em) {
+          userMap.set(em, { name: r.name, profile_photo: r.profile_photo });
+        }
+      }
+
+      const rawList = Array.isArray(data) ? data : [];
+      const enriched: JudgeContestant[] = rawList.map((c: any) => {
+        const em = (c.user_email || "").toLowerCase().trim();
+        const info = userMap.get(em);
+
+        const rawFiles = c.files && typeof c.files === "object" ? c.files : {};
+        const parsedFiles = Object.entries(rawFiles).map(([k, v]) => ({ label: k, url: String(v) }));
+        const primaryUrl = c.submission_url || parsedFiles[0]?.url || "";
+
+        const emailName = em
+          ? em.split("@")[0].replace(/[._-]/g, " ").replace(/\b\w/g, (l: string) => l.toUpperCase())
+          : "Contestant";
+        const finalName = c.user_name || info?.name || emailName;
+
+        return {
+          ...c,
+          user_name: finalName,
+          profile_photo: c.profile_photo || info?.profile_photo || "",
+          submission_url: primaryUrl,
+          parsed_files: parsedFiles,
+        };
+      });
+
+      setContestants(enriched);
+    } catch (err: any) {
+      if (err?.message?.includes("PIN")) {
+        setShowPinModal(true);
+      }
+    } finally {
+      setContestantsLoading(false);
+    }
+  }, []);
+
   // Load contestants when selected competition changes
   useEffect(() => {
     if (!selectedComp) return;
-    let cancelled = false;
-    setContestantsLoading(true);
     setActiveContestant(null);
-
-    judgeCompetitionsApi
-      .listContestants(selectedComp._id)
-      .then((data) => {
-        if (cancelled) return;
-        setContestants(Array.isArray(data) ? data : []);
-      })
-      .catch((err) => {
-        if (cancelled) return;
-        if (err?.message?.includes("PIN")) {
-          setShowPinModal(true);
-        }
-      })
-      .finally(() => {
-        if (!cancelled) setContestantsLoading(false);
-      });
-
-    return () => {
-      cancelled = true;
-    };
-  }, [selectedComp]);
+    loadContestantsForComp(selectedComp._id);
+  }, [selectedComp, loadContestantsForComp]);
 
   // Load draft scores when active contestant opens
   useEffect(() => {
@@ -207,7 +250,7 @@ export default function JudgeDashboardPage() {
       setTimeout(() => {
         setActiveContestant(null);
         if (selectedComp) {
-          judgeCompetitionsApi.listContestants(selectedComp._id).then(setContestants);
+          loadContestantsForComp(selectedComp._id);
         }
       }, 1200);
     } catch (err: any) {
@@ -229,7 +272,7 @@ export default function JudgeDashboardPage() {
       setShowPinModal(false);
       setSessionPin("");
       // Reload contestants
-      judgeCompetitionsApi.listContestants(selectedComp._id).then(setContestants);
+      loadContestantsForComp(selectedComp._id);
     } catch (err: any) {
       setPinError(err?.message || "Invalid Session PIN. Please ask event coordinators.");
     } finally {
@@ -246,7 +289,7 @@ export default function JudgeDashboardPage() {
       setShowCoiModal(false);
       setCoiReason("");
       setActiveContestant(null);
-      judgeCompetitionsApi.listContestants(selectedComp._id).then(setContestants);
+      loadContestantsForComp(selectedComp._id);
     } catch (err: any) {
       setScoreNotice({ tone: "error", text: err?.message || "Could not skip contestant." });
     } finally {
@@ -423,7 +466,7 @@ export default function JudgeDashboardPage() {
                     <span className="text-xs font-medium text-[var(--fg-subtle)]">
                       {filteredContestants.length} {filteredContestants.length === 1 ? "contestant" : "contestants"}
                     </span>
-                    <Button variant="ghost" size="sm" onClick={() => selectedComp && judgeCompetitionsApi.listContestants(selectedComp._id).then(setContestants)}>
+                    <Button variant="ghost" size="sm" onClick={() => selectedComp && loadContestantsForComp(selectedComp._id)}>
                       <RefreshCw className="size-3.5" />
                     </Button>
                   </div>
@@ -443,6 +486,8 @@ export default function JudgeDashboardPage() {
                   <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-1">
                     {filteredContestants.map((c) => {
                       const isSelected = activeContestant?._id === c._id;
+                      const hasVideo = c.submission_url && getYouTubeEmbedUrl(c.submission_url);
+                      const hasAudio = c.submission_url && isAudio(c.submission_url);
                       return (
                         <motion.div
                           key={c._id}
@@ -455,18 +500,50 @@ export default function JudgeDashboardPage() {
                               : "border-[var(--border)] bg-[var(--bg-elevated)] hover:border-[var(--border-strong)] hover:bg-[var(--bg-subtle)]"
                           )}
                         >
-                          <div className="flex items-start justify-between gap-3">
-                            <div>
-                              <h3 className="text-sm font-bold text-[var(--fg)] group-hover:text-[var(--accent)] transition-colors">
-                                {c.user_name || c.user_email || "Contestant Entry"}
-                              </h3>
-                              <p className="text-xs text-[var(--fg-subtle)] line-clamp-1">
-                                {c.title || c.description || "Submission entry"}
-                              </p>
+                          <div className="flex items-start gap-3.5">
+                            {/* Contestant Avatar */}
+                            <div className="relative size-10 shrink-0 overflow-hidden rounded-full border border-[var(--border)] bg-[var(--surface-2)]">
+                              <img
+                                src={imageFor(c.profile_photo, 1)}
+                                alt=""
+                                className="size-full object-cover"
+                              />
                             </div>
-                            <Badge tone={isSelected ? "brand" : "neutral"}>
-                              {c.status || "Submitted"}
-                            </Badge>
+
+                            <div className="min-w-0 flex-1">
+                              <div className="flex items-start justify-between gap-2">
+                                <div className="min-w-0">
+                                  <h3 className="text-sm font-bold text-[var(--fg)] group-hover:text-[var(--accent)] transition-colors truncate">
+                                    {c.user_name || "Contestant Entry"}
+                                  </h3>
+                                  <p className="text-[11.5px] text-[var(--fg-subtle)] truncate">
+                                    {c.user_email}
+                                  </p>
+                                </div>
+                                <Badge tone={isSelected ? "brand" : "neutral"} className="shrink-0 text-[10.5px]">
+                                  {c.status || "Submitted"}
+                                </Badge>
+                              </div>
+
+                              {/* Performance type tag */}
+                              <div className="mt-2 flex flex-wrap items-center gap-1.5">
+                                {hasVideo && (
+                                  <span className="inline-flex items-center gap-1 rounded-md bg-rose-500/15 px-2 py-0.5 text-[10px] font-semibold text-rose-400">
+                                    <Video className="size-2.5" /> YouTube Video
+                                  </span>
+                                )}
+                                {hasAudio && (
+                                  <span className="inline-flex items-center gap-1 rounded-md bg-amber-500/15 px-2 py-0.5 text-[10px] font-semibold text-amber-400">
+                                    <Music className="size-2.5" /> MP3 Audio
+                                  </span>
+                                )}
+                                {c.parsed_files && c.parsed_files.length > 0 && !hasVideo && !hasAudio && (
+                                  <span className="inline-flex items-center gap-1 rounded-md bg-cyan-500/15 px-2 py-0.5 text-[10px] font-semibold text-cyan-400">
+                                    <FileText className="size-2.5" /> {c.parsed_files.length} {c.parsed_files.length === 1 ? "file" : "files"}
+                                  </span>
+                                )}
+                              </div>
+                            </div>
                           </div>
 
                           <div className="mt-3 flex items-center justify-between border-t border-[var(--border)]/60 pt-3 text-[11px] text-[var(--fg-subtle)]">
@@ -496,18 +573,25 @@ export default function JudgeDashboardPage() {
                     transition={{ duration: 0.35, ease: EASE }}
                     className="flex flex-col gap-6 rounded-3xl border border-[var(--border)] bg-[var(--bg-elevated)] p-6 shadow-2xl lg:col-span-7"
                   >
-                    {/* Panel Header */}
+                    {/* Panel Header with User Profile Spotlight */}
                     <div className="flex items-start justify-between border-b border-[var(--border)] pb-4">
-                      <div>
-                        <span className="text-[10px] font-bold uppercase tracking-[0.2em] text-[var(--accent)]">
-                          Judging Worksheet
-                        </span>
-                        <h2 className="mt-0.5 text-lg font-bold text-[var(--fg)]">
-                          {activeContestant.user_name || activeContestant.user_email}
-                        </h2>
-                        {activeContestant.title && (
-                          <p className="text-xs text-[var(--fg-muted)]">{activeContestant.title}</p>
-                        )}
+                      <div className="flex items-center gap-3.5">
+                        <div className="relative size-12 shrink-0 overflow-hidden rounded-full border-2 border-[var(--accent)] bg-[var(--surface-2)] shadow-md">
+                          <img
+                            src={imageFor(activeContestant.profile_photo, 1)}
+                            alt=""
+                            className="size-full object-cover"
+                          />
+                        </div>
+                        <div>
+                          <span className="text-[10px] font-bold uppercase tracking-[0.2em] text-[var(--accent)]">
+                            Contestant Under Evaluation
+                          </span>
+                          <h2 className="mt-0.5 text-base font-bold text-[var(--fg)] sm:text-lg">
+                            {activeContestant.user_name || activeContestant.user_email}
+                          </h2>
+                          <p className="text-xs text-[var(--fg-subtle)]">{activeContestant.user_email}</p>
+                        </div>
                       </div>
 
                       <div className="flex items-center gap-2">
@@ -531,6 +615,64 @@ export default function JudgeDashboardPage() {
                         </Button>
                       </div>
                     </div>
+
+                    {/* Performance Submission Media Viewer */}
+                    {activeContestant.submission_url && (
+                      <div className="flex flex-col gap-3 rounded-2xl border border-[var(--border)] bg-[var(--bg)]/80 p-4">
+                        <div className="flex items-center justify-between">
+                          <span className="text-xs font-bold uppercase tracking-wider text-[var(--fg-subtle)] flex items-center gap-1.5">
+                            <Award className="size-3.5 text-[var(--accent)]" /> Submitted Performance
+                          </span>
+                          <a
+                            href={activeContestant.submission_url}
+                            target="_blank"
+                            rel="noopener noreferrer"
+                            className="inline-flex items-center gap-1 text-xs font-semibold text-[var(--accent)] hover:underline"
+                          >
+                            Open raw link <ExternalLink className="size-3" />
+                          </a>
+                        </div>
+
+                        {/* YouTube Player */}
+                        {getYouTubeEmbedUrl(activeContestant.submission_url) ? (
+                          <div className="relative aspect-video w-full overflow-hidden rounded-xl border border-[var(--border)] bg-black shadow-md">
+                            <iframe
+                              src={getYouTubeEmbedUrl(activeContestant.submission_url)!}
+                              title="Contestant Performance Video"
+                              allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
+                              allowFullScreen
+                              className="size-full border-0"
+                            />
+                          </div>
+                        ) : isAudio(activeContestant.submission_url) ? (
+                          <div className="rounded-xl border border-[var(--border)] bg-[var(--surface-2)] p-3">
+                            <audio controls className="w-full" src={activeContestant.submission_url}>
+                              Your browser does not support audio playback.
+                            </audio>
+                          </div>
+                        ) : null}
+
+                        {/* Other Parsed Files */}
+                        {activeContestant.parsed_files && activeContestant.parsed_files.length > 1 && (
+                          <div className="flex flex-col gap-2 pt-2 border-t border-[var(--border)]/60">
+                            <span className="text-[11px] font-semibold text-[var(--fg-subtle)]">Attached Submissions:</span>
+                            <div className="flex flex-wrap gap-2">
+                              {activeContestant.parsed_files.map((f, i) => (
+                                <a
+                                  key={i}
+                                  href={f.url}
+                                  target="_blank"
+                                  rel="noopener noreferrer"
+                                  className="inline-flex items-center gap-1.5 rounded-lg border border-[var(--border)] bg-[var(--surface)] px-2.5 py-1 text-xs font-medium text-[var(--fg-muted)] hover:text-[var(--fg)] hover:border-[var(--border-strong)] transition-colors"
+                                >
+                                  <FileText className="size-3 text-[var(--accent)]" /> {f.label}
+                                </a>
+                              ))}
+                            </div>
+                          </div>
+                        )}
+                      </div>
+                    )}
 
                     {/* Notice */}
                     {scoreNotice && (

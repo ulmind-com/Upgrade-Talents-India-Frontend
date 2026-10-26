@@ -674,12 +674,15 @@ export interface JudgeContestant {
   competition_id: string;
   user_email: string;
   user_name?: string;
+  profile_photo?: string;
   title?: string;
   submission_url?: string;
   media_url?: string;
   description?: string;
   status: string;
   submitted_at?: string;
+  files?: Record<string, string>;
+  parsed_files?: Array<{ label: string; url: string }>;
 }
 
 export const judgeCompetitionsApi = {
