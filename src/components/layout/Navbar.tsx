@@ -13,7 +13,7 @@ import { NotificationBell } from "@/components/notifications/NotificationPanel";
 import { useCart } from "@/components/shop/CartProvider";
 import ThemeSwitch from "@/components/ui/ThemeSwitch";
 import { Button, Magnetic } from "@/components/ui/Primitives";
-import { useAuth } from "@/components/motion/Providers";
+import { useAuth, useTheme } from "@/components/motion/Providers";
 import { cn, isUsableImageUrl } from "@/lib/utils";
 
 const NAV = [
@@ -69,14 +69,17 @@ const VOLUNTEER_DESKTOP: DesktopNavItem[] = [
 export default function Navbar({ brandName = "UPGRADE TALENTS INDIA", logo }: { brandName?: string; logo?: string }) {
   const router = useRouter();
   const { user, logout, isJudge, isVolunteer } = useAuth();
+  const { theme } = useTheme();
+  const [mounted, setMounted] = useState(false);
 
-  // the last word sits small under the rest — "UPGRADE TALENTS" over "INDIA"
-  const words = brandName.trim().split(/\s+/);
-  const lead = words.length > 1 ? words.slice(0, -1).join(" ") : words[0];
-  const sub = words.length > 1 ? words[words.length - 1] : "INDIA";
+  useEffect(() => {
+    setMounted(true);
+  }, []);
+
+  const isLight = mounted && theme === "blue";
+  const logoSrc = isLight ? "/logo-dark-mode.png" : "/logo-white-mode.png";
 
   const brandHref = isJudge ? "/judge" : isVolunteer ? "/volunteer" : "/";
-  const brandSub = isJudge ? "JUDGES PANEL" : isVolunteer ? "VOLUNTEER" : sub;
   const desktopNav = isJudge ? JUDGE_DESKTOP : isVolunteer ? VOLUNTEER_DESKTOP : DESKTOP;
   const mobileNav = isJudge ? JUDGE_NAV : isVolunteer ? VOLUNTEER_NAV : NAV;
 
@@ -157,27 +160,22 @@ export default function Navbar({ brandName = "UPGRADE TALENTS INDIA", logo }: { 
             )}
           >
             {/* Brand */}
-            <Link href={brandHref} className="group flex shrink-0 items-center gap-2.5 sm:gap-3" aria-label={`${brandName} home`}>
-              <span
-                className="relative grid size-9 sm:size-10 shrink-0 place-items-center rounded-xl transition-transform duration-500 group-hover:rotate-[12deg]"
-                style={{ background: "var(--grad-brand)" }}
-              >
-                {isJudge ? (
-                  <Gavel className="size-4.5 sm:size-5 text-white" aria-hidden />
-                ) : isVolunteer ? (
-                  <ScanLine className="size-4.5 sm:size-5 text-white" aria-hidden />
-                ) : isUsableImageUrl(logo) ? (
-                  <img src={logo} alt="" className="size-6 sm:size-7 rounded-lg object-contain" />
-                ) : (
-                  <Sparkles className="size-4.5 sm:size-5 text-white" aria-hidden />
-                )}
-              </span>
-              <span className="hidden text-[14px] sm:text-[15px] font-bold uppercase leading-[1.05] tracking-[0.14em] sm:block">
-                {lead}
-                <span className="block text-[8.5px] sm:text-[9px] font-medium tracking-[0.42em] text-[var(--fg-subtle)]">
-                  {brandSub}
+            <Link href={brandHref} className="group flex shrink-0 items-center gap-2 sm:gap-2.5" aria-label={`${brandName} home`}>
+              <img
+                src={logoSrc}
+                alt={brandName}
+                className="h-7 sm:h-8 md:h-9 w-auto object-contain transition-opacity duration-300 group-hover:opacity-90"
+              />
+              {isJudge && (
+                <span className="rounded-md bg-purple-500/15 border border-purple-500/30 px-1.5 py-0.5 text-[9px] sm:text-[10px] font-bold uppercase tracking-wider text-purple-300 flex items-center gap-1">
+                  <Gavel className="size-3" /> Judge
                 </span>
-              </span>
+              )}
+              {isVolunteer && (
+                <span className="rounded-md bg-cyan-500/15 border border-cyan-500/30 px-1.5 py-0.5 text-[9px] sm:text-[10px] font-bold uppercase tracking-wider text-cyan-300 flex items-center gap-1">
+                  <ScanLine className="size-3" /> Scanner
+                </span>
+              )}
             </Link>
 
             {/* Desktop nav links */}
@@ -478,7 +476,11 @@ export default function Navbar({ brandName = "UPGRADE TALENTS INDIA", logo }: { 
               transition={{ duration: 0.5, ease: [0.16, 1, 0.3, 1] }}
             >
               <div className="flex items-center justify-between">
-                <span className="font-mono text-[11px] uppercase tracking-[0.3em] text-[var(--fg-subtle)]">Menu</span>
+                <img
+                  src={logoSrc}
+                  alt={brandName}
+                  className="h-7 w-auto object-contain"
+                />
                 <button
                   onClick={() => setOpen(false)}
                   aria-label="Close menu"

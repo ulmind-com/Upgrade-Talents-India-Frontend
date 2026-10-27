@@ -3,6 +3,7 @@
 import { useCallback, useEffect, useRef } from "react";
 import Link from "next/link";
 import { Facebook, Instagram, Twitter, Youtube, Linkedin, Mail, Phone, MapPin, ArrowUpRight, Sparkles } from "lucide-react";
+import { useTheme } from "@/components/motion/Providers";
 
 type Props = {
   brandName?: string;
@@ -374,6 +375,10 @@ export default function Footer({ brandName = "UPGRADE TALENTS INDIA", tagline, c
         { label: "Terms of Service", href: "/contact" },
       ];
 
+  const { theme } = useTheme();
+  const isLight = theme === "blue";
+  const logoSrc = isLight ? "/logo-dark-mode.png" : "/logo-white-mode.png";
+
   return (
     <>
       <link rel="preconnect" href="https://fonts.googleapis.com" />
@@ -391,8 +396,11 @@ export default function Footer({ brandName = "UPGRADE TALENTS INDIA", tagline, c
         <div className="dfoot__content">
           <div className="dbrand">
             <Link href="/" className="dbrand__logo" aria-label={`${brandName} home`}>
-              <span className="dbrand__mark"><Sparkles aria-hidden /></span>
-              {brandName}
+              <img
+                src={logoSrc}
+                alt={brandName}
+                className="h-8 md:h-10 w-auto object-contain transition-opacity duration-300"
+              />
             </Link>
 
             <h2 className="dbrand__title">Ready to take the stage?</h2>

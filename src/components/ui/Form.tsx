@@ -1,7 +1,9 @@
 "use client";
 
 import { useId, type InputHTMLAttributes, type ReactNode } from "react";
+import Link from "next/link";
 import { AlertCircle, CheckCircle2 } from "lucide-react";
+import { useTheme } from "@/components/motion/Providers";
 import { cn } from "@/lib/utils";
 
 export function Field({
@@ -93,6 +95,10 @@ export function AuthShell({
   children: ReactNode;
   aside?: ReactNode;
 }) {
+  const { theme } = useTheme();
+  const isLight = theme === "blue";
+  const logoSrc = isLight ? "/logo-dark-mode.png" : "/logo-white-mode.png";
+
   return (
     <section className="relative min-h-dvh overflow-hidden pb-20 pt-32 noise md:pt-40">
       <div
@@ -107,9 +113,12 @@ export function AuthShell({
       />
       <div className="container-x relative grid items-center gap-14 lg:grid-cols-2">
         <div className="mx-auto w-full max-w-lg">
-          <span className="font-mono text-[11px] uppercase tracking-[0.3em] text-[var(--accent)]">{eyebrow}</span>
-          <h1 className="mt-5 font-display text-[clamp(2.2rem,6vw,3.6rem)] font-bold uppercase leading-[0.92]">{title}</h1>
-          {subtitle && <p className="mt-4 text-[15px] text-[var(--fg-muted)]">{subtitle}</p>}
+          <Link href="/" className="inline-block mb-6 transition-opacity hover:opacity-85" aria-label="Upgrade Talents India home">
+            <img src={logoSrc} alt="Upgrade Talents India" className="h-8 sm:h-9 w-auto object-contain" />
+          </Link>
+          <span className="block font-mono text-[11px] uppercase tracking-[0.3em] text-[var(--accent)]">{eyebrow}</span>
+          <h1 className="mt-4 font-display text-[clamp(2.2rem,6vw,3.6rem)] font-bold uppercase leading-[0.92]">{title}</h1>
+          {subtitle && <p className="mt-3 text-[15px] text-[var(--fg-muted)]">{subtitle}</p>}
           <div className="mt-10">{children}</div>
         </div>
         <div className="hidden lg:block">{aside}</div>
