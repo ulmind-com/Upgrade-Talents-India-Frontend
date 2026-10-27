@@ -421,30 +421,33 @@ export default function JudgeDashboardPage() {
       <header className="sticky top-0 z-30 border-b border-[var(--border)] bg-[var(--bg)]/80 backdrop-blur-xl">
         <div className="mx-auto flex max-w-7xl items-center justify-between px-4 py-3.5 sm:px-6 lg:px-8">
           <div className="flex items-center gap-3">
-            <Link
-              href="/"
-              className="group flex size-9 items-center justify-center rounded-xl border border-[var(--border)] bg-[var(--bg-elevated)] transition-colors hover:border-[var(--accent)]"
-            >
-              <ArrowLeft className="size-4 text-[var(--fg-subtle)] transition-transform group-hover:-translate-x-0.5 group-hover:text-[var(--accent)]" />
-            </Link>
-
-            <div className="flex items-center gap-2">
-              <span className="grid size-9 place-items-center rounded-xl" style={{ background: "var(--grad-brand)" }}>
-                <Gavel className="size-4 text-white" />
+            <div className="flex items-center gap-2.5">
+              <span className="grid size-9.5 place-items-center rounded-xl shadow-inner" style={{ background: "var(--grad-brand)" }}>
+                <Gavel className="size-4.5 text-white" />
               </span>
               <div>
                 <div className="flex items-center gap-2">
                   <h1 className="text-sm font-bold tracking-tight text-[var(--fg)] sm:text-base">Judges Scoring Portal</h1>
                   <Badge tone="brand">Official</Badge>
                 </div>
-                <p className="text-[11px] text-[var(--fg-subtle)]">
+                <p className="text-[11px] font-mono text-[var(--fg-subtle)]">
                   {user?.email || "Authenticated Judge Session"}
                 </p>
               </div>
             </div>
           </div>
 
-          <div className="flex items-center gap-3">
+          <div className="flex items-center gap-2.5">
+            <Link
+              href="/leaderboard"
+              target="_blank"
+              className="hidden md:inline-flex items-center gap-1.5 rounded-xl border border-[var(--border)] bg-[var(--bg-elevated)] px-3 py-1.5 text-xs font-semibold text-[var(--fg-muted)] hover:border-[var(--accent)] hover:text-[var(--fg)] transition-all"
+              title="Open public leaderboard standings in new tab"
+            >
+              <Trophy className="size-3.5 text-[var(--accent)]" />
+              <span>Live Standings</span>
+              <ExternalLink className="size-3 text-[var(--fg-subtle)]" />
+            </Link>
             {selectedComp && (
               <Button
                 variant="outline"

@@ -1,12 +1,13 @@
 "use client";
 
 import Link from "next/link";
-import { usePathname } from "next/navigation";
+import { usePathname, useRouter } from "next/navigation";
 import { useEffect, useState, useRef } from "react";
 import { AnimatePresence, motion, useScroll, useMotionValueEvent } from "framer-motion";
 import {
   Menu, X, Sparkles, Ticket, User, LogOut, LayoutDashboard,
-  ShoppingBag, ChevronDown, Package, Crown, Award, Coins
+  ShoppingBag, ChevronDown, Package, Crown, Award, Coins,
+  Gavel, ScanLine, Trophy, ShieldCheck
 } from "lucide-react";
 import { NotificationBell } from "@/components/notifications/NotificationPanel";
 import { useCart } from "@/components/shop/CartProvider";
@@ -27,8 +28,14 @@ const NAV = [
   { label: "Contact", href: "/contact" },
 ];
 
+type DesktopNavItem = {
+  label: string;
+  href?: string;
+  children?: { label: string; href: string }[];
+};
+
 // Desktop groups the learning pages into a dropdown to keep the bar uncluttered.
-const DESKTOP: { label: string; href?: string; children?: { label: string; href: string }[] }[] = [
+const DESKTOP: DesktopNavItem[] = [
   { label: "Home", href: "/" },
   { label: "Events", href: "/events" },
   { label: "Competitions", href: "/competitions" },
@@ -39,14 +46,54 @@ const DESKTOP: { label: string; href?: string; children?: { label: string; href:
   { label: "Contact", href: "/contact" },
 ];
 
+const JUDGE_NAV = [
+  { label: "Judges Scoring Portal", href: "/judge" },
+  { label: "Competitions", href: "/competitions" },
+  { label: "Leaderboard", href: "/leaderboard" },
+];
+
+const JUDGE_DESKTOP: DesktopNavItem[] = [
+  { label: "Scoring Panel", href: "/judge" },
+  { label: "Competitions", href: "/competitions" },
+  { label: "Leaderboard", href: "/leaderboard" },
+];
+
+const VOLUNTEER_NAV = [
+  { label: "Ticket Scanner Terminal", href: "/volunteer" },
+];
+
+const VOLUNTEER_DESKTOP: DesktopNavItem[] = [
+  { label: "Scanner Terminal", href: "/volunteer" },
+];
+
 export default function Navbar({ brandName = "UPGRADE TALENTS INDIA", logo }: { brandName?: string; logo?: string }) {
+  const router = useRouter();
+  const { user, logout, isJudge, isVolunteer } = useAuth();
+
   // the last word sits small under the rest — "UPGRADE TALENTS" over "INDIA"
   const words = brandName.trim().split(/\s+/);
   const lead = words.length > 1 ? words.slice(0, -1).join(" ") : words[0];
   const sub = words.length > 1 ? words[words.length - 1] : "INDIA";
+
+  const brandHref = isJudge ? "/judge" : isVolunteer ? "/volunteer" : "/";
+  const brandSub = isJudge ? "JUDGES PANEL" : isVolunteer ? "VOLUNTEER" : sub;
+  const desktopNav = isJudge ? JUDGE_DESKTOP : isVolunteer ? VOLUNTEER_DESKTOP : DESKTOP;
+  const mobileNav = isJudge ? JUDGE_NAV : isVolunteer ? VOLUNTEER_NAV : NAV;
+
   const pathname = usePathname();
   const { count, setOpen: openCart } = useCart();
-  const { user, logout } = useAuth();
+
+  const handleSignOut = () => {
+    setUserDropdownOpen(false);
+    logout();
+    if (isJudge) {
+      router.replace("/judge/login");
+    } else if (isVolunteer) {
+      router.replace("/volunteer/login");
+    } else {
+      router.replace("/login");
+    }
+  };
   const [scrolled, setScrolled] = useState(false);
   const [open, setOpen] = useState(false);
   const [userDropdownOpen, setUserDropdownOpen] = useState(false);
@@ -110,12 +157,16 @@ export default function Navbar({ brandName = "UPGRADE TALENTS INDIA", logo }: { 
             )}
           >
             {/* Brand */}
-            <Link href="/" className="group flex shrink-0 items-center gap-2.5 sm:gap-3" aria-label={`${brandName} home`}>
+            <Link href={brandHref} className="group flex shrink-0 items-center gap-2.5 sm:gap-3" aria-label={`${brandName} home`}>
               <span
                 className="relative grid size-9 sm:size-10 shrink-0 place-items-center rounded-xl transition-transform duration-500 group-hover:rotate-[12deg]"
                 style={{ background: "var(--grad-brand)" }}
               >
-                {isUsableImageUrl(logo) ? (
+                {isJudge ? (
+                  <Gavel className="size-4.5 sm:size-5 text-white" aria-hidden />
+                ) : isVolunteer ? (
+                  <ScanLine className="size-4.5 sm:size-5 text-white" aria-hidden />
+                ) : isUsableImageUrl(logo) ? (
                   <img src={logo} alt="" className="size-6 sm:size-7 rounded-lg object-contain" />
                 ) : (
                   <Sparkles className="size-4.5 sm:size-5 text-white" aria-hidden />
@@ -124,14 +175,14 @@ export default function Navbar({ brandName = "UPGRADE TALENTS INDIA", logo }: { 
               <span className="hidden text-[14px] sm:text-[15px] font-bold uppercase leading-[1.05] tracking-[0.14em] sm:block">
                 {lead}
                 <span className="block text-[8.5px] sm:text-[9px] font-medium tracking-[0.42em] text-[var(--fg-subtle)]">
-                  {sub}
+                  {brandSub}
                 </span>
               </span>
             </Link>
 
             {/* Desktop nav links */}
             <ul className="hidden items-center gap-0.5 xl:flex shrink-0">
-              {DESKTOP.map((item) => {
+              {desktopNav.map((item) => {
                 if (item.children) {
                   const active = item.children.some((c) => pathname.startsWith(c.href));
                   return (
@@ -164,7 +215,7 @@ export default function Navbar({ brandName = "UPGRADE TALENTS INDIA", logo }: { 
                     </li>
                   );
                 }
-                const active = item.href === "/" ? pathname === "/" : pathname.startsWith(item.href!);
+                const active = item.href === "/" ? pathname === "/" : pathname === item.href || (item.href !== "/" && pathname.startsWith(item.href!));
                 return (
                   <li key={item.href}>
                     <Link
@@ -194,26 +245,28 @@ export default function Navbar({ brandName = "UPGRADE TALENTS INDIA", logo }: { 
               {/* Theme toggle */}
               <ThemeSwitch />
 
-              {/* Notification bell (when logged in) */}
-              {user && <NotificationBell />}
+              {/* Notification bell (regular users only) */}
+              {!isJudge && !isVolunteer && user && <NotificationBell />}
 
-              {/* Shopping bag cart button */}
-              <button
-                data-cart-target
-                onClick={() => openCart(true)}
-                aria-label={`Open cart${count ? `, ${count} items` : ""}`}
-                className="relative grid size-9 sm:size-10 cursor-pointer place-items-center rounded-full border border-[var(--border)] bg-[var(--surface)] text-[var(--fg-muted)] transition-all duration-300 hover:border-[var(--border-strong)] hover:text-[var(--fg)]"
-              >
-                <ShoppingBag className="size-4 sm:size-[18px]" aria-hidden />
-                {count > 0 && (
-                  <span className="absolute -right-1 -top-1 grid min-h-[18px] min-w-[18px] place-items-center rounded-full px-1 text-[10px] font-bold text-[var(--on-accent)]" style={{ background: "var(--grad-brand)" }}>
-                    <span aria-hidden>{count}</span>
-                    <span role="status" aria-atomic="true" className="sr-only">
-                      {count} item{count === 1 ? "" : "s"} in cart
+              {/* Shopping bag cart button (regular users only) */}
+              {!isJudge && !isVolunteer && (
+                <button
+                  data-cart-target
+                  onClick={() => openCart(true)}
+                  aria-label={`Open cart${count ? `, ${count} items` : ""}`}
+                  className="relative grid size-9 sm:size-10 cursor-pointer place-items-center rounded-full border border-[var(--border)] bg-[var(--surface)] text-[var(--fg-muted)] transition-all duration-300 hover:border-[var(--border-strong)] hover:text-[var(--fg)]"
+                >
+                  <ShoppingBag className="size-4 sm:size-[18px]" aria-hidden />
+                  {count > 0 && (
+                    <span className="absolute -right-1 -top-1 grid min-h-[18px] min-w-[18px] place-items-center rounded-full px-1 text-[10px] font-bold text-[var(--on-accent)]" style={{ background: "var(--grad-brand)" }}>
+                      <span aria-hidden>{count}</span>
+                      <span role="status" aria-atomic="true" className="sr-only">
+                        {count} item{count === 1 ? "" : "s"} in cart
+                      </span>
                     </span>
-                  </span>
-                )}
-              </button>
+                  )}
+                </button>
+              )}
 
               {/* User Account Menu / Login Button */}
               {user ? (
@@ -227,7 +280,11 @@ export default function Navbar({ brandName = "UPGRADE TALENTS INDIA", logo }: { 
                       userDropdownOpen ? "border-[var(--accent)] ring-2 ring-[var(--accent)]/30" : "border-[var(--border)] hover:border-[var(--border-strong)]"
                     )}
                   >
-                    {user.profile_photo ? (
+                    {isJudge ? (
+                      <Gavel className="size-4 text-[var(--accent)]" />
+                    ) : isVolunteer ? (
+                      <ScanLine className="size-4 text-cyan-400" />
+                    ) : user.profile_photo ? (
                       <img src={user.profile_photo} alt={user.name || "User"} className="size-full object-cover" />
                     ) : (
                       <span className="font-display text-xs font-bold text-[var(--accent)]">
@@ -246,48 +303,107 @@ export default function Navbar({ brandName = "UPGRADE TALENTS INDIA", logo }: { 
                         transition={{ duration: 0.2 }}
                         className="absolute right-0 top-full mt-2 w-56 overflow-hidden rounded-2xl border border-[var(--border)] bg-[var(--surface)] p-2 shadow-2xl z-50 backdrop-blur-xl"
                       >
-                        <div className="border-b border-[var(--border)] px-3 py-2.5">
-                          <p className="truncate text-xs font-bold text-white">{user.name || "Valued Artist"}</p>
-                          <p className="truncate font-mono text-[11px] text-[var(--fg-subtle)]">{user.email}</p>
-                        </div>
+                        {isJudge ? (
+                          <>
+                            <div className="border-b border-[var(--border)] px-3 py-2.5">
+                              <div className="flex items-center justify-between gap-2">
+                                <p className="truncate text-xs font-bold text-white">{user.full_name || user.name || "Official Judge"}</p>
+                                <span className="rounded-md bg-[color-mix(in_srgb,var(--accent)_14%,transparent)] px-1.5 py-0.5 text-[9.5px] font-bold uppercase tracking-wider text-[var(--accent)]">
+                                  Judge
+                                </span>
+                              </div>
+                              <p className="truncate font-mono text-[11px] text-[var(--fg-subtle)]">{user.email}</p>
+                            </div>
 
-                        <div className="py-1.5">
-                          <Link
-                            href="/dashboard"
-                            onClick={() => setUserDropdownOpen(false)}
-                            className="flex items-center gap-2.5 rounded-xl px-3 py-2 text-xs font-medium text-[var(--fg)] hover:bg-[var(--surface-2)] transition-colors"
-                          >
-                            <LayoutDashboard className="size-4 text-[var(--accent)]" /> Dashboard
-                          </Link>
-                          <Link
-                            href="/dashboard?tab=orders"
-                            onClick={() => setUserDropdownOpen(false)}
-                            className="flex items-center gap-2.5 rounded-xl px-3 py-2 text-xs font-medium text-[var(--fg)] hover:bg-[var(--surface-2)] transition-colors"
-                          >
-                            <Package className="size-4 text-[var(--accent)]" /> My Orders & Tracking
-                          </Link>
-                          <Link
-                            href="/dashboard?tab=vip"
-                            onClick={() => setUserDropdownOpen(false)}
-                            className="flex items-center gap-2.5 rounded-xl px-3 py-2 text-xs font-medium text-[var(--fg)] hover:bg-[var(--surface-2)] transition-colors"
-                          >
-                            <Crown className="size-4 text-[var(--accent)]" /> VIP Passes
-                          </Link>
-                          <Link
-                            href="/dashboard?tab=certificates"
-                            onClick={() => setUserDropdownOpen(false)}
-                            className="flex items-center gap-2.5 rounded-xl px-3 py-2 text-xs font-medium text-[var(--fg)] hover:bg-[var(--surface-2)] transition-colors"
-                          >
-                            <Award className="size-4 text-[var(--accent)]" /> Certificates
-                          </Link>
-                        </div>
+                            <div className="py-1.5">
+                              <Link
+                                href="/judge"
+                                onClick={() => setUserDropdownOpen(false)}
+                                className="flex items-center gap-2.5 rounded-xl px-3 py-2 text-xs font-medium text-[var(--fg)] hover:bg-[var(--surface-2)] transition-colors"
+                              >
+                                <Gavel className="size-4 text-[var(--accent)]" /> Judges Scoring Portal
+                              </Link>
+                              <Link
+                                href="/competitions"
+                                onClick={() => setUserDropdownOpen(false)}
+                                className="flex items-center gap-2.5 rounded-xl px-3 py-2 text-xs font-medium text-[var(--fg)] hover:bg-[var(--surface-2)] transition-colors"
+                              >
+                                <Award className="size-4 text-[var(--accent)]" /> Assigned Competitions
+                              </Link>
+                              <Link
+                                href="/leaderboard"
+                                onClick={() => setUserDropdownOpen(false)}
+                                className="flex items-center gap-2.5 rounded-xl px-3 py-2 text-xs font-medium text-[var(--fg)] hover:bg-[var(--surface-2)] transition-colors"
+                              >
+                                <Trophy className="size-4 text-[var(--accent)]" /> Live Leaderboard
+                              </Link>
+                            </div>
+                          </>
+                        ) : isVolunteer ? (
+                          <>
+                            <div className="border-b border-[var(--border)] px-3 py-2.5">
+                              <div className="flex items-center justify-between gap-2">
+                                <p className="truncate text-xs font-bold text-white">{user.full_name || user.name || "Event Volunteer"}</p>
+                                <span className="rounded-md bg-cyan-500/15 px-1.5 py-0.5 text-[9.5px] font-bold uppercase tracking-wider text-cyan-400">
+                                  Volunteer
+                                </span>
+                              </div>
+                              <p className="truncate font-mono text-[11px] text-[var(--fg-subtle)]">{user.email}</p>
+                            </div>
+
+                            <div className="py-1.5">
+                              <Link
+                                href="/volunteer"
+                                onClick={() => setUserDropdownOpen(false)}
+                                className="flex items-center gap-2.5 rounded-xl px-3 py-2 text-xs font-medium text-[var(--fg)] hover:bg-[var(--surface-2)] transition-colors"
+                              >
+                                <ScanLine className="size-4 text-cyan-400" /> Ticket Scanner Terminal
+                              </Link>
+                            </div>
+                          </>
+                        ) : (
+                          <>
+                            <div className="border-b border-[var(--border)] px-3 py-2.5">
+                              <p className="truncate text-xs font-bold text-white">{user.name || "Valued Artist"}</p>
+                              <p className="truncate font-mono text-[11px] text-[var(--fg-subtle)]">{user.email}</p>
+                            </div>
+
+                            <div className="py-1.5">
+                              <Link
+                                href="/dashboard"
+                                onClick={() => setUserDropdownOpen(false)}
+                                className="flex items-center gap-2.5 rounded-xl px-3 py-2 text-xs font-medium text-[var(--fg)] hover:bg-[var(--surface-2)] transition-colors"
+                              >
+                                <LayoutDashboard className="size-4 text-[var(--accent)]" /> Dashboard
+                              </Link>
+                              <Link
+                                href="/dashboard?tab=orders"
+                                onClick={() => setUserDropdownOpen(false)}
+                                className="flex items-center gap-2.5 rounded-xl px-3 py-2 text-xs font-medium text-[var(--fg)] hover:bg-[var(--surface-2)] transition-colors"
+                              >
+                                <Package className="size-4 text-[var(--accent)]" /> My Orders & Tracking
+                              </Link>
+                              <Link
+                                href="/dashboard?tab=vip"
+                                onClick={() => setUserDropdownOpen(false)}
+                                className="flex items-center gap-2.5 rounded-xl px-3 py-2 text-xs font-medium text-[var(--fg)] hover:bg-[var(--surface-2)] transition-colors"
+                              >
+                                <Crown className="size-4 text-[var(--accent)]" /> VIP Passes
+                              </Link>
+                              <Link
+                                href="/dashboard?tab=certificates"
+                                onClick={() => setUserDropdownOpen(false)}
+                                className="flex items-center gap-2.5 rounded-xl px-3 py-2 text-xs font-medium text-[var(--fg)] hover:bg-[var(--surface-2)] transition-colors"
+                              >
+                                <Award className="size-4 text-[var(--accent)]" /> Certificates
+                              </Link>
+                            </div>
+                          </>
+                        )}
 
                         <div className="border-t border-[var(--border)] pt-1.5">
                           <button
-                            onClick={() => {
-                              setUserDropdownOpen(false);
-                              logout();
-                            }}
+                            onClick={handleSignOut}
                             className="flex w-full items-center gap-2.5 rounded-xl px-3 py-2 text-xs font-semibold text-red-400 hover:bg-red-500/10 transition-colors cursor-pointer"
                           >
                             <LogOut className="size-4" /> Sign Out
@@ -308,12 +424,26 @@ export default function Navbar({ brandName = "UPGRADE TALENTS INDIA", logo }: { 
                 </Link>
               )}
 
-              {/* Tickets Button with shrink-0 protection */}
-              <Magnetic className="hidden sm:block shrink-0">
-                <Button href="/events" size="sm" className="px-4 text-[12.5px] tracking-wider shrink-0">
-                  <Ticket className="size-3.5" aria-hidden /> Tickets
-                </Button>
-              </Magnetic>
+              {/* Role-aware primary action button */}
+              {isJudge ? (
+                <Magnetic className="hidden sm:block shrink-0">
+                  <Button href="/judge" size="sm" className="px-4 text-[12.5px] tracking-wider shrink-0">
+                    <Gavel className="size-3.5" aria-hidden /> Scoring Portal
+                  </Button>
+                </Magnetic>
+              ) : isVolunteer ? (
+                <Magnetic className="hidden sm:block shrink-0">
+                  <Button href="/volunteer" size="sm" className="px-4 text-[12.5px] tracking-wider shrink-0">
+                    <ScanLine className="size-3.5" aria-hidden /> Scanner Terminal
+                  </Button>
+                </Magnetic>
+              ) : (
+                <Magnetic className="hidden sm:block shrink-0">
+                  <Button href="/events" size="sm" className="px-4 text-[12.5px] tracking-wider shrink-0">
+                    <Ticket className="size-3.5" aria-hidden /> Tickets
+                  </Button>
+                </Magnetic>
+              )}
 
               {/* Hamburger button for screens below xl */}
               <button
@@ -359,7 +489,7 @@ export default function Navbar({ brandName = "UPGRADE TALENTS INDIA", logo }: { 
               </div>
 
               <ul className="flex flex-col gap-1">
-                {NAV.map((item, i) => (
+                {mobileNav.map((item, i) => (
                   <motion.li
                     key={item.href}
                     initial={{ opacity: 0, x: 30 }}
@@ -368,7 +498,8 @@ export default function Navbar({ brandName = "UPGRADE TALENTS INDIA", logo }: { 
                   >
                     <Link
                       href={item.href}
-                      className="flex min-h-[56px] items-center justify-between border-b border-[var(--border)] font-display text-3xl font-bold tracking-tight transition-colors hover:text-[var(--accent)]"
+                      onClick={() => setOpen(false)}
+                      className="flex min-h-[56px] items-center justify-between border-b border-[var(--border)] font-display text-2xl sm:text-3xl font-bold tracking-tight transition-colors hover:text-[var(--accent)]"
                     >
                       {item.label}
                       <span className="font-mono text-[11px] text-[var(--fg-subtle)]">0{i + 1}</span>
@@ -378,12 +509,30 @@ export default function Navbar({ brandName = "UPGRADE TALENTS INDIA", logo }: { 
               </ul>
 
               <div className="mt-auto flex flex-col gap-3">
-                {user ? (
+                {isJudge ? (
+                  <>
+                    <Button href="/judge" size="lg" className="w-full">
+                      <Gavel className="size-4" aria-hidden /> Open Scoring Portal
+                    </Button>
+                    <Button onClick={handleSignOut} variant="ghost" size="lg" className="w-full">
+                      <LogOut className="size-4" aria-hidden /> Log out
+                    </Button>
+                  </>
+                ) : isVolunteer ? (
+                  <>
+                    <Button href="/volunteer" size="lg" className="w-full">
+                      <ScanLine className="size-4" aria-hidden /> Open Scanner Terminal
+                    </Button>
+                    <Button onClick={handleSignOut} variant="ghost" size="lg" className="w-full">
+                      <LogOut className="size-4" aria-hidden /> Log out
+                    </Button>
+                  </>
+                ) : user ? (
                   <>
                     <Button href="/dashboard" variant="outline" size="lg" className="w-full">
                       <LayoutDashboard className="size-4" aria-hidden /> Dashboard
                     </Button>
-                    <Button onClick={logout} variant="ghost" size="lg" className="w-full">
+                    <Button onClick={handleSignOut} variant="ghost" size="lg" className="w-full">
                       <LogOut className="size-4" aria-hidden /> Log out
                     </Button>
                   </>

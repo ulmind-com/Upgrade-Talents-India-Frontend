@@ -2,7 +2,7 @@
 
 import Link from "next/link";
 import { useRouter, useSearchParams } from "next/navigation";
-import { Suspense, useState } from "react";
+import { Suspense, useState, useEffect } from "react";
 import { motion, type Variants } from "framer-motion";
 import { Eye, EyeOff, ArrowRight, Ticket, ShieldCheck, Sparkles, Gavel, ScanLine } from "lucide-react";
 import { authApi, tokenStore } from "@/lib/api";
@@ -37,7 +37,7 @@ function GoogleIcon({ className }: { className?: string }) {
 function LoginForm() {
   const router = useRouter();
   const params = useSearchParams();
-  const { refresh } = useAuth();
+  const { refresh, isJudge, isVolunteer } = useAuth();
   const next = params.get("next") || "/dashboard";
 
   const [email, setEmail] = useState("");
@@ -47,6 +47,11 @@ function LoginForm() {
   const [formError, setFormError] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
   const [googleLoading, setGoogleLoading] = useState(false);
+
+  useEffect(() => {
+    if (isJudge) router.replace("/judge");
+    else if (isVolunteer) router.replace("/volunteer");
+  }, [isJudge, isVolunteer, router]);
 
   const submit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -63,8 +68,17 @@ function LoginForm() {
     try {
       const res = await authApi.login(email.trim(), password);
       tokenStore.set(res.access_token);
+      const me = await authApi.me().catch(() => null);
+      if (me?.role) tokenStore.setRole(me.role);
       await refresh();
-      router.push(next);
+      const role = (me?.role || "").toUpperCase();
+      if (role === "JUDGE") {
+        router.push("/judge");
+      } else if (role === "VOLUNTEER") {
+        router.push("/volunteer");
+      } else {
+        router.push(next);
+      }
     } catch (err: any) {
       setFormError(err?.message || "Could not sign you in. Check your details and try again.");
     } finally {
@@ -80,8 +94,17 @@ function LoginForm() {
       const { idToken } = await signInWithGoogle();
       const res = await authApi.googleLogin(idToken);
       tokenStore.set(res.access_token);
+      const me = await authApi.me().catch(() => null);
+      if (me?.role) tokenStore.setRole(me.role);
       await refresh();
-      router.push(next);
+      const role = (me?.role || "").toUpperCase();
+      if (role === "JUDGE") {
+        router.push("/judge");
+      } else if (role === "VOLUNTEER") {
+        router.push("/volunteer");
+      } else {
+        router.push(next);
+      }
     } catch (err: any) {
       // Don't show error if user just closed the popup
       if (err?.code === "auth/popup-closed-by-user" || err?.code === "auth/cancelled-popup-request") return;

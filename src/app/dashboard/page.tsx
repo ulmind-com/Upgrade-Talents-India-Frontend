@@ -31,7 +31,7 @@ type Tab = "tickets" | "competitions" | "certificates" | "rewards" | "vip" | "ev
 
 export default function DashboardPage() {
   const router = useRouter();
-  const { user, loading: authLoading, refresh: refreshAuth, logout } = useAuth();
+  const { user, loading: authLoading, refresh: refreshAuth, logout, isJudge, isVolunteer } = useAuth();
 
   const [tab, setTab] = useState<Tab>("tickets");
   const [merchOrders, setMerchOrders] = useState<any[]>([]);
@@ -61,7 +61,9 @@ export default function DashboardPage() {
 
   useEffect(() => {
     if (!authLoading && !user) router.replace("/login?next=/dashboard");
-  }, [authLoading, user, router]);
+    if (isJudge) router.replace("/judge");
+    if (isVolunteer) router.replace("/volunteer");
+  }, [authLoading, user, isJudge, isVolunteer, router]);
 
   useEffect(() => {
     if (typeof window !== "undefined") {

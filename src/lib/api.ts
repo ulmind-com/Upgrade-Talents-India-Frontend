@@ -7,12 +7,25 @@ export const API_BASE =
   process.env.NEXT_PUBLIC_API_BASE_URL?.replace(/\/$/, "") || "http://localhost:8000";
 
 const TOKEN_KEY = "uti_access_token";
+const ROLE_KEY = "uti_user_role";
 const REG_TOKEN_KEY = "uti_registration_token";
 
 export const tokenStore = {
   get: () => (typeof window === "undefined" ? null : localStorage.getItem(TOKEN_KEY)),
   set: (t: string) => localStorage.setItem(TOKEN_KEY, t),
-  clear: () => localStorage.removeItem(TOKEN_KEY),
+  clear: () => {
+    if (typeof window !== "undefined") {
+      localStorage.removeItem(TOKEN_KEY);
+      localStorage.removeItem(ROLE_KEY);
+    }
+  },
+  getRole: () => (typeof window === "undefined" ? null : localStorage.getItem(ROLE_KEY)),
+  setRole: (r: string) => {
+    if (typeof window !== "undefined") localStorage.setItem(ROLE_KEY, r);
+  },
+  clearRole: () => {
+    if (typeof window !== "undefined") localStorage.removeItem(ROLE_KEY);
+  },
   getReg: () => (typeof window === "undefined" ? null : localStorage.getItem(REG_TOKEN_KEY)),
   setReg: (t: string) => localStorage.setItem(REG_TOKEN_KEY, t),
   clearReg: () => localStorage.removeItem(REG_TOKEN_KEY),

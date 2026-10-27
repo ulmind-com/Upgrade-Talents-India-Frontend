@@ -2,7 +2,7 @@
 
 import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { motion, AnimatePresence, type Variants } from "framer-motion";
 import { ArrowRight, ArrowLeft, Mail, KeyRound, ScanLine, ShieldCheck, Camera, QrCode } from "lucide-react";
 import { volunteerAuthApi, tokenStore } from "@/lib/api";
@@ -32,7 +32,7 @@ const STEPS = [
 
 export default function VolunteerLoginPage() {
   const router = useRouter();
-  const { refresh } = useAuth();
+  const { refresh, isVolunteer } = useAuth();
 
   const [step, setStep] = useState(1);
   const [loading, setLoading] = useState(false);
@@ -41,6 +41,10 @@ export default function VolunteerLoginPage() {
   const [errors, setErrors] = useState<Record<string, string>>({});
 
   const [email, setEmail] = useState("");
+
+  useEffect(() => {
+    if (isVolunteer) router.replace("/volunteer");
+  }, [isVolunteer, router]);
 
   const submitStep1 = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -66,6 +70,7 @@ export default function VolunteerLoginPage() {
     setFormError(null);
     const res = await volunteerAuthApi.loginStep2(email.trim(), otp);
     tokenStore.set(res.access_token);
+    tokenStore.setRole("VOLUNTEER");
     await refresh();
   };
 

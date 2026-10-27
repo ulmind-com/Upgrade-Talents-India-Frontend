@@ -125,10 +125,21 @@ export function SmoothScroll({ children }: { children: React.ReactNode }) {
 type AuthState = {
   user: any | null;
   loading: boolean;
+  role: string | null;
+  isJudge: boolean;
+  isVolunteer: boolean;
   refresh: () => Promise<void>;
   logout: () => void;
 };
-const AuthCtx = createContext<AuthState>({ user: null, loading: true, refresh: async () => {}, logout: () => {} });
+const AuthCtx = createContext<AuthState>({
+  user: null,
+  loading: true,
+  role: null,
+  isJudge: false,
+  isVolunteer: false,
+  refresh: async () => {},
+  logout: () => {},
+});
 export const useAuth = () => useContext(AuthCtx);
 
 export function AuthProvider({ children }: { children: React.ReactNode }) {
@@ -136,10 +147,16 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   const [loading, setLoading] = useState(true);
 
   const refresh = useCallback(async () => {
-    if (!tokenStore.get()) { setUser(null); setLoading(false); return; }
+    if (!tokenStore.get()) {
+      tokenStore.clear();
+      setUser(null);
+      setLoading(false);
+      return;
+    }
     try {
       const me = await authApi.me();
       setUser(me);
+      if (me?.role) tokenStore.setRole(me.role);
     } catch {
       tokenStore.clear();
       setUser(null);
@@ -155,5 +172,13 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 
   useEffect(() => { refresh(); }, [refresh]);
 
-  return <AuthCtx.Provider value={{ user, loading, refresh, logout }}>{children}</AuthCtx.Provider>;
+  const rawRole = (user?.role || (typeof window !== "undefined" ? tokenStore.getRole() : null) || "").toUpperCase();
+  const isJudge = rawRole === "JUDGE";
+  const isVolunteer = rawRole === "VOLUNTEER";
+
+  return (
+    <AuthCtx.Provider value={{ user, loading, role: rawRole || null, isJudge, isVolunteer, refresh, logout }}>
+      {children}
+    </AuthCtx.Provider>
+  );
 }

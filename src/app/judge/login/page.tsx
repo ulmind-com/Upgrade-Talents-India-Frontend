@@ -2,7 +2,7 @@
 
 import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { motion, AnimatePresence, type Variants } from "framer-motion";
 import { ArrowRight, ArrowLeft, Mail, KeyRound, Gavel, ShieldCheck, Star, Award } from "lucide-react";
 import { judgeAuthApi, tokenStore } from "@/lib/api";
@@ -32,7 +32,7 @@ const STEPS = [
 
 export default function JudgeLoginPage() {
   const router = useRouter();
-  const { refresh } = useAuth();
+  const { refresh, isJudge } = useAuth();
 
   const [step, setStep] = useState(1);
   const [loading, setLoading] = useState(false);
@@ -41,6 +41,10 @@ export default function JudgeLoginPage() {
   const [errors, setErrors] = useState<Record<string, string>>({});
 
   const [email, setEmail] = useState("");
+
+  useEffect(() => {
+    if (isJudge) router.replace("/judge");
+  }, [isJudge, router]);
 
   const submitStep1 = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -66,6 +70,7 @@ export default function JudgeLoginPage() {
     setFormError(null);
     const res = await judgeAuthApi.loginStep2(email.trim(), otp);
     tokenStore.set(res.access_token);
+    tokenStore.setRole("JUDGE");
     await refresh();
   };
 

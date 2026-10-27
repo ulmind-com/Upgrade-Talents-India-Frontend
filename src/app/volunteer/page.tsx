@@ -403,14 +403,6 @@ export default function VolunteerScannerPage() {
         <div className="mx-auto flex max-w-7xl items-center justify-between px-4 py-3 sm:px-6">
           {/* Left: Terminal Brand & Gate Selector */}
           <div className="flex items-center gap-3">
-            <Link
-              href="/"
-              className="group flex size-9 items-center justify-center rounded-xl border border-white/10 bg-white/[0.04] text-zinc-400 transition-all hover:border-cyan-500/50 hover:bg-cyan-500/10 hover:text-cyan-400"
-              title="Exit to Main Website"
-            >
-              <ArrowLeft className="size-4 transition-transform group-hover:-translate-x-0.5" />
-            </Link>
-
             <div className="flex items-center gap-2.5">
               <span className="relative flex size-9 items-center justify-center rounded-xl bg-gradient-to-tr from-cyan-500 via-blue-600 to-indigo-600 text-white shadow-lg shadow-cyan-500/20">
                 <ScanLine className="size-4" />
