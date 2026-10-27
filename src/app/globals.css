@@ -145,26 +145,11 @@
 }
 
 /* ── BASE ─────────────────────────────────────────────── */
-* {
-  border-color: var(--border);
-  -webkit-tap-highlight-color: transparent;
-}
-
-button, a, input, select, textarea {
-  touch-action: manipulation;
-}
-
-@media (max-width: 768px) {
-  input, select, textarea {
-    font-size: 16px;
-  }
-}
+* { border-color: var(--border); }
 
 html {
   -webkit-text-size-adjust: 100%;
   scroll-behavior: smooth;
-  max-width: 100vw;
-  overflow-x: hidden;
 }
 html.lenis, html.lenis body { height: auto; }
 .lenis.lenis-smooth { scroll-behavior: auto !important; }
@@ -176,10 +161,7 @@ body {
   font-size: 16px;
   line-height: 1.6;
   -webkit-font-smoothing: antialiased;
-  max-width: 100vw;
   overflow-x: hidden;
-  position: relative;
-  -webkit-overflow-scrolling: touch;
   transition: background-color 0.5s var(--ease-out-expo), color 0.4s var(--ease-out-expo);
 }
 
@@ -212,24 +194,9 @@ p { text-wrap: pretty; overflow-wrap: anywhere; }
   border: 2px solid var(--bg);
 }
 
-.no-scrollbar::-webkit-scrollbar {
-  display: none;
-}
-.no-scrollbar {
-  -ms-overflow-style: none;
-  scrollbar-width: none;
-}
-
 /* ── UTILITIES ───────────────────────────────────────── */
-.container-x {
-  width: 100%;
-  max-width: 1400px;
-  margin-inline: auto;
-  padding-inline: 16px;
-}
-@media (min-width: 640px) { .container-x { padding-inline: 24px; } }
-@media (min-width: 768px) { .container-x { padding-inline: 36px; } }
-@media (min-width: 1024px) { .container-x { padding-inline: 48px; } }
+.container-x { width: 100%; max-width: 1400px; margin-inline: auto; padding-inline: 20px; }
+@media (min-width: 768px) { .container-x { padding-inline: 40px; } }
 @media (min-width: 1280px) { .container-x { padding-inline: 64px; } }
 
 .text-gradient {

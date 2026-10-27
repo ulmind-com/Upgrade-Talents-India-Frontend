@@ -18,24 +18,14 @@ export const metadata: Metadata = {
     description: "Dance events, competitions and workshops — book your stage.",
     type: "website",
   },
-  appleWebApp: {
-    capable: true,
-    statusBarStyle: "black-translucent",
-    title: "Upgrade Talents",
-  },
-  formatDetection: {
-    telephone: false,
-  },
 };
 
 export const viewport: Viewport = {
   width: "device-width",
   initialScale: 1,
-  maximumScale: 1,
-  viewportFit: "cover",
   themeColor: [
-    { media: "(prefers-color-scheme: dark)", color: "#091124" },
-    { media: "(prefers-color-scheme: light)", color: "#fff7f1" },
+    { media: "(prefers-color-scheme: dark)", color: "#05060d" },
+    { media: "(prefers-color-scheme: light)", color: "#e8eeff" },
   ],
 };
 

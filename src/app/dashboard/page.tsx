@@ -214,7 +214,7 @@ export default function DashboardPage() {
         </Reveal>
 
         {/* ── Navigation Tabs ── */}
-        <div className="mt-8 flex flex-nowrap md:flex-wrap gap-2 overflow-x-auto pb-3 no-scrollbar -mx-4 px-4 sm:mx-0 sm:px-0" role="tablist" aria-label="Dashboard sections">
+        <div className="mt-10 flex flex-wrap gap-2 overflow-x-auto pb-2 scrollbar-none" role="tablist" aria-label="Dashboard sections">
           {TABS.map((t) => (
             <button
               key={t.key}

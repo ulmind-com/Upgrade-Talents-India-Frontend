@@ -270,7 +270,7 @@ export default function Navbar({ brandName = "UPGRADE TALENTS INDIA", logo }: { 
 
               {/* User Account Menu / Login Button */}
               {user ? (
-                <div ref={userDropdownRef} className="relative block">
+                <div ref={userDropdownRef} className="relative hidden md:block">
                   <button
                     onClick={() => setUserDropdownOpen(!userDropdownOpen)}
                     aria-expanded={userDropdownOpen}
@@ -418,7 +418,7 @@ export default function Navbar({ brandName = "UPGRADE TALENTS INDIA", logo }: { 
                   href="/login"
                   aria-label="Sign in"
                   title="Sign in"
-                  className="grid size-9 sm:size-10 cursor-pointer place-items-center rounded-full border border-[var(--border)] bg-[var(--surface)] text-[var(--fg-muted)] transition-colors hover:border-[var(--border-strong)] hover:text-[var(--fg)]"
+                  className="hidden size-9 sm:size-10 cursor-pointer place-items-center rounded-full border border-[var(--border)] bg-[var(--surface)] text-[var(--fg-muted)] transition-colors hover:border-[var(--border-strong)] hover:text-[var(--fg)] md:grid"
                 >
                   <User className="size-4 sm:size-[18px]" aria-hidden />
                 </Link>

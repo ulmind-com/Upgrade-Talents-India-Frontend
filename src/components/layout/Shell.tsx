@@ -4,7 +4,6 @@ import { usePathname, useRouter } from "next/navigation";
 import { useEffect } from "react";
 import Navbar from "./Navbar";
 import Footer from "./Footer";
-import MobileAppTabBar from "./MobileAppTabBar";
 import { ScrollProgress } from "@/components/motion/Reveal";
 import { NotificationPanel } from "@/components/notifications/NotificationPanel";
 import { useAuth } from "@/components/motion/Providers";
@@ -50,12 +49,7 @@ export default function Shell({
   }, [isJudge, isVolunteer, pathname, loading, router]);
 
   if (isKiosk) {
-    return (
-      <>
-        <main id="main" className="min-h-dvh pb-[calc(4.5rem+env(safe-area-inset-bottom,0px))] md:pb-0">{children}</main>
-        <MobileAppTabBar />
-      </>
-    );
+    return <main id="main" className="min-h-dvh">{children}</main>;
   }
 
   const isStaffRole = isJudge || isVolunteer;
@@ -65,9 +59,8 @@ export default function Shell({
       <ScrollProgress />
       <Navbar brandName={brandName} logo={logo} />
       {!isStaffRole && <NotificationPanel />}
-      <main id="main" className="min-h-dvh pb-[calc(4.75rem+env(safe-area-inset-bottom,0px))] md:pb-0">{children}</main>
+      <main id="main" className="min-h-dvh">{children}</main>
       {!isStaffRole && <Footer brandName={brandName} tagline={tagline} contact={contact} links={links} />}
-      <MobileAppTabBar />
     </>
   );
 }
