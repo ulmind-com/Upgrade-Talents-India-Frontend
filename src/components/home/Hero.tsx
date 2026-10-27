@@ -110,13 +110,13 @@ export default function Hero({
   const punch = parts.length > 1 ? parts[parts.length - 1] : rawTitle;
 
   const leadSize =
-    lead.length <= 12 ? "clamp(2.1rem,5.4vw,4.4rem)"
-    : lead.length <= 20 ? "clamp(1.8rem,4.2vw,3.4rem)"
-    : "clamp(1.5rem,3.2vw,2.6rem)";
+    lead.length <= 12 ? "clamp(1.8rem,5.4vw,4.4rem)"
+    : lead.length <= 20 ? "clamp(1.5rem,4.2vw,3.4rem)"
+    : "clamp(1.3rem,3.2vw,2.6rem)";
   const punchSize =
-    punch.length <= 7 ? "clamp(2.9rem,8.2vw,6.6rem)"
-    : punch.length <= 11 ? "clamp(2.5rem,6.2vw,5rem)"
-    : "clamp(2rem,4.8vw,3.6rem)";
+    punch.length <= 7 ? "clamp(2.4rem,8.2vw,6.6rem)"
+    : punch.length <= 11 ? "clamp(2.0rem,6.2vw,5rem)"
+    : "clamp(1.7rem,4.8vw,3.6rem)";
 
   const body =
     brandBody ||
@@ -300,6 +300,29 @@ export default function Hero({
                 <Share2 className="size-[22px] shrink-0" aria-hidden />
                 <span className="hidden sm:inline">Share</span>
                 <ArrowRight className="size-4 shrink-0 opacity-0 transition-all duration-300 group-hover:translate-x-1 group-hover:opacity-100" aria-hidden />
+              </Link>
+            </motion.div>
+
+            {/* Quick App Action Pills (Mobile & Small Tablets) */}
+            <motion.div
+              initial={{ opacity: 0, y: 16 }}
+              animate={{ opacity: 1, y: 0 }}
+              transition={{ duration: 0.6, delay: 0.75, ease }}
+              className="mt-6 flex items-center gap-3 sm:hidden"
+            >
+              <Link
+                href="/events"
+                className="flex-1 inline-flex items-center justify-center gap-2 rounded-full py-3 px-4 text-xs font-bold uppercase tracking-wider text-white shadow-lg active:scale-95 transition-all"
+                style={{ background: "var(--grad-brand)" }}
+              >
+                <span>Explore Events</span>
+                <ArrowRight className="size-3.5" />
+              </Link>
+              <Link
+                href="/competitions"
+                className="flex-1 inline-flex items-center justify-center gap-2 rounded-full border border-white/25 bg-black/40 backdrop-blur-md py-3 px-4 text-xs font-bold uppercase tracking-wider text-white active:scale-95 transition-all hover:border-white"
+              >
+                <span>Competitions</span>
               </Link>
             </motion.div>
           </div>

@@ -456,7 +456,7 @@ export function AppPromo({ promo }: { promo: Record<string, any> | null }) {
     <section className="relative overflow-hidden py-20 md:py-28">
       <Spotlights variant="b" />
       <div className="container-x relative">
-        <div className="grid items-center gap-12 rounded-[var(--radius-2xl)] border border-[var(--border)] bg-[var(--surface)] p-9 md:p-14 lg:grid-cols-2">
+        <div className="grid items-center gap-12 rounded-[var(--radius-2xl)] border border-[var(--border)] bg-[var(--surface)] p-6 sm:p-9 md:p-14 lg:grid-cols-2">
           <Reveal>
             <Badge tone="brand"><Smartphone className="size-3" aria-hidden /> Mobile app</Badge>
             <h2 className="mt-5 font-display text-[clamp(2rem,5vw,3.4rem)] font-bold uppercase leading-[0.92]">
