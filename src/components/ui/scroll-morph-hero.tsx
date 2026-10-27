@@ -1,7 +1,7 @@
 "use client";
 
 import React, { useState, useEffect, useMemo, useRef } from "react";
-import { motion, useScroll, useTransform, useSpring, useMotionValue } from "framer-motion";
+import { motion, useScroll, useTransform, useSpring, useMotionValue, useMotionValueEvent } from "framer-motion";
 
 /* ═══════════ Types ═══════════ */
 export type AnimationPhase = "scatter" | "line" | "circle" | "bottom-strip";
@@ -18,7 +18,17 @@ interface FlipCardProps {
 const IMG_WIDTH = 60;
 const IMG_HEIGHT = 85;
 
-function FlipCard({ src, index, target }: FlipCardProps) {
+interface FlipCardProps {
+  src: string;
+  index: number;
+  total: number;
+  phase: AnimationPhase;
+  target: { x: number; y: number; rotation: number; scale: number; opacity: number };
+  width?: number;
+  height?: number;
+}
+
+function FlipCard({ src, index, target, width = IMG_WIDTH, height = IMG_HEIGHT }: FlipCardProps) {
   return (
     <motion.div
       animate={{
@@ -28,11 +38,11 @@ function FlipCard({ src, index, target }: FlipCardProps) {
         scale: target.scale,
         opacity: target.opacity,
       }}
-      transition={{ type: "spring", stiffness: 40, damping: 15 }}
+      transition={{ type: "spring", stiffness: 45, damping: 18 }}
       style={{
         position: "absolute",
-        width: IMG_WIDTH,
-        height: IMG_HEIGHT,
+        width,
+        height,
         transformStyle: "preserve-3d",
         perspective: "1000px",
       }}
@@ -55,14 +65,14 @@ function FlipCard({ src, index, target }: FlipCardProps) {
 
         {/* Back */}
         <div
-          className="absolute inset-0 flex h-full w-full flex-col items-center justify-center overflow-hidden rounded-xl border border-[var(--border-strong,var(--border))] bg-[var(--bg)] p-4 shadow-lg"
+          className="absolute inset-0 flex h-full w-full flex-col items-center justify-center overflow-hidden rounded-xl border border-[var(--border-strong,var(--border))] bg-[var(--bg)] p-3 sm:p-4 shadow-lg"
           style={{ backfaceVisibility: "hidden", transform: "rotateY(180deg)" }}
         >
           <div className="text-center">
-            <p className="mb-1 font-mono text-[8px] font-bold uppercase tracking-[0.18em] text-[var(--accent)]">
+            <p className="mb-1 font-mono text-[7px] sm:text-[8px] font-bold uppercase tracking-[0.18em] text-[var(--accent)]">
               View
             </p>
-            <p className="text-xs font-medium text-[var(--fg)]">Details</p>
+            <p className="text-[10px] sm:text-xs font-medium text-[var(--fg)]">Details</p>
           </div>
         </div>
       </motion.div>
@@ -119,6 +129,7 @@ export default function IntroAnimation({
 } = {}) {
   const [introPhase, setIntroPhase] = useState<AnimationPhase>("scatter");
   const [containerSize, setContainerSize] = useState({ width: 0, height: 0 });
+  const [trackVh, setTrackVh] = useState(300);
   const containerRef = useRef<HTMLDivElement>(null);
   const trackRef = useRef<HTMLDivElement>(null);
 
@@ -134,17 +145,20 @@ export default function IntroAnimation({
 
     const handleResize = (entries: ResizeObserverEntry[]) => {
       for (const entry of entries) {
-        setContainerSize({ width: entry.contentRect.width, height: entry.contentRect.height });
+        const w = entry.contentRect.width;
+        const h = entry.contentRect.height;
+        setContainerSize({ width: w, height: h });
+        setTrackVh(w < 768 ? 220 : 300);
       }
     };
 
     const observer = new ResizeObserver(handleResize);
     observer.observe(containerRef.current);
 
-    setContainerSize({
-      width: containerRef.current.offsetWidth,
-      height: containerRef.current.offsetHeight,
-    });
+    const initialW = containerRef.current.offsetWidth;
+    const initialH = containerRef.current.offsetHeight;
+    setContainerSize({ width: initialW, height: initialH });
+    setTrackVh(initialW < 768 ? 220 : 300);
 
     return () => observer.disconnect();
   }, []);
@@ -159,7 +173,7 @@ export default function IntroAnimation({
 
   // Morph: circle -> bottom arc
   const morphProgress = useTransform(virtualScroll, [0, 600], [0, 1]);
-  const smoothMorph = useSpring(morphProgress, { stiffness: 40, damping: 20 });
+  const smoothMorph = useSpring(morphProgress, { stiffness: 45, damping: 20 });
 
   // Shuffle the arc on continued scroll
   const scrollRotate = useTransform(virtualScroll, [600, 3000], [0, 360]);
@@ -185,13 +199,24 @@ export default function IntroAnimation({
 
   /* Intro sequence */
   useEffect(() => {
-    const timer1 = setTimeout(() => setIntroPhase("line"), 500);
-    const timer2 = setTimeout(() => setIntroPhase("circle"), 2500);
+    if (scrollYProgress.get() > 0.01) {
+      setIntroPhase("circle");
+      return;
+    }
+    const timer1 = setTimeout(() => setIntroPhase("line"), 400);
+    const timer2 = setTimeout(() => setIntroPhase("circle"), 1800);
     return () => {
       clearTimeout(timer1);
       clearTimeout(timer2);
     };
-  }, []);
+  }, [scrollYProgress]);
+
+  /* Immediately snap to circle if scrolled into view */
+  useMotionValueEvent(scrollYProgress, "change", (v) => {
+    if (v > 0.01 && introPhase !== "circle") {
+      setIntroPhase("circle");
+    }
+  });
 
   /* Scatter positions */
   // Deterministic pseudo-random so server and client markup match.
@@ -223,11 +248,11 @@ export default function IntroAnimation({
     };
   }, [smoothMorph, smoothScrollRotate, smoothMouseX]);
 
-  const contentOpacity = useTransform(smoothMorph, [0.8, 1], [0, 1]);
-  const contentY = useTransform(smoothMorph, [0.8, 1], [20, 0]);
+  const contentOpacity = useTransform(smoothMorph, [0.35, 0.70], [0, 1]);
+  const contentY = useTransform(smoothMorph, [0.35, 0.70], [20, 0]);
 
   return (
-    <div ref={trackRef} className="relative" style={{ height: `${TRACK_VH}vh` }}>
+    <div ref={trackRef} className="relative" style={{ height: `${trackVh}vh` }}>
       <div
         ref={containerRef}
         className="sticky top-0 h-screen w-full overflow-hidden bg-[var(--bg-elevated)]"
@@ -236,43 +261,43 @@ export default function IntroAnimation({
         className="flex h-full w-full flex-col items-center justify-center"
         style={{ perspective: "1000px" }}
       >
-        {/* Intro text (fades out) */}
-        <div className="pointer-events-none absolute top-1/2 z-0 flex -translate-y-1/2 flex-col items-center justify-center text-center">
+        {/* Intro text (fades out gracefully during morph) */}
+        <div className="pointer-events-none absolute top-1/2 z-0 flex max-w-[230px] sm:max-w-xs md:max-w-md -translate-y-1/2 flex-col items-center justify-center px-2 text-center">
           <motion.h2
             initial={{ opacity: 0, y: 20, filter: "blur(10px)" }}
             animate={
-              introPhase === "circle" && morphValue < 0.5
-                ? { opacity: 1 - morphValue * 2, y: 0, filter: "blur(0px)" }
+              introPhase === "circle" && morphValue < 0.65
+                ? { opacity: Math.max(0, 1 - morphValue * 1.6), y: 0, filter: "blur(0px)" }
                 : { opacity: 0, filter: "blur(10px)" }
             }
-            transition={{ duration: 1 }}
-            className="font-display text-2xl font-bold uppercase tracking-tight text-[var(--fg)] md:text-4xl"
+            transition={{ duration: 0.5 }}
+            className="font-display text-base sm:text-xl md:text-3xl lg:text-4xl font-bold uppercase tracking-tight text-[var(--fg)] leading-snug drop-shadow-sm"
           >
             {introTitle}
           </motion.h2>
           <motion.p
             initial={{ opacity: 0 }}
             animate={
-              introPhase === "circle" && morphValue < 0.5
-                ? { opacity: 0.5 - morphValue }
+              introPhase === "circle" && morphValue < 0.65
+                ? { opacity: Math.max(0, 0.6 - morphValue) }
                 : { opacity: 0 }
             }
-            transition={{ duration: 1, delay: 0.2 }}
-            className="mt-4 font-mono text-[11px] font-bold uppercase tracking-[0.2em] text-[var(--fg-muted)]"
+            transition={{ duration: 0.5, delay: 0.1 }}
+            className="mt-2 sm:mt-4 font-mono text-[9px] sm:text-[10px] md:text-[11px] font-bold uppercase tracking-[0.2em] text-[var(--fg-muted)]"
           >
             Scroll to explore
           </motion.p>
         </div>
 
-        {/* Arc-active content (fades in) */}
+        {/* Arc-active content (fades in seamlessly) */}
         <motion.div
           style={{ opacity: contentOpacity, y: contentY }}
-          className="pointer-events-none absolute top-[10%] z-10 flex flex-col items-center justify-center px-4 text-center"
+          className="pointer-events-none absolute top-[7%] sm:top-[10%] z-10 flex flex-col items-center justify-center px-4 text-center"
         >
-          <h2 className="mb-4 font-display text-3xl font-bold uppercase tracking-tight text-[var(--fg)] md:text-5xl">
+          <h2 className="mb-2 sm:mb-4 font-display text-2xl sm:text-3xl md:text-5xl font-bold uppercase tracking-tight text-[var(--fg)]">
             {title}
           </h2>
-          <p className="max-w-lg text-sm leading-relaxed text-[var(--fg-muted)] md:text-base">
+          <p className="max-w-md sm:max-w-lg text-xs sm:text-sm md:text-base leading-relaxed text-[var(--fg-muted)]">
             {subtitle}
           </p>
         </motion.div>
@@ -281,20 +306,23 @@ export default function IntroAnimation({
         <div className="relative flex h-full w-full items-center justify-center">
           {cards.map((src, i) => {
             let target = { x: 0, y: 0, rotation: 0, scale: 1, opacity: 1 };
+            const isMobile = containerSize.width > 0 && containerSize.width < 768;
+            const minDimension = Math.min(containerSize.width || 1200, containerSize.height || 800);
+            const cardW = isMobile ? 44 : IMG_WIDTH;
+            const cardH = isMobile ? 62 : IMG_HEIGHT;
 
             if (introPhase === "scatter") {
               target = scatterPositions[i];
             } else if (introPhase === "line") {
-              const lineSpacing = 70;
+              const lineSpacing = isMobile ? 48 : 70;
               const lineTotalWidth = TOTAL_IMAGES * lineSpacing;
               const lineX = i * lineSpacing - lineTotalWidth / 2;
               target = { x: lineX, y: 0, rotation: 0, scale: 1, opacity: 1 };
             } else {
-              const isMobile = containerSize.width < 768;
-              const minDimension = Math.min(containerSize.width, containerSize.height);
-
               // Circle
-              const circleRadius = Math.min(minDimension * 0.35, 350);
+              const circleRadius = isMobile
+                ? Math.min(containerSize.width * 0.38, 160)
+                : Math.min(minDimension * 0.35, 350);
               const circleAngle = (i / TOTAL_IMAGES) * 360;
               const circleRad = (circleAngle * Math.PI) / 180;
               const circlePos = {
@@ -304,28 +332,43 @@ export default function IntroAnimation({
               };
 
               // Bottom arc ("rainbow" arch, convex up)
-              const baseRadius = Math.min(containerSize.width, containerSize.height * 1.5);
-              const arcRadius = baseRadius * (isMobile ? 1.8 : 1.1);
-              const arcApexY = containerSize.height * (isMobile ? 0.14 : 0.06);
-              const arcCenterY = arcApexY + arcRadius;
+              let arcRadius: number;
+              let arcApexY: number;
+              let arcCenterY: number;
+              let spreadAngle: number;
+              let arcScale: number;
 
-              const spreadAngle = isMobile ? 100 : 130;
+              if (isMobile) {
+                arcRadius = containerSize.width * 0.95;
+                arcApexY = containerSize.height * 0.02;
+                arcCenterY = arcApexY + arcRadius;
+                spreadAngle = 95;
+                arcScale = 1.35;
+              } else {
+                const baseRadius = Math.min(containerSize.width, containerSize.height * 1.5);
+                arcRadius = baseRadius * 1.1;
+                arcApexY = containerSize.height * 0.06;
+                arcCenterY = arcApexY + arcRadius;
+                spreadAngle = 130;
+                arcScale = 1.8;
+              }
+
               const startAngle = -90 - spreadAngle / 2;
               const step = spreadAngle / (TOTAL_IMAGES - 1);
 
-              // Bounded shuffle so the last card stays in view
+              // Bounded shuffle so cards stay in view
               const scrollProgress = Math.min(Math.max(rotateValue / 360, 0), 1);
-              const maxRotation = spreadAngle * 0.3;
+              const maxRotation = spreadAngle * (isMobile ? 0.22 : 0.3);
               const boundedRotation = -scrollProgress * maxRotation;
 
               const currentArcAngle = startAngle + i * step + boundedRotation;
               const arcRad = (currentArcAngle * Math.PI) / 180;
 
               const arcPos = {
-                x: Math.cos(arcRad) * arcRadius + parallaxValue,
+                x: Math.cos(arcRad) * arcRadius + (isMobile ? 0 : parallaxValue),
                 y: Math.sin(arcRad) * arcRadius + arcCenterY,
                 rotation: currentArcAngle + 90,
-                scale: isMobile ? 1.1 : 1.8,
+                scale: arcScale,
               };
 
               target = {
@@ -345,6 +388,8 @@ export default function IntroAnimation({
                 total={TOTAL_IMAGES}
                 phase={introPhase}
                 target={target}
+                width={cardW}
+                height={cardH}
               />
             );
           })}
