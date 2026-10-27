@@ -300,6 +300,9 @@ export const competeApi = {
       is_confirmed: boolean;
       status: string;
       payment_status: string;
+      payment_method?: string;
+      cash_payment?: boolean;
+      cash_status?: string;
       registration_reference?: string;
       has_submitted?: boolean;
       submission_id?: string;
@@ -307,8 +310,13 @@ export const competeApi = {
     }>(`/api/v1/competitions/${id}/my-registration`, { auth: true, cache: "no-store" }),
   eligibility: (id: string) =>
     apiFetch<{ eligible: boolean; status: string; reason: string }>(`/api/v1/competitions/${id}/eligibility`, { auth: true, cache: "no-store" }),
-  register: (id: string, rules_accepted = true) =>
-    apiFetch<any>(`/api/v1/competitions/${id}/register`, { method: "POST", auth: true, query: { rules_accepted } }),
+  register: (id: string, rules_accepted = true, payment_method: "ONLINE" | "CASH" = "ONLINE") =>
+    apiFetch<any>(`/api/v1/competitions/${id}/register`, {
+      method: "POST",
+      auth: true,
+      query: { rules_accepted, payment_method },
+      body: { rules_accepted, payment_method },
+    }),
   submit: (id: string, files: File[], fieldNames: string[]) => {
     const fd = new FormData();
     files.forEach((f) => fd.append("files", f));

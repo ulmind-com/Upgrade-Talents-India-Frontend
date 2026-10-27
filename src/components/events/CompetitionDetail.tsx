@@ -7,6 +7,7 @@ import {
   Trophy, Calendar, Gavel, Upload, CheckCircle2, AlertCircle, ListChecks,
   ShieldCheck, LogIn, Loader2, Heart, Crown, FileUp, Link2, Film, Music, X,
   Radio, ArrowRight, Award, ExternalLink, Sparkles, MessageSquare, Play, Pause,
+  CreditCard, Banknote, Zap, Clock,
 } from "lucide-react";
 import { Reveal, StaggerGroup, StaggerItem } from "@/components/motion/Reveal";
 import { SectionLabel, Badge } from "@/components/ui/Primitives";
@@ -104,7 +105,11 @@ export default function CompetitionDetail({
     submitted_at?: string;
     rank?: number;
     score?: number;
+    payment_method?: string;
+    cash_payment?: boolean;
+    cash_status?: string;
   } | null>(null);
+  const [paymentMode, setPaymentMode] = useState<"ONLINE" | "CASH">("ONLINE");
   const [rulesAccepted, setRulesAccepted] = useState(false);
   const [entryModes, setEntryModes] = useState<Record<string, "file" | "link">>({});
   const [files, setFiles] = useState<Record<string, File | null>>({});
@@ -150,11 +155,15 @@ export default function CompetitionDetail({
       .then((reg) => {
         if (reg?.is_registered) {
           if (reg.is_confirmed) {
+            const isCash = reg.payment_method === "CASH" || Boolean(reg.cash_payment);
             setEnrollmentInfo({
               reference: reg.registration_reference,
               registered_at: reg.registered_at,
               submission_id: reg.submission_id,
               submitted_at: reg.registered_at,
+              payment_method: reg.payment_method,
+              cash_payment: isCash,
+              cash_status: reg.cash_status,
             });
             if (reg.has_submitted || reg.submission_id) {
               setStep("done");
@@ -163,7 +172,9 @@ export default function CompetitionDetail({
               setStep(fields.length ? "submit" : "done");
               setMsg({
                 tone: "ok",
-                text: `You are enrolled in this competition! (${reg.registration_reference || "Confirmed"}) Upload your entry below.`,
+                text: isCash
+                  ? `You are enrolled via Cash on Spot (${reg.registration_reference || "Confirmed"}). Remember to deposit entry fee at the venue counter on event day. Upload your entry below.`
+                  : `You are enrolled in this competition! (${reg.registration_reference || "Confirmed"}) Upload your entry below.`,
               });
             }
             return;
@@ -197,6 +208,7 @@ export default function CompetitionDetail({
               match.is_confirmed === true;
 
             if (isConfirmed) {
+              const isCash = match.payment_method === "CASH" || Boolean(match.cash_payment);
               setEnrollmentInfo({
                 reference: match.registration_reference,
                 registered_at: match.registered_at,
@@ -204,6 +216,9 @@ export default function CompetitionDetail({
                 submitted_at: match.submitted_at,
                 rank: match.rank,
                 score: match.score,
+                payment_method: match.payment_method,
+                cash_payment: isCash,
+                cash_status: match.cash_status,
               });
               if (match.has_submitted || match.submission_id) {
                 setStep("done");
@@ -212,7 +227,9 @@ export default function CompetitionDetail({
                 setStep(fields.length ? "submit" : "done");
                 setMsg({
                   tone: "ok",
-                  text: `You are enrolled in this competition! (${match.registration_reference || "Confirmed"}) Upload your entry below.`,
+                  text: isCash
+                    ? `You are enrolled via Cash on Spot (${match.registration_reference || "Confirmed"}). Remember to deposit entry fee at the venue counter on event day. Upload your entry below.`
+                    : `You are enrolled in this competition! (${match.registration_reference || "Confirmed"}) Upload your entry below.`,
                 });
               }
             } else {
@@ -243,9 +260,13 @@ export default function CompetitionDetail({
                 match.is_confirmed === true;
 
               if (isConfirmed) {
+                const isCash = match.payment_method === "CASH" || Boolean(match.cash_payment);
                 setEnrollmentInfo({
                   reference: match.registration_reference,
                   registered_at: match.registered_at,
+                  payment_method: match.payment_method,
+                  cash_payment: isCash,
+                  cash_status: match.cash_status,
                 });
                 if (match.has_submitted || match.submission_id) {
                   setStep("done");
@@ -254,7 +275,9 @@ export default function CompetitionDetail({
                   setStep(fields.length ? "submit" : "done");
                   setMsg({
                     tone: "ok",
-                    text: `You are enrolled in this competition! (${match.registration_reference || "Confirmed"}) Upload your entry below.`,
+                    text: isCash
+                      ? `You are enrolled via Cash on Spot (${match.registration_reference || "Confirmed"}). Remember to deposit entry fee at the venue counter on event day. Upload your entry below.`
+                      : `You are enrolled in this competition! (${match.registration_reference || "Confirmed"}) Upload your entry below.`,
                   });
                 }
               } else {
@@ -352,13 +375,34 @@ export default function CompetitionDetail({
         return;
       }
 
-      const regRes = await competeApi.register(id, true);
+      const fee = comp.participation_fee || comp.fee || 0;
+      const chosenMode = fee > 0 ? paymentMode : "ONLINE";
 
-      // If free registration or already confirmed
-      if (regRes.status === "CONFIRMED" || !regRes.payment_info) {
-        setEnrollmentInfo((s) => ({ ...s, reference: regRes.reference }));
+      const regRes = await competeApi.register(id, true, chosenMode);
+
+      // If Cash on Spot, free registration, or confirmed without payment gateway
+      if (
+        chosenMode === "CASH" ||
+        regRes.payment_method === "CASH" ||
+        regRes.status === "CONFIRMED" ||
+        !regRes.payment_info
+      ) {
+        const isCash = chosenMode === "CASH" || regRes.payment_method === "CASH";
+        setEnrollmentInfo((s) => ({
+          ...s,
+          reference: regRes.reference,
+          payment_method: regRes.payment_method || chosenMode,
+          cash_payment: isCash,
+        }));
         setStep(fields.length ? "submit" : "done");
-        setMsg({ tone: "ok", text: "You're registered!" });
+        if (isCash) {
+          setMsg({
+            tone: "ok",
+            text: `Registration confirmed with Cash on Spot! Please deposit ₹${fee} cash at the venue registration counter on event day.`,
+          });
+        } else {
+          setMsg({ tone: "ok", text: "You're registered!" });
+        }
         return;
       }
 
@@ -706,6 +750,15 @@ export default function CompetitionDetail({
                   </div>
                 )}
 
+                {enrollmentInfo?.cash_payment && (
+                  <div className="rounded-xl border border-amber-500/35 bg-amber-500/10 px-3 py-1.5 text-xs text-amber-300">
+                    <span className="font-semibold flex items-center gap-1.5">
+                      <Banknote className="size-3.5 text-amber-400" />
+                      Cash on Spot (₹{comp.participation_fee || comp.fee} at Venue)
+                    </span>
+                  </div>
+                )}
+
                 {enrollmentInfo?.submitted_at && (
                   <div className="rounded-xl border border-[var(--border)] bg-[var(--surface-2)] px-3 py-1.5 text-xs">
                     <span className="text-[var(--fg-subtle)] mr-1.5">Submitted:</span>
@@ -1014,11 +1067,129 @@ export default function CompetitionDetail({
             ) : step === "register" ? (
               <>
                 {!!(comp.participation_fee || comp.fee) && (
-                  <div className="mb-4 flex items-center justify-between rounded-xl border border-[var(--border)] bg-[var(--surface-2)] p-3">
-                    <span className="text-[12.5px] font-medium text-[var(--fg-muted)]">Entry fee</span>
-                    <span className="font-display text-base font-bold text-[var(--accent)]">
-                      ₹{comp.participation_fee || comp.fee}
-                    </span>
+                  <div className="mb-4 space-y-3">
+                    <div className="flex items-center justify-between rounded-xl border border-[var(--border)] bg-[var(--surface-2)] p-3">
+                      <span className="text-[12.5px] font-medium text-[var(--fg-muted)]">Entry Fee</span>
+                      <span className="font-display text-base font-bold text-[var(--accent)]">
+                        ₹{comp.participation_fee || comp.fee}
+                      </span>
+                    </div>
+
+                    {/* Payment Mode Selector: Online vs Cash */}
+                    <div>
+                      <p className="mb-2 text-[11px] font-semibold uppercase tracking-wider text-[var(--fg-subtle)]">
+                        Select Payment Mode
+                      </p>
+                      <div className="grid grid-cols-1 gap-2.5 sm:grid-cols-2">
+                        {/* Option 1: Online Mode */}
+                        <div
+                          role="button"
+                          tabIndex={0}
+                          onClick={() => setPaymentMode("ONLINE")}
+                          className={cn(
+                            "relative flex cursor-pointer flex-col justify-between rounded-2xl border p-3.5 transition-all select-none",
+                            paymentMode === "ONLINE"
+                              ? "border-[var(--accent)] bg-[var(--accent)]/10 ring-1 ring-[var(--accent)]"
+                              : "border-[var(--border)] bg-[var(--surface-2)]/60 hover:border-[var(--border-strong)]"
+                          )}
+                        >
+                          <div className="flex items-center justify-between">
+                            <div className="flex items-center gap-2.5">
+                              <div
+                                className={cn(
+                                  "flex size-8 items-center justify-center rounded-xl transition-colors",
+                                  paymentMode === "ONLINE"
+                                    ? "bg-[var(--accent)] text-black"
+                                    : "bg-[var(--surface)] text-[var(--fg-muted)]"
+                                )}
+                              >
+                                <CreditCard className="size-4" />
+                              </div>
+                              <div>
+                                <p className="text-[13px] font-bold text-[var(--fg)] leading-none">Online</p>
+                                <span className="text-[10px] text-[var(--fg-muted)]">UPI / Cards</span>
+                              </div>
+                            </div>
+                            <span
+                              className={cn(
+                                "flex size-4 items-center justify-center rounded-full border transition-colors",
+                                paymentMode === "ONLINE"
+                                  ? "border-[var(--accent)] bg-[var(--accent)]"
+                                  : "border-[var(--border-strong)] bg-transparent"
+                              )}
+                            >
+                              {paymentMode === "ONLINE" && <span className="size-1.5 rounded-full bg-black" />}
+                            </span>
+                          </div>
+                          <div className="mt-2.5 flex items-center justify-between border-t border-[var(--border)]/60 pt-2">
+                            <span className="text-[10px] text-[var(--fg-subtle)]">Instant Entry</span>
+                            <span className="inline-flex items-center gap-1 rounded-md bg-emerald-500/15 px-1.5 py-0.5 text-[9.5px] font-bold text-emerald-400">
+                              <Zap className="size-2.5" /> Instant
+                            </span>
+                          </div>
+                        </div>
+
+                        {/* Option 2: Cash on Spot Mode */}
+                        <div
+                          role="button"
+                          tabIndex={0}
+                          onClick={() => setPaymentMode("CASH")}
+                          className={cn(
+                            "relative flex cursor-pointer flex-col justify-between rounded-2xl border p-3.5 transition-all select-none",
+                            paymentMode === "CASH"
+                              ? "border-[var(--accent)] bg-[var(--accent)]/10 ring-1 ring-[var(--accent)]"
+                              : "border-[var(--border)] bg-[var(--surface-2)]/60 hover:border-[var(--border-strong)]"
+                          )}
+                        >
+                          <div className="flex items-center justify-between">
+                            <div className="flex items-center gap-2.5">
+                              <div
+                                className={cn(
+                                  "flex size-8 items-center justify-center rounded-xl transition-colors",
+                                  paymentMode === "CASH"
+                                    ? "bg-[var(--accent)] text-black"
+                                    : "bg-[var(--surface)] text-[var(--fg-muted)]"
+                                )}
+                              >
+                                <Banknote className="size-4" />
+                              </div>
+                              <div>
+                                <p className="text-[13px] font-bold text-[var(--fg)] leading-none">Cash on Spot</p>
+                                <span className="text-[10px] text-[var(--fg-muted)]">Pay at Venue</span>
+                              </div>
+                            </div>
+                            <span
+                              className={cn(
+                                "flex size-4 items-center justify-center rounded-full border transition-colors",
+                                paymentMode === "CASH"
+                                  ? "border-[var(--accent)] bg-[var(--accent)]"
+                                  : "border-[var(--border-strong)] bg-transparent"
+                              )}
+                            >
+                              {paymentMode === "CASH" && <span className="size-1.5 rounded-full bg-black" />}
+                            </span>
+                          </div>
+                          <div className="mt-2.5 flex items-center justify-between border-t border-[var(--border)]/60 pt-2">
+                            <span className="text-[10px] text-[var(--fg-subtle)]">Gate Counter</span>
+                            <span className="inline-flex items-center gap-1 rounded-md bg-amber-500/15 px-1.5 py-0.5 text-[9.5px] font-bold text-amber-400">
+                              <Clock className="size-2.5" /> Venue
+                            </span>
+                          </div>
+                        </div>
+                      </div>
+                    </div>
+
+                    {paymentMode === "CASH" && (
+                      <div className="rounded-xl border border-amber-500/35 bg-amber-500/10 p-2.5 text-[11.5px] text-amber-300">
+                        <p className="flex items-center gap-1.5 font-semibold text-amber-200">
+                          <Banknote className="size-3.5 text-amber-400 shrink-0" />
+                          Cash on Spot (Venue Payment)
+                        </p>
+                        <p className="mt-1 text-[11px] text-amber-200/90 leading-relaxed">
+                          Your participation slot is reserved immediately. You can upload your audition entry now and deposit ₹{comp.participation_fee || comp.fee} cash at the venue counter on event day.
+                        </p>
+                      </div>
+                    )}
                   </div>
                 )}
                 <label className="flex cursor-pointer items-start gap-2.5 text-[13px] text-[var(--fg-muted)]">
@@ -1038,18 +1209,32 @@ export default function CompetitionDetail({
                 >
                   {busy ? <Loader2 className="size-4 animate-spin" aria-hidden /> : <ShieldCheck className="size-4" aria-hidden />}
                   {(comp.participation_fee || comp.fee)
-                    ? `Pay ₹${comp.participation_fee || comp.fee} & Register`
+                    ? paymentMode === "CASH"
+                      ? `Confirm Entry & Pay ₹${comp.participation_fee || comp.fee} Cash at Venue`
+                      : `Pay ₹${comp.participation_fee || comp.fee} Online & Register`
                     : "Register to compete"}
                 </button>
               </>
             ) : step === "submit" ? (
               <>
-                <div className="mb-4 flex items-center justify-between rounded-xl border border-emerald-500/30 bg-emerald-500/10 p-3 text-xs text-emerald-300">
-                  <span className="flex items-center gap-1.5 font-bold">
-                    <CheckCircle2 className="size-4 text-emerald-400" /> Enrolled &amp; Confirmed
-                  </span>
-                  {enrollmentInfo?.reference && (
-                    <span className="font-mono text-[11px] text-emerald-400/80">{enrollmentInfo.reference}</span>
+                <div className="mb-4 flex flex-col gap-2 rounded-xl border border-emerald-500/30 bg-emerald-500/10 p-3 text-xs text-emerald-300">
+                  <div className="flex items-center justify-between">
+                    <span className="flex items-center gap-1.5 font-bold">
+                      <CheckCircle2 className="size-4 text-emerald-400" /> Enrolled &amp; Confirmed
+                    </span>
+                    {enrollmentInfo?.reference && (
+                      <span className="font-mono text-[11px] text-emerald-400/80">{enrollmentInfo.reference}</span>
+                    )}
+                  </div>
+                  {enrollmentInfo?.cash_payment && (
+                    <div className="flex items-center justify-between rounded-lg border border-amber-500/30 bg-amber-500/15 px-2.5 py-1 text-[11px] text-amber-300">
+                      <span className="flex items-center gap-1 font-medium">
+                        <Banknote className="size-3.5 text-amber-400" /> Mode: Cash on Spot
+                      </span>
+                      <span className="font-semibold text-amber-300">
+                        ₹{comp.participation_fee || comp.fee} Pending at Venue
+                      </span>
+                    </div>
                   )}
                 </div>
                 <div className="flex items-center justify-between">
@@ -1203,6 +1388,15 @@ export default function CompetitionDetail({
                     <div className="flex items-center justify-between">
                       <span className="text-[var(--fg-subtle)]">Registration Ref</span>
                       <span className="font-mono font-bold text-[var(--fg)]">{enrollmentInfo.reference}</span>
+                    </div>
+                  )}
+                  {enrollmentInfo?.cash_payment && (
+                    <div className="flex items-center justify-between">
+                      <span className="text-[var(--fg-subtle)]">Payment Mode</span>
+                      <span className="inline-flex items-center gap-1 font-semibold text-amber-400">
+                        <Banknote className="size-3.5 text-amber-400" />
+                        Cash on Spot (₹{comp.participation_fee || comp.fee} at Venue)
+                      </span>
                     </div>
                   )}
                   {enrollmentInfo?.submitted_at && (

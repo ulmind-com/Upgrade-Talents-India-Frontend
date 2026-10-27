@@ -11,7 +11,7 @@ import {
   Crown, CreditCard, QrCode, X, Trophy, Award, Coins,
   Medal, Download, Copy, Check, Camera, Edit3, Sparkles,
   ExternalLink, GraduationCap, ShieldCheck, MapPin, Phone,
-  Mail, Flame, Star, Send, Layers, Package,
+  Mail, Flame, Star, Send, Layers, Package, Banknote,
 } from "lucide-react";
 import {
   bookingsApi, vipApi, profileApi, rewardsApi, certificatesApi, shopApi,
@@ -340,6 +340,7 @@ export default function DashboardPage() {
               <div className="grid gap-6 sm:grid-cols-2 lg:grid-cols-3">
                 {competitions.map((c, i) => {
                   const compId = c.competition_id || c.activity_id || c._id;
+                  const isCash = Boolean(c.cash_payment || c.payment_method === "CASH");
                   const isPaid = c.is_confirmed || c.payment_status === "PAID" || c.payment_status === "NOT_REQUIRED" || c.status === "CONFIRMED";
                   const hasSubmitted = c.has_submitted || c.submission_id;
                   return (
@@ -352,8 +353,8 @@ export default function DashboardPage() {
                     >
                       <div>
                         <div className="flex items-center justify-between gap-2">
-                          <Badge tone={isPaid ? "success" : "warning"}>
-                            {isPaid ? "Confirmed" : "Payment Pending"}
+                          <Badge tone={isCash ? "warning" : isPaid ? "success" : "warning"}>
+                            {isCash ? "Cash on Venue" : isPaid ? "Confirmed" : "Payment Pending"}
                           </Badge>
                           {c.rank && (
                             <span className="inline-flex items-center gap-1 rounded-full bg-yellow-400/20 px-2.5 py-0.5 font-mono text-[11px] font-bold text-yellow-300">
@@ -376,6 +377,12 @@ export default function DashboardPage() {
                             <Clock className="size-3.5 text-[var(--fg-subtle)]" />
                             Registered: {formatEventDate(c.registered_at || c.created_at)}
                           </p>
+                          {isCash && (
+                            <p className="flex items-center gap-1.5 font-semibold text-amber-400">
+                              <Banknote className="size-3.5 text-amber-400" />
+                              Entry Fee: ₹{c.fee || 0} (Pay in Cash at Venue)
+                            </p>
+                          )}
                           {c.submitted_at && (
                             <p className="flex items-center gap-1.5 text-[var(--success)]">
                               <CheckCircle2 className="size-3.5" />
