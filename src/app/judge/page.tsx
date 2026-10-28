@@ -198,18 +198,73 @@ export default function JudgeDashboardPage() {
     }
   }, []);
 
-  // Load scoreboard (1st, 2nd, 3rd standings)
+  // Load scoreboard (1st, 2nd, 3rd standings) calculated directly from live contestant scores & leaderboard
   const loadScoreboard = useCallback(async (compId: string) => {
     setScoreboardLoading(true);
     try {
-      const data = await judgeCompetitionsApi.getScoreboard(compId);
-      setScoreboardData(data);
+      // 1. Fetch public leaderboard for aggregated score data if available
+      let lbRows: any[] = [];
+      try {
+        const lb = await publicApi.leaderboard(compId);
+        if (Array.isArray(lb?.leaderboard)) {
+          lbRows = lb.leaderboard;
+        }
+      } catch {
+        // Fallback to local state
+      }
+
+      // 2. Separate scored and pending contestants
+      const scoredList: JudgeContestant[] = [];
+      const pendingList: JudgeContestant[] = [];
+
+      for (const c of contestants) {
+        const sc = c.my_score ?? c.total_score;
+        const isSc = Boolean(c.is_scored || c.has_scored || (sc != null && sc > 0));
+        if (isSc && sc != null) {
+          scoredList.push({ ...c, total_score: sc, my_score: sc });
+        } else {
+          pendingList.push(c);
+        }
+      }
+
+      scoredList.sort((a, b) => (b.my_score ?? b.total_score ?? 0) - (a.my_score ?? a.total_score ?? 0));
+      pendingList.sort((a, b) => (a.user_name || "").localeCompare(b.user_name || ""));
+
+      const standings: JudgeContestant[] = [];
+      scoredList.forEach((c, idx) => {
+        const prev = idx > 0 ? scoredList[idx - 1] : null;
+        const prevScore = prev ? (prev.my_score ?? prev.total_score) : null;
+        const currentScore = c.my_score ?? c.total_score;
+        const rank = prev && prevScore === currentScore ? (prev.rank ?? idx + 1) : idx + 1;
+        standings.push({ ...c, rank });
+      });
+
+      pendingList.forEach((c) => {
+        standings.push({ ...c, rank: null });
+      });
+
+      const podium = {
+        first: scoredList[0] || null,
+        second: scoredList[1] || null,
+        third: scoredList[2] || null,
+      };
+
+      setScoreboardData({
+        competition_id: compId,
+        competition_title: selectedComp?.title || "Competition",
+        total_contestants: contestants.length,
+        scored_count: scoredList.length,
+        pending_count: pendingList.length,
+        criteria: selectedComp?.judging_criteria || [],
+        podium,
+        standings,
+      });
     } catch (err: any) {
-      console.error("Failed to load scoreboard:", err);
+      console.error("Failed to compute live scoreboard:", err);
     } finally {
       setScoreboardLoading(false);
     }
-  }, []);
+  }, [contestants, selectedComp]);
 
   // Load contestants & scoreboard when selected competition changes
   useEffect(() => {

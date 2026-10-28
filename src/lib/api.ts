@@ -802,10 +802,6 @@ export const judgeCompetitionsApi = {
   listContestants: (compId: string) =>
     apiFetch<JudgeContestant[]>(`/api/judge/${compId}/contestants`, { auth: true }),
 
-  /** Get live scoreboard & podium standings (1st, 2nd, 3rd) */
-  getScoreboard: (compId: string) =>
-    apiFetch<JudgeScoreboardResponse>(`/api/judge/${compId}/scoreboard`, { auth: true }),
-
   /** Verify live session PIN to unlock scoring */
   verifyPin: (compId: string, pin: string) =>
     apiFetch<{ message: string }>(`/api/judge/${compId}/verify-pin`, {
