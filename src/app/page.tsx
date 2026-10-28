@@ -57,7 +57,11 @@ export default async function HomePage() {
 
       <ScrollCue />
       <QuadTiles events={data.upcoming_events} tiles={data.featured_tiles} />
-      <FeaturedShow events={data.upcoming_events} />
+      <FeaturedShow
+        events={data.upcoming_events}
+        competitions={data.upcoming_competitions}
+        liveEvents={data.live_events}
+      />
 
       <Marquee />
       <GalleryReveal events={data.upcoming_events} />
