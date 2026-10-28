@@ -16,15 +16,18 @@ export function formatINR(value?: number | null) {
   }).format(n);
 }
 
-export function parseDate(input?: string | null): Date | null {
+export function parseDate(input?: string | Date | null): Date | null {
   if (!input) return null;
+  if (input instanceof Date) {
+    return isNaN(input.getTime()) ? null : input;
+  }
   const d = new Date(input);
   return isNaN(d.getTime()) ? null : d;
 }
 
-export function formatEventDate(input?: string | null) {
+export function formatEventDate(input?: string | Date | null) {
   const d = parseDate(input);
-  if (!d) return input || "TBA";
+  if (!d) return typeof input === "string" ? input || "TBA" : "TBA";
   return d.toLocaleDateString("en-IN", { day: "2-digit", month: "short", year: "numeric" });
 }
 

@@ -7,7 +7,8 @@ import {
   Trophy, Calendar, Clock, Users, ArrowDown, ChevronRight,
   Radio, Sparkles, CheckCircle2, ShieldCheck, Ticket
 } from "lucide-react";
-import { formatEventDate, formatINR, imageFor } from "@/lib/utils";
+import { formatEventDate, formatINR, imageFor, cn } from "@/lib/utils";
+import { getCompetitionLifecycle } from "@/lib/competition-lifecycle";
 
 interface CompetitionHeroProps {
   comp: {
@@ -23,8 +24,12 @@ interface CompetitionHeroProps {
     fee?: number;
     start_date?: string;
     end_date?: string;
+    registration_start_date?: string;
     registration_deadline?: string;
     submission_deadline?: string;
+    start_time?: string;
+    time?: string;
+    end_time?: string;
     min_age?: number;
     max_age?: number;
     max_participants?: number;
@@ -47,11 +52,12 @@ export default function CompetitionHero({ comp }: CompetitionHeroProps) {
   const y = useTransform(scrollYProgress, [0, 1], ["0%", "25%"]);
   const opacity = useTransform(scrollYProgress, [0, 0.8], [1, 0.1]);
 
+  const lifecycle = getCompetitionLifecycle(comp);
+
   const title = comp.title || comp.name || "Talent Competition";
   const category = comp.category || comp.type || "Official Contest";
   const fee = comp.participation_fee ?? comp.fee ?? 0;
-  const isResultsPublished = comp.result_status === "PUBLISHED" || Boolean(comp.results_published);
-  const isVotingOpen = comp.audience_voting_enabled && comp.voting_status === "OPEN";
+  const isResultsPublished = lifecycle.isResultsOut;
 
   // Dynamic 16:9 (Desktop/Card) and 9:16 (Mobile/Banner) image sources
   const desktopImg = comp.card_image_url || comp.image_url || "";
@@ -104,17 +110,30 @@ export default function CompetitionHero({ comp }: CompetitionHeroProps) {
               {category}
             </span>
 
-            {isResultsPublished ? (
+            {lifecycle.isResultsOut ? (
               <span className="inline-flex items-center gap-1.5 rounded-full border border-emerald-500/40 bg-emerald-500/20 px-3 py-1 text-[11px] font-bold text-emerald-300 backdrop-blur-md">
                 <CheckCircle2 className="size-3" /> Certified Results Out
               </span>
-            ) : isVotingOpen ? (
-              <span className="inline-flex items-center gap-1.5 rounded-full border border-rose-500/40 bg-rose-500/20 px-3 py-1 text-[11px] font-bold text-rose-300 backdrop-blur-md">
-                <Radio className="size-3 animate-pulse text-rose-400" /> Live Voting Open
+            ) : lifecycle.isLive ? (
+              <span className="inline-flex items-center gap-1.5 rounded-full border border-rose-500/40 bg-rose-500/25 px-3 py-1 text-[11px] font-bold text-rose-200 backdrop-blur-md animate-pulse">
+                <span className="size-2 rounded-full bg-white animate-ping" />
+                <Radio className="size-3 text-rose-400" /> 🔴 LIVE NOW
+              </span>
+            ) : lifecycle.isRegistrationOpen ? (
+              <span className="inline-flex items-center gap-1.5 rounded-full border border-emerald-500/40 bg-emerald-500/20 px-3 py-1 text-[11px] font-semibold text-emerald-300 backdrop-blur-md">
+                <CheckCircle2 className="size-3 text-emerald-400" /> Registration Open
+              </span>
+            ) : lifecycle.isRegClosed && !lifecycle.isEnded ? (
+              <span className="inline-flex items-center gap-1.5 rounded-full border border-amber-500/40 bg-amber-500/20 px-3 py-1 text-[11px] font-bold text-amber-300 backdrop-blur-md">
+                <Clock className="size-3 text-amber-400" /> Registration Closed • Starts {comp.start_date ? formatEventDate(comp.start_date) : "Soon"}
+              </span>
+            ) : lifecycle.isRegUpcoming ? (
+              <span className="inline-flex items-center gap-1.5 rounded-full border border-sky-500/40 bg-sky-500/20 px-3 py-1 text-[11px] font-bold text-sky-300 backdrop-blur-md">
+                <Calendar className="size-3 text-sky-400" /> Reg Opens {comp.registration_start_date ? formatEventDate(comp.registration_start_date) : "Soon"}
               </span>
             ) : (
-              <span className="inline-flex items-center gap-1.5 rounded-full border border-sky-500/30 bg-sky-500/15 px-3 py-1 text-[11px] font-medium text-sky-200 backdrop-blur-md">
-                <ShieldCheck className="size-3 text-sky-400" /> Verified Competition
+              <span className="inline-flex items-center gap-1.5 rounded-full border border-neutral-500/30 bg-neutral-500/15 px-3 py-1 text-[11px] font-medium text-neutral-300 backdrop-blur-md">
+                <ShieldCheck className="size-3 text-neutral-400" /> Competition Concluded
               </span>
             )}
 
@@ -125,7 +144,7 @@ export default function CompetitionHero({ comp }: CompetitionHeroProps) {
             )}
           </div>
 
-          {/* ── Premium Refined Title (Not gigantic clumsy text) ── */}
+          {/* ── Premium Refined Title ── */}
           <motion.h1
             initial={{ opacity: 0, y: 24 }}
             animate={{ opacity: 1, y: 0 }}
@@ -156,18 +175,28 @@ export default function CompetitionHero({ comp }: CompetitionHeroProps) {
           >
             {comp.start_date && (
               <div className="flex items-center gap-2">
-                <Calendar className="size-4 text-[var(--accent)]" />
+                <Calendar className={cn("size-4", lifecycle.isLive ? "text-rose-400 animate-pulse" : "text-[var(--accent)]")} />
                 <span>
-                  Starts <strong className="font-semibold text-white">{formatEventDate(comp.start_date)}</strong>
+                  {lifecycle.isLive ? (
+                    <strong className="font-bold text-rose-300">Live Right Now</strong>
+                  ) : (
+                    <>
+                      Starts <strong className="font-semibold text-white">{formatEventDate(comp.start_date)}{comp.start_time || comp.time ? ` at ${comp.start_time || comp.time}` : ""}</strong>
+                    </>
+                  )}
                 </span>
               </div>
             )}
 
             {comp.registration_deadline && (
               <div className="flex items-center gap-2">
-                <Clock className="size-4 text-amber-400" />
+                <Clock className={cn("size-4", lifecycle.isRegClosed ? "text-amber-400" : "text-emerald-400")} />
                 <span>
-                  Register by <strong className="font-semibold text-white">{formatEventDate(comp.registration_deadline)}</strong>
+                  {lifecycle.isRegClosed ? (
+                    <>Reg Closed <strong className="font-semibold text-amber-200">{formatEventDate(comp.registration_deadline)}</strong></>
+                  ) : (
+                    <>Register by <strong className="font-semibold text-white">{formatEventDate(comp.registration_deadline)}</strong></>
+                  )}
                 </span>
               </div>
             )}
@@ -202,7 +231,7 @@ export default function CompetitionHero({ comp }: CompetitionHeroProps) {
             transition={{ duration: 0.7, delay: 0.25, ease: [0.16, 1, 0.3, 1] }}
             className="mt-6 flex flex-wrap items-center gap-3"
           >
-            {isResultsPublished ? (
+            {lifecycle.isResultsOut ? (
               <Link
                 href={`/competitions/${compId}/results`}
                 className="inline-flex items-center gap-2 rounded-full px-5 py-2.5 text-xs font-bold text-[var(--on-accent)] shadow-lg transition-transform active:scale-95"
@@ -210,13 +239,31 @@ export default function CompetitionHero({ comp }: CompetitionHeroProps) {
               >
                 <Trophy className="size-3.5" /> View Official Results
               </Link>
-            ) : (
+            ) : lifecycle.isLive ? (
+              <a
+                href="#contestants-section"
+                className="inline-flex items-center gap-2 rounded-full px-5 py-2.5 text-xs font-bold text-white bg-rose-600 hover:bg-rose-500 shadow-lg transition-all active:scale-95"
+              >
+                <Radio className="size-3.5 animate-pulse" />
+                <span>Watch &amp; Score Live</span>
+                <ArrowDown className="size-3.5" />
+              </a>
+            ) : lifecycle.canRegister ? (
               <a
                 href="#register-action"
                 className="inline-flex items-center gap-2 rounded-full px-5 py-2.5 text-xs font-bold text-[var(--on-accent)] shadow-lg transition-transform active:scale-95"
                 style={{ background: "var(--grad-brand)" }}
               >
                 <span>Enter &amp; Submit Entry</span>
+                <ArrowDown className="size-3.5" />
+              </a>
+            ) : (
+              <a
+                href="#contestants-section"
+                className="inline-flex items-center gap-2 rounded-full px-5 py-2.5 text-xs font-bold text-[var(--on-accent)] shadow-lg transition-transform active:scale-95"
+                style={{ background: "var(--grad-brand)" }}
+              >
+                <span>View Contestants</span>
                 <ArrowDown className="size-3.5" />
               </a>
             )}

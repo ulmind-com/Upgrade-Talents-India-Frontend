@@ -2,28 +2,30 @@
 
 import { useMemo, useState } from "react";
 import Link from "next/link";
-import { Search, Trophy, Calendar, ArrowUpRight, Users } from "lucide-react";
+import { Search, Trophy, Calendar, ArrowUpRight, Radio, Clock, Sparkles } from "lucide-react";
 import { Reveal, StaggerGroup, StaggerItem } from "@/components/motion/Reveal";
 import { SectionLabel } from "@/components/ui/Primitives";
 import { imageFor, formatEventDate, truncate } from "@/lib/utils";
+import { getCompetitionLifecycle } from "@/lib/competition-lifecycle";
 
 type Comp = {
   _id?: string; id?: string;
   title?: string; name?: string;
   description?: string; prize?: string;
-  image_url?: string; registration_deadline?: string;
+  image_url?: string;
+  start_date?: string; end_date?: string;
+  registration_start_date?: string; registration_deadline?: string;
+  submission_deadline?: string;
+  start_time?: string; time?: string;
   is_published?: boolean; status?: string;
   voting_status?: "OPEN" | "CLOSED";
+  judging_status?: "OPEN" | "CLOSED";
   result_status?: "PENDING" | "APPROVED" | "PUBLISHED";
   results_published?: boolean;
   audience_voting_enabled?: boolean;
 };
 
 const cid = (c: Comp) => c._id || c.id || "";
-const isOpen = (c: Comp) => {
-  const d = c.registration_deadline ? new Date(c.registration_deadline) : null;
-  return !d || d.getTime() > Date.now();
-};
 
 export default function CompetitionsListing({ items }: { items: Comp[] }) {
   const [q, setQ] = useState("");
@@ -61,9 +63,8 @@ export default function CompetitionsListing({ items }: { items: Comp[] }) {
       ) : (
         <StaggerGroup className="mt-9 grid gap-6 sm:grid-cols-2 lg:grid-cols-3">
           {list.map((c, i) => {
-            const open = isOpen(c);
-            const isResults = c.result_status === "PUBLISHED" || c.results_published === true;
-            const isLiveVoting = c.audience_voting_enabled && c.voting_status === "OPEN";
+            const lifecycle = getCompetitionLifecycle(c);
+            const isResults = lifecycle.isResultsOut;
 
             return (
               <StaggerItem key={cid(c) || i}>
@@ -76,22 +77,33 @@ export default function CompetitionsListing({ items }: { items: Comp[] }) {
                     <span className="absolute inset-0 bg-gradient-to-t from-black/70 via-black/10 to-transparent" aria-hidden />
                     
                     <div className="absolute left-3 top-3 flex flex-wrap gap-1.5">
-                      {isResults ? (
+                      {lifecycle.isResultsOut ? (
                         <span className="rounded-full bg-emerald-500/90 px-3 py-1 text-[10.5px] font-bold uppercase tracking-wider text-black shadow-md backdrop-blur-md">
                           Results Out
                         </span>
-                      ) : isLiveVoting ? (
-                        <span className="rounded-full bg-rose-500/90 px-3 py-1 text-[10.5px] font-bold uppercase tracking-wider text-white shadow-md backdrop-blur-md animate-pulse">
-                          Live Voting
+                      ) : lifecycle.isLive ? (
+                        <span className="inline-flex items-center gap-1.5 rounded-full bg-rose-600/95 px-3 py-1 text-[10.5px] font-bold uppercase tracking-wider text-white shadow-md backdrop-blur-md animate-pulse">
+                          <span className="size-2 rounded-full bg-white animate-ping" />
+                          Live Now
                         </span>
-                      ) : (
+                      ) : lifecycle.isRegistrationOpen ? (
                         <span
                           className="rounded-full px-3 py-1 text-[10.5px] font-bold uppercase tracking-wider backdrop-blur-md"
-                          style={open
-                            ? { background: "color-mix(in srgb, var(--success) 22%, transparent)", color: "var(--success)" }
-                            : { background: "rgba(0,0,0,0.5)", color: "rgba(255,255,255,0.85)" }}
+                          style={{ background: "color-mix(in srgb, var(--success) 22%, transparent)", color: "var(--success)" }}
                         >
-                          {open ? "Open" : "Closed"}
+                          Registration Open
+                        </span>
+                      ) : lifecycle.isRegClosed && !lifecycle.isEnded ? (
+                        <span className="rounded-full bg-amber-500/90 px-3 py-1 text-[10.5px] font-bold uppercase tracking-wider text-black shadow-md backdrop-blur-md">
+                          Starts Soon
+                        </span>
+                      ) : lifecycle.isRegUpcoming ? (
+                        <span className="rounded-full bg-sky-500/90 px-3 py-1 text-[10.5px] font-bold uppercase tracking-wider text-white shadow-md backdrop-blur-md">
+                          Reg Opens Soon
+                        </span>
+                      ) : (
+                        <span className="rounded-full bg-black/60 px-3 py-1 text-[10.5px] font-bold uppercase tracking-wider text-white/80 backdrop-blur-md">
+                          Closed
                         </span>
                       )}
                     </div>
@@ -107,10 +119,30 @@ export default function CompetitionsListing({ items }: { items: Comp[] }) {
                     {c.description && <p className="mt-2 text-[13px] leading-relaxed text-[var(--fg-muted)]">{truncate(c.description, 96)}</p>}
                     <div className="mt-auto flex items-center justify-between pt-5">
                       <span className="inline-flex items-center gap-1.5 text-[12px] text-[var(--fg-subtle)]">
-                        <Calendar className="size-3.5" aria-hidden /> {c.registration_deadline ? formatEventDate(c.registration_deadline) : "Open entry"}
+                        <Calendar className="size-3.5" aria-hidden />{" "}
+                        {lifecycle.isLive
+                          ? "Live right now"
+                          : lifecycle.isRegistrationOpen && c.registration_deadline
+                          ? `Closes ${formatEventDate(c.registration_deadline)}`
+                          : lifecycle.isRegClosed && c.start_date
+                          ? `Starts ${formatEventDate(c.start_date)}`
+                          : lifecycle.isRegUpcoming && c.registration_start_date
+                          ? `Reg opens ${formatEventDate(c.registration_start_date)}`
+                          : c.start_date
+                          ? `Starts ${formatEventDate(c.start_date)}`
+                          : c.registration_deadline
+                          ? formatEventDate(c.registration_deadline)
+                          : "Open entry"}
                       </span>
                       <span className="inline-flex items-center gap-1 text-[12.5px] font-semibold text-[var(--accent)]">
-                        {isResults ? "View Results" : "Enter"} <ArrowUpRight className="size-3.5 transition-transform group-hover:translate-x-0.5 group-hover:-translate-y-0.5" aria-hidden />
+                        {lifecycle.isResultsOut
+                          ? "View Results"
+                          : lifecycle.isLive
+                          ? "Watch & Vote"
+                          : lifecycle.canRegister
+                          ? "Enter Now"
+                          : "View Details"}{" "}
+                        <ArrowUpRight className="size-3.5 transition-transform group-hover:translate-x-0.5 group-hover:-translate-y-0.5" aria-hidden />
                       </span>
                     </div>
                   </div>

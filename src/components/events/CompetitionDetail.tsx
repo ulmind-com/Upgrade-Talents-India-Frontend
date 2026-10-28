@@ -14,6 +14,7 @@ import { SectionLabel, Badge } from "@/components/ui/Primitives";
 import { useAuth } from "@/components/motion/Providers";
 import { competeApi, profileApi, publicApi, certificatesApi } from "@/lib/api";
 import { imageFor, formatEventDate, cn } from "@/lib/utils";
+import { getCompetitionLifecycle } from "@/lib/competition-lifecycle";
 
 type RulesObj = {
   terms_and_conditions?: string;
@@ -45,6 +46,9 @@ type Comp = {
   type?: string;
   start_date?: string;
   end_date?: string;
+  start_time?: string;
+  time?: string;
+  end_time?: string;
   registration_start_date?: string;
   registration_deadline?: string;
   submission_deadline?: string;
@@ -128,8 +132,10 @@ export default function CompetitionDetail({
   const [userCert, setUserCert] = useState<any | null>(null);
   const [downloadingCert, setDownloadingCert] = useState(false);
 
-  const isResultsPublished = comp.result_status === "PUBLISHED" || comp.results_published === true;
-  const isVotingOpen = comp.audience_voting_enabled && comp.voting_status !== "CLOSED";
+  const lifecycle = getCompetitionLifecycle(comp);
+  const open = lifecycle.canRegister;
+  const isResultsPublished = lifecycle.isResultsOut;
+  const isVotingOpen = comp.audience_voting_enabled && (lifecycle.isLive || comp.voting_status === "OPEN");
 
   const isParticipant = Boolean(
     enrollmentInfo?.reference ||
@@ -366,6 +372,11 @@ export default function CompetitionDetail({
     });
 
   async function doRegister() {
+    if (!lifecycle.canRegister) {
+      setMsg({ tone: "err", text: lifecycle.regMessage });
+      return;
+    }
+
     setBusy(true);
     setMsg(null);
     try {
@@ -639,8 +650,6 @@ export default function CompetitionDetail({
     }
   }
 
-  const open = !comp.registration_deadline || new Date(comp.registration_deadline).getTime() > Date.now();
-
   function renderRules() {
     const r = comp.rules;
     if (!r) return null;
@@ -711,6 +720,69 @@ export default function CompetitionDetail({
             >
               View Certified Results →
             </Link>
+          </motion.div>
+        )}
+
+        {/* Live Competition Announcement Banner */}
+        {lifecycle.isLive && !isResultsPublished && (
+          <motion.div
+            initial={{ opacity: 0, y: -10 }}
+            animate={{ opacity: 1, y: 0 }}
+            className="mb-8 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4 rounded-2xl border-2 border-rose-500/40 bg-gradient-to-r from-rose-500/15 via-[var(--surface)] to-[var(--surface)] p-5 shadow-lg"
+          >
+            <div className="flex items-center gap-3.5">
+              <div className="relative grid size-11 shrink-0 place-items-center rounded-2xl border border-rose-500/40 bg-rose-500/20 text-rose-400">
+                <Radio className="size-6 animate-pulse" />
+                <span className="absolute -top-1 -right-1 size-2.5 rounded-full bg-rose-500 animate-ping" />
+              </div>
+              <div>
+                <div className="flex items-center gap-2">
+                  <p className="font-display font-bold text-rose-200 text-base">Competition is LIVE NOW!</p>
+                  <span className="rounded-full bg-rose-500/25 px-2.5 py-0.5 text-[10px] font-bold uppercase tracking-wider text-rose-300">
+                    Live Scoring
+                  </span>
+                </div>
+                <p className="mt-0.5 text-xs text-[var(--fg-muted)]">
+                  The contest started on {comp.start_date ? formatEventDate(comp.start_date) : "event day"}. Follow real-time scores and performances below.
+                </p>
+              </div>
+            </div>
+            <a
+              href="#contestants-section"
+              className="inline-flex items-center justify-center gap-2 rounded-full px-5 py-2.5 text-xs font-bold text-white bg-rose-600 hover:bg-rose-500 transition-all shadow-md active:scale-95 shrink-0"
+            >
+              View Live Contestants ↓
+            </a>
+          </motion.div>
+        )}
+
+        {/* Registration Closed Notice Banner */}
+        {lifecycle.isRegClosed && !lifecycle.isLive && !lifecycle.isEnded && !isResultsPublished && step !== "done" && (
+          <motion.div
+            initial={{ opacity: 0, y: -10 }}
+            animate={{ opacity: 1, y: 0 }}
+            className="mb-8 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4 rounded-2xl border border-amber-500/35 bg-gradient-to-r from-amber-500/10 via-[var(--surface)] to-[var(--surface)] p-4 shadow-sm"
+          >
+            <div className="flex items-center gap-3">
+              <div className="grid size-10 shrink-0 place-items-center rounded-xl bg-amber-500/20 text-amber-400">
+                <Clock className="size-5" />
+              </div>
+              <div>
+                <p className="font-display font-bold text-amber-200 text-sm">
+                  Registration Window Closed
+                </p>
+                <p className="text-xs text-[var(--fg-muted)]">
+                  {comp.registration_deadline ? `Closed on ${formatEventDate(comp.registration_deadline)}. ` : ""}
+                  {comp.start_date ? `Competition commences on ${formatEventDate(comp.start_date)}${comp.start_time || comp.time ? ` at ${comp.start_time || comp.time}` : ""}.` : ""}
+                </p>
+              </div>
+            </div>
+            <a
+              href="#contestants-section"
+              className="inline-flex items-center justify-center gap-1.5 rounded-full border border-amber-500/40 bg-amber-500/20 px-4 py-2 text-xs font-semibold text-amber-200 hover:bg-amber-500/30 transition-colors shrink-0"
+            >
+              Registered Entries ↓
+            </a>
           </motion.div>
         )}
 
@@ -813,12 +885,50 @@ export default function CompetitionDetail({
               </span>
             </StaggerItem>
           )}
-          <StaggerItem>
-            <span className="inline-flex items-center gap-1.5 rounded-full border border-[var(--border)] bg-[var(--surface)] px-3.5 py-1.5 text-[12px] font-semibold">
-              <Calendar className="size-3.5 text-[var(--fg-subtle)]" aria-hidden />{" "}
-              {comp.registration_deadline ? `Registration closes ${formatEventDate(comp.registration_deadline)}` : "Open entry"}
-            </span>
-          </StaggerItem>
+
+          {comp.start_date && (
+            <StaggerItem>
+              <span className={cn(
+                "inline-flex items-center gap-1.5 rounded-full border px-3.5 py-1.5 text-[12px] font-semibold",
+                lifecycle.isLive
+                  ? "border-rose-500/40 bg-rose-500/15 text-rose-300"
+                  : "border-[var(--border)] bg-[var(--surface)] text-[var(--fg)]"
+              )}>
+                <Calendar className={cn("size-3.5", lifecycle.isLive ? "text-rose-400 animate-pulse" : "text-[var(--accent)]")} aria-hidden />{" "}
+                {lifecycle.isLive ? "Live right now" : `Starts ${formatEventDate(comp.start_date)}${comp.start_time || comp.time ? ` at ${comp.start_time || comp.time}` : ""}`}
+              </span>
+            </StaggerItem>
+          )}
+
+          {comp.registration_deadline ? (
+            <StaggerItem>
+              <span className={cn(
+                "inline-flex items-center gap-1.5 rounded-full border px-3.5 py-1.5 text-[12px] font-semibold",
+                lifecycle.isRegClosed
+                  ? "border-amber-500/30 bg-amber-500/10 text-amber-300"
+                  : "border-[var(--border)] bg-[var(--surface)] text-[var(--fg)]"
+              )}>
+                <Clock className={cn("size-3.5", lifecycle.isRegClosed ? "text-amber-400" : "text-[var(--fg-subtle)]")} aria-hidden />{" "}
+                {lifecycle.isRegClosed
+                  ? `Registration closed ${formatEventDate(comp.registration_deadline)}`
+                  : `Registration closes ${formatEventDate(comp.registration_deadline)}`}
+              </span>
+            </StaggerItem>
+          ) : comp.registration_start_date && lifecycle.isRegUpcoming ? (
+            <StaggerItem>
+              <span className="inline-flex items-center gap-1.5 rounded-full border border-sky-500/30 bg-sky-500/10 px-3.5 py-1.5 text-[12px] font-semibold text-sky-300">
+                <Calendar className="size-3.5 text-sky-400" aria-hidden />{" "}
+                Registration opens {formatEventDate(comp.registration_start_date)}
+              </span>
+            </StaggerItem>
+          ) : (
+            <StaggerItem>
+              <span className="inline-flex items-center gap-1.5 rounded-full border border-[var(--border)] bg-[var(--surface)] px-3.5 py-1.5 text-[12px] font-semibold">
+                <Calendar className="size-3.5 text-[var(--fg-subtle)]" aria-hidden /> Open entry
+              </span>
+            </StaggerItem>
+          )}
+
           {comp.submission_deadline && (
             <StaggerItem>
               <span className="inline-flex items-center gap-1.5 rounded-full border border-[var(--border)] bg-[var(--surface)] px-3.5 py-1.5 text-[12px] font-semibold text-amber-300 border-amber-500/30 bg-amber-500/10">
@@ -826,6 +936,7 @@ export default function CompetitionDetail({
               </span>
             </StaggerItem>
           )}
+
           {(comp.min_age || comp.max_age) && (
             <StaggerItem>
               <span className="inline-flex items-center gap-1.5 rounded-full border border-[var(--border)] bg-[var(--surface)] px-3.5 py-1.5 text-[12px] font-semibold">
@@ -833,6 +944,7 @@ export default function CompetitionDetail({
               </span>
             </StaggerItem>
           )}
+
           {isVotingOpen && (
             <StaggerItem>
               <span className="inline-flex items-center gap-1.5 rounded-full border border-rose-500/40 bg-rose-500/10 px-3 py-1.5 text-[12px] font-bold text-rose-400">
@@ -915,7 +1027,8 @@ export default function CompetitionDetail({
         )}
 
         {/* ── Standings + voting ── */}
-        <Reveal className="mt-12">
+        <div id="contestants-section" className="scroll-mt-28">
+          <Reveal className="mt-12">
           <div className="flex items-center justify-between">
             <div className="flex items-center gap-2">
               <SectionLabel>Leaderboard & Standings</SectionLabel>
@@ -1026,6 +1139,7 @@ export default function CompetitionDetail({
             </p>
           )}
         </Reveal>
+        </div>
       </div>
 
       {/* ── Right: action card (sticky, hidden when user has already submitted entry) ── */}
@@ -1034,14 +1148,16 @@ export default function CompetitionDetail({
           <div className="overflow-hidden rounded-[var(--radius-xl)] border border-[var(--border)] bg-[var(--surface)] shadow-2xl" style={{ background: "var(--grad-surface), var(--surface)" }}>
             <div className="border-b border-[var(--border)] p-5">
               <p className="font-display text-lg font-bold">
-                {step === "submit" ? "Submit Your Entry" : "Enter this competition"}
+                {step === "submit"
+                  ? "Submit Your Entry"
+                  : !lifecycle.canRegister
+                  ? (lifecycle.isLive ? "Competition Live" : "Registration Status")
+                  : "Enter this competition"}
               </p>
               <p className="mt-1 text-[12.5px] text-[var(--fg-muted)]">
                 {step === "submit"
                   ? "You are enrolled. Upload your performance entry."
-                  : open
-                  ? "Registration is open."
-                  : "Registration has closed."}
+                  : lifecycle.regMessage}
               </p>
             </div>
 
@@ -1065,156 +1181,228 @@ export default function CompetitionDetail({
                 <p className="mt-2.5">Checking enrollment status…</p>
               </div>
             ) : step === "register" ? (
-              <>
-                {!!(comp.participation_fee || comp.fee) && (
-                  <div className="mb-4 space-y-3">
-                    <div className="flex items-center justify-between rounded-xl border border-[var(--border)] bg-[var(--surface-2)] p-3">
-                      <span className="text-[12.5px] font-medium text-[var(--fg-muted)]">Entry Fee</span>
-                      <span className="font-display text-base font-bold text-[var(--accent)]">
-                        ₹{comp.participation_fee || comp.fee}
-                      </span>
-                    </div>
-
-                    {/* Payment Mode Selector: Online vs Cash */}
-                    <div>
-                      <p className="mb-2 text-[11px] font-semibold uppercase tracking-wider text-[var(--fg-subtle)]">
-                        Select Payment Mode
+              !lifecycle.canRegister ? (
+                <div className="space-y-4">
+                  {lifecycle.isLive ? (
+                    <div className="rounded-2xl border border-rose-500/40 bg-gradient-to-br from-rose-500/15 via-[var(--surface-2)] to-[var(--surface-2)] p-4 text-center">
+                      <div className="mx-auto mb-2.5 grid size-12 place-items-center rounded-2xl border border-rose-500/40 bg-rose-500/20 text-rose-400">
+                        <Radio className="size-6 animate-pulse" />
+                      </div>
+                      <h4 className="font-display font-bold text-[15px] text-rose-200">Competition is LIVE NOW</h4>
+                      <p className="mt-1 text-[12px] text-[var(--fg-muted)] leading-relaxed">
+                        The competition commenced on {comp.start_date ? formatEventDate(comp.start_date) : "event day"}. Registrations are closed. Contestant auditions and judging are actively underway!
                       </p>
-                      <div className="grid grid-cols-1 gap-2.5 sm:grid-cols-2">
-                        {/* Option 1: Online Mode */}
-                        <div
-                          role="button"
-                          tabIndex={0}
-                          onClick={() => setPaymentMode("ONLINE")}
-                          className={cn(
-                            "relative flex cursor-pointer flex-col justify-between rounded-2xl border p-3.5 transition-all select-none",
-                            paymentMode === "ONLINE"
-                              ? "border-[var(--accent)] bg-[var(--accent)]/10 ring-1 ring-[var(--accent)]"
-                              : "border-[var(--border)] bg-[var(--surface-2)]/60 hover:border-[var(--border-strong)]"
-                          )}
-                        >
-                          <div className="flex items-center justify-between">
-                            <div className="flex items-center gap-2.5">
-                              <div
-                                className={cn(
-                                  "flex size-8 items-center justify-center rounded-xl transition-colors",
-                                  paymentMode === "ONLINE"
-                                    ? "bg-[var(--accent)] text-black"
-                                    : "bg-[var(--surface)] text-[var(--fg-muted)]"
-                                )}
-                              >
-                                <CreditCard className="size-4" />
-                              </div>
-                              <div>
-                                <p className="text-[13px] font-bold text-[var(--fg)] leading-none">Online</p>
-                                <span className="text-[10px] text-[var(--fg-muted)]">UPI / Cards</span>
-                              </div>
-                            </div>
-                            <span
-                              className={cn(
-                                "flex size-4 items-center justify-center rounded-full border transition-colors",
-                                paymentMode === "ONLINE"
-                                  ? "border-[var(--accent)] bg-[var(--accent)]"
-                                  : "border-[var(--border-strong)] bg-transparent"
-                              )}
-                            >
-                              {paymentMode === "ONLINE" && <span className="size-1.5 rounded-full bg-black" />}
-                            </span>
-                          </div>
-                          <div className="mt-2.5 flex items-center justify-between border-t border-[var(--border)]/60 pt-2">
-                            <span className="text-[10px] text-[var(--fg-subtle)]">Instant Entry</span>
-                            <span className="inline-flex items-center gap-1 rounded-md bg-emerald-500/15 px-1.5 py-0.5 text-[9.5px] font-bold text-emerald-400">
-                              <Zap className="size-2.5" /> Instant
-                            </span>
-                          </div>
-                        </div>
-
-                        {/* Option 2: Cash on Spot Mode */}
-                        <div
-                          role="button"
-                          tabIndex={0}
-                          onClick={() => setPaymentMode("CASH")}
-                          className={cn(
-                            "relative flex cursor-pointer flex-col justify-between rounded-2xl border p-3.5 transition-all select-none",
-                            paymentMode === "CASH"
-                              ? "border-[var(--accent)] bg-[var(--accent)]/10 ring-1 ring-[var(--accent)]"
-                              : "border-[var(--border)] bg-[var(--surface-2)]/60 hover:border-[var(--border-strong)]"
-                          )}
-                        >
-                          <div className="flex items-center justify-between">
-                            <div className="flex items-center gap-2.5">
-                              <div
-                                className={cn(
-                                  "flex size-8 items-center justify-center rounded-xl transition-colors",
-                                  paymentMode === "CASH"
-                                    ? "bg-[var(--accent)] text-black"
-                                    : "bg-[var(--surface)] text-[var(--fg-muted)]"
-                                )}
-                              >
-                                <Banknote className="size-4" />
-                              </div>
-                              <div>
-                                <p className="text-[13px] font-bold text-[var(--fg)] leading-none">Cash on Spot</p>
-                                <span className="text-[10px] text-[var(--fg-muted)]">Pay at Venue</span>
-                              </div>
-                            </div>
-                            <span
-                              className={cn(
-                                "flex size-4 items-center justify-center rounded-full border transition-colors",
-                                paymentMode === "CASH"
-                                  ? "border-[var(--accent)] bg-[var(--accent)]"
-                                  : "border-[var(--border-strong)] bg-transparent"
-                              )}
-                            >
-                              {paymentMode === "CASH" && <span className="size-1.5 rounded-full bg-black" />}
-                            </span>
-                          </div>
-                          <div className="mt-2.5 flex items-center justify-between border-t border-[var(--border)]/60 pt-2">
-                            <span className="text-[10px] text-[var(--fg-subtle)]">Gate Counter</span>
-                            <span className="inline-flex items-center gap-1 rounded-md bg-amber-500/15 px-1.5 py-0.5 text-[9.5px] font-bold text-amber-400">
-                              <Clock className="size-2.5" /> Venue
-                            </span>
-                          </div>
-                        </div>
-                      </div>
+                      <a
+                        href="#contestants-section"
+                        className="mt-3.5 inline-flex w-full items-center justify-center gap-2 rounded-full py-2.5 text-xs font-bold text-white bg-rose-600 hover:bg-rose-500 transition-colors shadow-md"
+                      >
+                        <Radio className="size-3.5 animate-pulse" /> Watch &amp; View Live Scores
+                      </a>
                     </div>
-
-                    {paymentMode === "CASH" && (
-                      <div className="rounded-xl border border-amber-500/35 bg-amber-500/10 p-2.5 text-[11.5px] text-amber-300">
-                        <p className="flex items-center gap-1.5 font-semibold text-amber-200">
-                          <Banknote className="size-3.5 text-amber-400 shrink-0" />
-                          Cash on Spot (Venue Payment)
-                        </p>
-                        <p className="mt-1 text-[11px] text-amber-200/90 leading-relaxed">
-                          Your participation slot is reserved immediately. You can upload your audition entry now and deposit ₹{comp.participation_fee || comp.fee} cash at the venue counter on event day.
-                        </p>
+                  ) : lifecycle.isRegClosed && !lifecycle.isEnded ? (
+                    <div className="rounded-2xl border border-amber-500/35 bg-gradient-to-br from-amber-500/15 via-[var(--surface-2)] to-[var(--surface-2)] p-4 text-center">
+                      <div className="mx-auto mb-2.5 grid size-12 place-items-center rounded-2xl border border-amber-500/40 bg-amber-500/20 text-amber-400">
+                        <Clock className="size-6" />
                       </div>
-                    )}
-                  </div>
-                )}
-                <label className="flex cursor-pointer items-start gap-2.5 text-[13px] text-[var(--fg-muted)]">
-                  <input
-                    type="checkbox"
-                    checked={rulesAccepted}
-                    onChange={(e) => setRulesAccepted(e.target.checked)}
-                    className="mt-0.5 size-4 accent-[var(--accent)]"
-                  />
-                  <span>I have read and accept the competition rules and eligibility criteria.</span>
-                </label>
-                <button
-                  onClick={doRegister}
-                  disabled={!rulesAccepted || busy || !open}
-                  className="mt-4 inline-flex w-full items-center justify-center gap-2 rounded-full py-3 text-[13.5px] font-bold text-[var(--on-accent)] transition-opacity disabled:opacity-50"
-                  style={{ background: "var(--grad-brand)" }}
-                >
-                  {busy ? <Loader2 className="size-4 animate-spin" aria-hidden /> : <ShieldCheck className="size-4" aria-hidden />}
-                  {(comp.participation_fee || comp.fee)
-                    ? paymentMode === "CASH"
-                      ? `Confirm Entry & Pay ₹${comp.participation_fee || comp.fee} Cash at Venue`
-                      : `Pay ₹${comp.participation_fee || comp.fee} Online & Register`
-                    : "Register to compete"}
-                </button>
-              </>
+                      <h4 className="font-display font-bold text-[15px] text-amber-200">Registration Has Closed</h4>
+                      <p className="mt-1 text-[12px] text-[var(--fg-muted)] leading-relaxed">
+                        {comp.registration_deadline
+                          ? `The registration window closed on ${formatEventDate(comp.registration_deadline)}.`
+                          : "Registration for this competition is closed."}
+                        {comp.start_date && (
+                          <> The event begins on <strong className="text-white font-semibold">{formatEventDate(comp.start_date)}{comp.start_time || comp.time ? ` at ${comp.start_time || comp.time}` : ""}</strong>.</>
+                        )}
+                      </p>
+                      <a
+                        href="#contestants-section"
+                        className="mt-3.5 inline-flex w-full items-center justify-center gap-2 rounded-full border border-amber-500/40 bg-amber-500/20 py-2.5 text-xs font-bold text-amber-200 hover:bg-amber-500/30 transition-colors"
+                      >
+                        View Contestant Roster
+                      </a>
+                    </div>
+                  ) : lifecycle.isRegUpcoming ? (
+                    <div className="rounded-2xl border border-sky-500/35 bg-gradient-to-br from-sky-500/15 via-[var(--surface-2)] to-[var(--surface-2)] p-4 text-center">
+                      <div className="mx-auto mb-2.5 grid size-12 place-items-center rounded-2xl border border-sky-500/40 bg-sky-500/20 text-sky-400">
+                        <Calendar className="size-6" />
+                      </div>
+                      <h4 className="font-display font-bold text-[15px] text-sky-200">Registration Opens Soon</h4>
+                      <p className="mt-1 text-[12px] text-[var(--fg-muted)] leading-relaxed">
+                        Online registrations open on <strong className="text-white font-semibold">{comp.registration_start_date ? formatEventDate(comp.registration_start_date) : "the scheduled date"}</strong>. Stay tuned to submit your entry!
+                      </p>
+                    </div>
+                  ) : (
+                    <div className="rounded-2xl border border-[var(--border)] bg-[var(--surface-2)] p-4 text-center">
+                      <div className="mx-auto mb-2.5 grid size-12 place-items-center rounded-2xl bg-[var(--surface)] text-[var(--fg-muted)]">
+                        <Trophy className="size-6" />
+                      </div>
+                      <h4 className="font-display font-bold text-[15px] text-[var(--fg)]">Competition Concluded</h4>
+                      <p className="mt-1 text-[12px] text-[var(--fg-muted)] leading-relaxed">
+                        This competition has concluded. New registrations are no longer accepted.
+                      </p>
+                      {isResultsPublished && (
+                        <Link
+                          href={`/competitions/${id}/results`}
+                          className="mt-3.5 inline-flex w-full items-center justify-center gap-2 rounded-full py-2.5 text-xs font-bold text-[var(--on-accent)] shadow-md"
+                          style={{ background: "var(--grad-brand)" }}
+                        >
+                          View Official Results
+                        </Link>
+                      )}
+                    </div>
+                  )}
+                </div>
+              ) : (
+                <>
+                  {!!(comp.participation_fee || comp.fee) && (
+                    <div className="mb-4 space-y-3">
+                      <div className="flex items-center justify-between rounded-xl border border-[var(--border)] bg-[var(--surface-2)] p-3">
+                        <span className="text-[12.5px] font-medium text-[var(--fg-muted)]">Entry Fee</span>
+                        <span className="font-display text-base font-bold text-[var(--accent)]">
+                          ₹{comp.participation_fee || comp.fee}
+                        </span>
+                      </div>
+
+                      {/* Payment Mode Selector: Online vs Cash */}
+                      <div>
+                        <p className="mb-2 text-[11px] font-semibold uppercase tracking-wider text-[var(--fg-subtle)]">
+                          Select Payment Mode
+                        </p>
+                        <div className="grid grid-cols-1 gap-2.5 sm:grid-cols-2">
+                          {/* Option 1: Online Mode */}
+                          <div
+                            role="button"
+                            tabIndex={0}
+                            onClick={() => setPaymentMode("ONLINE")}
+                            className={cn(
+                              "relative flex cursor-pointer flex-col justify-between rounded-2xl border p-3.5 transition-all select-none",
+                              paymentMode === "ONLINE"
+                                ? "border-[var(--accent)] bg-[var(--accent)]/10 ring-1 ring-[var(--accent)]"
+                                : "border-[var(--border)] bg-[var(--surface-2)]/60 hover:border-[var(--border-strong)]"
+                            )}
+                          >
+                            <div className="flex items-center justify-between">
+                              <div className="flex items-center gap-2.5">
+                                <div
+                                  className={cn(
+                                    "flex size-8 items-center justify-center rounded-xl transition-colors",
+                                    paymentMode === "ONLINE"
+                                      ? "bg-[var(--accent)] text-black"
+                                      : "bg-[var(--surface)] text-[var(--fg-muted)]"
+                                  )}
+                                >
+                                  <CreditCard className="size-4" />
+                                </div>
+                                <div>
+                                  <p className="text-[13px] font-bold text-[var(--fg)] leading-none">Online</p>
+                                  <span className="text-[10px] text-[var(--fg-muted)]">UPI / Cards</span>
+                                </div>
+                              </div>
+                              <span
+                                className={cn(
+                                  "flex size-4 items-center justify-center rounded-full border transition-colors",
+                                  paymentMode === "ONLINE"
+                                    ? "border-[var(--accent)] bg-[var(--accent)]"
+                                    : "border-[var(--border-strong)] bg-transparent"
+                                )}
+                              >
+                                {paymentMode === "ONLINE" && <span className="size-1.5 rounded-full bg-black" />}
+                              </span>
+                            </div>
+                            <div className="mt-2.5 flex items-center justify-between border-t border-[var(--border)]/60 pt-2">
+                              <span className="text-[10px] text-[var(--fg-subtle)]">Instant Entry</span>
+                              <span className="inline-flex items-center gap-1 rounded-md bg-emerald-500/15 px-1.5 py-0.5 text-[9.5px] font-bold text-emerald-400">
+                                <Zap className="size-2.5" /> Instant
+                              </span>
+                            </div>
+                          </div>
+
+                          {/* Option 2: Cash on Spot Mode */}
+                          <div
+                            role="button"
+                            tabIndex={0}
+                            onClick={() => setPaymentMode("CASH")}
+                            className={cn(
+                              "relative flex cursor-pointer flex-col justify-between rounded-2xl border p-3.5 transition-all select-none",
+                              paymentMode === "CASH"
+                                ? "border-[var(--accent)] bg-[var(--accent)]/10 ring-1 ring-[var(--accent)]"
+                                : "border-[var(--border)] bg-[var(--surface-2)]/60 hover:border-[var(--border-strong)]"
+                            )}
+                          >
+                            <div className="flex items-center justify-between">
+                              <div className="flex items-center gap-2.5">
+                                <div
+                                  className={cn(
+                                    "flex size-8 items-center justify-center rounded-xl transition-colors",
+                                    paymentMode === "CASH"
+                                      ? "bg-[var(--accent)] text-black"
+                                      : "bg-[var(--surface)] text-[var(--fg-muted)]"
+                                  )}
+                                >
+                                  <Banknote className="size-4" />
+                                </div>
+                                <div>
+                                  <p className="text-[13px] font-bold text-[var(--fg)] leading-none">Cash on Spot</p>
+                                  <span className="text-[10px] text-[var(--fg-muted)]">Pay at Venue</span>
+                                </div>
+                              </div>
+                              <span
+                                className={cn(
+                                  "flex size-4 items-center justify-center rounded-full border transition-colors",
+                                  paymentMode === "CASH"
+                                    ? "border-[var(--accent)] bg-[var(--accent)]"
+                                    : "border-[var(--border-strong)] bg-transparent"
+                                )}
+                              >
+                                {paymentMode === "CASH" && <span className="size-1.5 rounded-full bg-black" />}
+                              </span>
+                            </div>
+                            <div className="mt-2.5 flex items-center justify-between border-t border-[var(--border)]/60 pt-2">
+                              <span className="text-[10px] text-[var(--fg-subtle)]">Gate Counter</span>
+                              <span className="inline-flex items-center gap-1 rounded-md bg-amber-500/15 px-1.5 py-0.5 text-[9.5px] font-bold text-amber-400">
+                                <Clock className="size-2.5" /> Venue
+                              </span>
+                            </div>
+                          </div>
+                        </div>
+                      </div>
+
+                      {paymentMode === "CASH" && (
+                        <div className="rounded-xl border border-amber-500/35 bg-amber-500/10 p-2.5 text-[11.5px] text-amber-300">
+                          <p className="flex items-center gap-1.5 font-semibold text-amber-200">
+                            <Banknote className="size-3.5 text-amber-400 shrink-0" />
+                            Cash on Spot (Venue Payment)
+                          </p>
+                          <p className="mt-1 text-[11px] text-amber-200/90 leading-relaxed">
+                            Your participation slot is reserved immediately. You can upload your audition entry now and deposit ₹{comp.participation_fee || comp.fee} cash at the venue counter on event day.
+                          </p>
+                        </div>
+                      )}
+                    </div>
+                  )}
+                  <label className="flex cursor-pointer items-start gap-2.5 text-[13px] text-[var(--fg-muted)]">
+                    <input
+                      type="checkbox"
+                      checked={rulesAccepted}
+                      onChange={(e) => setRulesAccepted(e.target.checked)}
+                      className="mt-0.5 size-4 accent-[var(--accent)]"
+                    />
+                    <span>I have read and accept the competition rules and eligibility criteria.</span>
+                  </label>
+                  <button
+                    onClick={doRegister}
+                    disabled={!rulesAccepted || busy || !open}
+                    className="mt-4 inline-flex w-full items-center justify-center gap-2 rounded-full py-3 text-[13.5px] font-bold text-[var(--on-accent)] transition-opacity disabled:opacity-50"
+                    style={{ background: "var(--grad-brand)" }}
+                  >
+                    {busy ? <Loader2 className="size-4 animate-spin" aria-hidden /> : <ShieldCheck className="size-4" aria-hidden />}
+                    {(comp.participation_fee || comp.fee)
+                      ? paymentMode === "CASH"
+                        ? `Confirm Entry & Pay ₹${comp.participation_fee || comp.fee} Cash at Venue`
+                        : `Pay ₹${comp.participation_fee || comp.fee} Online & Register`
+                      : "Register to compete"}
+                  </button>
+                </>
+              )
             ) : step === "submit" ? (
               <>
                 <div className="mb-4 flex flex-col gap-2 rounded-xl border border-emerald-500/30 bg-emerald-500/10 p-3 text-xs text-emerald-300">
