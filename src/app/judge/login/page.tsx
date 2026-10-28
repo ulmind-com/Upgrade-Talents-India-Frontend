@@ -4,7 +4,7 @@ import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useState, useEffect } from "react";
 import { motion, AnimatePresence, type Variants } from "framer-motion";
-import { ArrowRight, ArrowLeft, Mail, KeyRound, Gavel, ShieldCheck, Star, Award } from "lucide-react";
+import { ArrowRight, ArrowLeft, Mail, KeyRound, Gavel, ShieldCheck, Star, Award, Lock, Eye, EyeOff, CheckCircle2 } from "lucide-react";
 import { judgeAuthApi, tokenStore } from "@/lib/api";
 import { useAuth } from "@/components/motion/Providers";
 import { AuthShell, Field, FormAlert, Input } from "@/components/ui/Form";
@@ -13,72 +13,150 @@ import { Button } from "@/components/ui/Primitives";
 import { imageFor } from "@/lib/utils";
 
 const EASE = [0.16, 1, 0.3, 1] as const;
-const formV: Variants = {
-  hidden: { opacity: 0, x: 64 },
-  show: {
-    opacity: 1, x: 0,
-    transition: { type: "spring", stiffness: 120, damping: 16, mass: 0.9, staggerChildren: 0.08, delayChildren: 0.18 },
-  },
-};
-const itemV: Variants = {
-  hidden: { opacity: 0, y: 18 },
-  show: { opacity: 1, y: 0, transition: { duration: 0.5, ease: EASE } },
-};
-
-const STEPS = [
-  { n: 1, label: "Email", Icon: Mail },
-  { n: 2, label: "Verify", Icon: KeyRound },
-];
 
 export default function JudgeLoginPage() {
   const router = useRouter();
   const { refresh, isJudge } = useAuth();
 
-  const [step, setStep] = useState(1);
+  // Mode: "password" vs "otp"
+  const [authMode, setAuthMode] = useState<"password" | "otp">("password");
+
+  // OTP Steps: 1 = Email, 2 = Verify OTP, 3 = First-time Set Password
+  const [step, setStep] = useState<1 | 2 | 3>(1);
   const [loading, setLoading] = useState(false);
   const [formError, setFormError] = useState<string | null>(null);
   const [notice, setNotice] = useState<string | null>(null);
   const [errors, setErrors] = useState<Record<string, string>>({});
 
+  // Inputs
   const [email, setEmail] = useState("");
+  const [password, setPassword] = useState("");
+  const [showPassword, setShowPassword] = useState(false);
+
+  // Set password inputs for Step 3
+  const [newPassword, setNewPassword] = useState("");
+  const [confirmPassword, setConfirmPassword] = useState("");
+  const [showNewPassword, setShowNewPassword] = useState(false);
 
   useEffect(() => {
     if (isJudge) router.replace("/judge");
   }, [isJudge, router]);
 
-  const submitStep1 = async (e: React.FormEvent) => {
+  // ── Password Direct Login ──
+  const submitPasswordLogin = async (e: React.FormEvent) => {
     e.preventDefault();
-    setFormError(null); setNotice(null);
+    setFormError(null);
+    setNotice(null);
     const errs: Record<string, string> = {};
-    if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) errs.email = "Enter the email your administration registered you with.";
+    if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) {
+      errs.email = "Enter a valid registered judge email.";
+    }
+    if (!password) {
+      errs.password = "Enter your password.";
+    }
+    setErrors(errs);
+    if (Object.keys(errs).length) return;
+
+    setLoading(true);
+    try {
+      const res = await judgeAuthApi.loginPassword(email.trim(), password);
+      tokenStore.set(res.access_token);
+      tokenStore.setRole("JUDGE");
+      await refresh();
+      router.replace("/judge");
+    } catch (err: any) {
+      const msg = err?.message || "Sign in failed. Check your email and password.";
+      setFormError(msg);
+      // If password hasn't been set yet, hint switching to OTP
+      if (msg.toLowerCase().includes("not been set")) {
+        setNotice("Tip: Switch to 'Sign in with OTP' below to verify and create your permanent password.");
+      }
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  // ── OTP Step 1: Send Code ──
+  const submitOtpStep1 = async (e: React.FormEvent) => {
+    e.preventDefault();
+    setFormError(null);
+    setNotice(null);
+    const errs: Record<string, string> = {};
+    if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) {
+      errs.email = "Enter the email your administration registered you with.";
+    }
     setErrors(errs);
     if (Object.keys(errs).length) return;
 
     setLoading(true);
     try {
       await judgeAuthApi.loginStep1(email.trim());
-      setNotice("Code sent — it expires in 10 minutes.");
+      setNotice("Verification code sent — valid for 10 minutes.");
       setStep(2);
     } catch (err: any) {
-      setFormError(err?.message || "Could not send verification code. Make sure your email is registered as a Judge.");
-    } finally { setLoading(false); }
+      setFormError(err?.message || "Could not send code. Ensure your email is registered as an official Judge.");
+    } finally {
+      setLoading(false);
+    }
   };
 
-  // The card drives the choreography; this just does the network bit
-  // and throws, which the card reads as "wrong code".
+  // ── OTP Step 2: Verify Code ──
   const verifyCode = async (otp: string) => {
     setFormError(null);
     const res = await judgeAuthApi.loginStep2(email.trim(), otp);
     tokenStore.set(res.access_token);
     tokenStore.setRole("JUDGE");
-    await refresh();
+
+    // Check if password has been set previously
+    if (!res.has_password) {
+      // Prompt user to set a permanent password
+      setNotice("OTP verified successfully! Please set your permanent password for direct logins.");
+      setStep(3);
+    } else {
+      await refresh();
+      router.replace("/judge");
+    }
+  };
+
+  // ── OTP Step 3: Set Permanent Password ──
+  const submitSetPassword = async (e: React.FormEvent) => {
+    e.preventDefault();
+    setFormError(null);
+    setNotice(null);
+    const errs: Record<string, string> = {};
+    if (newPassword.length < 8) {
+      errs.newPassword = "Password must be at least 8 characters long.";
+    }
+    if (newPassword !== confirmPassword) {
+      errs.confirmPassword = "Passwords do not match.";
+    }
+    setErrors(errs);
+    if (Object.keys(errs).length) return;
+
+    setLoading(true);
+    try {
+      await judgeAuthApi.setPassword(newPassword, confirmPassword);
+      setNotice("Password set successfully! Opening your evaluation panel…");
+      await refresh();
+      setTimeout(() => {
+        router.replace("/judge");
+      }, 1000);
+    } catch (err: any) {
+      setFormError(err?.message || "Could not set password. Please try again.");
+    } finally {
+      setLoading(false);
+    }
   };
 
   return (
     <AuthShell
-      eyebrow={`Judges Panel — Step ${step} of 2`}
+      eyebrow={
+        authMode === "password"
+          ? "Judges Panel — Direct Access"
+          : `Judges Panel — OTP Step ${step} of ${step === 3 ? "3" : "2"}`
+      }
       title="Judge Sign‑In"
-      subtitle="Secure, passwordless access to your private scoring panel."
+      subtitle="Official evaluation portal for Upgrade Talents India judges."
       aside={
         <motion.div
           initial={{ opacity: 0, scale: 0.92, x: 40 }}
@@ -98,15 +176,15 @@ export default function JudgeLoginPage() {
               className="inline-flex items-center gap-2.5 rounded-full border border-[color-mix(in_srgb,var(--accent)_40%,transparent)] bg-[color-mix(in_srgb,var(--accent)_12%,transparent)] px-4 py-2 backdrop-blur-md"
             >
               <Gavel className="size-4 text-[var(--accent)]" />
-              <span className="text-[12px] font-bold uppercase tracking-[0.14em] text-[var(--accent)]">Judges Only</span>
+              <span className="text-[12px] font-bold uppercase tracking-[0.14em] text-[var(--accent)]">Official Judges</span>
             </motion.div>
           </div>
 
           <ul className="absolute inset-x-8 bottom-8 flex flex-col gap-4">
             {[
-              { Icon: ShieldCheck, t: "Passwordless OTP authentication" },
-              { Icon: Star, t: "Private scoring dashboard" },
-              { Icon: Award, t: "Live competition judging" },
+              { Icon: KeyRound, t: "Instant password or secure OTP login" },
+              { Icon: Star, t: "Private scoring & evaluation dashboard" },
+              { Icon: Award, t: "Live competition contestant scoring" },
             ].map((f) => (
               <li key={f.t} className="flex items-center gap-3 text-sm text-white/90">
                 <span className="grid size-9 shrink-0 place-items-center rounded-full" style={{ background: "var(--grad-brand)" }}>
@@ -119,33 +197,42 @@ export default function JudgeLoginPage() {
         </motion.div>
       }
     >
-      {/* Progress */}
-      <ol className="mb-9 flex items-center gap-2" aria-label="Login progress">
-        {STEPS.map((s, i) => {
-          const done = step > s.n;
-          const active = step === s.n;
-          return (
-            <li key={s.n} className="flex flex-1 items-center gap-2">
-              <span
-                aria-current={active ? "step" : undefined}
-                className={[
-                  "grid size-9 shrink-0 place-items-center rounded-full border text-[12px] font-bold transition-colors duration-400",
-                  done && "border-transparent bg-[var(--success)] text-white",
-                  active && "border-transparent text-[var(--on-accent)]",
-                  !done && !active && "border-[var(--border)] text-[var(--fg-subtle)]",
-                ].filter(Boolean).join(" ")}
-                style={active ? { background: "var(--grad-brand)" } : undefined}
-              >
-                {done ? <ShieldCheck className="size-4" aria-hidden /> : <s.Icon className="size-4" aria-hidden />}
-              </span>
-              <span className={`hidden text-[11px] font-semibold uppercase tracking-[0.14em] sm:block ${active ? "text-[var(--fg)]" : "text-[var(--fg-subtle)]"}`}>
-                {s.label}
-              </span>
-              {i < STEPS.length - 1 && <span className={`h-px flex-1 transition-colors ${done ? "bg-[var(--success)]" : "bg-[var(--border)]"}`} aria-hidden />}
-            </li>
-          );
-        })}
-      </ol>
+      {/* ── Mode Switcher Tab (Password vs OTP) ── */}
+      {step !== 3 && (
+        <div className="mb-7 flex rounded-xl border border-[var(--border)] bg-[var(--surface)] p-1">
+          <button
+            type="button"
+            onClick={() => {
+              setAuthMode("password");
+              setFormError(null);
+              setNotice(null);
+            }}
+            className={`flex flex-1 items-center justify-center gap-2 rounded-lg py-2.5 text-xs font-bold transition-all cursor-pointer ${
+              authMode === "password"
+                ? "bg-[var(--accent)] text-[var(--on-accent)] shadow-sm"
+                : "text-[var(--fg-muted)] hover:text-[var(--fg)]"
+            }`}
+          >
+            <Lock className="size-3.5" /> Password Sign‑In
+          </button>
+          <button
+            type="button"
+            onClick={() => {
+              setAuthMode("otp");
+              setStep(1);
+              setFormError(null);
+              setNotice(null);
+            }}
+            className={`flex flex-1 items-center justify-center gap-2 rounded-lg py-2.5 text-xs font-bold transition-all cursor-pointer ${
+              authMode === "otp"
+                ? "bg-[var(--accent)] text-[var(--on-accent)] shadow-sm"
+                : "text-[var(--fg-muted)] hover:text-[var(--fg)]"
+            }`}
+          >
+            <Mail className="size-3.5" /> OTP / Set Password
+          </button>
+        </div>
+      )}
 
       <div aria-live="polite" className="mb-5 empty:hidden">
         {formError && <FormAlert tone="error">{formError}</FormAlert>}
@@ -153,60 +240,237 @@ export default function JudgeLoginPage() {
       </div>
 
       <AnimatePresence mode="wait">
-        {step === 1 && (
+        {/* ══════════ 1. PASSWORD LOGIN FORM ══════════ */}
+        {authMode === "password" && step !== 3 && (
           <motion.form
-            key="s1" onSubmit={submitStep1} noValidate
-            initial={{ opacity: 0, x: 24 }} animate={{ opacity: 1, x: 0 }} exit={{ opacity: 0, x: -24 }}
-            transition={{ duration: 0.4, ease: EASE }}
-            className="flex flex-col gap-5"
+            key="password-mode"
+            onSubmit={submitPasswordLogin}
+            noValidate
+            initial={{ opacity: 0, x: 20 }}
+            animate={{ opacity: 1, x: 0 }}
+            exit={{ opacity: 0, x: -20 }}
+            transition={{ duration: 0.3, ease: EASE }}
+            className="flex flex-col gap-4"
           >
-            <Field label="Registered email" hint="The email your administration assigned to you." error={errors.email} required>
+            <Field label="Registered Email" hint="Your registered judge account email address." error={errors.email} required>
               {({ id, describedBy, invalid }) => (
                 <Input
-                  id={id} type="email" inputMode="email" autoComplete="email" value={email}
-                  onChange={(e) => setEmail(e.target.value)} aria-describedby={describedBy} invalid={invalid}
-                  placeholder="judge@eventora.com"
+                  id={id}
+                  type="email"
+                  inputMode="email"
+                  autoComplete="email"
+                  value={email}
+                  onChange={(e) => setEmail(e.target.value)}
+                  aria-describedby={describedBy}
+                  invalid={invalid}
+                  placeholder="judge@upgradetalentsindia.in"
+                />
+              )}
+            </Field>
+
+            <Field label="Permanent Password" error={errors.password} required>
+              {({ id, describedBy, invalid }) => (
+                <div className="relative">
+                  <Input
+                    id={id}
+                    type={showPassword ? "text" : "password"}
+                    autoComplete="current-password"
+                    value={password}
+                    onChange={(e) => setPassword(e.target.value)}
+                    aria-describedby={describedBy}
+                    invalid={invalid}
+                    placeholder="Enter your password"
+                    className="pr-10"
+                  />
+                  <button
+                    type="button"
+                    onClick={() => setShowPassword(!showPassword)}
+                    className="absolute right-3 top-1/2 -translate-y-1/2 text-[var(--fg-muted)] hover:text-[var(--fg)] cursor-pointer"
+                    aria-label={showPassword ? "Hide password" : "Show password"}
+                  >
+                    {showPassword ? <EyeOff className="size-4" /> : <Eye className="size-4" />}
+                  </button>
+                </div>
+              )}
+            </Field>
+
+            <Button type="submit" size="lg" loading={loading} className="mt-2 w-full">
+              Sign In to Judge Panel <ArrowRight className="size-4" aria-hidden />
+            </Button>
+
+            <div className="mt-2 flex flex-col items-center gap-2 text-center text-[12.5px] text-[var(--fg-muted)]">
+              <button
+                type="button"
+                onClick={() => {
+                  setAuthMode("otp");
+                  setStep(1);
+                  setFormError(null);
+                  setNotice(null);
+                }}
+                className="font-medium text-[var(--accent)] hover:underline cursor-pointer"
+              >
+                First time logging in or forgot password? Sign in with OTP
+              </button>
+              <p>
+                Not a judge?{" "}
+                <Link href="/login" className="font-semibold text-[var(--accent)] underline-offset-4 hover:underline">
+                  Sign in as participant
+                </Link>
+              </p>
+            </div>
+          </motion.form>
+        )}
+
+        {/* ══════════ 2. OTP STEP 1: EMAIL ══════════ */}
+        {authMode === "otp" && step === 1 && (
+          <motion.form
+            key="otp-s1"
+            onSubmit={submitOtpStep1}
+            noValidate
+            initial={{ opacity: 0, x: 20 }}
+            animate={{ opacity: 1, x: 0 }}
+            exit={{ opacity: 0, x: -20 }}
+            transition={{ duration: 0.3, ease: EASE }}
+            className="flex flex-col gap-5"
+          >
+            <Field label="Registered Email" hint="The email your administration assigned for your judge access." error={errors.email} required>
+              {({ id, describedBy, invalid }) => (
+                <Input
+                  id={id}
+                  type="email"
+                  inputMode="email"
+                  autoComplete="email"
+                  value={email}
+                  onChange={(e) => setEmail(e.target.value)}
+                  aria-describedby={describedBy}
+                  invalid={invalid}
+                  placeholder="judge@upgradetalentsindia.in"
                 />
               )}
             </Field>
 
             <Button type="submit" size="lg" loading={loading} className="mt-2 w-full">
-              Send verification code <ArrowRight className="size-4" aria-hidden />
+              Send Verification Code <ArrowRight className="size-4" aria-hidden />
             </Button>
 
             <p className="text-center text-[13px] text-[var(--fg-muted)]">
-              Not a judge?{" "}
-              <Link href="/login" className="font-semibold text-[var(--accent)] underline-offset-4 hover:underline">Sign in as participant</Link>
+              Already have a password?{" "}
+              <button
+                type="button"
+                onClick={() => setAuthMode("password")}
+                className="font-semibold text-[var(--accent)] underline-offset-4 hover:underline cursor-pointer"
+              >
+                Sign in with Password
+              </button>
             </p>
           </motion.form>
         )}
 
-        {step === 2 && (
+        {/* ══════════ 3. OTP STEP 2: VERIFY CODE ══════════ */}
+        {authMode === "otp" && step === 2 && (
           <motion.div
-            key="s2"
-            initial={{ opacity: 0, x: 24 }} animate={{ opacity: 1, x: 0 }} exit={{ opacity: 0, x: -24 }}
-            transition={{ duration: 0.4, ease: EASE }}
+            key="otp-s2"
+            initial={{ opacity: 0, x: 20 }}
+            animate={{ opacity: 1, x: 0 }}
+            exit={{ opacity: 0, x: -20 }}
+            transition={{ duration: 0.3, ease: EASE }}
           >
             <OtpVerify
               length={6}
               email={email}
               onVerify={verifyCode}
-              onSuccess={() => router.push("/judge")}
+              onSuccess={() => {}}
               successTitle="Access Granted"
-              successSubtitle="Welcome, Judge. Opening your evaluation panel…"
+              successSubtitle="Opening your evaluation panel…"
               footer={
                 <div className="flex items-center justify-center gap-3">
-                  <Button onClick={() => { setStep(1); setFormError(null); setNotice(null); }} variant="ghost" size="sm">
+                  <Button
+                    onClick={() => {
+                      setStep(1);
+                      setFormError(null);
+                      setNotice(null);
+                    }}
+                    variant="ghost"
+                    size="sm"
+                  >
                     <ArrowLeft className="size-4" aria-hidden /> Change email
                   </Button>
                   <span className="size-1 rounded-full bg-[var(--border-strong)]" aria-hidden />
-                  <Button onClick={() => submitStep1(new Event("submit") as any)} variant="ghost" size="sm" loading={loading}>
+                  <Button onClick={() => submitOtpStep1(new Event("submit") as any)} variant="ghost" size="sm" loading={loading}>
                     Resend code
                   </Button>
                 </div>
               }
             />
           </motion.div>
+        )}
+
+        {/* ══════════ 4. STEP 3: SET PERMANENT PASSWORD (FIRST TIME) ══════════ */}
+        {step === 3 && (
+          <motion.form
+            key="set-pwd-s3"
+            onSubmit={submitSetPassword}
+            noValidate
+            initial={{ opacity: 0, y: 16 }}
+            animate={{ opacity: 1, y: 0 }}
+            exit={{ opacity: 0, y: -16 }}
+            transition={{ duration: 0.3, ease: EASE }}
+            className="flex flex-col gap-4 rounded-2xl border border-[var(--border)] bg-[var(--surface-2)] p-5"
+          >
+            <div className="flex items-center gap-3 border-b border-[var(--border)] pb-3">
+              <span className="grid size-10 place-items-center rounded-xl bg-[var(--accent)] text-[var(--on-accent)]">
+                <KeyRound className="size-5" />
+              </span>
+              <div>
+                <h3 className="text-sm font-bold text-[var(--fg)]">Set Your Permanent Password</h3>
+                <p className="text-[12px] text-[var(--fg-muted)]">
+                  Next time you sign in, you can log in directly using your email and password.
+                </p>
+              </div>
+            </div>
+
+            <Field label="New Password" hint="Minimum 8 characters" error={errors.newPassword} required>
+              {({ id, describedBy, invalid }) => (
+                <div className="relative">
+                  <Input
+                    id={id}
+                    type={showNewPassword ? "text" : "password"}
+                    value={newPassword}
+                    onChange={(e) => setNewPassword(e.target.value)}
+                    aria-describedby={describedBy}
+                    invalid={invalid}
+                    placeholder="Create a strong password"
+                    className="pr-10"
+                  />
+                  <button
+                    type="button"
+                    onClick={() => setShowNewPassword(!showNewPassword)}
+                    className="absolute right-3 top-1/2 -translate-y-1/2 text-[var(--fg-muted)] hover:text-[var(--fg)] cursor-pointer"
+                  >
+                    {showNewPassword ? <EyeOff className="size-4" /> : <Eye className="size-4" />}
+                  </button>
+                </div>
+              )}
+            </Field>
+
+            <Field label="Confirm Password" error={errors.confirmPassword} required>
+              {({ id, describedBy, invalid }) => (
+                <Input
+                  id={id}
+                  type={showNewPassword ? "text" : "password"}
+                  value={confirmPassword}
+                  onChange={(e) => setConfirmPassword(e.target.value)}
+                  aria-describedby={describedBy}
+                  invalid={invalid}
+                  placeholder="Re-enter your new password"
+                />
+              )}
+            </Field>
+
+            <Button type="submit" size="lg" loading={loading} className="mt-2 w-full">
+              Save Password & Enter Panel <CheckCircle2 className="size-4" />
+            </Button>
+          </motion.form>
         )}
       </AnimatePresence>
     </AuthShell>

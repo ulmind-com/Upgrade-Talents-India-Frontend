@@ -226,11 +226,19 @@ export type HomepagePayload = {
 export type MyTicket = {
   ticket_ref: string;
   booking_id: string;
+  booking_ref?: string;
   event_id: string;
   ticket_type: string;
   holder_name: string;
+  holder_names?: string[];
   holder_email: string;
+  quantity?: number;
+  admitted_count?: number;
+  remaining_count?: number;
   is_checked_in: boolean;
+  is_fully_used?: boolean;
+  status?: string;
+  check_in_time?: string | null;
   issued_at: string;
   event_title?: string;
   event_date?: string;
@@ -239,6 +247,9 @@ export type MyTicket = {
   event_cover?: string;
   price?: number;
   base_price?: number;
+  total_booking_amount?: number;
+  payment_method?: string;
+  payment_status?: string;
   qr_token?: string;
 };
 
@@ -642,32 +653,76 @@ export const digilockerApi = {
     ),
 };
 
-/* ─────────────── JUDGE AUTH (OTP-based, passwordless) ─────────────── */
+/* ─────────────── JUDGE AUTH (Password & OTP) ─────────────── */
 
 export const judgeAuthApi = {
   /** Step 1: Send OTP to judge's registered email */
   loginStep1: (email: string) =>
     apiFetch<{ message: string }>("/api/judge/auth/login/step1", { method: "POST", body: { email } }),
 
-  /** Step 2: Verify OTP and receive access token */
+  /** Step 2: Verify OTP and receive access token (returns has_password status) */
   loginStep2: (email: string, otp: string) =>
-    apiFetch<{ access_token: string; token_type: string; user_email: string; role: string }>(
+    apiFetch<{ access_token: string; token_type: string; user_email: string; role: string; has_password?: boolean }>(
       "/api/judge/auth/login/step2", { method: "POST", body: { email, otp } }
     ),
+
+  /** Direct Login with Email and Permanent Password */
+  loginPassword: (email: string, password: string) =>
+    apiFetch<{ access_token: string; token_type: string; user_email: string; role: string; has_password: boolean }>(
+      "/api/judge/auth/login/password", { method: "POST", body: { email, password } }
+    ),
+
+  /** Set permanent password for Judge after first OTP login */
+  setPassword: (password: string, confirm_password?: string) =>
+    apiFetch<{ message: string; has_password: boolean }>("/api/judge/auth/set-password", {
+      method: "POST",
+      body: { password, confirm_password: confirm_password ?? password },
+      auth: true,
+    }),
+
+  /** Change existing password */
+  changePassword: (current_password: string, new_password: string, confirm_password?: string) =>
+    apiFetch<{ message: string }>("/api/judge/auth/change-password", {
+      method: "POST",
+      body: { current_password, new_password, confirm_password: confirm_password ?? new_password },
+      auth: true,
+    }),
 };
 
-/* ─────────────── VOLUNTEER AUTH (OTP-based, passwordless) ─────────────── */
+/* ─────────────── VOLUNTEER AUTH (Password & OTP) ─────────────── */
 
 export const volunteerAuthApi = {
   /** Step 1: Send OTP to volunteer's registered email */
   loginStep1: (email: string) =>
     apiFetch<{ message: string }>("/api/volunteer/auth/login/step1", { method: "POST", body: { email } }),
 
-  /** Step 2: Verify OTP and receive access token */
+  /** Step 2: Verify OTP and receive access token (returns has_password status) */
   loginStep2: (email: string, otp: string) =>
-    apiFetch<{ access_token: string; token_type: string; user_email: string; role: string }>(
+    apiFetch<{ access_token: string; token_type: string; user_email: string; role: string; has_password?: boolean }>(
       "/api/volunteer/auth/login/step2", { method: "POST", body: { email, otp } }
     ),
+
+  /** Direct Login with Email and Permanent Password */
+  loginPassword: (email: string, password: string) =>
+    apiFetch<{ access_token: string; token_type: string; user_email: string; role: string; has_password: boolean }>(
+      "/api/volunteer/auth/login/password", { method: "POST", body: { email, password } }
+    ),
+
+  /** Set permanent password for Volunteer after first OTP login */
+  setPassword: (password: string, confirm_password?: string) =>
+    apiFetch<{ message: string; has_password: boolean }>("/api/volunteer/auth/set-password", {
+      method: "POST",
+      body: { password, confirm_password: confirm_password ?? password },
+      auth: true,
+    }),
+
+  /** Change existing password */
+  changePassword: (current_password: string, new_password: string, confirm_password?: string) =>
+    apiFetch<{ message: string }>("/api/volunteer/auth/change-password", {
+      method: "POST",
+      body: { current_password, new_password, confirm_password: confirm_password ?? new_password },
+      auth: true,
+    }),
 };
 
 /* ─────────────── JUDGE COMPETITIONS & SCORING ─────────────── */
@@ -770,10 +825,21 @@ export interface TicketScanVerifyResult {
   ticket: {
     ticket_ref: string;
     holder_name: string;
+    holder_names?: string[];
     holder_email: string;
+    ticket_type?: string;
+    quantity: number;
+    admitted_count: number;
+    remaining_count: number;
     is_checked_in: boolean;
+    is_fully_used: boolean;
+    status: string;
     check_in_time: string | null;
+    payment_method?: string;
+    payment_status?: string;
   };
+  event_title?: string;
+  booking_reference?: string;
   booking_status: string;
 }
 
@@ -786,11 +852,19 @@ export const volunteerScannerApi = {
       auth: true,
     }),
 
-  /** Atomically mark ticket as checked in */
-  checkInTicket: (qr_token: string) =>
-    apiFetch<{ message: string; ticket_ref: string }>("/api/admin/tickets/check-in", {
+  /** Atomically mark attendees on this ticket as checked in */
+  checkInTicket: (qr_token: string, admit_count?: number) =>
+    apiFetch<{
+      message: string;
+      ticket_ref: string;
+      admitted_now: number;
+      total_admitted: number;
+      total_quantity: number;
+      remaining: number;
+      is_fully_used: boolean;
+    }>("/api/admin/tickets/check-in", {
       method: "POST",
-      body: { qr_token },
+      body: { qr_token, admit_count },
       auth: true,
     }),
 };

@@ -53,6 +53,10 @@ export default function DashboardPage() {
   const [eventsRegistered, setEventsRegistered] = useState<any[]>([]);
   const [coursesRegistered, setCoursesRegistered] = useState<any[]>([]);
 
+  // Ticket Tab Subview & Filters
+  const [ticketSubView, setTicketSubView] = useState<"passes" | "history">("passes");
+  const [ticketFilter, setTicketFilter] = useState<"all" | "active" | "used">("all");
+
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
@@ -271,32 +275,246 @@ export default function DashboardPage() {
         {/* ════════════════════════════════════════════════════════════════
             1. TICKETS TAB
            ════════════════════════════════════════════════════════════════ */}
-        {!loading && tab === "tickets" && (
-          tickets.length ? (
-            <div className="mt-10 flex flex-col gap-10">
-              {[...tickets]
-                .sort((a, b) => {
-                  const aExp = isEventExpired(a.event_date || a.issued_at, a.event_time);
-                  const bExp = isEventExpired(b.event_date || b.issued_at, b.event_time);
-                  if (aExp !== bExp) return aExp ? 1 : -1;
-                  return 0;
-                })
-                .map((t, idx) => (
-                  <Reveal key={t.ticket_ref} delay={idx * 0.08}>
-                    <TicketPass ticket={t} />
-                  </Reveal>
-                ))}
+        {!loading && tab === "tickets" && (() => {
+          const activeTicketsList = tickets.filter((t) => {
+            const isExp = isEventExpired(t.event_date || t.issued_at, t.event_time);
+            const isUsed = Boolean(t.is_checked_in || t.status === "USED" || (t.quantity && t.admitted_count && t.admitted_count >= t.quantity));
+            return !isExp && !isUsed;
+          });
+
+          const usedTicketsList = tickets.filter((t) => {
+            const isExp = isEventExpired(t.event_date || t.issued_at, t.event_time);
+            const isUsed = Boolean(t.is_checked_in || t.status === "USED" || (t.quantity && t.admitted_count && t.admitted_count >= t.quantity));
+            return isExp || isUsed;
+          });
+
+          const displayedTickets = ticketFilter === "active"
+            ? activeTicketsList
+            : ticketFilter === "used"
+            ? usedTicketsList
+            : tickets;
+
+          return (
+            <div className="mt-8 flex flex-col gap-8">
+              {/* ── Subview Switcher & Statistics Bar ── */}
+              <div className="flex flex-wrap items-center justify-between gap-4 rounded-2xl border border-white/[0.08] bg-white/[0.02] p-3 backdrop-blur-xl">
+                {/* View switcher: Passes vs Records */}
+                <div className="flex items-center gap-1.5 rounded-xl border border-[var(--border)] bg-[var(--surface-2)] p-1">
+                  <button
+                    type="button"
+                    onClick={() => setTicketSubView("passes")}
+                    className={cn(
+                      "flex items-center gap-2 rounded-lg px-3.5 py-2 text-xs font-bold transition-all cursor-pointer",
+                      ticketSubView === "passes"
+                        ? "bg-[var(--accent)] text-[var(--on-accent)] shadow-sm"
+                        : "text-[var(--fg-muted)] hover:text-[var(--fg)]"
+                    )}
+                  >
+                    <QrCode className="size-3.5" /> Admission Passes ({tickets.length})
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => setTicketSubView("history")}
+                    className={cn(
+                      "flex items-center gap-2 rounded-lg px-3.5 py-2 text-xs font-bold transition-all cursor-pointer",
+                      ticketSubView === "history"
+                        ? "bg-[var(--accent)] text-[var(--on-accent)] shadow-sm"
+                        : "text-[var(--fg-muted)] hover:text-[var(--fg)]"
+                    )}
+                  >
+                    <Receipt className="size-3.5" /> Booking History ({bookings.length})
+                  </button>
+                </div>
+
+                {/* Filter Pills when on Passes view */}
+                {ticketSubView === "passes" && tickets.length > 0 && (
+                  <div className="flex items-center gap-1.5">
+                    <button
+                      type="button"
+                      onClick={() => setTicketFilter("all")}
+                      className={cn(
+                        "rounded-full px-3 py-1 text-xs font-semibold transition-all cursor-pointer",
+                        ticketFilter === "all"
+                          ? "bg-white/10 text-white border border-white/20"
+                          : "text-zinc-400 hover:text-white"
+                      )}
+                    >
+                      All ({tickets.length})
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => setTicketFilter("active")}
+                      className={cn(
+                        "rounded-full px-3 py-1 text-xs font-semibold transition-all cursor-pointer",
+                        ticketFilter === "active"
+                          ? "bg-emerald-500/20 text-emerald-300 border border-emerald-500/40"
+                          : "text-zinc-400 hover:text-emerald-400"
+                      )}
+                    >
+                      Active ({activeTicketsList.length})
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => setTicketFilter("used")}
+                      className={cn(
+                        "rounded-full px-3 py-1 text-xs font-semibold transition-all cursor-pointer",
+                        ticketFilter === "used"
+                          ? "bg-rose-500/20 text-rose-300 border border-rose-500/40"
+                          : "text-zinc-400 hover:text-rose-400"
+                      )}
+                    >
+                      Used / Past ({usedTicketsList.length})
+                    </button>
+                  </div>
+                )}
+              </div>
+
+              {/* ── 1. DIGITAL PASSES VIEW ── */}
+              {ticketSubView === "passes" && (
+                displayedTickets.length ? (
+                  <div className="flex flex-col gap-10">
+                    {[...displayedTickets]
+                      .sort((a, b) => {
+                        const aExp = isEventExpired(a.event_date || a.issued_at, a.event_time) || a.is_checked_in;
+                        const bExp = isEventExpired(b.event_date || b.issued_at, b.event_time) || b.is_checked_in;
+                        if (aExp !== bExp) return aExp ? 1 : -1;
+                        return 0;
+                      })
+                      .map((t, idx) => (
+                        <Reveal key={t.ticket_ref} delay={idx * 0.08}>
+                          <TicketPass ticket={t} />
+                        </Reveal>
+                      ))}
+                  </div>
+                ) : (
+                  <EmptyState
+                    Icon={TicketX}
+                    title={ticketFilter === "active" ? "No active tickets" : "No tickets found"}
+                    body={
+                      ticketFilter === "active"
+                        ? "You have no upcoming active gate passes. All prior passes have been used or concluded."
+                        : "Once you book an event, your live QR admission vouchers appear here instantly."
+                    }
+                    ctaLink="/events"
+                    ctaText="Explore Live Events"
+                  />
+                )
+              )}
+
+              {/* ── 2. BOOKING HISTORY VIEW (A to Z Records) ── */}
+              {ticketSubView === "history" && (
+                bookings.length ? (
+                  <div className="flex flex-col gap-4">
+                    {bookings.map((b: any) => {
+                      const bQty = Number(b.quantity || 1);
+                      const isCash = b.payment_method === "CASH" || b.cash_payment;
+                      const isConfirmed = b.booking_status === "CONFIRMED";
+                      const tix: any[] = Array.isArray(b.tickets) ? b.tickets : [];
+                      const checkedInCount = tix.filter((t) => t.is_checked_in).length;
+                      const isFullyCheckedIn = b.is_checked_in || (tix.length > 0 && checkedInCount >= tix.length);
+
+                      return (
+                        <div
+                          key={b._id || b.booking_reference}
+                          className="flex flex-col gap-4 rounded-2xl border border-white/[0.08] bg-black/40 p-5 backdrop-blur-xl transition-all hover:border-white/20 sm:p-6"
+                        >
+                          {/* Booking Card Header */}
+                          <div className="flex flex-wrap items-start justify-between gap-3 border-b border-white/[0.06] pb-3">
+                            <div>
+                              <div className="flex items-center gap-2">
+                                <span className="font-mono text-xs font-bold uppercase tracking-wider text-[var(--accent)]">
+                                  {b.booking_reference}
+                                </span>
+                                {isCash ? (
+                                  <span className="inline-flex items-center gap-1 rounded-full border border-amber-500/30 bg-amber-500/10 px-2 py-0.5 font-mono text-[10px] font-bold text-amber-300">
+                                    <Banknote className="size-3" /> Cash on Spot
+                                  </span>
+                                ) : (
+                                  <span className="inline-flex items-center gap-1 rounded-full border border-cyan-500/30 bg-cyan-500/10 px-2 py-0.5 font-mono text-[10px] font-bold text-cyan-300">
+                                    <CreditCard className="size-3" /> Online Paid
+                                  </span>
+                                )}
+                              </div>
+                              <p className="mt-1 font-mono text-[11px] text-zinc-400">
+                                Booked on: {formatEventDate(b.booked_at || b.created_at)}
+                              </p>
+                            </div>
+
+                            {/* Status badges */}
+                            <div className="flex items-center gap-2">
+                              {isFullyCheckedIn ? (
+                                <span className="inline-flex items-center gap-1.5 rounded-full border border-rose-500/30 bg-rose-500/15 px-3 py-1 font-mono text-[11px] font-bold text-rose-300">
+                                  <CheckCircle2 className="size-3" /> Entry Completed ({bQty} Admitted)
+                                </span>
+                              ) : isConfirmed ? (
+                                <span className="inline-flex items-center gap-1.5 rounded-full border border-emerald-500/30 bg-emerald-500/15 px-3 py-1 font-mono text-[11px] font-bold text-emerald-300">
+                                  <ShieldCheck className="size-3" /> Active Pass Ready
+                                </span>
+                              ) : (
+                                <span className="inline-flex items-center gap-1.5 rounded-full border border-amber-500/30 bg-amber-500/15 px-3 py-1 font-mono text-[11px] font-bold text-amber-300">
+                                  <Clock className="size-3" /> {b.booking_status}
+                                </span>
+                              )}
+                            </div>
+                          </div>
+
+                          {/* Booking Details Grid */}
+                          <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-4 text-xs">
+                            <div>
+                              <span className="font-mono text-[10px] uppercase text-zinc-500">Event</span>
+                              <p className="font-semibold text-white truncate">{b.event_title || "Official Event"}</p>
+                              {b.event_venue && (
+                                <p className="text-[11px] text-zinc-400 truncate flex items-center gap-1 mt-0.5">
+                                  <MapPin className="size-3" /> {b.event_venue}
+                                </p>
+                              )}
+                            </div>
+
+                            <div>
+                              <span className="font-mono text-[10px] uppercase text-zinc-500">Admissions / Capacity</span>
+                              <p className="font-bold text-white">
+                                {bQty} {bQty > 1 ? "Persons (Group Admission)" : "Person"}
+                              </p>
+                              <p className="text-[11px] text-zinc-400">
+                                {isFullyCheckedIn ? "All attendees admitted" : `${checkedInCount} / ${bQty} checked in`}
+                              </p>
+                            </div>
+
+                            <div>
+                              <span className="font-mono text-[10px] uppercase text-zinc-500">Total Amount</span>
+                              <p className="font-mono font-bold text-white">{formatINR(b.total_amount)}</p>
+                              <p className="text-[11px] text-zinc-400 font-mono">
+                                Payment: {b.payment_status || "COMPLETED"}
+                              </p>
+                            </div>
+
+                            <div className="flex items-center justify-start lg:justify-end">
+                              <button
+                                type="button"
+                                onClick={() => setTicketSubView("passes")}
+                                className="inline-flex items-center gap-1.5 rounded-xl border border-white/10 bg-white/[0.05] px-3.5 py-2 font-mono text-xs font-semibold text-white hover:bg-white/10 transition-all cursor-pointer"
+                              >
+                                <QrCode className="size-3.5 text-[var(--accent)]" /> View Pass
+                              </button>
+                            </div>
+                          </div>
+                        </div>
+                      );
+                    })}
+                  </div>
+                ) : (
+                  <EmptyState
+                    Icon={Receipt}
+                    title="No booking history"
+                    body="You haven't made any event ticket bookings yet."
+                    ctaLink="/events"
+                    ctaText="Explore Live Events"
+                  />
+                )
+              )}
             </div>
-          ) : (
-            <EmptyState
-              Icon={TicketX}
-              title="No tickets yet"
-              body="Once you book an event, your live QR admission vouchers appear here instantly."
-              ctaLink="/events"
-              ctaText="Explore Live Events"
-            />
-          )
-        )}
+          );
+        })()}
 
         {/* ════════════════════════════════════════════════════════════════
             2. MY COMPETITIONS & RANKS TAB

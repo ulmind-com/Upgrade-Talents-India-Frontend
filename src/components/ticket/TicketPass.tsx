@@ -381,15 +381,26 @@ export function TicketPass({ ticket, qrData, defaultVariant }: TicketPassProps) 
   const priceAmount = ticket.price ?? ticket.base_price ?? 500;
   const coverImage = coverBase64 || rawCover;
 
-
+  const quantity = Number(ticket.quantity || 1);
+  const admittedCount = Number(ticket.admitted_count || (ticket.is_checked_in ? quantity : 0));
+  const isUsed = Boolean(ticket.is_checked_in || ticket.status === "USED" || (quantity > 0 && admittedCount >= quantity));
   const isExpired = isEventExpired(ticket.event_date || ticket.issued_at, ticket.event_time);
+  const isVoid = isUsed || isExpired;
 
   return (
     <div className="w-full flex flex-col items-center">
       {/* ── TOOLBAR: Official Pass Indicator & Actions (Print / Download) ── */}
       <div className="w-full max-w-[920px] mb-4 flex flex-wrap items-center justify-between gap-3 px-1">
         <div className="flex items-center gap-2">
-          {isExpired ? (
+          {isUsed ? (
+            <div className="flex items-center gap-2">
+              <span className="size-2 rounded-full bg-rose-500" />
+              <span className="inline-flex items-center gap-1.5 rounded-full bg-rose-500/15 border border-rose-500/30 px-3 py-1 text-[11px] font-mono font-bold uppercase tracking-[0.15em] text-rose-400">
+                <TicketX className="size-3 text-rose-400" />
+                Ticket Used • Validity Ended ({admittedCount}/{quantity} Admitted)
+              </span>
+            </div>
+          ) : isExpired ? (
             <div className="flex items-center gap-2">
               <span className="size-2 rounded-full bg-rose-500" />
               <span className="inline-flex items-center gap-1.5 rounded-full bg-rose-500/15 border border-rose-500/30 px-3 py-1 text-[11px] font-mono font-bold uppercase tracking-[0.15em] text-rose-400">
@@ -404,7 +415,7 @@ export function TicketPass({ ticket, qrData, defaultVariant }: TicketPassProps) 
                 style={{ background: v.primary }}
               />
               <span className="text-[11px] font-mono uppercase tracking-[0.2em] text-[var(--fg-muted)]">
-                Official Pass • {v.name}
+                Official Pass • {v.name} • {quantity > 1 ? `Group Admission (${quantity} Persons)` : "Admit 1 Person"}
               </span>
             </div>
           )}
@@ -416,14 +427,14 @@ export function TicketPass({ ticket, qrData, defaultVariant }: TicketPassProps) 
             disabled={printing}
             variant="outline"
             size="sm"
-            className={cn("gap-2 text-xs", isExpired && "opacity-75")}
+            className={cn("gap-2 text-xs", isVoid && "opacity-75")}
           >
             {printing ? (
               <Loader2 className="size-3.5 animate-spin" />
             ) : (
               <Printer className="size-3.5" />
             )}
-            <span>{printing ? "Preparing…" : isExpired ? "Print (Expired)" : "Print"}</span>
+            <span>{printing ? "Preparing…" : isUsed ? "Print (Used Pass)" : isExpired ? "Print (Expired)" : "Print"}</span>
           </Button>
 
           <button
@@ -432,11 +443,11 @@ export function TicketPass({ ticket, qrData, defaultVariant }: TicketPassProps) 
             disabled={downloading}
             className={cn(
               "inline-flex items-center gap-2 rounded-full px-4 py-2 text-xs font-bold text-white shadow-lg transition-transform hover:scale-105 active:scale-95 disabled:opacity-50 cursor-pointer",
-              isExpired && "opacity-85"
+              isVoid && "opacity-85"
             )}
             style={{
-              background: isExpired ? "linear-gradient(145deg, #4b5563 0%, #1f2937 100%)" : v.gradient,
-              boxShadow: isExpired ? "0 4px 14px rgba(0,0,0,0.3)" : `0 8px 24px ${v.primary}40`,
+              background: isVoid ? "linear-gradient(145deg, #4b5563 0%, #1f2937 100%)" : v.gradient,
+              boxShadow: isVoid ? "0 4px 14px rgba(0,0,0,0.3)" : `0 8px 24px ${v.primary}40`,
             }}
           >
             {downloading ? (
@@ -452,7 +463,7 @@ export function TicketPass({ ticket, qrData, defaultVariant }: TicketPassProps) 
             ) : (
               <>
                 <Download className="size-3.5" />
-                <span>{isExpired ? "Download Pass (Expired)" : "Download Ticket (PNG)"}</span>
+                <span>{isUsed ? "Download Pass (Used)" : isExpired ? "Download Pass (Expired)" : "Download Ticket (PNG)"}</span>
               </>
             )}
           </button>
@@ -480,11 +491,11 @@ export function TicketPass({ ticket, qrData, defaultVariant }: TicketPassProps) 
               border: "none",
             }}
           >
-            {/* ── INNER WRAPPER: BLURRED WHEN EXPIRED ── */}
+            {/* ── INNER WRAPPER: BLURRED WHEN USED OR EXPIRED ── */}
             <div
               className={cn(
                 "relative flex size-full transition-all duration-300",
-                isExpired && "filter blur-[2.5px] opacity-60 grayscale-[30%]"
+                isVoid && "filter blur-[2.5px] opacity-60 grayscale-[30%]"
               )}
             >
               {/* ══════════ LEFT SECTION: EVENT PHOTO WITH ORGANIC WAVE ══════════ */}
@@ -668,8 +679,13 @@ export function TicketPass({ ticket, qrData, defaultVariant }: TicketPassProps) 
                       className="rounded-md px-2 py-0.5 text-[9px] font-bold uppercase tracking-wider"
                       style={{ background: v.pillBg, color: v.pillText }}
                     >
-                      Admit One
+                      {quantity > 1 ? `Admit ${quantity} Persons` : "Admit One"}
                     </span>
+                    {quantity > 1 && (
+                      <span className="rounded-md bg-amber-100 px-2 py-0.5 text-[9px] font-bold uppercase tracking-wider text-amber-800">
+                        Group Pass
+                      </span>
+                    )}
                     <span className="rounded-md bg-zinc-100 px-2 py-0.5 text-[9px] font-bold uppercase tracking-wider text-zinc-600">
                       Non-Transferable
                     </span>
@@ -714,7 +730,7 @@ export function TicketPass({ ticket, qrData, defaultVariant }: TicketPassProps) 
                     Gate Entry Pass
                   </span>
                   <p className="mt-0.5 text-xs font-black uppercase tracking-wider text-white truncate px-1">
-                    {tierName}
+                    {tierName} {quantity > 1 ? `(${quantity}P)` : ""}
                   </p>
                 </div>
 
@@ -741,10 +757,15 @@ export function TicketPass({ ticket, qrData, defaultVariant }: TicketPassProps) 
                   <div
                     className={cn(
                       "inline-flex items-center gap-1 rounded-full px-2.5 py-0.5 text-[8.5px] font-bold text-white shadow-sm",
-                      isExpired ? "bg-red-950/80 text-red-200 border border-red-500/40" : "bg-black/25"
+                      isVoid ? "bg-red-950/80 text-red-200 border border-red-500/40" : "bg-black/25"
                     )}
                   >
-                    {isExpired ? (
+                    {isUsed ? (
+                      <>
+                        <TicketX className="size-2.5 text-red-400" />
+                        <span>Entry Used ({admittedCount}/{quantity})</span>
+                      </>
+                    ) : isExpired ? (
                       <>
                         <TicketX className="size-2.5 text-red-400" />
                         <span>Pass expired</span>
@@ -762,8 +783,28 @@ export function TicketPass({ ticket, qrData, defaultVariant }: TicketPassProps) 
             {/* ── END INNER WRAPPER ── */}
             </div>
 
+            {/* ── USED BADGE / WATERMARK OVERLAY (CAPTURED IN DOWNLOAD PNG) ── */}
+            {isUsed && (
+              <div className="absolute inset-0 z-40 flex flex-col items-center justify-center p-6 pointer-events-none select-none">
+                <div className="flex flex-col items-center justify-center gap-1.5 rounded-2xl border-2 border-red-500 bg-zinc-950/95 px-8 py-5 shadow-[0_0_50px_rgba(239,68,68,0.7)] backdrop-blur-md transform -rotate-2">
+                  <div className="flex items-center gap-2.5">
+                    <TicketX className="size-8 text-red-500" />
+                    <span className="font-display text-3xl md:text-4xl font-black uppercase tracking-[0.25em] text-red-500 drop-shadow">
+                      ENTRY USED
+                    </span>
+                  </div>
+                  <p className="font-mono text-xs font-bold uppercase tracking-wider text-red-200">
+                    Validity Ended • {admittedCount} of {quantity} Person(s) Admitted
+                  </p>
+                  <span className="inline-flex items-center gap-1 rounded-full bg-red-500/20 px-3 py-1 font-mono text-[9.5px] font-bold uppercase tracking-widest text-red-300">
+                    Ticket Expired • Cannot be reused for gate entry
+                  </span>
+                </div>
+              </div>
+            )}
+
             {/* ── EXPIRED BADGE / WATERMARK OVERLAY (CAPTURED IN DOWNLOAD PNG) ── */}
-            {isExpired && (
+            {!isUsed && isExpired && (
               <div className="absolute inset-0 z-40 flex flex-col items-center justify-center p-6 pointer-events-none select-none">
                 <div className="flex flex-col items-center justify-center gap-1.5 rounded-2xl border-2 border-red-500/90 bg-zinc-950/92 px-8 py-4 shadow-[0_0_50px_rgba(239,68,68,0.55)] backdrop-blur-md transform -rotate-2">
                   <div className="flex items-center gap-2.5">

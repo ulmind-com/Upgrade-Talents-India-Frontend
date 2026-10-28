@@ -265,18 +265,26 @@ export default function VolunteerScannerPage() {
   }, [cameraActive, processQrToken]);
 
   // Start Camera
-  const startCamera = async () => {
+  const startCamera = async (targetFacing?: "environment" | "user") => {
     stopCamera();
     setCameraError(null);
+    const facing = targetFacing || cameraFacing;
     try {
-      const constraints: MediaStreamConstraints = {
-        video: {
-          facingMode: cameraFacing,
-          width: { ideal: 1280 },
-          height: { ideal: 720 },
-        },
-      };
-      const stream = await navigator.mediaDevices.getUserMedia(constraints);
+      let stream: MediaStream | null = null;
+      try {
+        const constraints: MediaStreamConstraints = {
+          video: {
+            facingMode: facing === "environment" ? { ideal: "environment" } : "user",
+            width: { ideal: 1280 },
+            height: { ideal: 720 },
+          },
+        };
+        stream = await navigator.mediaDevices.getUserMedia(constraints);
+      } catch {
+        // Fallback if specific constraint is not supported
+        stream = await navigator.mediaDevices.getUserMedia({ video: true });
+      }
+
       streamRef.current = stream;
       if (videoRef.current) {
         videoRef.current.srcObject = stream;
@@ -303,35 +311,57 @@ export default function VolunteerScannerPage() {
     setCameraFacing(next);
     if (cameraActive) {
       stopCamera();
-      setTimeout(startCamera, 200);
+      setTimeout(() => startCamera(next), 200);
     }
   };
 
-  // Perform Final Check-In
-  const handleConfirmCheckIn = async () => {
+  // Perform Final Check-In with multi-person quantity support
+  const handleConfirmCheckIn = async (admitCount?: number) => {
     if (!currentVerification) return;
     setCheckingIn(true);
     setCheckInSuccess(null);
+    setVerifyError(null);
     try {
-      const res = await volunteerScannerApi.checkInTicket(currentVerification.rawToken);
+      const res = await volunteerScannerApi.checkInTicket(currentVerification.rawToken, admitCount);
       playGateSound("success", soundEnabled);
-      setCheckInSuccess(`ACCESS GRANTED — Ref: ${res.ticket_ref}`);
+      setCheckInSuccess(res.message || `ACCESS GRANTED — Ref: ${res.ticket_ref}`);
       setStats((s) => ({ ...s, successful: s.successful + 1 }));
       setHistory((h) => [
         {
           id: Math.random().toString(),
           ticket_ref: currentVerification.result.ticket.ticket_ref,
-          name: currentVerification.result.ticket.holder_name,
+          name: `${currentVerification.result.ticket.holder_name} (${res.admitted_now || 1} admitted)`,
           time: new Date().toLocaleTimeString([], { hour: "2-digit", minute: "2-digit", second: "2-digit" }),
           status: "CHECKED_IN",
         },
         ...h.slice(0, 29),
       ]);
-      // Clear after 3 seconds
-      setTimeout(() => {
-        setCurrentVerification(null);
-        setCheckInSuccess(null);
-      }, 3000);
+
+      // Update current verification state in real time
+      setCurrentVerification((prev) => {
+        if (!prev) return null;
+        return {
+          ...prev,
+          result: {
+            ...prev.result,
+            ticket: {
+              ...prev.result.ticket,
+              admitted_count: res.total_admitted,
+              remaining_count: res.remaining,
+              is_checked_in: res.is_fully_used,
+              is_fully_used: res.is_fully_used,
+            },
+          },
+        };
+      });
+
+      // Clear after 3.5 seconds if fully used
+      if (res.is_fully_used) {
+        setTimeout(() => {
+          setCurrentVerification(null);
+          setCheckInSuccess(null);
+        }, 3500);
+      }
     } catch (err: any) {
       playGateSound("error", soundEnabled);
       setVerifyError(err?.message || "Failed to mark ticket as checked in.");
@@ -570,7 +600,7 @@ export default function VolunteerScannerPage() {
                       </p>
                     </div>
                     <button
-                      onClick={startCamera}
+                      onClick={() => startCamera()}
                       className="inline-flex items-center gap-2 rounded-full bg-gradient-to-r from-cyan-500 to-blue-600 px-6 py-3 text-xs font-bold text-black shadow-lg shadow-cyan-500/25 hover:brightness-110 active:scale-95 transition-all"
                     >
                       <Camera className="size-4" /> Start Camera Scanner
@@ -629,10 +659,16 @@ export default function VolunteerScannerPage() {
                       {/* Flip Camera */}
                       <button
                         onClick={toggleCameraFacing}
-                        className="grid size-9 place-items-center rounded-full border border-white/10 bg-black/70 text-white backdrop-blur-xl hover:bg-black/90 transition-all"
-                        title="Flip Camera (Front / Rear)"
+                        className={cn(
+                          "flex items-center gap-1.5 px-3 py-1.5 rounded-full border border-white/10 backdrop-blur-xl text-xs font-mono transition-all cursor-pointer",
+                          cameraFacing === "environment"
+                            ? "bg-cyan-500/20 border-cyan-400/40 text-cyan-300"
+                            : "bg-black/70 text-white hover:bg-black/90"
+                        )}
+                        title={`Current Camera: ${cameraFacing === "environment" ? "Back Camera (Rear)" : "Front Camera"}. Click to flip.`}
                       >
-                        <RotateCw className="size-4" />
+                        <RotateCw className="size-3.5" />
+                        <span className="text-[11px] font-semibold">{cameraFacing === "environment" ? "Back Cam" : "Front Cam"}</span>
                       </button>
 
                       {/* Stop Camera */}
@@ -708,142 +744,208 @@ export default function VolunteerScannerPage() {
           <div className="flex flex-col gap-5 lg:col-span-5">
             {/* Verification State Container */}
             <AnimatePresence mode="wait">
-              {currentVerification ? (
-                <motion.div
-                  key={currentVerification.rawToken}
-                  initial={{ opacity: 0, y: 12, scale: 0.96 }}
-                  animate={{ opacity: 1, y: 0, scale: 1 }}
-                  exit={{ opacity: 0, scale: 0.96 }}
-                  className={cn(
-                    "flex flex-col gap-4 rounded-3xl border p-5 sm:p-6 shadow-2xl backdrop-blur-2xl transition-all",
-                    currentVerification.result.ticket.is_checked_in
-                      ? "border-amber-500/50 bg-gradient-to-b from-amber-950/40 via-zinc-900/60 to-black/80 shadow-amber-500/10"
-                      : "border-emerald-500/50 bg-gradient-to-b from-emerald-950/40 via-zinc-900/60 to-black/80 shadow-emerald-500/15"
-                  )}
-                >
-                  {/* Status Banner */}
-                  <div className="flex items-center gap-3">
-                    {currentVerification.result.ticket.is_checked_in ? (
-                      <span className="grid size-12 shrink-0 place-items-center rounded-2xl bg-amber-400 text-black shadow-lg shadow-amber-500/30">
-                        <AlertTriangle className="size-6" />
-                      </span>
-                    ) : (
-                      <span className="grid size-12 shrink-0 place-items-center rounded-2xl bg-emerald-400 text-black shadow-lg shadow-emerald-500/30 animate-bounce">
-                        <CheckCircle2 className="size-6" />
-                      </span>
+              {currentVerification ? (() => {
+                const t = currentVerification.result.ticket;
+                const qty = Number(t.quantity || 1);
+                const admitted = Number(t.admitted_count || (t.is_checked_in ? qty : 0));
+                const remaining = t.remaining_count != null ? Number(t.remaining_count) : Math.max(0, qty - admitted);
+                const isFullyUsed = Boolean(t.is_fully_used || t.is_checked_in || (qty > 0 && admitted >= qty));
+
+                return (
+                  <motion.div
+                    key={currentVerification.rawToken}
+                    initial={{ opacity: 0, y: 12, scale: 0.96 }}
+                    animate={{ opacity: 1, y: 0, scale: 1 }}
+                    exit={{ opacity: 0, scale: 0.96 }}
+                    className={cn(
+                      "flex flex-col gap-4 rounded-3xl border p-5 sm:p-6 shadow-2xl backdrop-blur-2xl transition-all",
+                      isFullyUsed
+                        ? "border-rose-500/50 bg-gradient-to-b from-rose-950/40 via-zinc-900/60 to-black/80 shadow-rose-500/10"
+                        : admitted > 0
+                        ? "border-amber-500/50 bg-gradient-to-b from-amber-950/40 via-zinc-900/60 to-black/80 shadow-amber-500/10"
+                        : "border-emerald-500/50 bg-gradient-to-b from-emerald-950/40 via-zinc-900/60 to-black/80 shadow-emerald-500/15"
                     )}
-
-                    <div className="min-w-0 flex-1">
-                      <span className="font-mono text-[10px] font-bold uppercase tracking-wider text-zinc-400">
-                        {currentVerification.result.ticket.is_checked_in
-                          ? "GATE ADMISSION WARNING"
-                          : "GATE ENTRY VERIFIED"}
-                      </span>
-                      <h3
-                        className={cn(
-                          "font-display text-lg sm:text-xl font-bold uppercase tracking-tight truncate",
-                          currentVerification.result.ticket.is_checked_in
-                            ? "text-amber-300"
-                            : "text-emerald-300"
-                        )}
-                      >
-                        {currentVerification.result.ticket.is_checked_in
-                          ? "ALREADY CHECKED IN"
-                          : "AUTHORIZED ENTRY — READY"}
-                      </h3>
-                    </div>
-                  </div>
-
-                  {/* Attendee Data Card */}
-                  <div className="flex flex-col gap-3 rounded-2xl border border-white/[0.08] bg-black/40 p-4">
-                    <div className="flex items-center justify-between border-b border-white/[0.06] pb-2.5">
-                      <span className="text-[11px] font-bold uppercase tracking-wider text-zinc-400">
-                        Attendee Profile
-                      </span>
-                      <button
-                        onClick={() => handleCopyRef(currentVerification.result.ticket.ticket_ref)}
-                        className="flex items-center gap-1 font-mono text-xs font-bold text-cyan-400 hover:text-cyan-300 transition-colors"
-                      >
-                        <span>{currentVerification.result.ticket.ticket_ref}</span>
-                        {hasCopiedRef ? <Check className="size-3 text-emerald-400" /> : <Copy className="size-3" />}
-                      </button>
-                    </div>
-
-                    <div className="flex items-center gap-3 pt-1">
-                      <div className="grid size-11 shrink-0 place-items-center rounded-xl border border-white/10 bg-white/[0.05] text-white">
-                        <User className="size-5 text-cyan-400" />
-                      </div>
-                      <div className="min-w-0 flex-1">
-                        <p className="font-display text-lg font-bold text-white uppercase truncate">
-                          {currentVerification.result.ticket.holder_name || "Guest Attendee"}
-                        </p>
-                        <p className="font-mono text-xs text-zinc-400 truncate">
-                          {currentVerification.result.ticket.holder_email || "No email"}
-                        </p>
-                      </div>
-                    </div>
-
-                    <div className="mt-1 grid grid-cols-2 gap-2 pt-2 border-t border-white/[0.06] text-xs">
-                      <div>
-                        <span className="text-[10px] uppercase text-zinc-500 font-bold">Booking</span>
-                        <p className="font-mono text-xs font-semibold text-emerald-400">
-                          {currentVerification.result.booking_status || "CONFIRMED"}
-                        </p>
-                      </div>
-                      <div>
-                        <span className="text-[10px] uppercase text-zinc-500 font-bold">Admit Gate</span>
-                        <p className="font-mono text-xs font-semibold text-zinc-300">{gate}</p>
-                      </div>
-                    </div>
-
-                    {currentVerification.result.ticket.check_in_time && (
-                      <div className="mt-1 flex items-center gap-2 rounded-xl border border-amber-500/30 bg-amber-500/10 p-2.5 text-xs text-amber-300 font-medium">
-                        <Clock className="size-4 shrink-0 text-amber-400" />
-                        <span>
-                          Prior entry recorded at:{" "}
-                          <strong className="text-white">
-                            {new Date(currentVerification.result.ticket.check_in_time).toLocaleTimeString()}
-                          </strong>
+                  >
+                    {/* Status Banner */}
+                    <div className="flex items-center gap-3">
+                      {isFullyUsed ? (
+                        <span className="grid size-12 shrink-0 place-items-center rounded-2xl bg-rose-500 text-white shadow-lg shadow-rose-500/30">
+                          <AlertTriangle className="size-6" />
                         </span>
+                      ) : admitted > 0 ? (
+                        <span className="grid size-12 shrink-0 place-items-center rounded-2xl bg-amber-400 text-black shadow-lg shadow-amber-500/30">
+                          <AlertTriangle className="size-6" />
+                        </span>
+                      ) : (
+                        <span className="grid size-12 shrink-0 place-items-center rounded-2xl bg-emerald-400 text-black shadow-lg shadow-emerald-500/30 animate-bounce">
+                          <CheckCircle2 className="size-6" />
+                        </span>
+                      )}
+
+                      <div className="min-w-0 flex-1">
+                        <span className="font-mono text-[10px] font-bold uppercase tracking-wider text-zinc-400">
+                          {isFullyUsed
+                            ? "ACCESS DENIED • TICKET FULLY USED"
+                            : admitted > 0
+                            ? `PARTIAL ADMISSION • ${remaining} REMAINING`
+                            : `GATE ENTRY VERIFIED • ${qty} PERSON(S)`}
+                        </span>
+                        <h3
+                          className={cn(
+                            "font-display text-lg sm:text-xl font-bold uppercase tracking-tight truncate",
+                            isFullyUsed
+                              ? "text-rose-400"
+                              : admitted > 0
+                              ? "text-amber-300"
+                              : "text-emerald-300"
+                          )}
+                        >
+                          {isFullyUsed
+                            ? "ALREADY FULLY USED / EXPIRED"
+                            : admitted > 0
+                            ? `ADMIT ${remaining} REMAINING ATTENDEE(S)`
+                            : `AUTHORIZED ENTRY — ${qty} PERSON(S)`}
+                        </h3>
                       </div>
-                    )}
-                  </div>
+                    </div>
 
-                  {/* Check-In Success Toast */}
-                  {checkInSuccess && (
-                    <motion.div
-                      initial={{ opacity: 0, scale: 0.95 }}
-                      animate={{ opacity: 1, scale: 1 }}
-                      className="rounded-2xl border border-emerald-400/50 bg-emerald-500/20 p-3 text-center text-xs font-bold text-emerald-300 shadow-lg shadow-emerald-500/20"
-                    >
-                      <span className="flex items-center justify-center gap-1.5">
-                        <Sparkles className="size-4 text-emerald-300" /> {checkInSuccess}
-                      </span>
-                    </motion.div>
-                  )}
+                    {/* Attendee Data Card */}
+                    <div className="flex flex-col gap-3 rounded-2xl border border-white/[0.08] bg-black/40 p-4">
+                      <div className="flex items-center justify-between border-b border-white/[0.06] pb-2.5">
+                        <span className="text-[11px] font-bold uppercase tracking-wider text-zinc-400">
+                          Pass Details & Multi-Person Capacity
+                        </span>
+                        <button
+                          onClick={() => handleCopyRef(t.ticket_ref)}
+                          className="flex items-center gap-1 font-mono text-xs font-bold text-cyan-400 hover:text-cyan-300 transition-colors"
+                        >
+                          <span>{t.ticket_ref}</span>
+                          {hasCopiedRef ? <Check className="size-3 text-emerald-400" /> : <Copy className="size-3" />}
+                        </button>
+                      </div>
 
-                  {/* Primary Gate Action Button */}
-                  <div className="flex flex-col gap-2 pt-1">
-                    {!currentVerification.result.ticket.is_checked_in && (
-                      <button
-                        disabled={checkingIn}
-                        onClick={handleConfirmCheckIn}
-                        className="inline-flex w-full items-center justify-center gap-2 rounded-2xl bg-gradient-to-r from-emerald-500 to-teal-500 py-3.5 font-display text-sm font-bold uppercase tracking-wider text-black shadow-xl shadow-emerald-500/30 hover:brightness-110 active:scale-[0.98] disabled:opacity-50 transition-all"
+                      <div className="flex items-center gap-3 pt-1">
+                        <div className="grid size-11 shrink-0 place-items-center rounded-xl border border-white/10 bg-white/[0.05] text-white">
+                          <User className="size-5 text-cyan-400" />
+                        </div>
+                        <div className="min-w-0 flex-1">
+                          <p className="font-display text-lg font-bold text-white uppercase truncate">
+                            {t.holder_name || "Guest Attendee"}
+                          </p>
+                          <p className="font-mono text-xs text-zinc-400 truncate">
+                            {t.holder_email || "No email"}
+                          </p>
+                        </div>
+                      </div>
+
+                      {/* Capacity Matrix Bar */}
+                      <div className="rounded-xl border border-white/10 bg-white/[0.03] p-3">
+                        <div className="flex items-center justify-between text-xs">
+                          <span className="font-mono text-[11px] text-zinc-400">Admission Capacity:</span>
+                          <span className="font-bold text-white">
+                            {admitted} of {qty} Admitted
+                          </span>
+                        </div>
+                        <div className="mt-2 h-2 w-full overflow-hidden rounded-full bg-zinc-800">
+                          <div
+                            className={cn(
+                              "h-full transition-all duration-500",
+                              isFullyUsed ? "bg-rose-500" : "bg-emerald-400"
+                            )}
+                            style={{ width: `${Math.min(100, Math.round((admitted / qty) * 100))}%` }}
+                          />
+                        </div>
+                        <div className="mt-2 flex items-center justify-between text-[11px]">
+                          <span className="text-zinc-500">Tier: <strong className="text-zinc-300">{t.ticket_type || "General"}</strong></span>
+                          <span className={cn("font-bold", remaining > 0 ? "text-emerald-400" : "text-rose-400")}>
+                            {remaining > 0 ? `${remaining} Person(s) Pending Entry` : "All Persons Entered (Void)"}
+                          </span>
+                        </div>
+                      </div>
+
+                      <div className="mt-1 grid grid-cols-2 gap-2 pt-2 border-t border-white/[0.06] text-xs">
+                        <div>
+                          <span className="text-[10px] uppercase text-zinc-500 font-bold">Booking</span>
+                          <p className="font-mono text-xs font-semibold text-emerald-400">
+                            {currentVerification.result.booking_status || "CONFIRMED"}
+                          </p>
+                        </div>
+                        <div>
+                          <span className="text-[10px] uppercase text-zinc-500 font-bold">Admit Gate</span>
+                          <p className="font-mono text-xs font-semibold text-zinc-300">{gate}</p>
+                        </div>
+                      </div>
+
+                      {t.check_in_time && (
+                        <div className="mt-1 flex items-center gap-2 rounded-xl border border-amber-500/30 bg-amber-500/10 p-2.5 text-xs text-amber-300 font-medium">
+                          <Clock className="size-4 shrink-0 text-amber-400" />
+                          <span>
+                            Last entry recorded at:{" "}
+                            <strong className="text-white">
+                              {new Date(t.check_in_time).toLocaleTimeString()}
+                            </strong>
+                          </span>
+                        </div>
+                      )}
+                    </div>
+
+                    {/* Check-In Success Toast */}
+                    {checkInSuccess && (
+                      <motion.div
+                        initial={{ opacity: 0, scale: 0.95 }}
+                        animate={{ opacity: 1, scale: 1 }}
+                        className="rounded-2xl border border-emerald-400/50 bg-emerald-500/20 p-3 text-center text-xs font-bold text-emerald-300 shadow-lg shadow-emerald-500/20"
                       >
-                        <CheckCircle2 className="size-5" />
-                        {checkingIn ? "Checking In Attendee…" : "Confirm Entry & Admit"}
-                      </button>
+                        <span className="flex items-center justify-center gap-1.5">
+                          <Sparkles className="size-4 text-emerald-300" /> {checkInSuccess}
+                        </span>
+                      </motion.div>
                     )}
 
-                    <button
-                      onClick={() => setCurrentVerification(null)}
-                      className="inline-flex w-full items-center justify-center gap-2 rounded-2xl border border-white/10 bg-white/[0.04] py-2.5 text-xs font-semibold text-zinc-300 hover:border-white/20 hover:text-white transition-all"
-                    >
-                      Scan Next Attendee
-                    </button>
-                  </div>
-                </motion.div>
-              ) : (
+                    {/* Primary Gate Action Button */}
+                    <div className="flex flex-col gap-2 pt-1">
+                      {!isFullyUsed ? (
+                        <>
+                          <button
+                            disabled={checkingIn}
+                            onClick={() => handleConfirmCheckIn(remaining)}
+                            className="inline-flex w-full items-center justify-center gap-2 rounded-2xl bg-gradient-to-r from-emerald-500 to-teal-500 py-3.5 font-display text-sm font-bold uppercase tracking-wider text-black shadow-xl shadow-emerald-500/30 hover:brightness-110 active:scale-[0.98] disabled:opacity-50 transition-all cursor-pointer"
+                          >
+                            <CheckCircle2 className="size-5" />
+                            {checkingIn
+                              ? "Checking In Attendees…"
+                              : remaining > 1
+                              ? `Admit All ${remaining} Attendees`
+                              : "Confirm Entry & Admit"}
+                          </button>
+
+                          {remaining > 1 && (
+                            <button
+                              disabled={checkingIn}
+                              onClick={() => handleConfirmCheckIn(1)}
+                              className="inline-flex w-full items-center justify-center gap-2 rounded-2xl border border-cyan-500/40 bg-cyan-950/40 py-2.5 text-xs font-bold uppercase tracking-wider text-cyan-300 hover:bg-cyan-900/50 transition-all cursor-pointer"
+                            >
+                              Admit 1 Person Only (+{remaining - 1} remaining)
+                            </button>
+                          )}
+                        </>
+                      ) : (
+                        <div className="rounded-2xl border border-rose-500/40 bg-rose-950/30 p-3 text-center text-xs text-rose-300">
+                          <p className="font-bold uppercase tracking-wider text-rose-400">Entry Denied</p>
+                          <p className="mt-0.5 text-[11px] text-zinc-400">All {qty} person(s) on this pass have already been admitted. Ticket cannot be reused.</p>
+                        </div>
+                      )}
+
+                      <button
+                        onClick={() => setCurrentVerification(null)}
+                        className="inline-flex w-full items-center justify-center gap-2 rounded-2xl border border-white/10 bg-white/[0.04] py-2.5 text-xs font-semibold text-zinc-300 hover:border-white/20 hover:text-white transition-all cursor-pointer"
+                      >
+                        Scan Next Attendee
+                      </button>
+                    </div>
+                  </motion.div>
+                );
+              })() : (
                 /* Idle Radar Screen */
                 <div className="flex flex-col items-center justify-center gap-4 rounded-3xl border border-dashed border-white/10 bg-white/[0.02] p-8 text-center backdrop-blur-xl">
                   <div className="relative">
