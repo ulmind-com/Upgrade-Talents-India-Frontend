@@ -114,7 +114,7 @@ export default function Hero({
 
   return (
     <section
-      className="relative w-full max-w-[1440px] mx-auto px-3 sm:px-6 lg:px-8 pt-24 sm:pt-28 md:pt-32 pb-6 sm:pb-10 select-none"
+      className="relative w-full max-w-[1440px] mx-auto px-3 sm:px-6 lg:px-8 pt-[74px] sm:pt-[86px] md:pt-[92px] pb-6 sm:pb-10 select-none"
       aria-label="Hero Banner Carousel"
       onMouseEnter={() => setIsPaused(true)}
       onMouseLeave={() => setIsPaused(false)}
