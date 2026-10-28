@@ -208,6 +208,17 @@ export type ContestPromotion = {
   target_url?: string;
 };
 
+export type FeaturedTileItem = {
+  id?: string;
+  title: string;
+  subtitle?: string;
+  action_text?: string;
+  image_url?: string;
+  target_url: string;
+  icon_name?: string;
+  display_order?: number;
+};
+
 export type HomepagePayload = {
   brand: {
     name?: string; logo?: string; favicon?: string;
@@ -226,6 +237,7 @@ export type HomepagePayload = {
     social_media?: { facebook?: string; instagram?: string; twitter?: string; youtube?: string; linkedin?: string };
   } | null;
   important_links: { _id: string; title?: string; label?: string; url?: string }[];
+  featured_tiles?: FeaturedTileItem[];
 };
 
 export type MyTicket = {
@@ -273,6 +285,7 @@ export const publicApi = {
   workshops: (p: { skip?: number; limit?: number } = {}) =>
     apiFetch<CourseItem[]>("/api/v1/workshops", { query: p, cache: "no-store" }),
   contestPromotions: () => apiFetch<ContestPromotion[]>("/api/v1/contest-promotions", { cache: "no-store" }),
+  featuredTiles: () => apiFetch<FeaturedTileItem[]>("/api/v1/featured-tiles", { cache: "no-store" }),
   appPromotion: () => apiFetch<Record<string, any>>("/api/v1/app-promotion", { cache: "no-store" }),
   contactInfo: () => apiFetch<Record<string, any>>("/api/v1/contact-info", { cache: "no-store" }),
   importantLinks: () => apiFetch<any[]>("/api/v1/important-links", { cache: "no-store" }),

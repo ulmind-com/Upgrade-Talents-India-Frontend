@@ -5,9 +5,9 @@ import { useEffect, useRef, useState } from "react";
 import { AnimatePresence, motion, useReducedMotion, useScroll, useTransform } from "framer-motion";
 import {
   ChevronDown, ChevronLeft, ChevronRight, Instagram, Mic2, Ticket,
-  CalendarDays, Users, Clock, Hourglass,
+  CalendarDays, Users, Clock, Hourglass, Trophy, ShoppingBag, GraduationCap,
 } from "lucide-react";
-import type { BannerItem, EventItem } from "@/lib/api";
+import type { BannerItem, EventItem, FeaturedTileItem } from "@/lib/api";
 import { formatEventDate, imageFor, truncate } from "@/lib/utils";
 
 const EASE = [0.16, 1, 0.3, 1] as const;
@@ -29,53 +29,115 @@ export function ScrollCue() {
   );
 }
 
-/* ═══════════ QUAD TILES ═══════════ */
+/* ═══════════ QUAD TILES (4 FEATURED CATEGORIES) ═══════════ */
 
-const TILES = [
-  { label: "Shows", href: "/events", Icon: Mic2, seed: 0 },
-  { label: "Tickets", href: "/events", Icon: Ticket, seed: 1 },
-  { label: "Calendar", href: "/events", Icon: CalendarDays, seed: 2 },
-  { label: "About", href: "/about", Icon: Users, seed: 3 },
+const DEFAULT_TILES = [
+  {
+    title: "Competition",
+    subtitle: "National Championship",
+    action_text: "Learn more",
+    href: "/competitions",
+    image_url: "https://images.unsplash.com/photo-1547153760-18fc86324498?q=80&w=1200&auto=format&fit=crop",
+    icon_name: "Trophy",
+    seed: 0,
+  },
+  {
+    title: "Event",
+    subtitle: "Live Stage Shows",
+    action_text: "Learn more",
+    href: "/events",
+    image_url: "https://images.unsplash.com/photo-1516450360452-9312f5e86fc7?q=80&w=1200&auto=format&fit=crop",
+    icon_name: "CalendarDays",
+    seed: 1,
+  },
+  {
+    title: "Shop",
+    subtitle: "Official Streetwear & Merch",
+    action_text: "Learn more",
+    href: "/shop",
+    image_url: "https://images.unsplash.com/photo-1509631179647-0177331693ae?q=80&w=1200&auto=format&fit=crop",
+    icon_name: "ShoppingBag",
+    seed: 2,
+  },
+  {
+    title: "Course",
+    subtitle: "Masterclasses & Workshops",
+    action_text: "Learn more",
+    href: "/courses",
+    image_url: "https://images.unsplash.com/photo-1508700115892-45ecd05ae2ad?q=80&w=1200&auto=format&fit=crop",
+    icon_name: "GraduationCap",
+    seed: 3,
+  },
 ];
 
-export function QuadTiles({ events = [] }: { events?: EventItem[] }) {
+function getTileIcon(name?: string, index = 0) {
+  const n = (name || "").toLowerCase();
+  if (n.includes("trophy") || n.includes("comp") || index === 0) return Trophy;
+  if (n.includes("calendar") || n.includes("event") || index === 1) return CalendarDays;
+  if (n.includes("shop") || n.includes("bag") || index === 2) return ShoppingBag;
+  if (n.includes("course") || n.includes("grad") || n.includes("learn") || index === 3) return GraduationCap;
+  return Trophy;
+}
+
+export function QuadTiles({
+  events = [],
+  tiles = [],
+}: {
+  events?: EventItem[];
+  tiles?: FeaturedTileItem[];
+}) {
   const reduce = useReducedMotion();
+
+  const items = (tiles && tiles.length >= 4)
+    ? tiles.slice(0, 4).map((t, i) => ({
+        title: t.title || DEFAULT_TILES[i].title,
+        subtitle: t.subtitle || DEFAULT_TILES[i].subtitle,
+        action_text: t.action_text || "Learn more",
+        href: t.target_url || DEFAULT_TILES[i].href,
+        image_url: t.image_url || DEFAULT_TILES[i].image_url,
+        icon_name: t.icon_name || DEFAULT_TILES[i].icon_name,
+        seed: i,
+      }))
+    : DEFAULT_TILES;
 
   return (
     <section id="stage" className="theater-bg relative grid grid-cols-2 lg:grid-cols-4">
-      {TILES.map((t, i) => (
-        <Link
-          key={t.label}
-          href={t.href}
-          className="group relative isolate flex h-[230px] flex-col items-center justify-center gap-3 overflow-hidden md:h-[290px]"
-        >
-          {/* Background layer only — parallax never touches the copy */}
-          <TileBackdrop src={events[i]?.image_url} seed={t.seed} reduce={!!reduce} />
+      {items.map((t, i) => {
+        const IconComponent = getTileIcon(t.icon_name, i);
+        return (
+          <Link
+            key={`${t.title}-${i}`}
+            href={t.href}
+            className="group relative isolate flex h-[230px] flex-col items-center justify-center gap-3 overflow-hidden md:h-[290px]"
+          >
+            {/* Background layer only — parallax never touches the copy */}
+            <TileBackdrop src={t.image_url || events[i]?.image_url} seed={t.seed} reduce={!!reduce} />
 
-          <span aria-hidden className="stage-veil absolute inset-0 -z-10 transition-opacity duration-500 group-hover:opacity-75" />
-          <span
-            aria-hidden
-            className="absolute inset-0 -z-10 opacity-0 transition-opacity duration-500 group-hover:opacity-100"
-            style={{ background: "linear-gradient(180deg, transparent, color-mix(in srgb, var(--theater-pink) 38%, transparent))" }}
-          />
+            <span aria-hidden className="stage-veil absolute inset-0 -z-10 transition-opacity duration-500 group-hover:opacity-75" />
+            <span
+              aria-hidden
+              className="absolute inset-0 -z-10 opacity-0 transition-opacity duration-500 group-hover:opacity-100"
+              style={{ background: "linear-gradient(180deg, transparent, color-mix(in srgb, var(--theater-pink) 38%, transparent))" }}
+            />
 
-          <t.Icon
-            className="size-9 text-white transition-transform duration-500 ease-[cubic-bezier(0.16,1,0.3,1)] group-hover:-translate-y-1 group-hover:scale-110"
-            strokeWidth={1.25}
-            aria-hidden
-          />
+            <IconComponent
+              className="size-9 text-white transition-transform duration-500 ease-[cubic-bezier(0.16,1,0.3,1)] group-hover:-translate-y-1 group-hover:scale-110"
+              strokeWidth={1.25}
+              aria-hidden
+            />
 
-          <h3 className="font-serif-display text-[clamp(1.5rem,3.2vw,2.3rem)] font-normal leading-none text-white">
-            {t.label}
-          </h3>
+            <h3 className="font-serif-display text-[clamp(1.5rem,3.2vw,2.3rem)] font-normal leading-none text-white text-center px-2">
+              {t.title}
+            </h3>
 
-          <span aria-hidden className="h-px w-10 bg-white/55 transition-all duration-500 group-hover:w-20 group-hover:bg-white" />
+            <span aria-hidden className="h-px w-10 bg-white/55 transition-all duration-500 group-hover:w-20 group-hover:bg-white" />
 
-          <span className="font-hero text-[10.5px] font-medium uppercase tracking-[0.26em] text-white/75 transition-colors duration-300 group-hover:text-white">
-            Learn more
-          </span>
-        </Link>
-      ))}
+            <span className="font-hero text-[10.5px] font-medium uppercase tracking-[0.26em] text-white/75 transition-colors duration-300 group-hover:text-white">
+              {t.action_text || "Learn more"}
+            </span>
+          </Link>
+        );
+      })}
     </section>
   );
 }

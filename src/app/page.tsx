@@ -24,6 +24,7 @@ const EMPTY: HomepagePayload = {
   app_promotion: null,
   contact: null,
   important_links: [],
+  featured_tiles: [],
 };
 
 export default async function HomePage() {
@@ -40,7 +41,7 @@ export default async function HomePage() {
       />
 
       <ScrollCue />
-      <QuadTiles events={data.upcoming_events} />
+      <QuadTiles events={data.upcoming_events} tiles={data.featured_tiles} />
       <FeaturedShow events={data.upcoming_events} />
 
       <Marquee />

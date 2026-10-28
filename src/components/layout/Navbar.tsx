@@ -25,6 +25,7 @@ const NAV = [
   { label: "VIP", href: "/vip" },
   { label: "Courses", href: "/courses" },
   { label: "Workshops", href: "/workshops" },
+  { label: "About", href: "/about" },
   { label: "Contact", href: "/contact" },
 ];
 
@@ -43,6 +44,7 @@ const DESKTOP: DesktopNavItem[] = [
   { label: "Shop", href: "/shop" },
   { label: "VIP", href: "/vip" },
   { label: "Learn", children: [{ label: "Courses", href: "/courses" }, { label: "Workshops", href: "/workshops" }] },
+  { label: "About", href: "/about" },
   { label: "Contact", href: "/contact" },
 ];
 
