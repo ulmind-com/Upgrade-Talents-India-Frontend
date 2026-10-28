@@ -168,9 +168,11 @@ export function EventCard({ ev, index = 0 }: { ev: EventItem; index?: number }) 
 
 export function UpcomingCompetitions({
   competitions,
+  events,
   sectionConfig,
 }: {
   competitions?: any[];
+  events?: EventItem[];
   sectionConfig?: {
     title?: string;
     label?: string;
@@ -201,7 +203,7 @@ export function UpcomingCompetitions({
         </Reveal>
 
         <div className="mt-12">
-          <CoverflowCarousel competitions={competitions} />
+          <CoverflowCarousel competitions={competitions} events={events} />
         </div>
       </div>
     </section>

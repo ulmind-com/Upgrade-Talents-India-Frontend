@@ -134,8 +134,11 @@ export default function CoverflowCarousel({
 }) {
   let source: CoverflowItem[] = [];
 
-  if (competitions !== undefined) {
-    const dbComps: CoverflowItem[] = (competitions || []).map((c: any) => ({
+  const rawComps = (competitions || []).filter(Boolean);
+  const rawEvents = (events || []).filter(Boolean);
+
+  if (rawComps.length > 0) {
+    source = rawComps.map((c: any) => ({
       id: c._id || c.id || "",
       title: c.title || c.name || "Competition",
       subtitle: c.category || "Competition",
@@ -147,37 +150,38 @@ export default function CoverflowCarousel({
       ctaText: "Enter competition",
       isCompetition: true,
     }));
-
-    if (dbComps.length >= 6) {
-      source = dbComps.slice(0, 12);
-    } else {
-      // Merge with fallback items so carousel has sufficient cards
-      const existingIds = new Set(dbComps.map((c) => c.id).filter(Boolean));
-      const needed = 6 - dbComps.length;
-      const fill = FALLBACK_COMPETITIONS.filter((f) => !existingIds.has(f.id)).slice(0, needed);
-      source = [...dbComps, ...fill];
-    }
-  } else if (events) {
-    source = (events || []).slice(0, 12).map((ev) => ({
+  } else if (rawEvents.length > 0) {
+    source = rawEvents.map((ev) => ({
       id: ev._id,
       title: ev.title,
       subtitle: ev.venue || "Venue TBA",
-      category: "Event",
+      category: "Talent Stage",
       date: ev.date,
       image_url: ev.image_url,
       price: ev.price,
       href: `/events/${ev._id}`,
-      ctaText: "Book tickets",
-      isCompetition: false,
+      ctaText: "Enter competition",
+      isCompetition: true,
     }));
   }
 
-  const panels: Panel[] = source.length
-    ? Array.from({ length: Math.max(10, source.length) }, (_, i) => {
-        const item = source[i % source.length];
-        return { item, key: `${item.id || i}-${i}`, idx: i % source.length };
-      })
-    : [];
+  // Ensure there are always at least 6 cards in source so arch never breaks or empties
+  if (source.length < 6) {
+    const existingIds = new Set(source.map((c) => c.id).filter(Boolean));
+    const needed = 6 - source.length;
+    const fill = FALLBACK_COMPETITIONS.filter((f) => !existingIds.has(f.id)).slice(0, needed);
+    source = [...source, ...fill];
+  }
+
+  // Double fallback guard: if still empty for any reason, use full fallbacks
+  if (source.length === 0) {
+    source = FALLBACK_COMPETITIONS;
+  }
+
+  const panels: Panel[] = Array.from({ length: Math.max(10, source.length) }, (_, i) => {
+    const item = source[i % source.length];
+    return { item, key: `${item.id || i}-${i}`, idx: i % source.length };
+  });
   const n = panels.length;
   const loop = n * PITCH;
 
