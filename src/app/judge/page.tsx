@@ -9,7 +9,7 @@ import {
   Lock, Unlock, ChevronRight, Award, Trophy, Star, ExternalLink,
   Save, SkipForward, LogOut, ArrowLeft, RefreshCw, Send, Check,
   Play, Music, Video, User, FileText, Crown, Sparkles, MessageSquare,
-  Flame, Filter, ChevronLeft
+  Flame, Filter, ChevronLeft, Radio
 } from "lucide-react";
 import {
   judgeCompetitionsApi,
@@ -22,7 +22,8 @@ import {
 } from "@/lib/api";
 import { useAuth } from "@/components/motion/Providers";
 import { Badge, Button, Spotlights } from "@/components/ui/Primitives";
-import { cn, imageFor } from "@/lib/utils";
+import { cn, imageFor, formatEventDate } from "@/lib/utils";
+import { getCompetitionLifecycle } from "@/lib/competition-lifecycle";
 
 const EASE = [0.16, 1, 0.3, 1] as const;
 
@@ -654,22 +655,42 @@ export default function JudgeDashboardPage() {
               </div>
 
               {/* Competition Status Pill */}
-              {selectedComp && (
-                <div className="flex items-center gap-3 rounded-2xl border border-[var(--border)] bg-[var(--bg-elevated)]/60 px-4 py-2.5 backdrop-blur-md">
-                  <div className="text-right">
-                    <p className="text-[11px] uppercase tracking-wider text-[var(--fg-subtle)]">Scoring Phase</p>
-                    <p className="text-xs font-bold text-[var(--fg)]">
-                      {selectedComp.judging_status === "CLOSED" ? "Closed" : "Open for Scoring"}
-                    </p>
+              {selectedComp && (() => {
+                const compLifecycle = getCompetitionLifecycle(selectedComp);
+                return (
+                  <div className="flex items-center gap-3 rounded-2xl border border-[var(--border)] bg-[var(--bg-elevated)]/60 px-4 py-2.5 backdrop-blur-md">
+                    <div className="text-right">
+                      <p className="text-[10.5px] uppercase tracking-wider text-[var(--fg-subtle)]">
+                        {compLifecycle.isLive
+                          ? "Competition Live"
+                          : selectedComp.start_date
+                          ? `Starts ${formatEventDate(selectedComp.start_date)}`
+                          : "Scoring Phase"}
+                      </p>
+                      <div className="flex items-center justify-end gap-1.5 text-xs font-bold text-[var(--fg)]">
+                        {compLifecycle.isLive && (
+                          <span className="inline-flex items-center gap-1 text-rose-400 font-extrabold uppercase text-[10.5px] tracking-wider">
+                            <Radio className="size-3 animate-pulse" /> Live Now
+                          </span>
+                        )}
+                        <span>
+                          {selectedComp.judging_status === "CLOSED" ? "Closed" : "Open for Scoring"}
+                        </span>
+                      </div>
+                    </div>
+                    <span
+                      className={cn(
+                        "size-2.5 rounded-full",
+                        selectedComp.judging_status === "CLOSED"
+                          ? "bg-[var(--error)]"
+                          : compLifecycle.isLive
+                          ? "animate-ping bg-rose-500"
+                          : "animate-pulse bg-[var(--success)]"
+                      )}
+                    />
                   </div>
-                  <span
-                    className={cn(
-                      "size-2.5 rounded-full",
-                      selectedComp.judging_status === "CLOSED" ? "bg-[var(--error)]" : "animate-pulse bg-[var(--success)]"
-                    )}
-                  />
-                </div>
-              )}
+                );
+              })()}
             </section>
 
             {/* ── Main View Selector Tabs (Evaluation vs Live Scoreboard & Standings) ── */}

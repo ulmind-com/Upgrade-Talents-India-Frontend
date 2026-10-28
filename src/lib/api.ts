@@ -739,6 +739,12 @@ export interface JudgeCompetition {
   title: string;
   category: string;
   description?: string;
+  start_date?: string;
+  end_date?: string;
+  start_time?: string;
+  time?: string;
+  registration_start_date?: string;
+  registration_deadline?: string;
   judge_scoring_enabled?: boolean;
   judging_status?: string;
   judging_criteria?: JudgingCriterion[];
