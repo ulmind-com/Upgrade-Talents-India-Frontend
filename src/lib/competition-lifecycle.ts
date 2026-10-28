@@ -10,6 +10,7 @@ export interface CompetitionLifecycleInput {
   judging_status?: string | null;
   results_published?: boolean | null;
   result_status?: string | null;
+  status?: string | null;
   start_time?: string | null;
   time?: string | null;
   end_time?: string | null;
@@ -138,37 +139,39 @@ export function getCompetitionLifecycle(comp: CompetitionLifecycleInput): Compet
   let isLive = false;
   let isUpcoming = false;
 
-  if (startMs) {
-    isStarted = now >= startMs;
-  }
-  if (endMs) {
-    isEnded = now > endMs;
-  }
-
-  const isVotingOpen = String(comp.voting_status || "").toUpperCase() === "OPEN";
-  const isJudgingOpen = String(comp.judging_status || "").toUpperCase() === "OPEN";
-
   if (isResultsOut) {
     isEnded = true;
     isLive = false;
-  } else if (isVotingOpen || isJudgingOpen) {
-    // If voting or judging is actively open, competition is live
+    isStarted = true;
+    isUpcoming = false;
+  } else if (endMs && now > endMs) {
+    isEnded = true;
+    isLive = false;
+    isStarted = true;
+    isUpcoming = false;
+  } else if (startMs && now < startMs) {
+    // Scheduled start date is in the future - competition has NOT commenced yet!
+    isUpcoming = true;
+    isLive = false;
+    isStarted = false;
+    isEnded = false;
+  } else if (startMs && now >= startMs) {
+    // Scheduled start date has arrived and competition has not ended
     isLive = true;
     isStarted = true;
     isEnded = false;
-  } else if (startMs) {
-    if (now < startMs) {
+    isUpcoming = false;
+  } else {
+    // No start_date defined: check explicit live status
+    const isExplicitLive = String(comp.status || "").toUpperCase() === "LIVE";
+    if (isExplicitLive) {
+      isLive = true;
+      isStarted = true;
+      isEnded = false;
+    } else {
       isUpcoming = true;
       isLive = false;
-    } else if (endMs && now > endMs) {
-      isEnded = true;
-      isLive = false;
-    } else {
-      isLive = true;
-      isEnded = false;
     }
-  } else {
-    isUpcoming = true;
   }
 
   // 2. Registration Window
@@ -179,15 +182,21 @@ export function getCompetitionLifecycle(comp: CompetitionLifecycleInput): Compet
   if (isResultsOut || isEnded) {
     isRegClosed = true;
     regMessage = "Competition has concluded. Registration is closed.";
-  } else if (isLive || (startMs && now >= startMs)) {
-    isRegClosed = true;
-    regMessage = "Competition is already live. Registration is closed.";
   } else if (regDeadlineMs && now > regDeadlineMs) {
     isRegClosed = true;
     regMessage = `Registration closed on ${formatEventDate(comp.registration_deadline)}.`;
   } else if (regStartMs && now < regStartMs) {
     isRegUpcoming = true;
     regMessage = `Registration opens on ${formatEventDate(comp.registration_start_date)}.`;
+  } else if (startMs && now >= startMs) {
+    isRegClosed = true;
+    regMessage = "Competition has commenced. Registration is closed.";
+  } else {
+    isRegClosed = false;
+    isRegUpcoming = false;
+    regMessage = regDeadlineMs
+      ? `Registration closes on ${formatEventDate(comp.registration_deadline)}.`
+      : "Registration is open.";
   }
 
   const isRegistrationOpen = !isRegClosed && !isRegUpcoming;
@@ -211,11 +220,6 @@ export function getCompetitionLifecycle(comp: CompetitionLifecycleInput): Compet
     isLivePulsing = true;
     phase = "LIVE";
     phaseMessage = "Competition is live! Live scoring and performances active.";
-  } else if (isEnded) {
-    badgeText = "Concluded";
-    badgeTone = "neutral";
-    phase = "CONCLUDED";
-    phaseMessage = "Competition has concluded. Awaiting results.";
   } else if (isRegistrationOpen) {
     badgeText = "Registration Open";
     badgeTone = "success";
@@ -223,18 +227,23 @@ export function getCompetitionLifecycle(comp: CompetitionLifecycleInput): Compet
     phaseMessage = regDeadlineMs
       ? `Registration closes on ${formatEventDate(comp.registration_deadline)}.`
       : "Registration is open.";
-  } else if (isRegClosed) {
+  } else if (isRegUpcoming) {
+    badgeText = "Reg Opens Soon";
+    badgeTone = "neutral";
+    phase = "UPCOMING";
+    phaseMessage = `Registration opens on ${formatEventDate(comp.registration_start_date)}.`;
+  } else if (isRegClosed && !isEnded) {
     badgeText = "Starts Soon";
     badgeTone = "warning";
     phase = "UPCOMING";
     phaseMessage = startMs
       ? `Registration closed. Competition commences on ${formatEventDate(comp.start_date)}.`
       : "Registration is closed.";
-  } else if (isRegUpcoming) {
-    badgeText = "Registration Soon";
+  } else {
+    badgeText = "Concluded";
     badgeTone = "neutral";
-    phase = "UPCOMING";
-    phaseMessage = `Registration opens on ${formatEventDate(comp.registration_start_date)}.`;
+    phase = "CONCLUDED";
+    phaseMessage = "Competition has concluded. Awaiting results.";
   }
 
   return {

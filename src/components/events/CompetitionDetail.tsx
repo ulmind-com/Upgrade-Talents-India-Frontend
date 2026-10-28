@@ -44,6 +44,7 @@ type Comp = {
   rules?: string | RulesObj;
   category?: string;
   type?: string;
+  status?: string;
   start_date?: string;
   end_date?: string;
   start_time?: string;
@@ -135,7 +136,7 @@ export default function CompetitionDetail({
   const lifecycle = getCompetitionLifecycle(comp);
   const open = lifecycle.canRegister;
   const isResultsPublished = lifecycle.isResultsOut;
-  const isVotingOpen = comp.audience_voting_enabled && (lifecycle.isLive || comp.voting_status === "OPEN");
+  const isVotingOpen = Boolean(comp.audience_voting_enabled && comp.voting_status === "OPEN" && (lifecycle.isLive || comp.status === "LIVE"));
 
   const isParticipant = Boolean(
     enrollmentInfo?.reference ||
