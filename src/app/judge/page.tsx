@@ -8,7 +8,8 @@ import {
   Gavel, ShieldCheck, CheckCircle2, AlertCircle, Clock, Search,
   Lock, Unlock, ChevronRight, Award, Trophy, Star, ExternalLink,
   Save, SkipForward, LogOut, ArrowLeft, RefreshCw, Send, Check,
-  Play, Music, Video, User, FileText
+  Play, Music, Video, User, FileText, Crown, Sparkles, MessageSquare,
+  Flame, Filter
 } from "lucide-react";
 import {
   judgeCompetitionsApi,
@@ -16,7 +17,8 @@ import {
   tokenStore,
   type JudgeCompetition,
   type JudgeContestant,
-  type JudgingCriterion
+  type JudgingCriterion,
+  type JudgeScoreboardResponse
 } from "@/lib/api";
 import { useAuth } from "@/components/motion/Providers";
 import { Badge, Button, Spotlights } from "@/components/ui/Primitives";
@@ -49,6 +51,11 @@ export default function JudgeDashboardPage() {
   // Filter & Search
   const [search, setSearch] = useState("");
   const [filter, setFilter] = useState<"all" | "pending" | "scored">("all");
+
+  // View Mode: Evaluation vs Live Scoreboard (1st, 2nd, 3rd)
+  const [activeTab, setActiveTab] = useState<"evaluate" | "scoreboard">("evaluate");
+  const [scoreboardData, setScoreboardData] = useState<JudgeScoreboardResponse | null>(null);
+  const [scoreboardLoading, setScoreboardLoading] = useState(false);
 
   // Scoring Drawer / Selected Contestant
   const [activeContestant, setActiveContestant] = useState<JudgeContestant | null>(null);
@@ -133,6 +140,8 @@ export default function JudgeDashboardPage() {
           ? em.split("@")[0].replace(/[._-]/g, " ").replace(/\b\w/g, (l: string) => l.toUpperCase())
           : "Contestant";
         const finalName = c.user_name || info?.name || emailName;
+        const regRef = c.registration_reference || c.registration_number || c.reg_no || "";
+        const userPhone = c.user_phone || c.phone || "";
 
         return {
           ...c,
@@ -140,6 +149,9 @@ export default function JudgeDashboardPage() {
           profile_photo: c.profile_photo || info?.profile_photo || "",
           submission_url: primaryUrl,
           parsed_files: parsedFiles,
+          registration_reference: regRef,
+          registration_number: regRef,
+          user_phone: userPhone,
         };
       });
 
@@ -155,6 +167,7 @@ export default function JudgeDashboardPage() {
           const emailName = em
             ? em.split("@")[0].replace(/[._-]/g, " ").replace(/\b\w/g, (l: string) => l.toUpperCase())
             : "Contestant";
+          const rRef = r.registration_reference || r.registration_number || "";
 
           enriched.push({
             _id: r.submission_id || `reg_${em}`,
@@ -165,6 +178,8 @@ export default function JudgeDashboardPage() {
             status: r.submission_id ? "Submitted" : "Registered",
             submission_url: "",
             parsed_files: [],
+            registration_reference: rRef,
+            registration_number: rRef,
             is_scored: Boolean(r.judge_average && r.judge_average > 0),
             has_scored: Boolean(r.judge_average && r.judge_average > 0),
             total_score: r.judge_average,
@@ -183,12 +198,26 @@ export default function JudgeDashboardPage() {
     }
   }, []);
 
-  // Load contestants when selected competition changes
+  // Load scoreboard (1st, 2nd, 3rd standings)
+  const loadScoreboard = useCallback(async (compId: string) => {
+    setScoreboardLoading(true);
+    try {
+      const data = await judgeCompetitionsApi.getScoreboard(compId);
+      setScoreboardData(data);
+    } catch (err: any) {
+      console.error("Failed to load scoreboard:", err);
+    } finally {
+      setScoreboardLoading(false);
+    }
+  }, []);
+
+  // Load contestants & scoreboard when selected competition changes
   useEffect(() => {
     if (!selectedComp) return;
     setActiveContestant(null);
     loadContestantsForComp(selectedComp._id);
-  }, [selectedComp, loadContestantsForComp]);
+    loadScoreboard(selectedComp._id);
+  }, [selectedComp, loadContestantsForComp, loadScoreboard]);
 
   // Load draft scores when active contestant opens
   useEffect(() => {
@@ -341,6 +370,7 @@ export default function JudgeDashboardPage() {
       setTimeout(() => {
         if (selectedComp) {
           loadContestantsForComp(selectedComp._id);
+          loadScoreboard(selectedComp._id);
         }
       }, 1500);
     } catch (err: any) {
@@ -387,18 +417,34 @@ export default function JudgeDashboardPage() {
     }
   };
 
-  // Filtered Contestants
+  // Filtered Contestants with Search across Name, Email, Title & Registration Reference
   const filteredContestants = useMemo(() => {
+    const q = search.trim().toLowerCase();
     return contestants.filter((c) => {
       const matchSearch =
-        search === "" ||
-        (c.user_name || "").toLowerCase().includes(search.toLowerCase()) ||
-        (c.user_email || "").toLowerCase().includes(search.toLowerCase()) ||
-        (c.title || "").toLowerCase().includes(search.toLowerCase());
+        q === "" ||
+        (c.user_name || "").toLowerCase().includes(q) ||
+        (c.user_email || "").toLowerCase().includes(q) ||
+        (c.title || "").toLowerCase().includes(q) ||
+        (c.registration_reference || "").toLowerCase().includes(q) ||
+        (c.registration_number || "").toLowerCase().includes(q) ||
+        (c.reg_no || "").toLowerCase().includes(q);
 
+      const isScored = Boolean(
+        c.is_scored || c.has_scored || c.status === "Scored" || c.is_locked
+      );
+
+      if (filter === "pending") return matchSearch && !isScored;
+      if (filter === "scored") return matchSearch && isScored;
       return matchSearch;
     });
-  }, [contestants, search]);
+  }, [contestants, search, filter]);
+
+  const totalCount = contestants.length;
+  const scoredCount = useMemo(() => {
+    return contestants.filter((c) => Boolean(c.is_scored || c.has_scored || c.status === "Scored" || c.is_locked)).length;
+  }, [contestants]);
+  const pendingCount = totalCount - scoredCount;
 
   const handleLogout = () => {
     tokenStore.clear();
@@ -545,7 +591,67 @@ export default function JudgeDashboardPage() {
               )}
             </section>
 
+            {/* ── Main View Selector Tabs (Evaluation vs Live Scoreboard & Standings) ── */}
+            <section className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between border-b border-[var(--border)] pb-4">
+              <div className="flex items-center gap-2 rounded-2xl border border-[var(--border)] bg-[var(--bg-elevated)] p-1.5 shadow-sm">
+                <button
+                  onClick={() => setActiveTab("evaluate")}
+                  className={cn(
+                    "flex items-center gap-2 rounded-xl px-4 py-2 text-xs sm:text-sm font-bold transition-all duration-200",
+                    activeTab === "evaluate"
+                      ? "bg-[var(--accent)] text-white shadow-md"
+                      : "text-[var(--fg-muted)] hover:text-[var(--fg)]"
+                  )}
+                >
+                  <Gavel className="size-4" />
+                  <span>Contestant Evaluation</span>
+                  <span className={cn(
+                    "rounded-full px-2 py-0.5 text-[10px] font-bold",
+                    activeTab === "evaluate" ? "bg-white/20 text-white" : "bg-[var(--bg)] text-[var(--fg-subtle)]"
+                  )}>
+                    {contestants.length}
+                  </span>
+                </button>
+
+                <button
+                  onClick={() => {
+                    setActiveTab("scoreboard");
+                    if (selectedComp) loadScoreboard(selectedComp._id);
+                  }}
+                  className={cn(
+                    "flex items-center gap-2 rounded-xl px-4 py-2 text-xs sm:text-sm font-bold transition-all duration-200",
+                    activeTab === "scoreboard"
+                      ? "bg-gradient-to-r from-amber-500 to-orange-500 text-white shadow-md"
+                      : "text-[var(--fg-muted)] hover:text-[var(--fg)]"
+                  )}
+                >
+                  <Trophy className={cn("size-4", activeTab === "scoreboard" ? "text-amber-200" : "text-amber-400")} />
+                  <span>Live Scoreboard & Standings</span>
+                  <span className={cn(
+                    "rounded-full px-2 py-0.5 text-[10px] font-bold",
+                    activeTab === "scoreboard" ? "bg-black/20 text-amber-100" : "bg-amber-400/10 text-amber-400"
+                  )}>
+                    1st • 2nd • 3rd
+                  </span>
+                </button>
+              </div>
+
+              {activeTab === "scoreboard" && (
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={() => selectedComp && loadScoreboard(selectedComp._id)}
+                  className="gap-2 self-start sm:self-auto"
+                  disabled={scoreboardLoading}
+                >
+                  <RefreshCw className={cn("size-3.5", scoreboardLoading && "animate-spin")} />
+                  <span>Refresh Standings</span>
+                </Button>
+              )}
+            </section>
+
             {/* ── Scoring Layout: Contestant List + Scoring Drawer ── */}
+            {activeTab === "evaluate" && (
             <div className="grid grid-cols-1 gap-8 lg:grid-cols-12">
               {/* Contestant List Column */}
               <div className={cn("flex flex-col gap-4", activeContestant ? "lg:col-span-5" : "lg:col-span-12")}>
@@ -557,17 +663,53 @@ export default function JudgeDashboardPage() {
                       type="text"
                       value={search}
                       onChange={(e) => setSearch(e.target.value)}
-                      placeholder="Search contestant by name, email or entry…"
-                      className="h-10 w-full rounded-xl border border-[var(--border)] bg-[var(--bg)] pl-10 pr-4 text-xs text-[var(--fg)] placeholder:text-[var(--fg-subtle)] focus:border-[var(--accent)] focus:outline-none"
+                      placeholder="Search contestant by name, CRG ref, email or title…"
+                      className="h-10 w-full rounded-xl border border-[var(--border)] bg-[var(--bg)] pl-10 pr-8 text-xs text-[var(--fg)] placeholder:text-[var(--fg-subtle)] focus:border-[var(--accent)] focus:outline-none"
                     />
+                    {search && (
+                      <button
+                        onClick={() => setSearch("")}
+                        className="absolute right-3 top-1/2 -translate-y-1/2 text-xs text-[var(--fg-subtle)] hover:text-[var(--fg)]"
+                      >
+                        ✕
+                      </button>
+                    )}
+                  </div>
+
+                  {/* Filter Pills: All, Pending, Scored */}
+                  <div className="flex items-center gap-1 rounded-xl border border-[var(--border)] bg-[var(--bg)] p-1">
+                    <button
+                      onClick={() => setFilter("all")}
+                      className={cn(
+                        "rounded-lg px-2.5 py-1 text-xs font-semibold transition-all",
+                        filter === "all" ? "bg-[var(--accent)] text-white shadow-sm" : "text-[var(--fg-muted)] hover:text-[var(--fg)]"
+                      )}
+                    >
+                      All ({totalCount})
+                    </button>
+                    <button
+                      onClick={() => setFilter("pending")}
+                      className={cn(
+                        "rounded-lg px-2.5 py-1 text-xs font-semibold transition-all",
+                        filter === "pending" ? "bg-[var(--accent)] text-white shadow-sm" : "text-[var(--fg-muted)] hover:text-[var(--fg)]"
+                      )}
+                    >
+                      Pending ({pendingCount})
+                    </button>
+                    <button
+                      onClick={() => setFilter("scored")}
+                      className={cn(
+                        "rounded-lg px-2.5 py-1 text-xs font-semibold transition-all",
+                        filter === "scored" ? "bg-[var(--accent)] text-white shadow-sm" : "text-[var(--fg-muted)] hover:text-[var(--fg)]"
+                      )}
+                    >
+                      Scored ({scoredCount})
+                    </button>
                   </div>
 
                   <div className="flex items-center gap-2">
-                    <span className="text-xs font-medium text-[var(--fg-subtle)]">
-                      {filteredContestants.length} {filteredContestants.length === 1 ? "contestant" : "contestants"}
-                    </span>
                     <Button variant="ghost" size="sm" onClick={() => selectedComp && loadContestantsForComp(selectedComp._id)}>
-                      <RefreshCw className="size-3.5" />
+                      <RefreshCw className={cn("size-3.5", contestantsLoading && "animate-spin")} />
                     </Button>
                   </div>
                 </div>
@@ -616,9 +758,16 @@ export default function JudgeDashboardPage() {
                             <div className="min-w-0 flex-1">
                               <div className="flex items-start justify-between gap-2">
                                 <div className="min-w-0">
-                                  <h3 className="text-sm font-bold text-[var(--fg)] group-hover:text-[var(--accent)] transition-colors truncate">
-                                    {c.user_name || "Contestant Entry"}
-                                  </h3>
+                                  <div className="flex items-center gap-1.5 flex-wrap">
+                                    <h3 className="text-sm font-bold text-[var(--fg)] group-hover:text-[var(--accent)] transition-colors truncate">
+                                      {c.user_name || "Contestant Entry"}
+                                    </h3>
+                                    {(c.registration_reference || c.registration_number || c.reg_no) && (
+                                      <span className="rounded bg-cyan-500/10 border border-cyan-500/20 px-1.5 py-0.5 font-mono text-[10px] font-bold text-cyan-400">
+                                        {c.registration_reference || c.registration_number || c.reg_no}
+                                      </span>
+                                    )}
+                                  </div>
                                   <p className="text-[11.5px] text-[var(--fg-subtle)] truncate">
                                     {c.user_email}
                                   </p>
@@ -696,13 +845,23 @@ export default function JudgeDashboardPage() {
                           />
                         </div>
                         <div>
-                          <span className="text-[10px] font-bold uppercase tracking-[0.2em] text-[var(--accent)]">
-                            Contestant Under Evaluation
-                          </span>
+                          <div className="flex items-center gap-2">
+                            <span className="text-[10px] font-bold uppercase tracking-[0.2em] text-[var(--accent)]">
+                              Contestant Under Evaluation
+                            </span>
+                            {(activeContestant.registration_reference || activeContestant.registration_number || activeContestant.reg_no) && (
+                              <span className="rounded bg-cyan-500/10 border border-cyan-500/20 px-2 py-0.5 font-mono text-[10px] font-bold text-cyan-400">
+                                {activeContestant.registration_reference || activeContestant.registration_number || activeContestant.reg_no}
+                              </span>
+                            )}
+                          </div>
                           <h2 className="mt-0.5 text-base font-bold text-[var(--fg)] sm:text-lg">
                             {activeContestant.user_name || activeContestant.user_email}
                           </h2>
-                          <p className="text-xs text-[var(--fg-subtle)]">{activeContestant.user_email}</p>
+                          <p className="text-xs text-[var(--fg-subtle)]">
+                            {activeContestant.user_email}
+                            {activeContestant.user_phone ? ` • ${activeContestant.user_phone}` : ""}
+                          </p>
                         </div>
                       </div>
 
@@ -949,10 +1108,9 @@ export default function JudgeDashboardPage() {
                               type="button"
                               variant="outline"
                               size="md"
-                              disabled={activeContestant._id.startsWith("reg_")}
                               loading={savingDraft}
                               onClick={handleSaveDraft}
-                              className="gap-1.5 disabled:opacity-50"
+                              className="gap-1.5"
                             >
                               <Save className="size-4" /> Save Draft
                             </Button>
@@ -961,12 +1119,11 @@ export default function JudgeDashboardPage() {
                               type="button"
                               variant="primary"
                               size="md"
-                              disabled={activeContestant._id.startsWith("reg_")}
                               loading={submittingScore}
                               onClick={handleSubmitScore}
-                              className="gap-1.5 disabled:opacity-50"
+                              className="gap-1.5"
                             >
-                              <Send className="size-4" /> {activeContestant._id.startsWith("reg_") ? "Awaiting Performance Upload" : "Submit Official Score"}
+                              <Send className="size-4" /> Submit Official Score
                             </Button>
                           </div>
                         </>
@@ -976,6 +1133,357 @@ export default function JudgeDashboardPage() {
                 )}
               </AnimatePresence>
             </div>
+            )}
+
+            {/* ── Scoreboard & Standings View (1st, 2nd, 3rd) ── */}
+            {activeTab === "scoreboard" && (
+              <div className="flex flex-col gap-8">
+                {/* Scoreboard Header & Overview Stats */}
+                <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-4">
+                  <div className="rounded-2xl border border-[var(--border)] bg-[var(--bg-elevated)] p-4 shadow-sm">
+                    <span className="text-[11px] font-bold uppercase tracking-wider text-[var(--fg-subtle)]">
+                      Total Contestants
+                    </span>
+                    <div className="mt-1 flex items-baseline gap-2">
+                      <span className="text-2xl font-black text-[var(--fg)]">
+                        {scoreboardData?.total_contestants ?? totalCount}
+                      </span>
+                      <span className="text-xs text-[var(--fg-subtle)]">enrolled</span>
+                    </div>
+                  </div>
+
+                  <div className="rounded-2xl border border-emerald-500/30 bg-emerald-500/5 p-4 shadow-sm">
+                    <span className="text-[11px] font-bold uppercase tracking-wider text-emerald-400">
+                      Evaluated & Scored
+                    </span>
+                    <div className="mt-1 flex items-baseline gap-2">
+                      <span className="text-2xl font-black text-emerald-400">
+                        {scoreboardData?.scored_count ?? scoredCount}
+                      </span>
+                      <span className="text-xs text-emerald-500/80">contestants</span>
+                    </div>
+                  </div>
+
+                  <div className="rounded-2xl border border-amber-500/30 bg-amber-500/5 p-4 shadow-sm">
+                    <span className="text-[11px] font-bold uppercase tracking-wider text-amber-400">
+                      Pending Evaluation
+                    </span>
+                    <div className="mt-1 flex items-baseline gap-2">
+                      <span className="text-2xl font-black text-amber-400">
+                        {scoreboardData?.pending_count ?? pendingCount}
+                      </span>
+                      <span className="text-xs text-amber-500/80">remaining</span>
+                    </div>
+                  </div>
+
+                  <div className="rounded-2xl border border-[var(--border)] bg-[var(--bg-elevated)] p-4 shadow-sm flex items-center justify-between">
+                    <div>
+                      <span className="text-[11px] font-bold uppercase tracking-wider text-[var(--fg-subtle)]">
+                        Leading Score
+                      </span>
+                      <div className="mt-1 flex items-baseline gap-1">
+                        <span className="text-2xl font-black text-amber-400">
+                          {scoreboardData?.podium?.first?.my_score ?? scoreboardData?.podium?.first?.total_score ?? "—"}
+                        </span>
+                        {scoreboardData?.podium?.first && <span className="text-xs text-[var(--fg-subtle)]">pts</span>}
+                      </div>
+                    </div>
+                    <Trophy className="size-8 text-amber-400/80" />
+                  </div>
+                </div>
+
+                {/* ── 3-Tier Podium (Top 3: 1st Gold, 2nd Silver, 3rd Bronze) ── */}
+                <div className="rounded-3xl border border-[var(--border)] bg-[var(--bg-elevated)]/60 p-6 sm:p-8 backdrop-blur-md">
+                  <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2 border-b border-[var(--border)] pb-4">
+                    <div>
+                      <div className="flex items-center gap-2">
+                        <Trophy className="size-5 text-amber-400" />
+                        <h2 className="text-lg font-bold text-[var(--fg)]">Live Podium Standings</h2>
+                      </div>
+                      <p className="text-xs text-[var(--fg-muted)] mt-0.5">
+                        Real-time top rankings based on official points awarded by judges.
+                      </p>
+                    </div>
+                    <span className="inline-flex items-center gap-1.5 rounded-full bg-amber-400/10 border border-amber-400/20 px-3 py-1 text-xs font-semibold text-amber-400">
+                      <Crown className="size-3.5" /> 1st • 2nd • 3rd Place
+                    </span>
+                  </div>
+
+                  {scoreboardLoading ? (
+                    <div className="flex min-h-[220px] flex-col items-center justify-center gap-3">
+                      <span className="size-7 animate-spin rounded-full border-2 border-amber-400 border-t-transparent" />
+                      <p className="text-xs text-[var(--fg-muted)]">Calculating live podium standings…</p>
+                    </div>
+                  ) : !scoreboardData?.podium?.first ? (
+                    <div className="flex flex-col items-center justify-center py-12 text-center">
+                      <Award className="size-12 text-[var(--fg-subtle)] mb-3" />
+                      <h3 className="text-base font-bold text-[var(--fg)]">No Contestants Scored Yet</h3>
+                      <p className="mt-1 max-w-md text-xs text-[var(--fg-muted)]">
+                        As soon as you evaluate contestants and award points, the live 1st, 2nd, and 3rd place podium will appear here automatically.
+                      </p>
+                      <Button
+                        size="sm"
+                        onClick={() => setActiveTab("evaluate")}
+                        className="mt-4 gap-2"
+                      >
+                        <Gavel className="size-3.5" /> Start Evaluating Contestants
+                      </Button>
+                    </div>
+                  ) : (
+                    <div className="mt-6 grid grid-cols-1 gap-4 md:grid-cols-3 md:items-end">
+                      {/* 2nd Place (Silver) */}
+                      <div className="order-2 md:order-1 rounded-2xl border border-slate-400/30 bg-gradient-to-b from-slate-400/10 via-[var(--bg-elevated)] to-[var(--bg)] p-5 text-center shadow-lg relative flex flex-col items-center">
+                        <span className="inline-flex items-center gap-1 rounded-full bg-slate-300/15 border border-slate-300/30 px-2.5 py-0.5 text-[11px] font-bold text-slate-200">
+                          🥈 2nd Place (Silver)
+                        </span>
+                        <div className="relative mt-3 size-16 overflow-hidden rounded-full border-2 border-slate-300 bg-[var(--surface-2)] shadow-md">
+                          <img
+                            src={imageFor(scoreboardData.podium.second?.profile_photo, 1)}
+                            alt=""
+                            className="size-full object-cover"
+                          />
+                        </div>
+                        <h3 className="mt-2 text-sm font-bold text-[var(--fg)] truncate max-w-full">
+                          {scoreboardData.podium.second?.user_name || "Runner-Up"}
+                        </h3>
+                        {scoreboardData.podium.second?.registration_reference && (
+                          <span className="mt-0.5 rounded bg-slate-400/15 px-1.5 py-0.5 font-mono text-[10px] text-slate-300">
+                            {scoreboardData.podium.second.registration_reference}
+                          </span>
+                        )}
+                        <div className="mt-3 rounded-xl bg-slate-300/10 border border-slate-300/20 px-3 py-1.5">
+                          <span className="text-xl font-black text-slate-200">
+                            {scoreboardData.podium.second?.my_score ?? scoreboardData.podium.second?.total_score ?? "—"}
+                          </span>
+                          <span className="ml-1 text-xs text-slate-400">pts</span>
+                        </div>
+                      </div>
+
+                      {/* 1st Place (Gold Champion) */}
+                      <div className="order-1 md:order-2 rounded-3xl border-2 border-amber-400/60 bg-gradient-to-b from-amber-500/20 via-[var(--bg-elevated)] to-[var(--bg)] p-6 text-center shadow-[0_0_40px_rgba(245,158,11,0.2)] relative flex flex-col items-center md:-translate-y-2">
+                        <div className="absolute -top-3.5 flex items-center gap-1 rounded-full bg-gradient-to-r from-amber-500 to-orange-500 px-3 py-1 text-[11px] font-black uppercase tracking-wider text-white shadow-md">
+                          <Crown className="size-3.5" /> 1st Place Champion
+                        </div>
+                        <div className="relative mt-2 size-20 overflow-hidden rounded-full border-3 border-amber-400 bg-[var(--surface-2)] shadow-lg ring-4 ring-amber-400/20">
+                          <img
+                            src={imageFor(scoreboardData.podium.first?.profile_photo, 1)}
+                            alt=""
+                            className="size-full object-cover"
+                          />
+                        </div>
+                        <h3 className="mt-2.5 text-base font-extrabold text-[var(--fg)] truncate max-w-full">
+                          {scoreboardData.podium.first?.user_name || "Winner"}
+                        </h3>
+                        {scoreboardData.podium.first?.registration_reference && (
+                          <span className="mt-0.5 rounded bg-amber-400/20 px-2 py-0.5 font-mono text-[11px] font-bold text-amber-300 border border-amber-400/30">
+                            {scoreboardData.podium.first.registration_reference}
+                          </span>
+                        )}
+                        <div className="mt-3 rounded-xl bg-amber-500/20 border border-amber-500/40 px-4 py-2">
+                          <span className="text-2xl font-black text-amber-400">
+                            {scoreboardData.podium.first?.my_score ?? scoreboardData.podium.first?.total_score ?? "—"}
+                          </span>
+                          <span className="ml-1 text-xs font-bold text-amber-300/80">pts</span>
+                        </div>
+                      </div>
+
+                      {/* 3rd Place (Bronze) */}
+                      <div className="order-3 md:order-3 rounded-2xl border border-amber-700/30 bg-gradient-to-b from-amber-700/10 via-[var(--bg-elevated)] to-[var(--bg)] p-5 text-center shadow-lg relative flex flex-col items-center">
+                        <span className="inline-flex items-center gap-1 rounded-full bg-amber-700/15 border border-amber-700/30 px-2.5 py-0.5 text-[11px] font-bold text-amber-500">
+                          🥉 3rd Place (Bronze)
+                        </span>
+                        <div className="relative mt-3 size-16 overflow-hidden rounded-full border-2 border-amber-700 bg-[var(--surface-2)] shadow-md">
+                          <img
+                            src={imageFor(scoreboardData.podium.third?.profile_photo, 1)}
+                            alt=""
+                            className="size-full object-cover"
+                          />
+                        </div>
+                        <h3 className="mt-2 text-sm font-bold text-[var(--fg)] truncate max-w-full">
+                          {scoreboardData.podium.third?.user_name || "3rd Position"}
+                        </h3>
+                        {scoreboardData.podium.third?.registration_reference && (
+                          <span className="mt-0.5 rounded bg-amber-700/15 px-1.5 py-0.5 font-mono text-[10px] text-amber-600">
+                            {scoreboardData.podium.third.registration_reference}
+                          </span>
+                        )}
+                        <div className="mt-3 rounded-xl bg-amber-700/10 border border-amber-700/20 px-3 py-1.5">
+                          <span className="text-xl font-black text-amber-600">
+                            {scoreboardData.podium.third?.my_score ?? scoreboardData.podium.third?.total_score ?? "—"}
+                          </span>
+                          <span className="ml-1 text-xs text-amber-700">pts</span>
+                        </div>
+                      </div>
+                    </div>
+                  )}
+                </div>
+
+                {/* ── Complete Ranked Standings Table ── */}
+                <div className="flex flex-col gap-4 rounded-3xl border border-[var(--border)] bg-[var(--bg-elevated)] p-6 shadow-xl">
+                  <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 border-b border-[var(--border)] pb-4">
+                    <div>
+                      <h3 className="text-base font-bold text-[var(--fg)]">Complete Contestant Standings</h3>
+                      <p className="text-xs text-[var(--fg-subtle)]">
+                        All enrolled contestants ranked by points with criteria-by-criteria breakdown.
+                      </p>
+                    </div>
+                    <div className="flex items-center gap-2">
+                      <span className="text-xs text-[var(--fg-subtle)]">
+                        {(scoreboardData?.standings ?? contestants).length} Contestants Total
+                      </span>
+                    </div>
+                  </div>
+
+                  <div className="overflow-x-auto">
+                    <table className="w-full text-left text-xs">
+                      <thead>
+                        <tr className="border-b border-[var(--border)] text-[11px] uppercase tracking-wider text-[var(--fg-subtle)]">
+                          <th className="pb-3 pl-3 pr-2">Rank</th>
+                          <th className="pb-3 px-3">Contestant</th>
+                          <th className="pb-3 px-3">Reg Ref #</th>
+                          <th className="pb-3 px-3">Criteria Breakdown</th>
+                          <th className="pb-3 px-3 text-right">Total Points</th>
+                          <th className="pb-3 px-3">Feedback / Notes</th>
+                          <th className="pb-3 pr-3 text-right">Action</th>
+                        </tr>
+                      </thead>
+                      <tbody className="divide-y divide-[var(--border)]/60">
+                        {(scoreboardData?.standings ?? contestants).map((c, index) => {
+                          const rank = c.rank ?? (c.is_scored ? index + 1 : null);
+                          const scoreVal = c.my_score ?? c.total_score;
+                          const hasScore = Boolean(c.is_scored || c.has_scored || scoreVal != null);
+                          const scoresMap = c.my_scores || c.scores || {};
+
+                          return (
+                            <tr
+                              key={c._id || index}
+                              className="hover:bg-[var(--bg-subtle)] transition-colors group"
+                            >
+                              {/* Rank Badge */}
+                              <td className="py-3.5 pl-3 pr-2 whitespace-nowrap">
+                                {rank === 1 ? (
+                                  <span className="inline-flex items-center gap-1 rounded-lg bg-amber-400/20 px-2.5 py-1 text-xs font-black text-amber-400 border border-amber-400/30">
+                                    🥇 #1
+                                  </span>
+                                ) : rank === 2 ? (
+                                  <span className="inline-flex items-center gap-1 rounded-lg bg-slate-300/20 px-2.5 py-1 text-xs font-black text-slate-300 border border-slate-300/30">
+                                    🥈 #2
+                                  </span>
+                                ) : rank === 3 ? (
+                                  <span className="inline-flex items-center gap-1 rounded-lg bg-amber-700/20 px-2.5 py-1 text-xs font-black text-amber-600 border border-amber-700/30">
+                                    🥉 #3
+                                  </span>
+                                ) : rank ? (
+                                  <span className="inline-flex items-center rounded-lg bg-[var(--bg)] px-2.5 py-1 font-mono text-xs font-bold text-[var(--fg-muted)] border border-[var(--border)]">
+                                    #{rank}
+                                  </span>
+                                ) : (
+                                  <span className="text-[var(--fg-subtle)] font-mono pl-2">—</span>
+                                )}
+                              </td>
+
+                              {/* Contestant Profile */}
+                              <td className="py-3.5 px-3">
+                                <div className="flex items-center gap-3">
+                                  <div className="size-9 shrink-0 overflow-hidden rounded-full border border-[var(--border)] bg-[var(--surface-2)]">
+                                    <img
+                                      src={imageFor(c.profile_photo, 1)}
+                                      alt=""
+                                      className="size-full object-cover"
+                                    />
+                                  </div>
+                                  <div className="min-w-0">
+                                    <p className="font-bold text-[var(--fg)] truncate group-hover:text-[var(--accent)] transition-colors">
+                                      {c.user_name || "Contestant"}
+                                    </p>
+                                    <p className="text-[11px] text-[var(--fg-subtle)] truncate">
+                                      {c.user_email}
+                                    </p>
+                                  </div>
+                                </div>
+                              </td>
+
+                              {/* Reg Ref # */}
+                              <td className="py-3.5 px-3 whitespace-nowrap">
+                                {c.registration_reference || c.registration_number || c.reg_no ? (
+                                  <span className="rounded-md bg-cyan-500/10 border border-cyan-500/20 px-2 py-0.5 font-mono text-[11px] font-bold text-cyan-400">
+                                    {c.registration_reference || c.registration_number || c.reg_no}
+                                  </span>
+                                ) : (
+                                  <span className="text-[var(--fg-subtle)]">—</span>
+                                )}
+                              </td>
+
+                              {/* Criteria Breakdown */}
+                              <td className="py-3.5 px-3">
+                                {hasScore && Object.keys(scoresMap).length > 0 ? (
+                                  <div className="flex flex-wrap items-center gap-1.5 max-w-md">
+                                    {Object.entries(scoresMap).map(([crit, pts]) => (
+                                      <span
+                                        key={crit}
+                                        className="inline-flex items-center gap-1 rounded-md bg-[var(--bg)] border border-[var(--border)] px-2 py-0.5 text-[10px] text-[var(--fg-muted)]"
+                                      >
+                                        <span className="font-medium text-[var(--fg-subtle)]">{crit}:</span>
+                                        <span className="font-bold text-[var(--fg)]">{pts}</span>
+                                      </span>
+                                    ))}
+                                  </div>
+                                ) : (
+                                  <span className="text-[11px] italic text-[var(--fg-subtle)]">
+                                    Pending Evaluation
+                                  </span>
+                                )}
+                              </td>
+
+                              {/* Total Points */}
+                              <td className="py-3.5 px-3 text-right whitespace-nowrap">
+                                {hasScore ? (
+                                  <span className="inline-flex items-center gap-1 rounded-xl bg-emerald-500/15 border border-emerald-500/30 px-3 py-1 font-mono text-sm font-black text-emerald-400">
+                                    {scoreVal} <span className="text-[10px] font-normal text-emerald-500/70">pts</span>
+                                  </span>
+                                ) : (
+                                  <Badge tone="neutral" className="text-[10.5px]">Pending</Badge>
+                                )}
+                              </td>
+
+                              {/* Comments / Notes */}
+                              <td className="py-3.5 px-3 max-w-[200px]">
+                                {c.my_comments || c.comments ? (
+                                  <p className="text-[11px] text-[var(--fg-muted)] italic truncate" title={c.my_comments || c.comments}>
+                                    "{c.my_comments || c.comments}"
+                                  </p>
+                                ) : (
+                                  <span className="text-[var(--fg-subtle)]">—</span>
+                                )}
+                              </td>
+
+                              {/* Action */}
+                              <td className="py-3.5 pr-3 text-right whitespace-nowrap">
+                                <Button
+                                  variant={hasScore ? "outline" : "accent"}
+                                  size="sm"
+                                  onClick={() => {
+                                    setActiveContestant(c);
+                                    setActiveTab("evaluate");
+                                  }}
+                                  className="gap-1 text-xs"
+                                >
+                                  {hasScore ? (
+                                    <>View Score <ChevronRight className="size-3" /></>
+                                  ) : (
+                                    <>Score Now <ChevronRight className="size-3" /></>
+                                  )}
+                                </Button>
+                              </td>
+                            </tr>
+                          );
+                        })}
+                      </tbody>
+                    </table>
+                  </div>
+                </div>
+              </div>
+            )}
           </div>
         )}
       </main>

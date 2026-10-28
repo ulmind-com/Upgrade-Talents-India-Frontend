@@ -750,7 +750,9 @@ export interface JudgeContestant {
   competition_id: string;
   user_email: string;
   user_name?: string;
+  full_name?: string;
   profile_photo?: string;
+  avatar?: string;
   title?: string;
   submission_url?: string;
   media_url?: string;
@@ -759,14 +761,36 @@ export interface JudgeContestant {
   submitted_at?: string;
   files?: Record<string, string>;
   parsed_files?: Array<{ label: string; url: string }>;
+  registration_reference?: string;
+  registration_number?: string;
+  reg_no?: string;
+  user_phone?: string;
+  rank?: number | null;
   is_scored?: boolean;
   has_scored?: boolean;
   is_locked?: boolean;
   total_score?: number;
   my_score?: number;
   my_scores?: Record<string, number>;
+  scores?: Record<string, number>;
   my_comments?: string;
+  comments?: string;
   scored_at?: string;
+}
+
+export interface JudgeScoreboardResponse {
+  competition_id: string;
+  competition_title: string;
+  total_contestants: number;
+  scored_count: number;
+  pending_count: number;
+  criteria: Array<{ name: string; max_score: number; weight?: number; description?: string }>;
+  podium: {
+    first: JudgeContestant | null;
+    second: JudgeContestant | null;
+    third: JudgeContestant | null;
+  };
+  standings: JudgeContestant[];
 }
 
 export const judgeCompetitionsApi = {
@@ -777,6 +801,10 @@ export const judgeCompetitionsApi = {
   /** List scorable contestants/submissions for a competition */
   listContestants: (compId: string) =>
     apiFetch<JudgeContestant[]>(`/api/judge/${compId}/contestants`, { auth: true }),
+
+  /** Get live scoreboard & podium standings (1st, 2nd, 3rd) */
+  getScoreboard: (compId: string) =>
+    apiFetch<JudgeScoreboardResponse>(`/api/judge/${compId}/scoreboard`, { auth: true }),
 
   /** Verify live session PIN to unlock scoring */
   verifyPin: (compId: string, pin: string) =>
