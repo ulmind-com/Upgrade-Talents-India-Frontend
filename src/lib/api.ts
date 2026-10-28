@@ -153,9 +153,14 @@ export type BannerItem = {
   _id: string;
   title: string;
   image_url: string;
+  image_url_desktop?: string;
+  image_url_mobile?: string;
+  mobile_image_url?: string;
   description?: string;
   sponsor_name?: string;
   target_url?: string;
+  display_order?: number;
+  is_published?: boolean;
 };
 
 export type TestimonialItem = {

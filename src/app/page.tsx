@@ -32,6 +32,7 @@ export default async function HomePage() {
   return (
     <>
       <Hero
+        banners={data.sponsored_banners}
         events={data.upcoming_events}
         brandTitle={data.brand?.title}
         brandTagline={data.brand?.tagline}
