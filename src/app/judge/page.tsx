@@ -9,7 +9,7 @@ import {
   Lock, Unlock, ChevronRight, Award, Trophy, Star, ExternalLink,
   Save, SkipForward, LogOut, ArrowLeft, RefreshCw, Send, Check,
   Play, Music, Video, User, FileText, Crown, Sparkles, MessageSquare,
-  Flame, Filter
+  Flame, Filter, ChevronLeft
 } from "lucide-react";
 import {
   judgeCompetitionsApi,
@@ -501,6 +501,32 @@ export default function JudgeDashboardPage() {
   }, [contestants]);
   const pendingCount = totalCount - scoredCount;
 
+  // Active Contestant Stage Queue Positioning (1 of 20, 2 of 20...)
+  const currentIndex = activeContestant
+    ? filteredContestants.findIndex((c) => c._id === activeContestant._id)
+    : -1;
+  const prevContestant = currentIndex > 0 ? filteredContestants[currentIndex - 1] : null;
+  const nextContestant =
+    currentIndex >= 0 && currentIndex < filteredContestants.length - 1
+      ? filteredContestants[currentIndex + 1]
+      : null;
+
+  // Keyboard Stage Navigation (ArrowLeft / ArrowRight)
+  useEffect(() => {
+    const handleKeyDown = (e: KeyboardEvent) => {
+      if (!activeContestant) return;
+      if (["INPUT", "TEXTAREA"].includes((e.target as HTMLElement)?.tagName)) return;
+
+      if (e.key === "ArrowRight" && nextContestant) {
+        setActiveContestant(nextContestant);
+      } else if (e.key === "ArrowLeft" && prevContestant) {
+        setActiveContestant(prevContestant);
+      }
+    };
+    window.addEventListener("keydown", handleKeyDown);
+    return () => window.removeEventListener("keydown", handleKeyDown);
+  }, [activeContestant, nextContestant, prevContestant]);
+
   const handleLogout = () => {
     tokenStore.clear();
     logout();
@@ -769,6 +795,64 @@ export default function JudgeDashboardPage() {
                   </div>
                 </div>
 
+                {/* Stage Participation Queue Banner (1 of 20, 2 of 20...) */}
+                {filteredContestants.length > 0 && (
+                  <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 rounded-2xl border border-[var(--border)] bg-gradient-to-r from-[var(--bg-elevated)] via-[color-mix(in_srgb,var(--accent)_6%,var(--bg-elevated))] to-[var(--bg-elevated)] p-3.5 shadow-sm">
+                    <div className="flex items-center gap-2.5">
+                      <span className="grid size-8 shrink-0 place-items-center rounded-xl bg-[var(--accent)]/15 text-[var(--accent)] font-mono font-bold text-xs">
+                        {currentIndex >= 0 ? `#${currentIndex + 1}` : "Stage"}
+                      </span>
+                      <div className="min-w-0">
+                        <p className="text-[10px] font-bold uppercase tracking-wider text-[var(--fg-subtle)]">
+                          {activeContestant ? `Contestant ${currentIndex + 1} of ${filteredContestants.length} on Stage` : `Stage Queue (${filteredContestants.length} Contestants)`}
+                        </p>
+                        <p className="text-xs font-bold text-[var(--fg)] truncate">
+                          {activeContestant ? (activeContestant.user_name || activeContestant.user_email) : "Select Contestant #1 to begin evaluating in order"}
+                        </p>
+                      </div>
+                    </div>
+
+                    <div className="flex items-center gap-2 shrink-0">
+                      {!activeContestant ? (
+                        <Button
+                          size="sm"
+                          variant="accent"
+                          onClick={() => setActiveContestant(filteredContestants[0])}
+                          className="gap-1.5 text-xs font-bold"
+                        >
+                          <span>Start Queue (#1)</span>
+                          <ChevronRight className="size-3.5" />
+                        </Button>
+                      ) : (
+                        <div className="flex items-center gap-1.5">
+                          <Button
+                            size="sm"
+                            variant="outline"
+                            disabled={!prevContestant}
+                            onClick={() => {
+                              if (prevContestant) setActiveContestant(prevContestant);
+                            }}
+                            className="gap-1 text-xs"
+                          >
+                            <ChevronLeft className="size-3" /> Prev
+                          </Button>
+                          <Button
+                            size="sm"
+                            variant="accent"
+                            disabled={!nextContestant}
+                            onClick={() => {
+                              if (nextContestant) setActiveContestant(nextContestant);
+                            }}
+                            className="gap-1 text-xs font-bold"
+                          >
+                            Next <ChevronRight className="size-3" />
+                          </Button>
+                        </div>
+                      )}
+                    </div>
+                  </div>
+                )}
+
                 {/* Contestants Cards */}
                 {contestantsLoading ? (
                   <div className="flex min-h-[300px] flex-col items-center justify-center gap-3 rounded-2xl border border-[var(--border)] bg-[var(--bg-elevated)]">
@@ -781,7 +865,7 @@ export default function JudgeDashboardPage() {
                   </div>
                 ) : (
                   <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-1">
-                    {filteredContestants.map((c) => {
+                    {filteredContestants.map((c, index) => {
                       const isSelected = activeContestant?._id === c._id;
                       const hasVideo = c.submission_url && getYouTubeEmbedUrl(c.submission_url);
                       const hasAudio = c.submission_url && isAudio(c.submission_url);
@@ -796,7 +880,7 @@ export default function JudgeDashboardPage() {
                           className={cn(
                             "group relative cursor-pointer rounded-2xl border p-4 transition-all duration-200",
                             isSelected
-                              ? "border-[var(--accent)] bg-[color-mix(in_srgb,var(--accent)_8%,var(--bg-elevated))] shadow-lg"
+                              ? "border-[var(--accent)] bg-[color-mix(in_srgb,var(--accent)_8%,var(--bg-elevated))] shadow-lg ring-1 ring-[var(--accent)]/50"
                               : "border-[var(--border)] bg-[var(--bg-elevated)] hover:border-[var(--border-strong)] hover:bg-[var(--bg-subtle)]"
                           )}
                         >
@@ -814,6 +898,9 @@ export default function JudgeDashboardPage() {
                               <div className="flex items-start justify-between gap-2">
                                 <div className="min-w-0">
                                   <div className="flex items-center gap-1.5 flex-wrap">
+                                    <span className="rounded bg-[var(--bg)] border border-[var(--border)] px-1.5 py-0.2 font-mono text-[10px] font-bold text-[var(--fg-muted)]">
+                                      #{index + 1}
+                                    </span>
                                     <h3 className="text-sm font-bold text-[var(--fg)] group-hover:text-[var(--accent)] transition-colors truncate">
                                       {c.user_name || "Contestant Entry"}
                                     </h3>
@@ -921,12 +1008,39 @@ export default function JudgeDashboardPage() {
                       </div>
 
                       <div className="flex items-center gap-2">
+                        {/* Prev / Next Contestant Stepper */}
+                        <div className="flex items-center gap-1 rounded-xl border border-[var(--border)] bg-[var(--bg)] p-1">
+                          <button
+                            type="button"
+                            disabled={!prevContestant}
+                            onClick={() => prevContestant && setActiveContestant(prevContestant)}
+                            className="rounded-lg p-1.5 text-[var(--fg-muted)] hover:bg-[var(--bg-elevated)] hover:text-[var(--fg)] disabled:opacity-30 disabled:pointer-events-none transition-all"
+                            title="Previous Contestant"
+                          >
+                            <ChevronLeft className="size-4" />
+                          </button>
+
+                          <span className="px-2 text-[11px] font-mono font-bold text-[var(--fg-subtle)] whitespace-nowrap">
+                            {currentIndex + 1} / {filteredContestants.length}
+                          </span>
+
+                          <button
+                            type="button"
+                            disabled={!nextContestant}
+                            onClick={() => nextContestant && setActiveContestant(nextContestant)}
+                            className="rounded-lg p-1.5 text-[var(--fg-muted)] hover:bg-[var(--bg-elevated)] hover:text-[var(--fg)] disabled:opacity-30 disabled:pointer-events-none transition-all"
+                            title="Next Contestant"
+                          >
+                            <ChevronRight className="size-4" />
+                          </button>
+                        </div>
+
                         {activeContestant.submission_url && (
                           <a
                             href={activeContestant.submission_url}
                             target="_blank"
                             rel="noopener noreferrer"
-                            className="inline-flex items-center gap-1 rounded-lg border border-[var(--border)] bg-[var(--bg)] px-2.5 py-1 text-xs font-semibold text-[var(--fg-muted)] hover:text-[var(--fg)]"
+                            className="hidden sm:inline-flex items-center gap-1 rounded-lg border border-[var(--border)] bg-[var(--bg)] px-2.5 py-1 text-xs font-semibold text-[var(--fg-muted)] hover:text-[var(--fg)]"
                           >
                             <ExternalLink className="size-3" /> View Entry
                           </a>
@@ -1033,17 +1147,40 @@ export default function JudgeDashboardPage() {
                       </div>
                     )}
 
-                    {/* Notice */}
+                    {/* Notice & Next Contestant Fast-Action */}
                     {scoreNotice && (
                       <div
                         className={cn(
-                          "rounded-xl border p-3 text-xs font-semibold",
+                          "flex flex-col sm:flex-row sm:items-center justify-between gap-3 rounded-2xl border p-4 text-xs font-semibold shadow-sm",
                           scoreNotice.tone === "success"
-                            ? "border-[var(--success)]/30 bg-[color-mix(in_srgb,var(--success)_10%,transparent)] text-[var(--success)]"
+                            ? "border-emerald-500/40 bg-emerald-500/10 text-emerald-400"
                             : "border-[var(--error)]/30 bg-[color-mix(in_srgb,var(--error)_10%,transparent)] text-[var(--error)]"
                         )}
                       >
-                        {scoreNotice.text}
+                        <div className="flex items-center gap-2">
+                          {scoreNotice.tone === "success" ? (
+                            <CheckCircle2 className="size-4 text-emerald-400 shrink-0" />
+                          ) : (
+                            <AlertCircle className="size-4 text-[var(--error)] shrink-0" />
+                          )}
+                          <span>{scoreNotice.text}</span>
+                        </div>
+
+                        {scoreNotice.tone === "success" && nextContestant && (
+                          <Button
+                            type="button"
+                            size="sm"
+                            variant="primary"
+                            onClick={() => {
+                              setActiveContestant(nextContestant);
+                              setScoreNotice(null);
+                            }}
+                            className="gap-1.5 self-start sm:self-auto shrink-0 bg-emerald-500 hover:bg-emerald-600 text-black font-bold shadow-md"
+                          >
+                            <span>Score Next Contestant (#{currentIndex + 2})</span>
+                            <ChevronRight className="size-3.5" />
+                          </Button>
+                        )}
                       </div>
                     )}
 
@@ -1133,18 +1270,42 @@ export default function JudgeDashboardPage() {
                     {/* Actions Bar */}
                     <div className="flex flex-wrap items-center justify-between gap-3 border-t border-[var(--border)] pt-4">
                       {isAlreadyScored ? (
-                        <div className="flex w-full items-center justify-between">
+                        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 w-full">
                           <span className="inline-flex items-center gap-2 text-xs font-bold text-emerald-400">
                             <CheckCircle2 className="size-4" /> Score Recorded ({activeContestant.my_score ?? activeContestant.total_score ?? calculatedTotal} pts)
                           </span>
-                          <Button
-                            type="button"
-                            variant="outline"
-                            size="sm"
-                            onClick={() => setActiveContestant(null)}
-                          >
-                            Close Worksheet
-                          </Button>
+                          <div className="flex items-center gap-2">
+                            {prevContestant && (
+                              <Button
+                                type="button"
+                                variant="outline"
+                                size="sm"
+                                onClick={() => setActiveContestant(prevContestant)}
+                                className="gap-1 text-xs"
+                              >
+                                <ChevronLeft className="size-3" /> Prev (#{currentIndex})
+                              </Button>
+                            )}
+                            {nextContestant && (
+                              <Button
+                                type="button"
+                                variant="accent"
+                                size="sm"
+                                onClick={() => setActiveContestant(nextContestant)}
+                                className="gap-1 text-xs font-bold"
+                              >
+                                Next (#{currentIndex + 2}) <ChevronRight className="size-3" />
+                              </Button>
+                            )}
+                            <Button
+                              type="button"
+                              variant="outline"
+                              size="sm"
+                              onClick={() => setActiveContestant(null)}
+                            >
+                              Close
+                            </Button>
+                          </div>
                         </div>
                       ) : (
                         <>
