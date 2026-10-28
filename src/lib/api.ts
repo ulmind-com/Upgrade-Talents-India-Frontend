@@ -249,6 +249,13 @@ export type HomepagePayload = {
   } | null;
   important_links: { _id: string; title?: string; label?: string; url?: string }[];
   featured_tiles?: FeaturedTileItem[];
+  gallery_section?: {
+    title?: string;
+    label?: string;
+    description?: string;
+    view_all_url?: string;
+    images?: { id?: string; image_url: string; caption?: string }[];
+  };
 };
 
 export type MyTicket = {

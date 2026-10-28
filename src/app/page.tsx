@@ -65,7 +65,10 @@ export default async function HomePage() {
       />
 
       <Marquee />
-      <GalleryReveal events={data.upcoming_events} />
+      <GalleryReveal
+        events={data.upcoming_events}
+        gallerySection={data.gallery_section}
+      />
       <UpcomingCompetitions
         competitions={data.upcoming_competitions}
         events={data.upcoming_events}
