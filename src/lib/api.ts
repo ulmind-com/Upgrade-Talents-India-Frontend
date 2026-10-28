@@ -225,6 +225,8 @@ export type HomepagePayload = {
     tagline?: string; title?: string; description?: string;
   };
   upcoming_events: EventItem[];
+  upcoming_competitions?: any[];
+  competitions_section?: { title?: string; label?: string; view_all_url?: string };
   live_events: LiveEventItem[];
   sponsored_banners: BannerItem[];
   testimonials: TestimonialItem[];

@@ -2,7 +2,7 @@ import Hero from "@/components/home/Hero";
 import { ScrollCue, QuadTiles, FeaturedShow, PhotoStrip } from "@/components/home/Theater";
 import {
   AppPromo, ContestBand, LearnGrid, LiveNow, Marquee,
-  Sponsors, Stats, Testimonials, UpcomingEvents,
+  Sponsors, Stats, Testimonials, UpcomingCompetitions, UpcomingEvents,
 } from "@/components/home/Sections";
 import GalleryReveal from "@/components/home/GalleryReveal";
 import ScrollMorphShowcase from "@/components/home/ScrollMorphShowcase";
@@ -15,6 +15,12 @@ export const revalidate = 0;
 const EMPTY: HomepagePayload = {
   brand: {},
   upcoming_events: [],
+  upcoming_competitions: [],
+  competitions_section: {
+    title: "Upcoming Competitions",
+    label: "What's next",
+    view_all_url: "/competitions",
+  },
   live_events: [],
   sponsored_banners: [],
   testimonials: [],
@@ -46,7 +52,10 @@ export default async function HomePage() {
 
       <Marquee />
       <GalleryReveal events={data.upcoming_events} />
-      <UpcomingEvents events={data.upcoming_events} />
+      <UpcomingCompetitions
+        competitions={data.upcoming_competitions}
+        sectionConfig={data.competitions_section}
+      />
       <StudioShowcase events={data.upcoming_events} />
       <Stats eventCount={data.upcoming_events.length} courseCount={data.courses.length + data.workshops.length} />
       <LiveNow items={data.live_events} />

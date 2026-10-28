@@ -164,6 +164,50 @@ export function EventCard({ ev, index = 0 }: { ev: EventItem; index?: number }) 
   );
 }
 
+/* ═══════════ UPCOMING COMPETITIONS ═══════════ */
+
+export function UpcomingCompetitions({
+  competitions,
+  sectionConfig,
+}: {
+  competitions?: any[];
+  sectionConfig?: {
+    title?: string;
+    label?: string;
+    view_all_url?: string;
+  };
+}) {
+  const label = sectionConfig?.label || "What's next";
+  const title = sectionConfig?.title || "Upcoming Competitions";
+  const viewAllUrl = sectionConfig?.view_all_url || "/competitions";
+
+  return (
+    <section className="relative overflow-hidden py-20 md:py-28">
+      <Spotlights variant="a" />
+      <div className="container-x relative">
+        <Reveal className="flex flex-col items-start justify-between gap-6 md:flex-row md:items-end">
+          <div>
+            <SectionLabel>{label}</SectionLabel>
+            <SplitHeading
+              text={title}
+              className="mt-5 font-display text-[clamp(2.2rem,7vw,5rem)] font-bold uppercase leading-[0.9]"
+            />
+          </div>
+          <Magnetic>
+            <Button href={viewAllUrl} variant="outline">
+              View all <ArrowUpRight className="size-4" aria-hidden />
+            </Button>
+          </Magnetic>
+        </Reveal>
+
+        <div className="mt-12">
+          <CoverflowCarousel competitions={competitions} />
+        </div>
+      </div>
+    </section>
+  );
+}
+
 /* ═══════════ UPCOMING EVENTS ═══════════ */
 
 export function UpcomingEvents({ events }: { events: EventItem[] }) {

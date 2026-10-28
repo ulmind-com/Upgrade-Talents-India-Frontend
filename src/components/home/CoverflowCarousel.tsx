@@ -2,8 +2,8 @@
 
 import { useEffect, useLayoutEffect, useRef, useState } from "react";
 import Link from "next/link";
-import { MapPin, Ticket } from "lucide-react";
-import { imageFor, splitDate } from "@/lib/utils";
+import { MapPin, Ticket, Trophy } from "lucide-react";
+import { formatINR, imageFor, splitDate } from "@/lib/utils";
 import type { EventItem } from "@/lib/api";
 
 /* Arched card row — every panel's geometry comes from its x position, like
@@ -19,7 +19,83 @@ const RADIUS = 15;     // corner radius, design units
 const DECAY = 0.05;    // share of the throw velocity kept per second
 const BAND = 460;     // design-unit height of the row
 
-type Panel = { ev: EventItem; key: string; idx: number };
+export type CoverflowItem = {
+  id: string;
+  title: string;
+  subtitle?: string;
+  category?: string;
+  date?: string;
+  image_url?: string;
+  price?: number;
+  href: string;
+  ctaText?: string;
+  isCompetition?: boolean;
+};
+
+type Panel = { item: CoverflowItem; key: string; idx: number };
+
+const FALLBACK_COMPETITIONS: CoverflowItem[] = [
+  {
+    id: "all-india-hip-hop-championship",
+    title: "All India Hip-Hop Championship",
+    category: "Street Dance",
+    date: "2026-11-15",
+    price: 499,
+    image_url: "https://images.unsplash.com/photo-1547153760-18fc86324498?auto=format&fit=crop&w=1400&q=80",
+    href: "/competitions",
+    isCompetition: true,
+  },
+  {
+    id: "voice-of-the-nation-season-4",
+    title: "Voice of the Nation - Season 4",
+    category: "Singing & Vocals",
+    date: "2026-11-28",
+    price: 299,
+    image_url: "https://images.unsplash.com/photo-1514525253161-7a46d19cd819?auto=format&fit=crop&w=1400&q=80",
+    href: "/competitions",
+    isCompetition: true,
+  },
+  {
+    id: "nritya-tarang-classical-solo",
+    title: "Nritya Tarang: Classical Solo",
+    category: "Classical Dance",
+    date: "2026-12-05",
+    price: 399,
+    image_url: "https://images.unsplash.com/photo-1518834107812-67b0b7c58434?auto=format&fit=crop&w=1400&q=80",
+    href: "/competitions",
+    isCompetition: true,
+  },
+  {
+    id: "desi-rap-cypher-league",
+    title: "Desi Rap Cypher League",
+    category: "Rap & Beatbox",
+    date: "2026-12-12",
+    price: 199,
+    image_url: "https://images.unsplash.com/photo-1535525153412-5a42439a210d?auto=format&fit=crop&w=1400&q=80",
+    href: "/competitions",
+    isCompetition: true,
+  },
+  {
+    id: "symphony-strings-drums",
+    title: "Symphony Strings & Drums Battle",
+    category: "Instrumental",
+    date: "2026-12-20",
+    price: 349,
+    image_url: "https://images.unsplash.com/photo-1545959570-a94084071b5d?auto=format&fit=crop&w=1400&q=80",
+    href: "/competitions",
+    isCompetition: true,
+  },
+  {
+    id: "mono-act-dramatic-showcase",
+    title: "Mono-Act Dramatic Showcase",
+    category: "Acting & Drama",
+    date: "2026-12-28",
+    price: 249,
+    image_url: "https://images.unsplash.com/photo-1540039155733-5bb30b53aa14?auto=format&fit=crop&w=1400&q=80",
+    href: "/competitions",
+    isCompetition: true,
+  },
+];
 
 const r2 = (v: number) => Math.round(v * 100) / 100;
 
@@ -49,12 +125,57 @@ function quadPath(pts: number[][], r: number) {
   return `${d} Z`;
 }
 
-export default function CoverflowCarousel({ events }: { events: EventItem[] }) {
-  const source = (events || []).slice(0, 12);
+export default function CoverflowCarousel({
+  events,
+  competitions,
+}: {
+  events?: EventItem[];
+  competitions?: any[];
+}) {
+  let source: CoverflowItem[] = [];
+
+  if (competitions !== undefined) {
+    const dbComps: CoverflowItem[] = (competitions || []).map((c: any) => ({
+      id: c._id || c.id || "",
+      title: c.title || c.name || "Competition",
+      subtitle: c.category || "Competition",
+      category: c.category || "Talent Contest",
+      date: c.start_date || c.registration_deadline || c.date,
+      image_url: c.card_image_url || c.image_url || c.banner_image_url || c.banner_url,
+      price: c.participation_fee,
+      href: c._id || c.id ? `/competitions/${c._id || c.id}` : "/competitions",
+      ctaText: "Enter competition",
+      isCompetition: true,
+    }));
+
+    if (dbComps.length >= 6) {
+      source = dbComps.slice(0, 12);
+    } else {
+      // Merge with fallback items so carousel has sufficient cards
+      const existingIds = new Set(dbComps.map((c) => c.id).filter(Boolean));
+      const needed = 6 - dbComps.length;
+      const fill = FALLBACK_COMPETITIONS.filter((f) => !existingIds.has(f.id)).slice(0, needed);
+      source = [...dbComps, ...fill];
+    }
+  } else if (events) {
+    source = (events || []).slice(0, 12).map((ev) => ({
+      id: ev._id,
+      title: ev.title,
+      subtitle: ev.venue || "Venue TBA",
+      category: "Event",
+      date: ev.date,
+      image_url: ev.image_url,
+      price: ev.price,
+      href: `/events/${ev._id}`,
+      ctaText: "Book tickets",
+      isCompetition: false,
+    }));
+  }
+
   const panels: Panel[] = source.length
     ? Array.from({ length: Math.max(10, source.length) }, (_, i) => {
-        const ev = source[i % source.length];
-        return { ev, key: `${ev._id || i}-${i}`, idx: i % source.length };
+        const item = source[i % source.length];
+        return { item, key: `${item.id || i}-${i}`, idx: i % source.length };
       })
     : [];
   const n = panels.length;
@@ -213,8 +334,8 @@ export default function CoverflowCarousel({ events }: { events: EventItem[] }) {
       onPointerCancel={onUp}
     >
       {panels.map((p, i) => {
-        const ev = p.ev;
-        const sd = splitDate(ev.date);
+        const item = p.item;
+        const sd = splitDate(item.date);
         return (
           <div
             key={p.key}
@@ -223,16 +344,16 @@ export default function CoverflowCarousel({ events }: { events: EventItem[] }) {
             style={{ willChange: "transform, clip-path, width, height" }}
           >
             <Link
-              href={`/events/${ev._id}`}
+              href={item.href}
               onClick={(e) => { if (drag.current.moved > 6) e.preventDefault(); }}
               draggable={false}
               className="group relative block size-full"
             >
               <img
-                src={imageFor(ev.image_url, p.idx)}
-                alt=""
+                src={imageFor(item.image_url, p.idx)}
+                alt={item.title}
                 draggable={false}
-                className="absolute inset-0 size-full object-cover"
+                className="absolute inset-0 size-full object-cover transition-transform duration-500 group-hover:scale-105"
               />
               {/* distance shade — panels darken towards the edges of the arch */}
               <span data-shade aria-hidden className="absolute inset-0 bg-[#04050c]" style={{ opacity: 0 }} />
@@ -241,17 +362,36 @@ export default function CoverflowCarousel({ events }: { events: EventItem[] }) {
               <span
                 aria-hidden
                 className="absolute inset-0 opacity-0 transition-opacity duration-300 group-hover:opacity-100"
-                style={{ background: "linear-gradient(180deg, rgba(4,5,12,0) 32%, rgba(4,5,12,0.8) 74%, rgba(4,5,12,0.96) 100%)" }}
+                style={{ background: "linear-gradient(180deg, rgba(4,5,12,0) 25%, rgba(4,5,12,0.85) 72%, rgba(4,5,12,0.98) 100%)" }}
               />
               <div className="absolute inset-x-0 bottom-0 translate-y-3 p-3.5 text-white opacity-0 transition-all duration-300 group-hover:translate-y-0 group-hover:opacity-100">
-                <p className="font-mono text-[10px] uppercase tracking-[0.2em] text-[var(--accent)]">{sd.month} {sd.day}</p>
-                <h3 className="mt-1 font-display text-[0.98rem] font-bold leading-tight line-clamp-2">{ev.title}</h3>
+                <div className="flex items-center justify-between gap-1">
+                  <p className="font-mono text-[10px] uppercase tracking-[0.2em] text-[var(--accent)] font-semibold">
+                    {sd.month ? `${sd.month} ${sd.day}` : "Upcoming"}
+                  </p>
+                  {item.category && (
+                    <span className="rounded-full bg-white/15 px-2 py-0.5 text-[9px] font-mono uppercase tracking-wider text-white/90 backdrop-blur-sm">
+                      {item.category}
+                    </span>
+                  )}
+                </div>
+                <h3 className="mt-1 font-display text-[0.98rem] font-bold leading-tight line-clamp-2">{item.title}</h3>
                 <p className="mt-1 flex items-center gap-1.5 text-[11px] text-white/70">
-                  <MapPin className="size-3 shrink-0" aria-hidden />
-                  <span className="truncate">{ev.venue || "Venue TBA"}</span>
+                  {item.isCompetition ? (
+                    <>
+                      <Trophy className="size-3 shrink-0 text-amber-400" aria-hidden />
+                      <span className="truncate">{item.price && item.price > 0 ? `Entry: ${formatINR(item.price)}` : "Free Entry"}</span>
+                    </>
+                  ) : (
+                    <>
+                      <MapPin className="size-3 shrink-0" aria-hidden />
+                      <span className="truncate">{item.subtitle || "Venue TBA"}</span>
+                    </>
+                  )}
                 </p>
-                <span className="mt-2.5 inline-flex items-center gap-1.5 rounded-full px-3 py-1.5 text-[11px] font-bold text-[var(--on-accent)]" style={{ background: "var(--grad-brand)" }}>
-                  <Ticket className="size-3.5" aria-hidden /> Book tickets
+                <span className="mt-2.5 inline-flex items-center gap-1.5 rounded-full px-3 py-1.5 text-[11px] font-bold text-[var(--on-accent)] shadow-md" style={{ background: "var(--grad-brand)" }}>
+                  {item.isCompetition ? <Trophy className="size-3.5" aria-hidden /> : <Ticket className="size-3.5" aria-hidden />}
+                  {item.ctaText || (item.isCompetition ? "Enter competition" : "Book tickets")}
                 </span>
               </div>
             </Link>
