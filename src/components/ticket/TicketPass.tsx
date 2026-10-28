@@ -595,6 +595,19 @@ export function TicketPass({ ticket, qrData, defaultVariant }: TicketPassProps) 
 
               {/* Content sitting above the background */}
               <div className="relative z-10 size-full flex flex-col justify-between pl-14 pr-6 py-5">
+                {/* Slanted Watermark Stamp on Ticket Body when Fully Used */}
+                {isUsed && (
+                  <div className="pointer-events-none absolute inset-0 z-30 flex items-center justify-center overflow-hidden">
+                    <div className="rotate-[-14deg] rounded-2xl border-4 border-dashed border-red-600/85 bg-red-600/15 px-6 py-2.5 shadow-2xl backdrop-blur-[1.5px]">
+                      <p className="font-display text-xl sm:text-2xl font-black uppercase tracking-[0.16em] text-red-600 text-center">
+                        TICKET VALIDITY EXPIRED
+                      </p>
+                      <p className="font-mono text-[10.5px] font-bold text-center uppercase tracking-widest text-red-600 mt-0.5">
+                        All {quantity} Person(s) Admitted • Cannot Be Re-used
+                      </p>
+                    </div>
+                  </div>
+                )}
                 <div>
                   {/* Header Eyebrow */}
                   <div className="flex items-center justify-between gap-2">
@@ -735,18 +748,33 @@ export function TicketPass({ ticket, qrData, defaultVariant }: TicketPassProps) 
                 </div>
 
                 {/* ── THE CRISP QR CODE CONTAINER (NO OVERLAP, CORS-SAFE) ── */}
-                <div className="my-1 rounded-2xl bg-white p-2 shadow-sm flex flex-col items-center justify-center">
+                <div className="relative my-1 rounded-2xl bg-white p-2 shadow-sm flex flex-col items-center justify-center overflow-hidden">
                   {qrDataUrl ? (
                     <img
                       src={qrDataUrl}
                       alt={`QR for ${ticket.ticket_ref}`}
-                      className="size-24 object-contain block"
+                      className={cn("size-24 object-contain block transition-all", isUsed && "opacity-20 grayscale blur-[0.5px]")}
                     />
                   ) : (
                     <div className="size-24 grid place-items-center bg-zinc-50">
                       <Loader2 className="size-6 animate-spin text-zinc-400" />
                     </div>
                   )}
+
+                  {/* Stamp overlay across QR code when used */}
+                  {isUsed && (
+                    <div className="absolute inset-0 z-20 flex flex-col items-center justify-center bg-rose-950/30 backdrop-blur-[1px] p-1">
+                      <div className="rotate-[-14deg] rounded border-2 border-dashed border-red-600 bg-red-600 px-2 py-0.5 shadow-md">
+                        <span className="font-display text-[9px] font-black uppercase tracking-wider text-white">
+                          VOID • USED
+                        </span>
+                      </div>
+                      <span className="mt-1 font-mono text-[7.5px] font-extrabold text-red-700 bg-white/95 px-1.5 py-0.5 rounded shadow-sm">
+                        {admittedCount}/{quantity} Admitted
+                      </span>
+                    </div>
+                  )}
+
                   <span className="mt-1 font-mono text-[9px] font-black tracking-wider text-zinc-800">
                     {ticket.ticket_ref}
                   </span>
