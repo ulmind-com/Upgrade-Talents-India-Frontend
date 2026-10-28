@@ -248,11 +248,11 @@ export default function CoverflowCarousel({
 
         const leftPx = (xL - CX) * s + ox;
         const wPx = w * s;
-        if (leftPx > bw + 40 || leftPx + wPx < -40) {
-          el.style.display = "none";
+        if (leftPx > bw + 80 || leftPx + wPx < -80) {
+          el.style.visibility = "hidden";
           continue;
         }
-        el.style.display = "";
+        el.style.visibility = "visible";
 
         const topU = Math.min(cy - hL / 2, cy - hR / 2);
         const botU = Math.max(cy + hL / 2, cy + hR / 2);

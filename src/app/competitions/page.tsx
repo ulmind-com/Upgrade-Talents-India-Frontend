@@ -7,8 +7,7 @@ export const metadata: Metadata = {
   title: "Competitions",
   description: "Enter talent competitions and contests — register, submit your entry and climb the leaderboard.",
 };
-export const dynamic = "force-dynamic";
-export const revalidate = 0;
+export const revalidate = 15;
 
 export default async function CompetitionsPage() {
   const items = await safe(publicApi.competitions({ limit: 200 }), []);

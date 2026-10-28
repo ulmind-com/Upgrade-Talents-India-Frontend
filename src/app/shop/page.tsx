@@ -6,8 +6,7 @@ export const metadata: Metadata = {
   title: "Shop",
   description: "Official Upgrade Talents merchandise — hoodies, tees, caps and more.",
 };
-export const dynamic = "force-dynamic";
-export const revalidate = 0;
+export const revalidate = 15;
 
 export default async function ShopPage() {
   const items = await safe(shopApi.products({ limit: 60 }), []);

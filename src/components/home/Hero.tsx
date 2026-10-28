@@ -47,6 +47,37 @@ const DEFAULT_BANNERS: BannerItem[] = [
 
 const AUTO_SLIDE_INTERVAL = 5000; // 5 seconds per slide
 
+function SlideLink({
+  href,
+  children,
+}: {
+  href?: string;
+  children: React.ReactNode;
+}) {
+  if (!href || href === "#") return <div className="size-full">{children}</div>;
+  const isExternal = href.startsWith("http://") || href.startsWith("https://");
+  if (isExternal) {
+    return (
+      <a
+        href={href}
+        target="_blank"
+        rel="noopener noreferrer"
+        className="block size-full cursor-pointer focus:outline-none focus:ring-2 focus:ring-[#BFFF2E]"
+      >
+        {children}
+      </a>
+    );
+  }
+  return (
+    <Link
+      href={href}
+      className="block size-full cursor-pointer focus:outline-none focus:ring-2 focus:ring-[#BFFF2E]"
+    >
+      {children}
+    </Link>
+  );
+}
+
 export default function Hero({
   banners = [],
   events = [],
@@ -126,56 +157,26 @@ export default function Hero({
       <div className="relative w-full overflow-hidden rounded-2xl sm:rounded-3xl bg-[#090B10] border border-white/10 dark:border-white/10 shadow-[0_20px_50px_rgba(0,0,0,0.6)] group">
         
         {/* Banner Images Carousel View */}
-        <div className="relative w-full">
+        <div className="relative w-full aspect-[16/9] max-h-[580px] hidden md:block overflow-hidden bg-[#0A0D14]">
           {slides.map((slide, idx) => {
             const isActive = idx === current;
             const desktopSrc = slide.image_url_desktop || slide.image_url;
-            const mobileSrc = slide.image_url_mobile || slide.mobile_image_url || desktopSrc;
-            const hasMobileSpecific = !!(slide.image_url_mobile || slide.mobile_image_url);
-
-            const isExternal = slide.target_url && (slide.target_url.startsWith("http://") || slide.target_url.startsWith("https://"));
-            const href = slide.target_url || "#";
-
-            const SlideWrapper = ({ children }: { children: React.ReactNode }) => {
-              if (!slide.target_url) return <div className="w-full h-full">{children}</div>;
-              if (isExternal) {
-                return (
-                  <a
-                    href={href}
-                    target="_blank"
-                    rel="noopener noreferrer"
-                    className="block w-full h-full cursor-pointer focus:outline-none focus:ring-2 focus:ring-[#BFFF2E]"
-                  >
-                    {children}
-                  </a>
-                );
-              }
-              return (
-                <Link
-                  href={href}
-                  className="block w-full h-full cursor-pointer focus:outline-none focus:ring-2 focus:ring-[#BFFF2E]"
-                >
-                  {children}
-                </Link>
-              );
-            };
 
             return (
               <div
-                key={slide._id || `slide-${idx}`}
-                className={`transition-opacity duration-700 ease-in-out ${
-                  isActive ? "opacity-100 z-10 relative" : "opacity-0 z-0 absolute inset-0 pointer-events-none"
+                key={slide._id ? `desktop-${slide._id}` : `desktop-slide-${idx}`}
+                className={`absolute inset-0 size-full transition-opacity duration-700 ease-in-out will-change-[opacity] ${
+                  isActive ? "opacity-100 z-10 pointer-events-auto" : "opacity-0 z-0 pointer-events-none"
                 }`}
                 aria-hidden={!isActive}
               >
-                <SlideWrapper>
-                  {/* DESKTOP VIEW (16:9 Aspect Ratio) */}
-                  <div className="hidden md:block w-full aspect-[16/9] max-h-[580px] relative overflow-hidden bg-[#0A0D14]">
+                <SlideLink href={slide.target_url}>
+                  <div className="relative size-full overflow-hidden">
                     <img
                       src={desktopSrc}
                       alt={slide.title || "Hero Banner"}
                       className="size-full object-cover object-center transition-transform duration-1000 ease-out group-hover:scale-[1.01]"
-                      loading={idx === 0 ? "eager" : "lazy"}
+                      decoding="async"
                     />
 
                     {/* Subtle aesthetic gradient overlay at bottom for depth */}
@@ -193,20 +194,33 @@ export default function Hero({
                       </div>
                     )}
                   </div>
+                </SlideLink>
+              </div>
+            );
+          })}
+        </div>
 
-                  {/* MOBILE VIEW (9:16 Aspect Ratio if mobile image exists, else responsive 16:9) */}
-                  <div
-                    className={`block md:hidden w-full relative overflow-hidden bg-[#0A0D14] ${
-                      hasMobileSpecific
-                        ? "aspect-[9/16] max-h-[560px]"
-                        : "aspect-[16/9] sm:aspect-[16/10]"
-                    }`}
-                  >
+        {/* MOBILE VIEW */}
+        <div className="relative w-full aspect-[16/10] sm:aspect-[16/9] block md:hidden overflow-hidden bg-[#0A0D14]">
+          {slides.map((slide, idx) => {
+            const isActive = idx === current;
+            const mobileSrc = slide.image_url_mobile || slide.mobile_image_url || slide.image_url_desktop || slide.image_url;
+
+            return (
+              <div
+                key={slide._id ? `mobile-${slide._id}` : `mobile-slide-${idx}`}
+                className={`absolute inset-0 size-full transition-opacity duration-700 ease-in-out will-change-[opacity] ${
+                  isActive ? "opacity-100 z-10 pointer-events-auto" : "opacity-0 z-0 pointer-events-none"
+                }`}
+                aria-hidden={!isActive}
+              >
+                <SlideLink href={slide.target_url}>
+                  <div className="relative size-full overflow-hidden">
                     <img
                       src={mobileSrc}
                       alt={slide.title || "Mobile Hero Banner"}
                       className="size-full object-cover object-center"
-                      loading={idx === 0 ? "eager" : "lazy"}
+                      decoding="async"
                     />
 
                     {/* Subtle mobile gradient */}
@@ -221,7 +235,7 @@ export default function Hero({
                       </div>
                     )}
                   </div>
-                </SlideWrapper>
+                </SlideLink>
               </div>
             );
           })}

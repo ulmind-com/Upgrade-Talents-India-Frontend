@@ -127,7 +127,7 @@ export default function IntroAnimation({
   subtitle?: string;
   introTitle?: string;
 } = {}) {
-  const [introPhase, setIntroPhase] = useState<AnimationPhase>("scatter");
+  const [introPhase, setIntroPhase] = useState<AnimationPhase>("circle");
   const [containerSize, setContainerSize] = useState({ width: 0, height: 0 });
   const [trackVh, setTrackVh] = useState(300);
   const containerRef = useRef<HTMLDivElement>(null);
@@ -197,19 +197,10 @@ export default function IntroAnimation({
     return () => container.removeEventListener("mousemove", handleMouseMove);
   }, [mouseX]);
 
-  /* Intro sequence */
+  /* Intro sequence - keep stable without sudden jumping */
   useEffect(() => {
-    if (scrollYProgress.get() > 0.01) {
-      setIntroPhase("circle");
-      return;
-    }
-    const timer1 = setTimeout(() => setIntroPhase("line"), 400);
-    const timer2 = setTimeout(() => setIntroPhase("circle"), 1800);
-    return () => {
-      clearTimeout(timer1);
-      clearTimeout(timer2);
-    };
-  }, [scrollYProgress]);
+    setIntroPhase("circle");
+  }, []);
 
   /* Immediately snap to circle if scrolled into view */
   useMotionValueEvent(scrollYProgress, "change", (v) => {

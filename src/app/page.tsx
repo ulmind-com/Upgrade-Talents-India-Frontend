@@ -9,8 +9,7 @@ import ScrollMorphShowcase from "@/components/home/ScrollMorphShowcase";
 import StudioShowcase from "@/components/home/StudioShowcase";
 import { publicApi, safe, type HomepagePayload } from "@/lib/api";
 
-export const dynamic = "force-dynamic";
-export const revalidate = 0;
+export const revalidate = 15;
 
 const EMPTY: HomepagePayload = {
   brand: {},

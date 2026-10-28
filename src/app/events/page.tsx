@@ -8,8 +8,7 @@ export const metadata: Metadata = {
   description: "Browse and book tickets for upcoming dance events, battles and showcases.",
 };
 
-export const dynamic = "force-dynamic";
-export const revalidate = 0;
+export const revalidate = 15;
 
 export default async function EventsPage() {
   const [events, banners, settings] = await Promise.all([

@@ -7,8 +7,7 @@ import { imageFor } from "@/lib/utils";
 import { publicApi, safe } from "@/lib/api";
 
 export const metadata: Metadata = { title: "About", description: "Who we are — the team building India's biggest dance stage." };
-export const dynamic = "force-dynamic";
-export const revalidate = 0;
+export const revalidate = 15;
 
 const VALUES = [
   { Icon: Flame, title: "Stage first", body: "Every decision we make starts with one question — does it make the performance better?" },

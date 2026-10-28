@@ -284,24 +284,24 @@ export type MyTicket = {
 /* ─────────────── PUBLIC (/api/v1) ─────────────── */
 
 export const publicApi = {
-  homepage: () => apiFetch<HomepagePayload>("/api/v1/homepage", { cache: "no-store" }),
-  settings: () => apiFetch<Record<string, any>>("/api/v1/website-settings", { cache: "no-store" }),
+  homepage: () => apiFetch<HomepagePayload>("/api/v1/homepage", { revalidate: 15 }),
+  settings: () => apiFetch<Record<string, any>>("/api/v1/website-settings", { revalidate: 30 }),
   upcomingEvents: (p: { skip?: number; limit?: number; search?: string } = {}) =>
-    apiFetch<EventItem[]>("/api/v1/events/upcoming", { query: p, cache: "no-store" }),
-  liveEvents: () => apiFetch<LiveEventItem[]>("/api/v1/events/live", { cache: "no-store" }),
-  banners: () => apiFetch<BannerItem[]>("/api/v1/banners", { cache: "no-store" }),
-  testimonials: () => apiFetch<TestimonialItem[]>("/api/v1/testimonials", { cache: "no-store" }),
+    apiFetch<EventItem[]>("/api/v1/events/upcoming", { query: p, revalidate: 15 }),
+  liveEvents: () => apiFetch<LiveEventItem[]>("/api/v1/events/live", { revalidate: 15 }),
+  banners: () => apiFetch<BannerItem[]>("/api/v1/banners", { revalidate: 15 }),
+  testimonials: () => apiFetch<TestimonialItem[]>("/api/v1/testimonials", { revalidate: 60 }),
   courses: (p: { skip?: number; limit?: number } = {}) =>
-    apiFetch<CourseItem[]>("/api/v1/courses", { query: p, cache: "no-store" }),
+    apiFetch<CourseItem[]>("/api/v1/courses", { query: p, revalidate: 15 }),
   workshops: (p: { skip?: number; limit?: number } = {}) =>
-    apiFetch<CourseItem[]>("/api/v1/workshops", { query: p, cache: "no-store" }),
-  contestPromotions: () => apiFetch<ContestPromotion[]>("/api/v1/contest-promotions", { cache: "no-store" }),
-  featuredTiles: () => apiFetch<FeaturedTileItem[]>("/api/v1/featured-tiles", { cache: "no-store" }),
-  appPromotion: () => apiFetch<Record<string, any>>("/api/v1/app-promotion", { cache: "no-store" }),
-  contactInfo: () => apiFetch<Record<string, any>>("/api/v1/contact-info", { cache: "no-store" }),
-  importantLinks: () => apiFetch<any[]>("/api/v1/important-links", { cache: "no-store" }),
+    apiFetch<CourseItem[]>("/api/v1/workshops", { query: p, revalidate: 15 }),
+  contestPromotions: () => apiFetch<ContestPromotion[]>("/api/v1/contest-promotions", { revalidate: 15 }),
+  featuredTiles: () => apiFetch<FeaturedTileItem[]>("/api/v1/featured-tiles", { revalidate: 15 }),
+  appPromotion: () => apiFetch<Record<string, any>>("/api/v1/app-promotion", { revalidate: 60 }),
+  contactInfo: () => apiFetch<Record<string, any>>("/api/v1/contact-info", { revalidate: 60 }),
+  importantLinks: () => apiFetch<any[]>("/api/v1/important-links", { revalidate: 30 }),
   competitions: (p: { skip?: number; limit?: number; search?: string } = {}) =>
-    apiFetch<any[]>("/api/activities/competitions", { query: { limit: 200, ...p }, cache: "no-store" }).then(
+    apiFetch<any[]>("/api/activities/competitions", { query: { limit: 200, ...p }, revalidate: 15 }).then(
       (list) =>
         Array.isArray(list)
           ? [...list].sort(
@@ -312,23 +312,23 @@ export const publicApi = {
           : []
     ),
   competition: (id: string) =>
-    apiFetch<any>(`/api/activities/competitions/${id}`, { cache: "no-store" }).catch(() =>
-      apiFetch<any>(`/api/v1/competitions/${id}`, { cache: "no-store" })
+    apiFetch<any>(`/api/activities/competitions/${id}`, { revalidate: 10 }).catch(() =>
+      apiFetch<any>(`/api/v1/competitions/${id}`, { revalidate: 10 })
     ),
   results: (id: string) =>
-    apiFetch<any>(`/api/v1/competitions/${id}/results`, { cache: "no-store" }),
+    apiFetch<any>(`/api/v1/competitions/${id}/results`, { revalidate: 10 }),
   contestantFeedbacks: (compId: string, submissionId: string) =>
-    apiFetch<any[]>(`/api/v1/competitions/${compId}/contestants/${submissionId}/feedbacks`, { cache: "no-store" }),
+    apiFetch<any[]>(`/api/v1/competitions/${compId}/contestants/${submissionId}/feedbacks`, { revalidate: 10 }),
   liveVoting: () =>
     apiFetch<any[]>("/api/v1/users/me/home/live-voting", { auth: true, cache: "no-store" }).catch(() =>
       apiFetch<any[]>("/api/public/users/me/home/live-voting", { cache: "no-store" }).catch(() => [])
     ),
   leaderboard: (id: string) =>
-    apiFetch<{ ranking_mode?: string; leaderboard?: any[] }>(`/api/v1/competitions/${id}/leaderboard`, { cache: "no-store" }).catch(() =>
-      apiFetch<{ ranking_mode?: string; leaderboard?: any[] }>(`/api/public/competitions/${id}/leaderboard`, { cache: "no-store" })
+    apiFetch<{ ranking_mode?: string; leaderboard?: any[] }>(`/api/v1/competitions/${id}/leaderboard`, { revalidate: 10 }).catch(() =>
+      apiFetch<{ ranking_mode?: string; leaderboard?: any[] }>(`/api/public/competitions/${id}/leaderboard`, { revalidate: 10 })
     ),
   verifyCertificate: (token: string) =>
-    apiFetch<any>(`/api/public/certificates/verify/${encodeURIComponent(token)}`, { cache: "no-store" }),
+    apiFetch<any>(`/api/public/certificates/verify/${encodeURIComponent(token)}`, { revalidate: 30 }),
 };
 
 /* ─────────────── COMPETE (register / submit / vote — auth) ─────────────── */
@@ -386,12 +386,12 @@ export const competeApi = {
 
 export const shopApi = {
   products: (p: { skip?: number; limit?: number; search?: string; category?: string } = {}) =>
-    apiFetch<any>("/api/merchandise/products", { query: { limit: 60, ...p }, cache: "no-store" }).then(
+    apiFetch<any>("/api/merchandise/products", { query: { limit: 60, ...p }, revalidate: 15 }).then(
       (d) => (Array.isArray(d) ? d : d?.products || []) as any[]
     ),
   product: (id: string) =>
-    apiFetch<any>(`/api/merchandise/products/${id}`, { cache: "no-store" }).then((d) => d?.product ?? d),
-  categories: () => apiFetch<any[]>("/api/merchandise/categories", { cache: "no-store" }),
+    apiFetch<any>(`/api/merchandise/products/${id}`, { revalidate: 15 }).then((d) => d?.product ?? d),
+  categories: () => apiFetch<any[]>("/api/merchandise/categories", { revalidate: 30 }),
   createOrder: (payload: { items: { product_id: string; variant_id?: string; quantity: number }[]; shipping_address: Record<string, string> }) =>
     apiFetch<any>("/api/merchandise/orders", { method: "POST", auth: true, body: payload }),
   verifyPayment: (body: {
