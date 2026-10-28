@@ -21,6 +21,16 @@ const EMPTY: HomepagePayload = {
     label: "What's next",
     view_all_url: "/competitions",
   },
+  homepage_stats: [
+    { label: "Live events", value: 12, suffix: "+", icon: "calendar" },
+    { label: "Dancers on stage", value: 25000, suffix: "+", icon: "users" },
+    { label: "Masterclasses", value: 40, suffix: "+", icon: "graduation" },
+    { label: "Cities covered", value: 28, suffix: "", icon: "trophy" },
+  ],
+  live_stage_section: {
+    title: "Live Stage",
+    label: "Streaming right now",
+  },
   live_events: [],
   sponsored_banners: [],
   testimonials: [],
@@ -58,8 +68,12 @@ export default async function HomePage() {
         sectionConfig={data.competitions_section}
       />
       <StudioShowcase events={data.upcoming_events} />
-      <Stats eventCount={data.upcoming_events.length} courseCount={data.courses.length + data.workshops.length} />
-      <LiveNow items={data.live_events} />
+      <Stats
+        eventCount={data.upcoming_events.length}
+        courseCount={data.courses.length + data.workshops.length}
+        stats={data.homepage_stats}
+      />
+      <LiveNow items={data.live_events} sectionConfig={data.live_stage_section} />
       <ContestBand items={data.contest_promotions} />
       <LearnGrid title="Masterclasses" label="Courses" items={data.courses} href="/courses" />
       <LearnGrid title="Workshops" label="Workshops" items={data.workshops} href="/workshops" />

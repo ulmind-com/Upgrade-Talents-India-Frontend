@@ -219,6 +219,13 @@ export type FeaturedTileItem = {
   display_order?: number;
 };
 
+export type HomepageStatItem = {
+  label: string;
+  value: number;
+  suffix?: string;
+  icon?: string;
+};
+
 export type HomepagePayload = {
   brand: {
     name?: string; logo?: string; favicon?: string;
@@ -227,6 +234,8 @@ export type HomepagePayload = {
   upcoming_events: EventItem[];
   upcoming_competitions?: any[];
   competitions_section?: { title?: string; label?: string; view_all_url?: string };
+  homepage_stats?: HomepageStatItem[];
+  live_stage_section?: { title?: string; label?: string };
   live_events: LiveEventItem[];
   sponsored_banners: BannerItem[];
   testimonials: TestimonialItem[];

@@ -11,7 +11,7 @@ import { Reveal, StaggerGroup, StaggerItem, SplitHeading, Parallax } from "@/com
 import { Badge, Button, Magnetic, SectionLabel, Spotlights, TiltCard } from "@/components/ui/Primitives";
 import { GooglePlayIcon, AppleIcon } from "@/components/ui/Icons";
 import { cn, formatINR, imageFor, isUsableImageUrl, splitDate, truncate, isEventExpired, isDeadlinePassed } from "@/lib/utils";
-import type { BannerItem, ContestPromotion, CourseItem, EventItem, LiveEventItem, TestimonialItem } from "@/lib/api";
+import type { BannerItem, ContestPromotion, CourseItem, EventItem, HomepageStatItem, LiveEventItem, TestimonialItem } from "@/lib/api";
 import CoverflowCarousel from "./CoverflowCarousel";
 
 /* ═══════════ MARQUEE TICKER ═══════════ */
@@ -38,15 +38,24 @@ export function Marquee({ words = ["JOIN THE MOVEMENT", "BOOK YOUR STAGE", "DANC
 
 /* ═══════════ LIVE NOW ═══════════ */
 
-export function LiveNow({ items }: { items: LiveEventItem[] }) {
+export function LiveNow({
+  items,
+  sectionConfig,
+}: {
+  items: LiveEventItem[];
+  sectionConfig?: { title?: string; label?: string };
+}) {
   if (!items?.length) return null;
+  const label = sectionConfig?.label || "Streaming right now";
+  const title = sectionConfig?.title || "Live Stage";
+
   return (
     <section className="relative overflow-hidden py-20 md:py-28">
       <Spotlights variant="c" />
       <div className="container-x relative">
         <Reveal>
-          <SectionLabel>Streaming right now</SectionLabel>
-          <SplitHeading text="Live Stage" className="mt-5 font-display text-[clamp(2.2rem,6vw,4.2rem)] font-bold uppercase" />
+          <SectionLabel>{label}</SectionLabel>
+          <SplitHeading text={title} className="mt-5 font-display text-[clamp(2.2rem,6vw,4.2rem)] font-bold uppercase" />
         </Reveal>
 
         <StaggerGroup className="mt-12 grid gap-6 md:grid-cols-2 lg:grid-cols-3">
@@ -271,13 +280,43 @@ function Counter({ to, suffix = "" }: { to: number; suffix?: string }) {
   return <span ref={ref} className="tabular-nums">{val.toLocaleString("en-IN")}{suffix}</span>;
 }
 
-export function Stats({ eventCount = 0, courseCount = 0 }: { eventCount?: number; courseCount?: number }) {
-  const stats = [
+export function Stats({
+  eventCount = 0,
+  courseCount = 0,
+  stats: customStats,
+}: {
+  eventCount?: number;
+  courseCount?: number;
+  stats?: HomepageStatItem[];
+}) {
+  const iconMap: Record<string, any> = {
+    calendar: CalendarDays,
+    users: Users,
+    graduation: GraduationCap,
+    trophy: Trophy,
+    clock: Clock,
+    sparkles: Sparkles,
+  };
+
+  const defaultStats = [
     { label: "Live events", value: Math.max(eventCount, 12), suffix: "+", Icon: CalendarDays },
     { label: "Dancers on stage", value: 25000, suffix: "+", Icon: Users },
     { label: "Masterclasses", value: Math.max(courseCount, 40), suffix: "+", Icon: GraduationCap },
     { label: "Cities covered", value: 28, suffix: "", Icon: Trophy },
   ];
+
+  const stats = (customStats && customStats.length > 0)
+    ? customStats.map((cs, idx) => {
+        const fallbackIcon = [CalendarDays, Users, GraduationCap, Trophy][idx % 4];
+        const IconComponent = (cs.icon && iconMap[cs.icon.toLowerCase()]) || fallbackIcon;
+        return {
+          label: cs.label,
+          value: Number(cs.value) ?? 0,
+          suffix: cs.suffix ?? "",
+          Icon: IconComponent,
+        };
+      })
+    : defaultStats;
 
   return (
     <section className="relative border-y border-[var(--border)] bg-[var(--bg-elevated)] py-14 noise">
