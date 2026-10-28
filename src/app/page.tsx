@@ -1,4 +1,5 @@
 import Hero from "@/components/home/Hero";
+import BannerSlider from "@/components/home/BannerSlider";
 import { ScrollCue, QuadTiles, FeaturedShow, PhotoStrip } from "@/components/home/Theater";
 import {
   AppPromo, ContestBand, LearnGrid, LiveNow, Marquee,
@@ -48,7 +49,6 @@ export default async function HomePage() {
   return (
     <>
       <Hero
-        banners={data.sponsored_banners}
         events={data.upcoming_events}
         brandTitle={data.brand?.title}
         brandTagline={data.brand?.tagline}
@@ -57,6 +57,7 @@ export default async function HomePage() {
 
       <ScrollCue />
       <QuadTiles events={data.upcoming_events} tiles={data.featured_tiles} />
+      <BannerSlider banners={data.sponsored_banners} />
       <FeaturedShow
         events={data.upcoming_events}
         competitions={data.upcoming_competitions}

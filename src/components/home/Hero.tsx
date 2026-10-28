@@ -1,297 +1,364 @@
 "use client";
 
 import Link from "next/link";
-import { useEffect, useMemo, useRef, useState, useCallback } from "react";
-import { ChevronLeft, ChevronRight, ExternalLink, Sparkles } from "lucide-react";
-import type { BannerItem, EventItem } from "@/lib/api";
+import { useEffect, useMemo, useRef, useState } from "react";
+import { AnimatePresence, motion, useMotionValue, useReducedMotion, useScroll, useSpring, useTransform } from "framer-motion";
+import { Share2, ArrowRight, Pause, Play } from "lucide-react";
+import StageRibbons from "./StageRibbons";
+import { FALLBACK_IMAGES, imageFor } from "@/lib/utils";
+import type { EventItem } from "@/lib/api";
 
-// Fallback high-impact banners for Upgrade Talents India if no custom banners are active yet
-const DEFAULT_BANNERS: BannerItem[] = [
-  {
-    _id: "default-1",
-    title: "Grand Dance Championship 2026",
-    description: "Official Nationwide Talent Auditions — Register & Perform on India's Biggest Stage",
-    sponsor_name: "Upgrade Talents India",
-    // 16:9 ratio high-res desktop banner
-    image_url: "https://images.unsplash.com/photo-1547153760-18fc86324498?q=80&w=1920&auto=format&fit=crop",
-    image_url_desktop: "https://images.unsplash.com/photo-1547153760-18fc86324498?q=80&w=1920&auto=format&fit=crop",
-    // 9:16 ratio vertical mobile banner
-    image_url_mobile: "https://images.unsplash.com/photo-1508700115892-45ecd05ae2ad?q=80&w=1080&auto=format&fit=crop",
-    target_url: "/competitions",
-  },
-  {
-    _id: "default-2",
-    title: "Voice of India — Live Singing Auditions",
-    description: "Evaluated by Celebrity Accreditation Judges — Win National Recognition & Cash Prizes",
-    sponsor_name: "Star Arena",
-    // 16:9 ratio high-res desktop banner
-    image_url: "https://images.unsplash.com/photo-1516450360452-9312f5e86fc7?q=80&w=1920&auto=format&fit=crop",
-    image_url_desktop: "https://images.unsplash.com/photo-1516450360452-9312f5e86fc7?q=80&w=1920&auto=format&fit=crop",
-    // 9:16 ratio vertical mobile banner
-    image_url_mobile: "https://images.unsplash.com/photo-1511671782779-c97d3d27a1d4?q=80&w=1080&auto=format&fit=crop",
-    target_url: "/events",
-  },
-  {
-    _id: "default-3",
-    title: "Masterclass & Workshop Series",
-    description: "Learn Directly from Master Choreographers & Industry Performing Artists",
-    sponsor_name: "UTI Academy",
-    // 16:9 ratio high-res desktop banner
-    image_url: "https://images.unsplash.com/photo-1469488865564-c2de10f69f96?q=80&w=1920&auto=format&fit=crop",
-    image_url_desktop: "https://images.unsplash.com/photo-1469488865564-c2de10f69f96?q=80&w=1920&auto=format&fit=crop",
-    // 9:16 ratio vertical mobile banner
-    image_url_mobile: "https://images.unsplash.com/photo-1514306191717-452ec28c7814?q=80&w=1080&auto=format&fit=crop",
-    target_url: "/courses",
-  },
+const TABS = ["Training", "Collection", "Inspiration"];
+const ROTATE_MS = 4500;
+/** Thumbnails visible in the rail at any moment. */
+const RAIL_SIZE = 3;
+
+/* Glowing colour dots along the bottom-left edge, as in the reference. */
+const BUBBLES = [
+  { c: "#ff86d4", s: 20, x: 3.2, d: 0 },
+  { c: "#ff8f83", s: 20, x: 7.0, d: 0.7 },
+  { c: "#4fe0a6", s: 34, x: 11.2, d: 1.4 },
+  { c: "#ffd45e", s: 18, x: 15.6, d: 2.1 },
+  { c: "#c3b2ff", s: 38, x: 19.4, d: 0.9 },
+  { c: "#6fd4ff", s: 20, x: 24.2, d: 2.6 },
 ];
 
-const AUTO_SLIDE_INTERVAL = 5000; // 5 seconds per slide
-
-function SlideLink({
-  href,
-  children,
-}: {
-  href?: string;
-  children: React.ReactNode;
-}) {
-  if (!href || href === "#") return <div className="size-full">{children}</div>;
-  const isExternal = href.startsWith("http://") || href.startsWith("https://");
-  if (isExternal) {
-    return (
-      <a
-        href={href}
-        target="_blank"
-        rel="noopener noreferrer"
-        className="block size-full cursor-pointer focus:outline-none focus:ring-2 focus:ring-[#BFFF2E]"
-      >
-        {children}
-      </a>
-    );
-  }
-  return (
-    <Link
-      href={href}
-      className="block size-full cursor-pointer focus:outline-none focus:ring-2 focus:ring-[#BFFF2E]"
-    >
-      {children}
-    </Link>
-  );
-}
+type Shot = { id: string; src?: string | null; title: string; href: string };
 
 export default function Hero({
-  banners = [],
   events = [],
   brandTitle,
   brandTagline,
   brandBody,
 }: {
-  banners?: BannerItem[];
   events?: EventItem[];
   brandTitle?: string;
   brandTagline?: string;
   brandBody?: string;
 }) {
-  // Use admin uploaded banners if available; otherwise use default UTI banners
-  const slides = useMemo(() => {
-    const valid = (banners || []).filter((b) => b && (b.image_url || b.image_url_desktop || b.image_url_mobile));
-    return valid.length > 0 ? valid : DEFAULT_BANNERS;
-  }, [banners]);
+  const reduce = useReducedMotion();
+  const ref = useRef<HTMLElement>(null);
+  const [index, setIndex] = useState(0);
+  const [tab, setTab] = useState(0);
+  const [paused, setPaused] = useState(false);
+  const [stopped, setStopped] = useState(false);
 
-  const [current, setCurrent] = useState(0);
-  const [isPaused, setIsPaused] = useState(false);
-  const touchStartX = useRef<number | null>(null);
-  const touchEndX = useRef<number | null>(null);
+  /* One gallery pool drives both the hero backdrop and the rail.
+     CMS events come first; curated stills top it up so the motion
+     never stalls on a thin content set. */
+  const pool: Shot[] = useMemo(() => {
+    const fromCms: Shot[] = events.slice(0, 8).map((e, i) => ({
+      id: e._id,
+      src: e.image_url || FALLBACK_IMAGES[i % FALLBACK_IMAGES.length],
+      title: e.title,
+      href: `/events/${e._id}`,
+    }));
+    if (fromCms.length >= RAIL_SIZE + 2) return fromCms;
+    const pad = FALLBACK_IMAGES.slice(0, RAIL_SIZE + 2 - fromCms.length).map((src, i) => ({
+      id: `still-${i}`,
+      src,
+      title: "",
+      href: "/events",
+    }));
+    return [...fromCms, ...pad];
+  }, [events]);
 
-  const total = slides.length;
+  const count = pool.length;
+  const current = pool[index % count];
+  const currentEvent = events.find((e) => e._id === current?.id);
 
-  const nextSlide = useCallback(() => {
-    setCurrent((prev) => (prev + 1) % total);
-  }, [total]);
+  /* The rail holds the stills that have just left the hero — newest first.
+     Each tick pushes a new tile in on the left and the queue marches right. */
+  const rail = useMemo(
+    () => Array.from({ length: RAIL_SIZE }, (_, k) => pool[(index - 1 - k + count * 4) % count]),
+    [pool, index, count]
+  );
 
-  const prevSlide = useCallback(() => {
-    setCurrent((prev) => (prev - 1 + total) % total);
-  }, [total]);
+  const running = !reduce && !paused && !stopped && count > 1;
 
-  const goToSlide = (idx: number) => {
-    setCurrent(idx);
-  };
-
-  // Auto-slide timer
   useEffect(() => {
-    if (total <= 1 || isPaused) return;
-    const timer = setInterval(nextSlide, AUTO_SLIDE_INTERVAL);
-    return () => clearInterval(timer);
-  }, [total, isPaused, nextSlide]);
+    if (!running) return;
+    const id = setInterval(() => setIndex((i) => (i + 1) % count), ROTATE_MS);
+    return () => clearInterval(id);
+  }, [running, count]);
 
-  // Touch swipe handling for mobile
-  const handleTouchStart = (e: React.TouchEvent) => {
-    touchStartX.current = e.touches[0].clientX;
+  /* Scroll parallax */
+  const { scrollYProgress } = useScroll({ target: ref, offset: ["start start", "end start"] });
+  const figureY = useTransform(scrollYProgress, [0, 1], [0, 90]);
+  const copyY = useTransform(scrollYProgress, [0, 1], [0, 150]);
+  const fade = useTransform(scrollYProgress, [0, 0.7], [1, 0]);
+
+  /* Pointer parallax — depth on an otherwise flat composition */
+  const px = useMotionValue(0);
+  const py = useMotionValue(0);
+  const figX = useSpring(useTransform(px, [-0.5, 0.5], [-18, 18]), { stiffness: 90, damping: 22 });
+  const figY2 = useSpring(useTransform(py, [-0.5, 0.5], [-12, 12]), { stiffness: 90, damping: 22 });
+  const ribX = useSpring(useTransform(px, [-0.5, 0.5], [22, -22]), { stiffness: 60, damping: 24 });
+
+  const onPointerMove = (e: React.PointerEvent<HTMLElement>) => {
+    if (reduce) return;
+    const r = ref.current?.getBoundingClientRect();
+    if (!r) return;
+    px.set((e.clientX - r.left) / r.width - 0.5);
+    py.set((e.clientY - r.top) / r.height - 0.5);
   };
 
-  const handleTouchMove = (e: React.TouchEvent) => {
-    touchEndX.current = e.touches[0].clientX;
-  };
+  /* Headline is brand-level — the gallery drives the imagery, not the words. */
+  const rawTitle = (brandTitle || "let`s start Dance").trim();
+  const parts = rawTitle.split(/\s+/);
+  const lead = parts.length > 1 ? parts.slice(0, -1).join(" ") : "let`s start";
+  const punch = parts.length > 1 ? parts[parts.length - 1] : rawTitle;
 
-  const handleTouchEnd = () => {
-    if (touchStartX.current === null || touchEndX.current === null) return;
-    const diff = touchStartX.current - touchEndX.current;
-    if (Math.abs(diff) > 40) {
-      if (diff > 0) nextSlide();
-      else prevSlide();
-    }
-    touchStartX.current = null;
-    touchEndX.current = null;
-  };
+  const leadSize =
+    lead.length <= 12 ? "clamp(2.1rem,5.4vw,4.4rem)"
+    : lead.length <= 20 ? "clamp(1.8rem,4.2vw,3.4rem)"
+    : "clamp(1.5rem,3.2vw,2.6rem)";
+  const punchSize =
+    punch.length <= 7 ? "clamp(2.9rem,8.2vw,6.6rem)"
+    : punch.length <= 11 ? "clamp(2.5rem,6.2vw,5rem)"
+    : "clamp(2rem,4.8vw,3.6rem)";
+
+  const body =
+    brandBody ||
+    brandTagline ||
+    "Dance classes are privately scheduled dance sessions offered In-Studio or Online to a small group of friends or family members.";
+
+  const ease = [0.16, 1, 0.3, 1] as const;
 
   return (
     <section
-      className="relative w-full max-w-[1440px] mx-auto px-3 sm:px-6 lg:px-8 pt-[74px] sm:pt-[86px] md:pt-[92px] pb-6 sm:pb-10 select-none"
-      aria-label="Hero Banner Carousel"
-      onMouseEnter={() => setIsPaused(true)}
-      onMouseLeave={() => setIsPaused(false)}
-      onTouchStart={handleTouchStart}
-      onTouchMove={handleTouchMove}
-      onTouchEnd={handleTouchEnd}
+      ref={ref}
+      onPointerMove={onPointerMove}
+      onMouseEnter={() => setPaused(true)}
+      onMouseLeave={() => setPaused(false)}
+      onFocusCapture={() => setPaused(true)}
+      onBlurCapture={() => setPaused(false)}
+      className="stage-bg on-media relative isolate flex min-h-dvh flex-col overflow-hidden"
     >
-      {/* Outer Banner Card Container (with rounded corners like reference screenshots) */}
-      <div className="relative w-full overflow-hidden rounded-2xl sm:rounded-3xl bg-[#090B10] border border-white/10 dark:border-white/10 shadow-[0_20px_50px_rgba(0,0,0,0.6)] group">
-        
-        {/* Banner Images Carousel View */}
-        <div className="relative w-full aspect-[16/9] max-h-[580px] hidden md:block overflow-hidden bg-[#0A0D14]">
-          {slides.map((slide, idx) => {
-            const isActive = idx === current;
-            const desktopSrc = slide.image_url_desktop || slide.image_url;
+      {/* Ribbon lines */}
+      <motion.div style={{ x: reduce ? 0 : ribX }} className="absolute inset-0 -z-20">
+        <StageRibbons className="ribbon-drift absolute inset-0 size-full" />
+      </motion.div>
 
-            return (
-              <div
-                key={slide._id ? `desktop-${slide._id}` : `desktop-slide-${idx}`}
-                className={`absolute inset-0 size-full transition-opacity duration-700 ease-in-out will-change-[opacity] ${
-                  isActive ? "opacity-100 z-10 pointer-events-auto" : "opacity-0 z-0 pointer-events-none"
-                }`}
-                aria-hidden={!isActive}
-              >
-                <SlideLink href={slide.target_url}>
-                  <div className="relative size-full overflow-hidden">
-                    <img
-                      src={desktopSrc}
-                      alt={slide.title || "Hero Banner"}
-                      className="size-full object-cover object-center transition-transform duration-1000 ease-out group-hover:scale-[1.01]"
-                      decoding="async"
-                    />
+      {/* Light bloom behind the performer */}
+      <div
+        aria-hidden
+        className="pointer-events-none absolute -z-20 rounded-full blur-[110px]"
+        style={{ background: "var(--stage-bloom)", width: "46vw", height: "46vw", top: "6%", left: "-6%" }}
+      />
 
-                    {/* Subtle aesthetic gradient overlay at bottom for depth */}
-                    <div className="absolute inset-0 bg-gradient-to-t from-black/60 via-black/10 to-transparent pointer-events-none" />
+      {/* ── Performer gallery (left) ── */}
+      <motion.figure
+        style={{ y: reduce ? 0 : figureY, x: reduce ? 0 : figX, translateY: reduce ? 0 : figY2 }}
+        className="absolute inset-y-0 left-0 -z-10 w-full lg:w-[56%] xl:w-[52%]"
+      >
+        {pool.map((shot, i) => (
+          <motion.img
+            key={shot.id}
+            src={imageFor(shot.src, i)}
+            alt=""
+            aria-hidden
+            className="stage-cutout absolute inset-0 size-full object-cover object-center mix-blend-luminosity lg:object-[35%_center]"
+            initial={false}
+            animate={{ opacity: i === index ? 0.92 : 0, scale: i === index ? 1 : 1.07 }}
+            transition={{ duration: 1.25, ease }}
+          />
+        ))}
+        <span aria-hidden className="stage-cutout stage-bg absolute inset-0 mix-blend-color" />
+      </motion.figure>
 
-                    {/* Overlay Tag / Sponsor Pill (if sponsor_name or title present) */}
-                    {(slide.sponsor_name || slide.title) && (
-                      <div className="absolute top-4 left-4 sm:top-6 sm:left-6 flex items-center gap-2 pointer-events-none">
-                        {slide.sponsor_name && (
-                          <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-[11px] font-bold tracking-wide uppercase bg-black/65 text-[#BFFF2E] border border-[#BFFF2E]/40 backdrop-blur-md shadow-lg">
-                            <Sparkles className="size-3" />
-                            {slide.sponsor_name}
-                          </span>
-                        )}
-                      </div>
-                    )}
-                  </div>
-                </SlideLink>
-              </div>
-            );
-          })}
-        </div>
+      {/* Small-screen scrim — the copy sits directly on the photo below lg */}
+      <div
+        aria-hidden
+        className="pointer-events-none absolute inset-0 -z-[5] lg:hidden"
+        style={{ background: "linear-gradient(180deg, rgba(36,2,18,0.52) 0%, rgba(36,2,18,0.38) 38%, rgba(30,2,22,0.76) 100%)" }}
+      />
 
-        {/* MOBILE VIEW */}
-        <div className="relative w-full aspect-[16/10] sm:aspect-[16/9] block md:hidden overflow-hidden bg-[#0A0D14]">
-          {slides.map((slide, idx) => {
-            const isActive = idx === current;
-            const mobileSrc = slide.image_url_mobile || slide.mobile_image_url || slide.image_url_desktop || slide.image_url;
+      {/* ── Copy column (right) ── */}
+      <motion.div
+        style={{ y: reduce ? 0 : copyY, opacity: fade }}
+        className="container-x relative z-10 flex flex-1 items-center justify-end pb-28 pt-28 md:pb-32 md:pt-32"
+      >
+        <div className="flex w-full justify-end">
+          <div className="w-full max-w-[560px] lg:w-[52%]">
+            <h1 className="font-hero">
+              <span className="block overflow-hidden">
+                <motion.span
+                  key="hero-lead"
+                  initial={{ y: "110%", opacity: 0 }}
+                  animate={{ y: "0%", opacity: 1 }}
+                  transition={{ duration: 0.95, delay: 0.1, ease }}
+                  style={{ fontSize: leadSize }}
+                  className="block font-medium leading-[1.04] tracking-[-0.02em] text-white [overflow-wrap:anywhere]"
+                >
+                  {lead}
+                </motion.span>
+              </span>
+              <span className="-mt-1 block overflow-hidden">
+                <motion.span
+                  key="hero-punch"
+                  initial={{ y: "110%", opacity: 0 }}
+                  animate={{ y: "0%", opacity: 1 }}
+                  transition={{ duration: 0.95, delay: 0.2, ease }}
+                  style={{ fontSize: punchSize }}
+                  className="block font-bold leading-[1.04] tracking-[-0.035em] text-white [overflow-wrap:anywhere]"
+                >
+                  {punch}
+                </motion.span>
+              </span>
+            </h1>
 
-            return (
-              <div
-                key={slide._id ? `mobile-${slide._id}` : `mobile-slide-${idx}`}
-                className={`absolute inset-0 size-full transition-opacity duration-700 ease-in-out will-change-[opacity] ${
-                  isActive ? "opacity-100 z-10 pointer-events-auto" : "opacity-0 z-0 pointer-events-none"
-                }`}
-                aria-hidden={!isActive}
-              >
-                <SlideLink href={slide.target_url}>
-                  <div className="relative size-full overflow-hidden">
-                    <img
-                      src={mobileSrc}
-                      alt={slide.title || "Mobile Hero Banner"}
-                      className="size-full object-cover object-center"
-                      decoding="async"
-                    />
+            <motion.p
+              initial={{ opacity: 0, y: 22 }}
+              animate={{ opacity: 1, y: 0 }}
+              transition={{ duration: 0.8, delay: 0.36, ease }}
+              className="font-hero mt-4 max-w-[520px] text-[clamp(0.95rem,1.6vw,1.3rem)] font-normal leading-[1.3] text-white"
+            >
+              {body}
+            </motion.p>
 
-                    {/* Subtle mobile gradient */}
-                    <div className="absolute inset-0 bg-gradient-to-t from-black/65 via-transparent to-transparent pointer-events-none" />
-
-                    {/* Mobile Sponsor Tag */}
-                    {slide.sponsor_name && (
-                      <div className="absolute top-3 left-3 pointer-events-none">
-                        <span className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-[10px] font-bold uppercase bg-black/70 text-[#BFFF2E] border border-[#BFFF2E]/40 backdrop-blur-md">
-                          {slide.sponsor_name}
+            {/* Thumbnail queue — a new still enters on the left each tick
+                and the rest march to the right. */}
+            <motion.ul
+              initial={{ opacity: 0, y: 30 }}
+              animate={{ opacity: 1, y: 0 }}
+              transition={{ duration: 0.85, delay: 0.46, ease }}
+              className="mt-7 flex gap-4"
+              aria-label="Recent stills"
+            >
+              <AnimatePresence initial={false} mode="popLayout">
+                {rail.map((shot) => (
+                  <motion.li
+                    key={shot.id}
+                    layout
+                    initial={reduce ? false : { opacity: 0, x: -70, scale: 0.88 }}
+                    animate={{ opacity: 1, x: 0, scale: 1 }}
+                    exit={reduce ? { opacity: 0 } : { opacity: 0, x: 70, scale: 0.88 }}
+                    transition={{ duration: 0.75, ease }}
+                    className="min-w-0 flex-1"
+                  >
+                    <Link
+                      href={shot.href}
+                      aria-label={shot.title ? `Open ${shot.title}` : "Browse events"}
+                      className="group relative block aspect-square w-full overflow-hidden ring-1 ring-white/30 transition-all duration-500 hover:ring-2 hover:ring-white"
+                    >
+                      <img
+                        src={imageFor(shot.src, 1)}
+                        alt=""
+                        loading="lazy"
+                        className="size-full object-cover transition-transform duration-[900ms] ease-[cubic-bezier(0.16,1,0.3,1)] group-hover:scale-110"
+                      />
+                      {shot.title && (
+                        <span className="absolute inset-x-0 bottom-0 bg-gradient-to-t from-black/85 to-transparent px-2 pb-1.5 pt-6 text-left font-hero text-[10px] font-medium uppercase leading-tight tracking-wide text-white opacity-0 transition-opacity duration-400 group-hover:opacity-100">
+                          {shot.title.slice(0, 22)}
                         </span>
-                      </div>
-                    )}
-                  </div>
-                </SlideLink>
-              </div>
-            );
-          })}
-        </div>
+                      )}
+                    </Link>
+                  </motion.li>
+                ))}
+              </AnimatePresence>
+            </motion.ul>
 
-        {/* PREV / NEXT ARROWS (Desktop & Tablet) */}
-        {total > 1 && (
-          <>
-            <button
-              type="button"
-              onClick={(e) => {
-                e.stopPropagation();
-                prevSlide();
-              }}
-              className="absolute left-3 sm:left-5 top-1/2 -translate-y-1/2 z-20 size-9 sm:size-11 rounded-full bg-black/50 hover:bg-black/85 backdrop-blur-md text-white border border-white/20 hover:border-[#BFFF2E]/70 shadow-xl flex items-center justify-center transition-all duration-200 opacity-80 sm:opacity-0 sm:group-hover:opacity-100 hover:scale-110 focus:outline-none"
-              aria-label="Previous Slide"
-            >
-              <ChevronLeft className="size-5 sm:size-6" />
-            </button>
-            <button
-              type="button"
-              onClick={(e) => {
-                e.stopPropagation();
-                nextSlide();
-              }}
-              className="absolute right-3 sm:right-5 top-1/2 -translate-y-1/2 z-20 size-9 sm:size-11 rounded-full bg-black/50 hover:bg-black/85 backdrop-blur-md text-white border border-white/20 hover:border-[#BFFF2E]/70 shadow-xl flex items-center justify-center transition-all duration-200 opacity-80 sm:opacity-0 sm:group-hover:opacity-100 hover:scale-110 focus:outline-none"
-              aria-label="Next Slide"
-            >
-              <ChevronRight className="size-5 sm:size-6" />
-            </button>
-          </>
-        )}
+            {/* Progress line — advances with the gallery */}
+            <div className="mt-5 h-[3px] w-full bg-white/30" aria-hidden>
+              <motion.span
+                className="block h-full bg-white"
+                initial={false}
+                animate={{ width: `${((index + 1) / count) * 100}%` }}
+                transition={{ duration: 0.7, ease }}
+              />
+            </div>
 
-        {/* BOTTOM INDICATORS (Matching reference screenshots: green/lime active pill and dots) */}
-        {total > 1 && (
-          <div className="absolute bottom-3 sm:bottom-5 left-1/2 -translate-x-1/2 z-20 flex items-center gap-1.5 sm:gap-2 px-3 py-1.5 rounded-full bg-black/40 backdrop-blur-md border border-white/10 shadow-lg">
-            {slides.map((_, idx) => {
-              const isActive = idx === current;
-              return (
+            {/* Tabs */}
+            <motion.div
+              initial={{ opacity: 0, y: 18 }}
+              animate={{ opacity: 1, y: 0 }}
+              transition={{ duration: 0.75, delay: 0.66, ease }}
+              className="mt-6 flex flex-wrap items-center gap-x-10 gap-y-3"
+            >
+              {TABS.map((t, i) => (
                 <button
-                  key={`dot-${idx}`}
-                  type="button"
-                  onClick={() => goToSlide(idx)}
-                  className={`transition-all duration-300 rounded-full focus:outline-none ${
-                    isActive
-                      ? "w-8 sm:w-10 h-2 sm:h-2.5 bg-[#BFFF2E] shadow-[0_0_10px_rgba(191,255,46,0.7)]"
-                      : "w-2 sm:w-2.5 h-2 sm:h-2.5 bg-white/40 hover:bg-white/80"
+                  key={t}
+                  onClick={() => setTab(i)}
+                  aria-pressed={tab === i}
+                  className={`font-hero relative cursor-pointer py-1 text-[clamp(1.05rem,1.8vw,1.5rem)] font-normal transition-colors duration-300 ${
+                    tab === i ? "text-white" : "text-white/70 hover:text-white"
                   }`}
-                  aria-label={`Go to slide ${idx + 1}`}
-                  aria-current={isActive}
-                />
-              );
-            })}
-          </div>
-        )}
+                >
+                  {t}
+                  <span
+                    aria-hidden
+                    className={`absolute -bottom-0.5 left-0 h-px bg-white transition-all duration-400 ${tab === i ? "w-full" : "w-0"}`}
+                  />
+                </button>
+              ))}
 
+              <Link
+                href={currentEvent ? `/events/${currentEvent._id}` : "/events"}
+                className="font-hero group ml-auto inline-flex min-h-[44px] items-center gap-2.5 text-[clamp(1.05rem,1.8vw,1.45rem)] font-normal text-white"
+              >
+                <Share2 className="size-[22px] shrink-0" aria-hidden />
+                <span className="hidden sm:inline">Share</span>
+                <ArrowRight className="size-4 shrink-0 opacity-0 transition-all duration-300 group-hover:translate-x-1 group-hover:opacity-100" aria-hidden />
+              </Link>
+            </motion.div>
+          </div>
+        </div>
+      </motion.div>
+
+      {/* ── Gallery controls (bottom centre-left) ── */}
+      <div className="absolute bottom-10 left-1/2 z-10 hidden -translate-x-1/2 items-center gap-3 md:flex lg:left-[46%]">
+        <button
+          onClick={() => setStopped((s) => !s)}
+          aria-label={stopped ? "Play the image gallery" : "Pause the image gallery"}
+          className="grid size-9 cursor-pointer place-items-center rounded-full border border-white/50 text-white transition-colors hover:border-white hover:bg-white/15"
+        >
+          {stopped ? <Play className="size-3.5" aria-hidden /> : <Pause className="size-3.5" aria-hidden />}
+        </button>
+
+        <ul className="flex items-center gap-2" role="tablist" aria-label="Gallery stills">
+          {pool.map((shot, i) => (
+            <li key={shot.id}>
+              <button
+                role="tab"
+                aria-selected={i === index}
+                aria-label={shot.title || `Still ${i + 1}`}
+                onClick={() => setIndex(i)}
+                className="grid size-6 cursor-pointer place-items-center"
+              >
+                <span
+                  className={`block rounded-full transition-all duration-500 ${
+                    i === index
+                      ? "size-2.5 bg-[#ff6a2b] shadow-[0_0_10px_#ff6a2b]"
+                      : "size-2.5 border-[1.5px] border-white/80 bg-transparent"
+                  }`}
+                />
+              </button>
+            </li>
+          ))}
+        </ul>
+      </div>
+
+      {/* Right hairline */}
+      <span aria-hidden className="absolute inset-y-24 right-[62px] z-0 hidden w-px bg-white/30 lg:block" />
+
+      {/* ── Decorative bubbles (bottom-left) ── */}
+      <div aria-hidden className="pointer-events-none absolute inset-0 z-10">
+        {BUBBLES.map((b, i) => (
+          <span
+            key={i}
+            className="bubble-float absolute rounded-full"
+            style={{
+              background: b.c,
+              boxShadow: `0 0 ${b.s / 1.6}px ${b.c}`,
+              width: `clamp(11px, ${b.s / 16}vw, ${b.s}px)`,
+              height: `clamp(11px, ${b.s / 16}vw, ${b.s}px)`,
+              left: `${b.x}%`,
+              bottom: "4.5%",
+              animationDelay: `${b.d}s`,
+            }}
+          />
+        ))}
       </div>
     </section>
   );
