@@ -166,7 +166,7 @@ export default function Navbar({ brandName = "UPGRADE TALENTS INDIA", logo }: { 
               <img
                 src={logoSrc}
                 alt={brandName}
-                className="h-7 sm:h-8 md:h-9 w-auto object-contain transition-opacity duration-300 group-hover:opacity-90"
+                className="h-8 sm:h-9 md:h-10 lg:h-11 w-auto object-contain transition-all duration-300 group-hover:opacity-90 group-hover:scale-105"
               />
               {isJudge && (
                 <span className="rounded-md bg-purple-500/15 border border-purple-500/30 px-1.5 py-0.5 text-[9px] sm:text-[10px] font-bold uppercase tracking-wider text-purple-300 flex items-center gap-1">
@@ -438,11 +438,28 @@ export default function Navbar({ brandName = "UPGRADE TALENTS INDIA", logo }: { 
                   </Button>
                 </Magnetic>
               ) : (
-                <Magnetic className="hidden sm:block shrink-0">
-                  <Button href="/events" size="sm" className="px-4 text-[12.5px] tracking-wider shrink-0">
-                    <Ticket className="size-3.5" aria-hidden /> Tickets
-                  </Button>
-                </Magnetic>
+                <div className="hidden sm:flex items-center gap-1.5 md:gap-2 shrink-0">
+                  <Magnetic className="shrink-0">
+                    <Button
+                      href="/competitions"
+                      variant="rose"
+                      size="sm"
+                      className="px-3 sm:px-3.5 text-[11.5px] sm:text-[12px] tracking-wider shrink-0"
+                    >
+                      <Trophy className="size-3.5 text-amber-200" aria-hidden /> Competitions
+                    </Button>
+                  </Magnetic>
+
+                  <Magnetic className="shrink-0">
+                    <Button
+                      href="/events"
+                      size="sm"
+                      className="px-3 sm:px-3.5 text-[11.5px] sm:text-[12px] tracking-wider shrink-0"
+                    >
+                      <Ticket className="size-3.5" aria-hidden /> Tickets
+                    </Button>
+                  </Magnetic>
+                </div>
               )}
 
               {/* Hamburger button for screens below xl */}
@@ -481,7 +498,7 @@ export default function Navbar({ brandName = "UPGRADE TALENTS INDIA", logo }: { 
                 <img
                   src={logoSrc}
                   alt={brandName}
-                  className="h-7 w-auto object-contain"
+                  className="h-9 w-auto object-contain"
                 />
                 <button
                   onClick={() => setOpen(false)}
@@ -533,6 +550,14 @@ export default function Navbar({ brandName = "UPGRADE TALENTS INDIA", logo }: { 
                   </>
                 ) : user ? (
                   <>
+                    <div className="grid grid-cols-2 gap-2">
+                      <Button href="/competitions" variant="rose" size="md" className="w-full text-xs">
+                        <Trophy className="size-3.5 text-amber-200" aria-hidden /> Competitions
+                      </Button>
+                      <Button href="/events" size="md" className="w-full text-xs">
+                        <Ticket className="size-3.5" aria-hidden /> Tickets
+                      </Button>
+                    </div>
                     <Button href="/dashboard" variant="outline" size="lg" className="w-full">
                       <LayoutDashboard className="size-4" aria-hidden /> Dashboard
                     </Button>
@@ -542,8 +567,18 @@ export default function Navbar({ brandName = "UPGRADE TALENTS INDIA", logo }: { 
                   </>
                 ) : (
                   <>
-                    <Button href="/login" variant="outline" size="lg" className="w-full">Sign in</Button>
-                    <Button href="/register" size="lg" className="w-full">Create account</Button>
+                    <div className="grid grid-cols-2 gap-2">
+                      <Button href="/competitions" variant="rose" size="md" className="w-full text-xs">
+                        <Trophy className="size-3.5 text-amber-200" aria-hidden /> Competitions
+                      </Button>
+                      <Button href="/events" size="md" className="w-full text-xs">
+                        <Ticket className="size-3.5" aria-hidden /> Tickets
+                      </Button>
+                    </div>
+                    <div className="grid grid-cols-2 gap-2">
+                      <Button href="/login" variant="outline" size="md" className="w-full">Sign in</Button>
+                      <Button href="/register" size="md" className="w-full">Register</Button>
+                    </div>
                   </>
                 )}
               </div>

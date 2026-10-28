@@ -12,7 +12,7 @@ type ButtonProps = {
   children: ReactNode;
   href?: string;
   onClick?: () => void;
-  variant?: "primary" | "accent" | "ghost" | "outline";
+  variant?: "primary" | "rose" | "accent" | "ghost" | "outline";
   size?: "sm" | "md" | "lg";
   className?: string;
   loading?: boolean;
@@ -55,6 +55,8 @@ export function Button({
   const styles: Record<string, string> = {
     primary:
       "bg-[var(--primary)] text-white font-bold shadow-[0_10px_35px_-10px_rgba(232,68,15,0.45)] hover:shadow-[0_14px_40px_-8px_rgba(232,68,15,0.6)] hover:-translate-y-0.5 active:translate-y-0 active:scale-[0.98]",
+    rose:
+      "bg-rose-600 text-white font-bold shadow-[0_10px_35px_-10px_rgba(225,29,72,0.45)] hover:shadow-[0_14px_40px_-8px_rgba(225,29,72,0.6)] hover:-translate-y-0.5 active:translate-y-0 active:scale-[0.98]",
     accent:
       "bg-[var(--surface-2)] text-[var(--fg)] border border-[var(--border-strong)] hover:border-transparent hover:text-white hover:-translate-y-0.5",
     outline:
@@ -79,6 +81,20 @@ export function Button({
           />
         </>
       )}
+      {variant === "rose" && (
+        <>
+          <span
+            aria-hidden
+            className="pointer-events-none absolute inset-0 z-0"
+            style={{ background: "linear-gradient(115deg, #f43f5e 0%, #e11d48 50%, #be123c 100%)" }}
+          />
+          <span
+            aria-hidden
+            className="pointer-events-none absolute inset-0 z-0 translate-y-full transition-transform duration-500 ease-[cubic-bezier(0.16,1,0.3,1)] group-hover:translate-y-0"
+            style={{ background: "linear-gradient(115deg, #fb7185 0%, #f43f5e 50%, #e11d48 100%)" }}
+          />
+        </>
+      )}
       {variant === "accent" && (
         <span
           aria-hidden
@@ -87,7 +103,7 @@ export function Button({
         />
       )}
       {loading && <Loader2 className="relative z-10 size-4 animate-spin text-white" aria-hidden />}
-      <span className={cn("relative z-10 flex items-center gap-2", variant === "primary" ? "text-white font-bold drop-shadow-sm" : "")}>
+      <span className={cn("relative z-10 flex items-center gap-2", (variant === "primary" || variant === "rose") ? "text-white font-bold drop-shadow-sm" : "")}>
         {children}
       </span>
     </>
