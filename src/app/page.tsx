@@ -50,6 +50,7 @@ export default async function HomePage() {
     <>
       <Hero
         events={data.upcoming_events}
+        competitions={data.upcoming_competitions}
         brandTitle={data.brand?.title}
         brandTagline={data.brand?.tagline}
         brandBody={data.brand?.description}

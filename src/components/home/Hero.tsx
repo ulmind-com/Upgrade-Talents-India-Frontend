@@ -7,6 +7,7 @@ import { Share2, ArrowRight, Pause, Play } from "lucide-react";
 import StageRibbons from "./StageRibbons";
 import { FALLBACK_IMAGES, imageFor } from "@/lib/utils";
 import type { EventItem } from "@/lib/api";
+import { getCompetitionLifecycle } from "@/lib/competition-lifecycle";
 
 const TABS = ["Training", "Collection", "Inspiration"];
 const ROTATE_MS = 4500;
@@ -23,15 +24,25 @@ const BUBBLES = [
   { c: "#6fd4ff", s: 20, x: 24.2, d: 2.6 },
 ];
 
-type Shot = { id: string; src?: string | null; title: string; href: string };
+type Shot = {
+  id: string;
+  src?: string | null;
+  title: string;
+  href: string;
+  isLive?: boolean;
+  isRegOpen?: boolean;
+  isCompetition?: boolean;
+};
 
 export default function Hero({
   events = [],
+  competitions = [],
   brandTitle,
   brandTagline,
   brandBody,
 }: {
   events?: EventItem[];
+  competitions?: any[];
   brandTitle?: string;
   brandTagline?: string;
   brandBody?: string;
@@ -43,34 +54,79 @@ export default function Hero({
   const [paused, setPaused] = useState(false);
   const [stopped, setStopped] = useState(false);
 
-  /* One gallery pool drives both the hero backdrop and the rail.
-     CMS events come first; curated stills top it up so the motion
-     never stalls on a thin content set. */
+  /* One gallery pool drives the rail with live & active competitions as top priority. */
   const pool: Shot[] = useMemo(() => {
-    const fromCms: Shot[] = events.slice(0, 8).map((e, i) => ({
-      id: e._id,
-      src: e.image_url || FALLBACK_IMAGES[i % FALLBACK_IMAGES.length],
+    // 1. Valid competitions
+    const validComps = (competitions || []).filter(
+      (c) => c && (c._id || c.id) && c.is_published !== false && !c.is_deleted
+    );
+
+    // Sort competitions: Live first (score 3), then Registration Open (score 2), then others (score 1)
+    const sortedComps = [...validComps].sort((a, b) => {
+      const lifeA = getCompetitionLifecycle(a);
+      const lifeB = getCompetitionLifecycle(b);
+      const scoreA = lifeA.isLive || String(a.status || "").toUpperCase() === "LIVE" ? 3 : lifeA.isRegistrationOpen ? 2 : 1;
+      const scoreB = lifeB.isLive || String(b.status || "").toUpperCase() === "LIVE" ? 3 : lifeB.isRegistrationOpen ? 2 : 1;
+      return scoreB - scoreA;
+    });
+
+    const compShots: Shot[] = sortedComps.map((c, i) => {
+      const id = String(c._id || c.id);
+      const lifecycle = getCompetitionLifecycle(c);
+      const isLive = lifecycle.isLive || String(c.status || "").toUpperCase() === "LIVE";
+      const isRegOpen = lifecycle.isRegistrationOpen || lifecycle.canRegister;
+      const src =
+        c.card_image_url ||
+        c.image_url ||
+        c.banner_image_url ||
+        c.banner_url ||
+        FALLBACK_IMAGES[i % FALLBACK_IMAGES.length];
+      const href = lifecycle.isResultsOut ? `/competitions/${id}/results` : `/competitions/${id}`;
+
+      return {
+        id: `comp-${id}`,
+        src,
+        title: c.title || c.name || "Competition",
+        href,
+        isLive,
+        isRegOpen,
+        isCompetition: true,
+      };
+    });
+
+    // 2. Events if more items needed
+    const eventShots: Shot[] = (events || []).slice(0, 8).map((e, i) => ({
+      id: `event-${e._id}`,
+      src: e.image_url || FALLBACK_IMAGES[(compShots.length + i) % FALLBACK_IMAGES.length],
       title: e.title,
       href: `/events/${e._id}`,
+      isLive: e.event_status === "live",
+      isRegOpen: e.registration_enabled !== false,
+      isCompetition: false,
     }));
-    if (fromCms.length >= RAIL_SIZE + 2) return fromCms;
-    const pad = FALLBACK_IMAGES.slice(0, RAIL_SIZE + 2 - fromCms.length).map((src, i) => ({
+
+    const combined = [...compShots, ...eventShots];
+    if (combined.length >= RAIL_SIZE + 2) return combined;
+
+    const pad: Shot[] = FALLBACK_IMAGES.slice(0, RAIL_SIZE + 2 - combined.length).map((src, i) => ({
       id: `still-${i}`,
       src,
-      title: "",
-      href: "/events",
+      title: "Competitions",
+      href: "/competitions",
+      isLive: false,
+      isRegOpen: true,
+      isCompetition: true,
     }));
-    return [...fromCms, ...pad];
-  }, [events]);
+
+    return [...combined, ...pad];
+  }, [competitions, events]);
 
   const count = pool.length;
   const current = pool[index % count];
-  const currentEvent = events.find((e) => e._id === current?.id);
 
-  /* The rail holds the stills that have just left the hero — newest first.
-     Each tick pushes a new tile in on the left and the queue marches right. */
+  /* The rail displays the top competitions starting at index, marching forward */
   const rail = useMemo(
-    () => Array.from({ length: RAIL_SIZE }, (_, k) => pool[(index - 1 - k + count * 4) % count]),
+    () => Array.from({ length: RAIL_SIZE }, (_, k) => pool[(index + k) % count]),
     [pool, index, count]
   );
 
@@ -239,18 +295,38 @@ export default function Hero({
                   >
                     <Link
                       href={shot.href}
-                      aria-label={shot.title ? `Open ${shot.title}` : "Browse events"}
-                      className="group relative block aspect-square w-full overflow-hidden ring-1 ring-white/30 transition-all duration-500 hover:ring-2 hover:ring-white"
+                      aria-label={shot.title ? `Open ${shot.title}` : "Browse competitions"}
+                      className="group relative block aspect-square w-full overflow-hidden rounded-md ring-1 ring-white/30 transition-all duration-500 hover:scale-[1.03] hover:ring-2 hover:ring-white hover:shadow-[0_12px_30px_rgba(0,0,0,0.6)]"
                     >
                       <img
                         src={imageFor(shot.src, 1)}
-                        alt=""
+                        alt={shot.title}
                         loading="lazy"
                         className="size-full object-cover transition-transform duration-[900ms] ease-[cubic-bezier(0.16,1,0.3,1)] group-hover:scale-110"
                       />
+
+                      {/* Scrim for contrast */}
+                      <span className="absolute inset-0 bg-gradient-to-t from-black/85 via-black/20 to-transparent" aria-hidden />
+
+                      {/* Live / Status Badge */}
+                      {shot.isLive ? (
+                        <span className="absolute left-1.5 top-1.5 z-10 flex items-center gap-1 rounded-full bg-rose-600/95 px-2 py-0.5 text-[8.5px] font-bold uppercase tracking-wider text-white shadow-md backdrop-blur-md animate-pulse">
+                          <span className="size-1.5 rounded-full bg-white animate-ping" /> LIVE
+                        </span>
+                      ) : shot.isRegOpen ? (
+                        <span className="absolute left-1.5 top-1.5 z-10 rounded-full bg-emerald-500/90 px-2 py-0.5 text-[8.5px] font-bold uppercase tracking-wider text-black shadow-md backdrop-blur-md">
+                          OPEN
+                        </span>
+                      ) : shot.isCompetition ? (
+                        <span className="absolute left-1.5 top-1.5 z-10 rounded-full bg-black/60 border border-white/20 px-1.5 py-0.5 text-[8px] font-bold uppercase tracking-wider text-white/90 backdrop-blur-md">
+                          COMPETE
+                        </span>
+                      ) : null}
+
+                      {/* Title overlay */}
                       {shot.title && (
-                        <span className="absolute inset-x-0 bottom-0 bg-gradient-to-t from-black/85 to-transparent px-2 pb-1.5 pt-6 text-left font-hero text-[10px] font-medium uppercase leading-tight tracking-wide text-white opacity-0 transition-opacity duration-400 group-hover:opacity-100">
-                          {shot.title.slice(0, 22)}
+                        <span className="absolute inset-x-0 bottom-0 z-10 px-2 pb-1.5 pt-6 text-left font-display text-[11px] font-bold uppercase leading-tight tracking-wide text-white drop-shadow-[0_2px_8px_rgba(0,0,0,0.9)] line-clamp-1 transition-transform duration-300 group-hover:translate-y-[-2px]">
+                          {shot.title}
                         </span>
                       )}
                     </Link>
@@ -294,11 +370,11 @@ export default function Hero({
               ))}
 
               <Link
-                href={currentEvent ? `/events/${currentEvent._id}` : "/events"}
+                href={current?.href || "/competitions"}
                 className="font-hero group ml-auto inline-flex min-h-[44px] items-center gap-2.5 text-[clamp(1.05rem,1.8vw,1.45rem)] font-normal text-white"
               >
                 <Share2 className="size-[22px] shrink-0" aria-hidden />
-                <span className="hidden sm:inline">Share</span>
+                <span className="hidden sm:inline">Explore</span>
                 <ArrowRight className="size-4 shrink-0 opacity-0 transition-all duration-300 group-hover:translate-x-1 group-hover:opacity-100" aria-hidden />
               </Link>
             </motion.div>
