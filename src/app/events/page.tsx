@@ -1,5 +1,5 @@
 import type { Metadata } from "next";
-import EventsHero from "@/components/events/EventsHero";
+import PageHero from "@/components/events/PageHero";
 import EventsExplorer from "@/components/events/EventsExplorer";
 import { publicApi, safe } from "@/lib/api";
 
@@ -19,11 +19,13 @@ export default async function EventsPage() {
 
   return (
     <>
-      <EventsHero
+      <PageHero
         title="Events"
-        subtitle={settings?.tagline || "Dance Floors for A Dance Nation"}
+        subtitle={settings?.tagline || "Your Event, Our Platform"}
         image={events[0]?.image_url}
         seed={2}
+        compact
+        titleClassName="text-[clamp(1.9rem,4.8vw,3.6rem)]"
       />
       <EventsExplorer initial={events} banners={banners} />
     </>
