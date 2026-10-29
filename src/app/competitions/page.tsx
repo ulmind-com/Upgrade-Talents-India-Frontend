@@ -19,6 +19,7 @@ export default async function CompetitionsPage() {
         image={items?.[0]?.image_url}
         seed={6}
         compact
+        titleClassName="text-[clamp(1.9rem,4.8vw,3.6rem)]"
       />
       <CompetitionsListing items={items || []} />
     </>

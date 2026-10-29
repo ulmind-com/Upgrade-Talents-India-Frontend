@@ -35,7 +35,7 @@ export default function CompetitionsListing({ items }: { items: Comp[] }) {
   );
 
   return (
-    <section className="container-x relative pb-24 pt-14 md:pt-20">
+    <section className="container-x relative pb-24 pt-3 sm:pt-4 md:pt-6">
       <Reveal>
         <div className="flex flex-col gap-4 sm:flex-row sm:items-end sm:justify-between">
           <div>
