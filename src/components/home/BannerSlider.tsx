@@ -137,7 +137,7 @@ export default function BannerSlider({
 
   return (
     <section
-      className="relative w-full max-w-[1020px] mx-auto px-4 sm:px-6 py-4 sm:py-6 md:py-8 select-none"
+      className="relative w-full max-w-[1440px] mx-auto px-3 sm:px-5 lg:px-6 xl:px-8 py-3 sm:py-5 md:py-6 select-none"
       aria-label="Featured Promotions Banner"
       onMouseEnter={() => setIsPaused(true)}
       onMouseLeave={() => setIsPaused(false)}
@@ -148,8 +148,8 @@ export default function BannerSlider({
       {/* Outer Banner Card Container */}
       <div className="relative w-full overflow-hidden rounded-xl sm:rounded-2xl bg-[#090B10] border border-white/10 dark:border-white/10 shadow-[0_16px_40px_-15px_rgba(0,0,0,0.7)] group">
         
-        {/* Banner Images Carousel View - Desktop (Sleek Cinematic Letterbox) */}
-        <div className="relative w-full aspect-[21/9] max-h-[320px] hidden md:block overflow-hidden bg-[#0A0D14]">
+        {/* Banner Images Carousel View - Desktop (Sleek Slim Height, Full Container Width) */}
+        <div className="relative w-full h-[240px] sm:h-[270px] md:h-[295px] lg:h-[320px] hidden md:block overflow-hidden bg-[#0A0D14]">
           {slides.map((slide, idx) => {
             const isActive = idx === current;
             const desktopSrc = slide.image_url_desktop || slide.image_url;
@@ -193,7 +193,7 @@ export default function BannerSlider({
         </div>
 
         {/* MOBILE VIEW */}
-        <div className="relative w-full aspect-[2/1] sm:aspect-[2.2/1] max-h-[220px] block md:hidden overflow-hidden bg-[#0A0D14]">
+        <div className="relative w-full h-[180px] sm:h-[210px] block md:hidden overflow-hidden bg-[#0A0D14]">
           {slides.map((slide, idx) => {
             const isActive = idx === current;
             const mobileSrc = slide.image_url_mobile || slide.mobile_image_url || slide.image_url_desktop || slide.image_url;
