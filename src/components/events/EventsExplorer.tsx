@@ -326,33 +326,12 @@ function EventCard({ ev, index }: { ev: EventItem; index: number }) {
             <span className="rounded-full bg-amber-500/95 px-3 py-1 text-[10.5px] font-bold uppercase tracking-wider text-black shadow-md backdrop-blur-md">
               {ev.capacity} Left
             </span>
-          ) : !ev.price ? (
-            <span className="rounded-full bg-emerald-500/90 px-3 py-1 text-[10.5px] font-bold uppercase tracking-wider text-black shadow-md backdrop-blur-md">
-              Free Entry
-            </span>
           ) : (
             <span
               className="rounded-full px-3 py-1 text-[10.5px] font-bold uppercase tracking-wider backdrop-blur-md"
               style={{ background: "color-mix(in srgb, var(--success) 22%, transparent)", color: "var(--success)" }}
             >
               Booking Open
-            </span>
-          )}
-        </div>
-
-        {/* Top-right Ticket Price Pill */}
-        <div className="absolute right-3 top-3 z-10">
-          {(ev.price ?? 0) > 0 ? (
-            <span
-              className="inline-flex items-center gap-1 rounded-full px-3 py-1 text-[11px] font-bold text-[var(--on-accent)] shadow-md"
-              style={{ background: "var(--grad-brand)" }}
-            >
-              <Ticket className="size-3" aria-hidden />
-              {formatINR(ev.price)}
-            </span>
-          ) : (
-            <span className="inline-flex items-center gap-1 rounded-full border border-emerald-500/40 bg-emerald-950/70 px-3 py-1 text-[10.5px] font-bold text-emerald-300 shadow-md backdrop-blur-md">
-              Free
             </span>
           )}
         </div>
@@ -404,12 +383,19 @@ function EventCard({ ev, index }: { ev: EventItem; index: number }) {
 
         {/* Footer Actions */}
         <div className="mt-auto flex items-center justify-between border-t border-[var(--border)] pt-4">
-          <div className="flex flex-col">
-            <span className="font-mono text-[9px] uppercase tracking-wider text-[var(--fg-subtle)]">Entry</span>
-            <span className="font-display text-[1.05rem] font-bold text-[var(--fg)]">
-              {(ev.price ?? 0) > 0 ? formatINR(ev.price) : "Free"}
-            </span>
-          </div>
+          <span className="inline-flex items-center gap-1 text-[12px] font-medium text-[var(--fg-muted)]">
+            {closed ? (
+              <span className="text-[var(--danger)]">{expired ? "Event ended" : "Registration closed"}</span>
+            ) : isLive ? (
+              <span className="flex items-center gap-1.5 font-semibold text-rose-400">
+                <span className="size-1.5 rounded-full bg-rose-500 animate-ping" /> Live now
+              </span>
+            ) : lowStock ? (
+              <span className="font-semibold text-amber-400">{ev.capacity} passes left</span>
+            ) : (
+              <span>Passes available</span>
+            )}
+          </span>
 
           <div className="flex items-center gap-2">
             <Link
