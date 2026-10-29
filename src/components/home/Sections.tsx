@@ -50,7 +50,7 @@ export function LiveNow({
   const title = sectionConfig?.title || "Live Stage";
 
   return (
-    <section className="relative overflow-hidden py-20 md:py-28">
+    <section className="relative overflow-hidden pt-12 pb-4 md:pt-16 md:pb-6">
       <Spotlights variant="c" />
       <div className="container-x relative">
         <Reveal>
@@ -445,12 +445,38 @@ export function Testimonials({ items }: { items: TestimonialItem[] }) {
 
 /* ═══════════ CONTEST PROMOTIONS ═══════════ */
 
-export function ContestBand({ items }: { items: ContestPromotion[] }) {
+export function ContestBand({
+  items,
+  competitions = [],
+}: {
+  items: ContestPromotion[];
+  competitions?: any[];
+}) {
   if (!items?.length) return null;
   const main = items[0];
 
+  // Resolve target competition: prefer explicitly configured competition_id on the promo,
+  // then fall back to the first active/upcoming competition
+  const targetComp =
+    (competitions || []).find((c: any) => String(c._id || c.id) === String(main.competition_id)) ||
+    competitions?.[0];
+  const targetCompId = main.competition_id || targetComp?._id || targetComp?.id;
+
+  // Primary Action: Vote / View Competitors
+  const voteHref = main.target_url
+    ? main.target_url
+    : targetCompId
+    ? `/competitions/${targetCompId}#voting`
+    : "/competitions";
+  const voteLabel = main.cta_text || "Vote Now";
+
+  // Secondary Action: See Leaderboard & Prizes
+  const prizesHref = targetCompId
+    ? `/leaderboard?competition=${targetCompId}`
+    : "/leaderboard";
+
   return (
-    <section className="relative overflow-hidden py-20 md:py-28">
+    <section className="relative overflow-hidden pt-4 pb-14 md:pt-6 md:pb-20">
       <div className="container-x">
         <Reveal>
           <div className="relative isolate overflow-hidden rounded-[var(--radius-2xl)] border border-[var(--border)]">
@@ -465,11 +491,11 @@ export function ContestBand({ items }: { items: ContestPromotion[] }) {
                 <h2 className="mt-5 font-display text-[clamp(2rem,5.5vw,3.8rem)] font-bold uppercase leading-[0.92]">{main.title}</h2>
                 {main.description && <p className="mt-5 max-w-md text-[15px] leading-relaxed text-[var(--fg-muted)]">{truncate(main.description, 200)}</p>}
               </div>
-              <div className="flex flex-wrap gap-4">
+              <div className="flex flex-wrap items-center gap-4">
                 <Magnetic>
-                  <Button href={main.target_url || "/events"} size="lg">Enter now <ArrowRight className="size-4" aria-hidden /></Button>
+                  <Button href={voteHref} size="lg">{voteLabel} <ArrowRight className="size-4" aria-hidden /></Button>
                 </Magnetic>
-                <Button href="/events" variant="outline" size="lg">See prizes</Button>
+                <Button href={prizesHref} variant="outline" size="lg">See Prizes / Leaderboard</Button>
               </div>
             </div>
           </div>

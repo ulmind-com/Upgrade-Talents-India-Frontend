@@ -206,6 +206,10 @@ export type ContestPromotion = {
   description?: string;
   image_url?: string;
   target_url?: string;
+  competition_id?: string;
+  cta_text?: string;
+  voting_start?: string;
+  voting_end?: string;
 };
 
 export type FeaturedTileItem = {

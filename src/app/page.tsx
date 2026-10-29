@@ -82,7 +82,7 @@ export default async function HomePage() {
         stats={data.homepage_stats}
       />
       <LiveNow items={data.live_events} sectionConfig={data.live_stage_section} />
-      <ContestBand items={data.contest_promotions} />
+      <ContestBand items={data.contest_promotions} competitions={data.upcoming_competitions} />
       <LearnGrid title="Masterclasses" label="Courses" items={data.courses} href="/courses" />
       <LearnGrid title="Workshops" label="Workshops" items={data.workshops} href="/workshops" />
       <Testimonials items={data.testimonials} />
