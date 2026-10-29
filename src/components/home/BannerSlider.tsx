@@ -137,7 +137,7 @@ export default function BannerSlider({
 
   return (
     <section
-      className="relative w-full max-w-[1440px] mx-auto px-3 sm:px-6 lg:px-8 py-8 sm:py-12 md:py-14 select-none"
+      className="relative w-full max-w-[1020px] mx-auto px-4 sm:px-6 py-4 sm:py-6 md:py-8 select-none"
       aria-label="Featured Promotions Banner"
       onMouseEnter={() => setIsPaused(true)}
       onMouseLeave={() => setIsPaused(false)}
@@ -146,10 +146,10 @@ export default function BannerSlider({
       onTouchEnd={handleTouchEnd}
     >
       {/* Outer Banner Card Container */}
-      <div className="relative w-full overflow-hidden rounded-2xl sm:rounded-3xl bg-[#090B10] border border-white/10 dark:border-white/10 shadow-[0_20px_50px_rgba(0,0,0,0.6)] group">
+      <div className="relative w-full overflow-hidden rounded-xl sm:rounded-2xl bg-[#090B10] border border-white/10 dark:border-white/10 shadow-[0_16px_40px_-15px_rgba(0,0,0,0.7)] group">
         
-        {/* Banner Images Carousel View - Desktop (16:9) */}
-        <div className="relative w-full aspect-[16/9] max-h-[560px] hidden md:block overflow-hidden bg-[#0A0D14]">
+        {/* Banner Images Carousel View - Desktop (Sleek Cinematic Letterbox) */}
+        <div className="relative w-full aspect-[21/9] max-h-[320px] hidden md:block overflow-hidden bg-[#0A0D14]">
           {slides.map((slide, idx) => {
             const isActive = idx === current;
             const desktopSrc = slide.image_url_desktop || slide.image_url;
@@ -176,10 +176,10 @@ export default function BannerSlider({
 
                     {/* Overlay Tag / Sponsor Pill */}
                     {(slide.sponsor_name || slide.title) && (
-                      <div className="absolute top-4 left-4 sm:top-6 sm:left-6 flex items-center gap-2 pointer-events-none">
+                      <div className="absolute top-3 left-3 sm:top-4 sm:left-4 flex items-center gap-2 pointer-events-none">
                         {slide.sponsor_name && (
-                          <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-[11px] font-bold tracking-wide uppercase bg-black/65 text-[#BFFF2E] border border-[#BFFF2E]/40 backdrop-blur-md shadow-lg">
-                            <Sparkles className="size-3" />
+                          <span className="inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full text-[10px] font-bold tracking-wide uppercase bg-black/65 text-[#BFFF2E] border border-[#BFFF2E]/40 backdrop-blur-md shadow-lg">
+                            <Sparkles className="size-2.5" />
                             {slide.sponsor_name}
                           </span>
                         )}
@@ -193,7 +193,7 @@ export default function BannerSlider({
         </div>
 
         {/* MOBILE VIEW */}
-        <div className="relative w-full aspect-[16/10] sm:aspect-[16/9] block md:hidden overflow-hidden bg-[#0A0D14]">
+        <div className="relative w-full aspect-[2/1] sm:aspect-[2.2/1] max-h-[220px] block md:hidden overflow-hidden bg-[#0A0D14]">
           {slides.map((slide, idx) => {
             const isActive = idx === current;
             const mobileSrc = slide.image_url_mobile || slide.mobile_image_url || slide.image_url_desktop || slide.image_url;
@@ -220,8 +220,8 @@ export default function BannerSlider({
 
                     {/* Mobile Sponsor Tag */}
                     {slide.sponsor_name && (
-                      <div className="absolute top-3 left-3 pointer-events-none">
-                        <span className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-[10px] font-bold uppercase bg-black/70 text-[#BFFF2E] border border-[#BFFF2E]/40 backdrop-blur-md">
+                      <div className="absolute top-2.5 left-2.5 pointer-events-none">
+                        <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[9px] font-bold uppercase bg-black/70 text-[#BFFF2E] border border-[#BFFF2E]/40 backdrop-blur-md">
                           {slide.sponsor_name}
                         </span>
                       </div>
@@ -242,10 +242,10 @@ export default function BannerSlider({
                 e.stopPropagation();
                 prevSlide();
               }}
-              className="absolute left-3 sm:left-5 top-1/2 -translate-y-1/2 z-20 size-9 sm:size-11 rounded-full bg-black/50 hover:bg-black/85 backdrop-blur-md text-white border border-white/20 hover:border-[#BFFF2E]/70 shadow-xl flex items-center justify-center transition-all duration-200 opacity-80 sm:opacity-0 sm:group-hover:opacity-100 hover:scale-110 focus:outline-none"
+              className="absolute left-2.5 sm:left-4 top-1/2 -translate-y-1/2 z-20 size-8 sm:size-9 rounded-full bg-black/55 hover:bg-black/85 backdrop-blur-md text-white border border-white/20 hover:border-[#BFFF2E]/70 shadow-lg flex items-center justify-center transition-all duration-200 opacity-80 sm:opacity-0 sm:group-hover:opacity-100 hover:scale-105 focus:outline-none"
               aria-label="Previous Slide"
             >
-              <ChevronLeft className="size-5 sm:size-6" />
+              <ChevronLeft className="size-4 sm:size-5" />
             </button>
             <button
               type="button"
@@ -253,17 +253,17 @@ export default function BannerSlider({
                 e.stopPropagation();
                 nextSlide();
               }}
-              className="absolute right-3 sm:right-5 top-1/2 -translate-y-1/2 z-20 size-9 sm:size-11 rounded-full bg-black/50 hover:bg-black/85 backdrop-blur-md text-white border border-white/20 hover:border-[#BFFF2E]/70 shadow-xl flex items-center justify-center transition-all duration-200 opacity-80 sm:opacity-0 sm:group-hover:opacity-100 hover:scale-110 focus:outline-none"
+              className="absolute right-2.5 sm:right-4 top-1/2 -translate-y-1/2 z-20 size-8 sm:size-9 rounded-full bg-black/55 hover:bg-black/85 backdrop-blur-md text-white border border-white/20 hover:border-[#BFFF2E]/70 shadow-lg flex items-center justify-center transition-all duration-200 opacity-80 sm:opacity-0 sm:group-hover:opacity-100 hover:scale-105 focus:outline-none"
               aria-label="Next Slide"
             >
-              <ChevronRight className="size-5 sm:size-6" />
+              <ChevronRight className="size-4 sm:size-5" />
             </button>
           </>
         )}
 
         {/* BOTTOM INDICATORS */}
         {total > 1 && (
-          <div className="absolute bottom-3 sm:bottom-5 left-1/2 -translate-x-1/2 z-20 flex items-center gap-1.5 sm:gap-2 px-3 py-1.5 rounded-full bg-black/40 backdrop-blur-md border border-white/10 shadow-lg">
+          <div className="absolute bottom-2.5 sm:bottom-3.5 left-1/2 -translate-x-1/2 z-20 flex items-center gap-1.5 px-2.5 py-1 rounded-full bg-black/50 backdrop-blur-md border border-white/10 shadow-md">
             {slides.map((_, idx) => {
               const isActive = idx === current;
               return (
@@ -273,8 +273,8 @@ export default function BannerSlider({
                   onClick={() => goToSlide(idx)}
                   className={`transition-all duration-300 rounded-full focus:outline-none ${
                     isActive
-                      ? "w-8 sm:w-10 h-2 sm:h-2.5 bg-[#BFFF2E] shadow-[0_0_10px_rgba(191,255,46,0.7)]"
-                      : "w-2 sm:w-2.5 h-2 sm:h-2.5 bg-white/40 hover:bg-white/80"
+                      ? "w-6 sm:w-7 h-1.5 sm:h-2 bg-[#BFFF2E] shadow-[0_0_8px_rgba(191,255,46,0.7)]"
+                      : "w-1.5 sm:w-2 h-1.5 sm:h-2 bg-white/40 hover:bg-white/80"
                   }`}
                   aria-label={`Go to slide ${idx + 1}`}
                   aria-current={isActive}
