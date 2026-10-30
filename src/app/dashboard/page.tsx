@@ -6,7 +6,7 @@ import { useEffect, useState, useCallback, useRef, useMemo } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import QRCode from "qrcode";
 import {
-  Ticket, CalendarDays, User, Loader2, AlertCircle,
+  Ticket, CalendarDays, Calendar, User, Loader2, AlertCircle,
   CheckCircle2, Clock, ArrowUpRight, TicketX, Receipt,
   Crown, CreditCard, QrCode, X, Trophy, Award, Coins,
   Medal, Download, Copy, Check, Camera, Edit3, Sparkles,
@@ -15,14 +15,14 @@ import {
   ChevronLeft, ChevronRight, Share2, Bell, Settings, Eye, Briefcase, LogOut, Search,
 } from "lucide-react";
 import {
-  bookingsApi, vipApi, profileApi, rewardsApi, certificatesApi, shopApi,
+  bookingsApi, vipApi, profileApi, rewardsApi, certificatesApi, shopApi, publicApi,
   ApiError, type MyTicket,
 } from "@/lib/api";
 import { useAuth, usePageScrollLock } from "@/components/motion/Providers";
 import CoinLedger from "@/components/account/CoinLedger";
 import { Badge, Button, SectionLabel, Spotlights } from "@/components/ui/Primitives";
 import { Reveal, SplitHeading } from "@/components/motion/Reveal";
-import { cn, formatEventDate, formatINR, isEventExpired } from "@/lib/utils";
+import { cn, formatEventDate, formatINR, isEventExpired, imageFor, FALLBACK_IMAGES } from "@/lib/utils";
 import { TicketPass } from "@/components/ticket/TicketPass";
 
 declare global { interface Window { Razorpay?: any } }
@@ -40,6 +40,7 @@ export default function DashboardPage() {
   const [vipBookings, setVipBookings] = useState<any[]>([]);
   const [vipPasses, setVipPasses] = useState<any[]>([]);
   const [competitions, setCompetitions] = useState<any[]>([]);
+  const [publicCompetitions, setPublicCompetitions] = useState<any[]>([]);
   const [ranks, setRanks] = useState<any[]>([]);
   const [certificates, setCertificates] = useState<any[]>([]);
   const [badges, setBadges] = useState<any[]>([]);
@@ -180,7 +181,8 @@ export default function DashboardPage() {
       rewardsApi.referralProfile(),
       certificatesApi.myCertificates(),
       shopApi.myOrders(),
-    ]).then(([t, b, vb, vp, dash, cnRes, refRes, certRes, ordRes]) => {
+      publicApi.competitions({ limit: 6 }),
+    ]).then(([t, b, vb, vp, dash, cnRes, refRes, certRes, ordRes, pubCompRes]) => {
       if (t.status === "fulfilled") setTickets(Array.isArray(t.value) ? t.value : []);
       if (b.status === "fulfilled") setBookings(Array.isArray(b.value) ? b.value : []);
       if (vb.status === "fulfilled") {
@@ -192,6 +194,9 @@ export default function DashboardPage() {
       if (ordRes.status === "fulfilled" && ordRes.value) {
         const ords = Array.isArray(ordRes.value) ? ordRes.value : ordRes.value.orders || [];
         setMerchOrders(ords);
+      }
+      if (pubCompRes.status === "fulfilled" && Array.isArray(pubCompRes.value)) {
+        setPublicCompetitions(pubCompRes.value);
       }
 
       if (dash.status === "fulfilled" && dash.value) {
@@ -244,6 +249,96 @@ export default function DashboardPage() {
   useEffect(() => {
     loadAll();
   }, [loadAll]);
+
+  const formatCompDate = useCallback((dateVal?: string) => {
+    if (!dateVal) return "Upcoming Season";
+    return formatEventDate(dateVal);
+  }, []);
+
+  const formatCompTime = useCallback((timeVal?: string, dateVal?: string) => {
+    if (timeVal && typeof timeVal === "string" && timeVal.trim()) return timeVal;
+    if (dateVal) {
+      const d = new Date(dateVal);
+      if (!isNaN(d.getTime()) && (d.getHours() !== 0 || d.getMinutes() !== 0)) {
+        return d.toLocaleTimeString("en-IN", { hour: "numeric", minute: "2-digit", hour12: true });
+      }
+    }
+    return "10:00 AM – 6:00 PM";
+  }, []);
+
+  const displayUpcomingCompetitions = useMemo(() => {
+    const list: any[] = [];
+    const seenIds = new Set<string>();
+
+    for (const c of competitions) {
+      const id = String(c.competition_id || c._id || c.id || "");
+      if (id && !seenIds.has(id)) {
+        seenIds.add(id);
+        list.push({
+          id,
+          title: c.competition_title || c.title || c.name || "Talent Competition",
+          date: c.start_date || c.registration_deadline || c.event_date,
+          time: c.start_time || c.time || c.event_time,
+          image_url: c.image_url || c.card_image_url || c.banner_url || c.banner_image_url || c.cover_image,
+          category: c.category || "Official Contest",
+          isEnrolled: true,
+        });
+      }
+    }
+
+    for (const c of publicCompetitions) {
+      const id = String(c._id || c.id || "");
+      if (id && !seenIds.has(id)) {
+        seenIds.add(id);
+        list.push({
+          id,
+          title: c.title || c.name || "Talent Competition",
+          date: c.start_date || c.registration_deadline || c.event_date,
+          time: c.start_time || c.time || c.event_time,
+          image_url: c.image_url || c.card_image_url || c.banner_url || c.banner_image_url || c.cover_image,
+          category: c.category || "Talent Contest",
+          isEnrolled: false,
+        });
+      }
+    }
+
+    const fallbacks = [
+      {
+        id: "comp-national-talent",
+        title: "National Talent Grand Showcase 2026",
+        date: "2026-11-15T10:00:00.000Z",
+        time: "10:00 AM – 6:00 PM",
+        image_url: FALLBACK_IMAGES[0],
+        category: "Grand Showcase",
+        isEnrolled: false,
+      },
+      {
+        id: "comp-voice-india",
+        title: "Voice of India Youth Championship",
+        date: "2026-11-28T14:00:00.000Z",
+        time: "02:00 PM – 8:00 PM",
+        image_url: FALLBACK_IMAGES[1],
+        category: "Singing",
+        isEnrolled: false,
+      },
+      {
+        id: "comp-hip-hop-battle",
+        title: "All India Hip-Hop & Street Battle",
+        date: "2026-12-05T11:00:00.000Z",
+        time: "11:00 AM – 5:00 PM",
+        image_url: FALLBACK_IMAGES[2],
+        category: "Street Dance",
+        isEnrolled: false,
+      },
+    ];
+
+    for (const fb of fallbacks) {
+      if (list.length >= 2) break;
+      list.push(fb);
+    }
+
+    return list.slice(0, 2);
+  }, [competitions, publicCompetitions]);
 
   if (authLoading || !user) {
     return (
@@ -1082,7 +1177,7 @@ export default function DashboardPage() {
                 </div>
               </div>
 
-              {/* ── TOP SECTION: 3 Bento Widgets (Identity Card + Calendar + Upcoming Events) ── */}
+              {/* ── TOP SECTION: 3 Bento Widgets (Identity Card + Calendar + Upcoming Competitions) ── */}
               <div className="grid gap-6 lg:grid-cols-12">
 
                 {/* 1. Main Identity Card (5 cols on lg - exactly like reference layout!) */}
@@ -1237,62 +1332,95 @@ export default function DashboardPage() {
                   </div>
                 </div>
 
-                {/* 3. Upcoming Events (3 cols on lg - matching reference layout!) */}
+                {/* 3. Upcoming Competitions (3 cols on lg - matching executive reference layout!) */}
                 <div className="rounded-[28px] border border-[var(--border)] bg-[var(--surface)] p-5 shadow-xl lg:col-span-3 flex flex-col justify-between">
                   <div>
-                    <div className="flex items-center justify-between mb-3">
+                    <div className="flex items-center justify-between mb-3.5">
                       <div>
-                        <h4 className="font-display text-sm font-bold text-[var(--fg)]">Upcoming Events</h4>
-                        <span className="text-[10px] text-[var(--fg-subtle)] font-mono">Season 2026</span>
+                        <h4 className="font-display text-sm font-bold text-[var(--fg)] flex items-center gap-1.5">
+                          <Trophy className="size-3.5 text-amber-400" />
+                          Upcoming Competitions
+                        </h4>
+                        <span className="text-[10px] text-[var(--fg-subtle)] font-mono">Season 2026 • Live Stages</span>
                       </div>
-                      <button
-                        onClick={() => setTab("competitions")}
-                        className="rounded-full px-3 py-1 text-[10px] font-bold text-white shadow-sm cursor-pointer"
+                      <Link
+                        href="/competitions"
+                        className="rounded-full px-3 py-1 text-[10px] font-bold text-white shadow-sm cursor-pointer hover:opacity-90 transition-opacity"
                         style={{ background: "var(--grad-brand)" }}
                       >
                         View All
-                      </button>
+                      </Link>
                     </div>
 
-                    {/* Stacked Event Cards (matching reference layout!) */}
+                    {/* Stacked Competition Cards with Image, Name, Date, Time */}
                     <div className="flex flex-col gap-2.5">
-                      {/* Card 1: Live Audition & Review */}
-                      <div
-                        onClick={() => setTab("competitions")}
-                        className="group cursor-pointer rounded-2xl border border-[var(--border)] bg-[var(--surface-2)] p-3 transition-all hover:border-[var(--accent)] relative overflow-hidden"
-                      >
-                        <div className="absolute left-0 top-0 bottom-0 w-1 bg-cyan-400" />
-                        <p className="text-xs font-bold text-[var(--fg)] group-hover:text-[var(--accent)] transition-colors truncate">
-                          {competitions[0]?.competition_title || "National Talent Grand Showcase"}
-                        </p>
-                        <p className="text-[10px] font-mono text-[var(--fg-muted)] mt-1">
-                          9:00 AM – 6:00 PM • Live Stage
-                        </p>
-                        <div className="mt-2.5 flex items-center justify-between">
-                          <div className="flex -space-x-1.5 overflow-hidden">
-                            <span className="inline-block size-4.5 rounded-full ring-2 ring-[var(--surface-2)] bg-orange-400 text-[8px] font-bold text-black grid place-items-center">U</span>
-                            <span className="inline-block size-4.5 rounded-full ring-2 ring-[var(--surface-2)] bg-cyan-400 text-[8px] font-bold text-black grid place-items-center">T</span>
-                            <span className="inline-block size-4.5 rounded-full ring-2 ring-[var(--surface-2)] bg-amber-400 text-[8px] font-bold text-black grid place-items-center">I</span>
-                          </div>
-                          <span className="grid size-6 place-items-center rounded-full bg-cyan-400/15 text-cyan-400">
-                            <Trophy className="size-3" />
-                          </span>
-                        </div>
-                      </div>
+                      {displayUpcomingCompetitions.map((comp, idx) => {
+                        const compLink = comp.id?.startsWith("comp-") ? "/competitions" : `/competitions/${comp.id}`;
+                        const img = imageFor(comp.image_url, idx);
+                        const compDate = formatCompDate(comp.date);
+                        const compTime = formatCompTime(comp.time, comp.date);
 
-                      {/* Card 2: Secondary Event Bar */}
-                      <div
-                        onClick={() => setTab("events")}
-                        className="group cursor-pointer rounded-2xl border border-[var(--border)] bg-[var(--surface-2)]/60 p-2.5 transition-all hover:border-[var(--accent)] relative overflow-hidden"
-                      >
-                        <div className="absolute left-0 top-0 bottom-0 w-1 bg-rose-400" />
-                        <div className="flex items-center justify-between">
-                          <span className="text-[11px] font-semibold text-[var(--fg)] truncate">
-                            Audition Screening &amp; Round 1
-                          </span>
-                          <ArrowUpRight className="size-3 text-[var(--fg-subtle)] group-hover:text-[var(--accent)] transition-colors" />
-                        </div>
-                      </div>
+                        return (
+                          <Link
+                            key={comp.id || idx}
+                            href={compLink}
+                            className="group relative flex items-center gap-3 rounded-2xl border border-[var(--border)] bg-[var(--surface-2)]/70 p-2.5 transition-all duration-300 hover:border-[var(--accent)] hover:bg-[var(--surface-2)] hover:shadow-lg hover:shadow-[var(--accent)]/5 cursor-pointer overflow-hidden"
+                          >
+                            {/* Left accent vertical indicator bar */}
+                            <div
+                              className={cn(
+                                "absolute left-0 top-0 bottom-0 w-1",
+                                idx === 0 ? "bg-cyan-400" : "bg-amber-400"
+                              )}
+                            />
+
+                            {/* Competition Image Thumbnail */}
+                            <div className="relative size-16 shrink-0 overflow-hidden rounded-xl border border-[var(--border)] bg-[var(--surface)] shadow-inner">
+                              <img
+                                src={img}
+                                alt={comp.title}
+                                className="size-full object-cover transition-transform duration-500 group-hover:scale-110"
+                                loading="lazy"
+                              />
+                              <div className="absolute inset-0 bg-gradient-to-t from-black/60 via-transparent to-transparent pointer-events-none" />
+                              {comp.isEnrolled ? (
+                                <span className="absolute bottom-1 left-1 rounded bg-emerald-500/90 px-1 py-0.5 text-[7.5px] font-bold uppercase tracking-wider text-black">
+                                  Enrolled
+                                </span>
+                              ) : (
+                                <span className="absolute bottom-1 left-1 rounded bg-black/75 px-1 py-0.5 text-[7.5px] font-bold uppercase tracking-wider text-cyan-300">
+                                  {comp.category ? comp.category.slice(0, 8) : "Live"}
+                                </span>
+                              )}
+                            </div>
+
+                            {/* Competition Details: Name, Date, Time */}
+                            <div className="flex-1 min-w-0 pr-1">
+                              <h5 className="font-display text-xs font-bold text-[var(--fg)] group-hover:text-[var(--accent)] transition-colors line-clamp-1">
+                                {comp.title}
+                              </h5>
+
+                              <div className="mt-1 flex flex-col gap-0.5 text-[10px] font-mono text-[var(--fg-muted)]">
+                                <span className="flex items-center gap-1 truncate text-[var(--fg)]/90">
+                                  <Calendar className="size-3 shrink-0 text-[var(--accent)]" />
+                                  {compDate}
+                                </span>
+                                <span className="flex items-center gap-1 truncate text-[var(--fg-subtle)]">
+                                  <Clock className="size-3 shrink-0 text-cyan-400" />
+                                  {compTime}
+                                </span>
+                              </div>
+                            </div>
+
+                            {/* Arrow Indicator */}
+                            <div className="shrink-0 pr-1">
+                              <span className="grid size-6 place-items-center rounded-full bg-[var(--surface)] border border-[var(--border)] text-[var(--fg-subtle)] group-hover:text-[var(--accent)] group-hover:border-[var(--accent)] transition-colors">
+                                <ArrowUpRight className="size-3" />
+                              </span>
+                            </div>
+                          </Link>
+                        );
+                      })}
                     </div>
                   </div>
 
