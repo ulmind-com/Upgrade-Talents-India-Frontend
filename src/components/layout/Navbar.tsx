@@ -91,13 +91,6 @@ export default function Navbar({ brandName = "UPGRADE TALENTS INDIA", logo }: { 
   const handleSignOut = () => {
     setUserDropdownOpen(false);
     logout();
-    if (isJudge) {
-      router.replace("/judge/login");
-    } else if (isVolunteer) {
-      router.replace("/volunteer/login");
-    } else {
-      router.replace("/login");
-    }
   };
   const [scrolled, setScrolled] = useState(false);
   const [open, setOpen] = useState(false);

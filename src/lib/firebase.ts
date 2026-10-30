@@ -9,6 +9,7 @@ import {
   getAuth,
   GoogleAuthProvider,
   signInWithPopup,
+  signOut,
   type Auth,
   type UserCredential,
 } from "firebase/auth";
@@ -52,4 +53,16 @@ export async function signInWithGoogle(): Promise<{ idToken: string; email: stri
     name: result.user.displayName || "",
     photo: result.user.photoURL,
   };
+}
+
+/**
+ * Sign out from Firebase Auth to completely clear any Google session.
+ */
+export async function signOutFirebase(): Promise<void> {
+  try {
+    const { auth } = ensureFirebase();
+    if (auth) {
+      await signOut(auth);
+    }
+  } catch {}
 }

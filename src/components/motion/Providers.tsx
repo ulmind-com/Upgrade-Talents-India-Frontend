@@ -129,7 +129,7 @@ type AuthState = {
   isJudge: boolean;
   isVolunteer: boolean;
   refresh: () => Promise<void>;
-  logout: () => void;
+  logout: (redirectPath?: any) => Promise<void> | void;
 };
 const AuthCtx = createContext<AuthState>({
   user: null,
@@ -165,9 +165,23 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     }
   }, []);
 
-  const logout = useCallback(() => {
+  const logout = useCallback(async (redirectPath?: any) => {
+    const currentRole = tokenStore.getRole();
     tokenStore.clear();
     setUser(null);
+    try {
+      const { signOutFirebase } = await import("@/lib/firebase");
+      await signOutFirebase();
+    } catch {}
+    if (typeof window !== "undefined") {
+      let target = typeof redirectPath === "string" ? redirectPath : undefined;
+      if (!target) {
+        if (currentRole === "JUDGE") target = "/judge/login";
+        else if (currentRole === "VOLUNTEER") target = "/volunteer/login";
+        else target = "/login";
+      }
+      window.location.href = target;
+    }
   }, []);
 
   useEffect(() => { refresh(); }, [refresh]);

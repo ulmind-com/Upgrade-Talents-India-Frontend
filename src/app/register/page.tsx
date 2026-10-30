@@ -20,7 +20,7 @@ const STEPS = [
 
 export default function RegisterPage() {
   const router = useRouter();
-  const { refresh } = useAuth();
+  const { user, loading: authLoading, refresh } = useAuth();
 
   const [step, setStep] = useState(1);
   const [loading, setLoading] = useState(false);
@@ -28,6 +28,12 @@ export default function RegisterPage() {
   const [formError, setFormError] = useState<string | null>(null);
   const [notice, setNotice] = useState<string | null>(null);
   const [errors, setErrors] = useState<Record<string, string>>({});
+
+  useEffect(() => {
+    if (!authLoading && user) {
+      router.replace("/dashboard");
+    }
+  }, [user, authLoading, router]);
 
   // step 1
   const [email, setEmail] = useState("");
@@ -167,6 +173,14 @@ export default function RegisterPage() {
       setFormError(err?.message || "Could not complete registration. Please review your details.");
     } finally { setLoading(false); }
   };
+
+  if (!authLoading && user) {
+    return (
+      <section className="grid min-h-dvh place-items-center">
+        <p className="font-mono text-xs text-[var(--fg-muted)] animate-pulse">Redirecting to dashboard...</p>
+      </section>
+    );
+  }
 
   return (
     <AuthShell

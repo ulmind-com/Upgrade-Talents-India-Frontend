@@ -128,7 +128,7 @@ export default function DashboardPage() {
 
   useEffect(() => {
     if (!authLoading && !user) {
-      router.replace("/login?next=/dashboard");
+      router.replace("/login");
       return;
     }
     if (isJudge) {

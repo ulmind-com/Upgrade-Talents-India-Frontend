@@ -15,8 +15,12 @@ export const tokenStore = {
   set: (t: string) => localStorage.setItem(TOKEN_KEY, t),
   clear: () => {
     if (typeof window !== "undefined") {
-      localStorage.removeItem(TOKEN_KEY);
-      localStorage.removeItem(ROLE_KEY);
+      try {
+        localStorage.removeItem(TOKEN_KEY);
+        localStorage.removeItem(ROLE_KEY);
+        localStorage.removeItem(REG_TOKEN_KEY);
+        sessionStorage.clear();
+      } catch {}
     }
   },
   getRole: () => (typeof window === "undefined" ? null : localStorage.getItem(ROLE_KEY)),
@@ -28,7 +32,9 @@ export const tokenStore = {
   },
   getReg: () => (typeof window === "undefined" ? null : localStorage.getItem(REG_TOKEN_KEY)),
   setReg: (t: string) => localStorage.setItem(REG_TOKEN_KEY, t),
-  clearReg: () => localStorage.removeItem(REG_TOKEN_KEY),
+  clearReg: () => {
+    if (typeof window !== "undefined") localStorage.removeItem(REG_TOKEN_KEY);
+  },
 };
 
 export class ApiError extends Error {

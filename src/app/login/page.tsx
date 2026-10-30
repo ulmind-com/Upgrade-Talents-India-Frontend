@@ -4,7 +4,7 @@ import Link from "next/link";
 import { useRouter, useSearchParams } from "next/navigation";
 import { Suspense, useState, useEffect } from "react";
 import { motion, type Variants } from "framer-motion";
-import { Eye, EyeOff, ArrowRight, Ticket, ShieldCheck, Sparkles, Gavel, ScanLine, AlertCircle } from "lucide-react";
+import { Eye, EyeOff, ArrowRight, Ticket, ShieldCheck, Sparkles, Gavel, ScanLine, AlertCircle, Loader2 } from "lucide-react";
 import { authApi, tokenStore } from "@/lib/api";
 import { useAuth } from "@/components/motion/Providers";
 import { AuthShell, Field, FormAlert, Input } from "@/components/ui/Form";
@@ -37,7 +37,7 @@ function GoogleIcon({ className }: { className?: string }) {
 function LoginForm() {
   const router = useRouter();
   const params = useSearchParams();
-  const { refresh, isJudge, isVolunteer } = useAuth();
+  const { user, loading: authLoading, refresh, isJudge, isVolunteer } = useAuth();
   const next = params.get("next") || "/dashboard";
 
   const [email, setEmail] = useState("");
@@ -50,9 +50,28 @@ function LoginForm() {
   const [googleLoading, setGoogleLoading] = useState(false);
 
   useEffect(() => {
-    if (isJudge) router.replace("/judge");
-    else if (isVolunteer) router.replace("/volunteer");
-  }, [isJudge, isVolunteer, router]);
+    if (!authLoading) {
+      if (isJudge) {
+        router.replace("/judge");
+      } else if (isVolunteer) {
+        router.replace("/volunteer");
+      } else if (user) {
+        const dest = next && next.startsWith("/") && next !== "/login" ? next : "/dashboard";
+        router.replace(dest);
+      }
+    }
+  }, [user, authLoading, isJudge, isVolunteer, next, router]);
+
+  if (!authLoading && user) {
+    return (
+      <div className="grid min-h-[260px] place-items-center py-10">
+        <div className="flex flex-col items-center gap-3">
+          <Loader2 className="size-6 animate-spin text-[var(--accent)]" />
+          <p className="font-mono text-xs text-[var(--fg-muted)]">Signed in as {user.name || user.email}. Redirecting...</p>
+        </div>
+      </div>
+    );
+  }
 
   const submit = async (e: React.FormEvent) => {
     e.preventDefault();
