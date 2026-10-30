@@ -12,7 +12,7 @@ import {
   Medal, Download, Copy, Check, Camera, Edit3, Sparkles,
   ExternalLink, GraduationCap, ShieldCheck, MapPin, Phone,
   Mail, Flame, Star, Send, Layers, Package, Banknote,
-  ChevronLeft, ChevronRight, Share2, Bell, Settings, Eye, Briefcase, LogOut,
+  ChevronLeft, ChevronRight, Share2, Bell, Settings, Eye, Briefcase, LogOut, Search,
 } from "lucide-react";
 import {
   bookingsApi, vipApi, profileApi, rewardsApi, certificatesApi, shopApi,
@@ -33,7 +33,7 @@ export default function DashboardPage() {
   const router = useRouter();
   const { user, loading: authLoading, refresh: refreshAuth, logout, isJudge, isVolunteer } = useAuth();
 
-  const [tab, setTab] = useState<Tab>("tickets");
+  const [tab, setTab] = useState<Tab>("profile");
   const [merchOrders, setMerchOrders] = useState<any[]>([]);
   const [tickets, setTickets] = useState<MyTicket[]>([]);
   const [bookings, setBookings] = useState<any[]>([]);
@@ -256,110 +256,118 @@ export default function DashboardPage() {
   const vipCount = vipBookings.length + vipPasses.length;
 
   const TABS: { key: Tab; label: string; Icon: any; count?: number | string }[] = [
+    { key: "profile", label: "Profile", Icon: User },
+    { key: "competitions", label: "Competitions", Icon: Trophy, count: competitions.length },
     { key: "tickets", label: "My Tickets", Icon: Ticket, count: tickets.length },
-    { key: "competitions", label: "My Competitions", Icon: Trophy, count: competitions.length },
     { key: "certificates", label: "Certificates", Icon: Award, count: certificates.length },
     { key: "rewards", label: "Rewards & Coins", Icon: Coins, count: coinsData.total_coins },
     { key: "vip", label: "VIP Passes", Icon: Crown, count: vipCount },
     { key: "events", label: "Events & Courses", Icon: CalendarDays, count: eventsRegistered.length + coursesRegistered.length },
     { key: "orders", label: "Shop Orders", Icon: Package, count: merchOrders.length },
-    { key: "profile", label: "Profile", Icon: User },
   ];
 
   return (
-    <section className="relative min-h-dvh overflow-hidden pb-24 pt-32 noise md:pt-40">
+    <section className="relative min-h-dvh overflow-hidden pb-16 pt-24 md:pt-32 noise">
       <Spotlights variant="b" />
 
-      <div className="container-x relative">
-        <Reveal>
-          <div className="flex flex-col gap-6 md:flex-row md:items-end md:justify-between">
+      <div className="container-x relative max-w-[1560px]">
+        {/* ── THE EXECUTIVE MASTER CANVAS (Direct match of reference screenshot!) ── */}
+        <div className="relative overflow-hidden rounded-[28px] sm:rounded-[36px] border border-[var(--border)] bg-[var(--surface)] shadow-2xl flex flex-col md:flex-row min-h-[860px]">
+          
+          {/* ── LEFT SIDEBAR NAVIGATION (Matching Reference Screenshot!) ── */}
+          <aside className="w-full md:w-60 lg:w-68 shrink-0 bg-[#0c224b] text-white flex flex-col justify-between p-5 sm:p-6 border-b md:border-b-0 md:border-r border-white/10">
             <div>
-              <SectionLabel>Your Account & Profile</SectionLabel>
-              <SplitHeading
-                text={`Hey, ${user?.name?.split(" ")[0] || "Champion"}`}
-                className="mt-4 font-display text-[clamp(2.2rem,6.5vw,4.4rem)] font-bold uppercase leading-[0.9]"
-              />
-              <p className="mt-3 max-w-lg text-[15px] text-[var(--fg-muted)]">
-                Manage your entries, tickets, rank standings, certificates and rewards all in one place.
-              </p>
-            </div>
-
-            {/* Quick Hero Stat Chips */}
-            <div className="flex flex-wrap items-center gap-2.5">
-              <div className="inline-flex items-center gap-2 rounded-full border border-[var(--border)] bg-[var(--surface)] px-4 py-2 text-xs font-semibold backdrop-blur-md">
-                <Coins className="size-4 text-amber-400" />
-                <span className="font-mono tabular-nums text-amber-300 font-bold">{coinsData.total_coins}</span>
-                <span className="text-[var(--fg-subtle)]">UTI Coins</span>
-              </div>
-              <div className="inline-flex items-center gap-2 rounded-full border border-[var(--border)] bg-[var(--surface)] px-4 py-2 text-xs font-semibold backdrop-blur-md">
-                <Trophy className="size-4 text-[var(--accent)]" />
-                <span className="font-mono tabular-nums text-[var(--accent)] font-bold">{competitions.length}</span>
-                <span className="text-[var(--fg-subtle)]">Competitions</span>
-              </div>
-              {ranks.length > 0 && (
-                <div className="inline-flex items-center gap-2 rounded-full border border-yellow-500/30 bg-yellow-500/10 px-4 py-2 text-xs font-semibold text-yellow-300 backdrop-blur-md">
-                  <Medal className="size-4 text-yellow-400" />
-                  <span>Top Rank #{ranks[0].rank}</span>
+              {/* User Avatar + Dropdown at top (matching Helen Voizhicki ⌵) */}
+              <div
+                onClick={() => setEditOpen(true)}
+                className="flex items-center gap-3 p-2.5 rounded-2xl bg-white/10 border border-white/15 hover:bg-white/15 transition-all cursor-pointer shadow-sm"
+              >
+                <div className="size-11 rounded-full overflow-hidden border-2 border-white/20 bg-black/40 shrink-0 grid place-items-center">
+                  {user?.profile_photo ? (
+                    <img src={user.profile_photo} alt={user?.name || "User"} className="size-full object-cover" />
+                  ) : (
+                    <User className="size-5 text-white/60" />
+                  )}
                 </div>
-              )}
-            </div>
-          </div>
-        </Reveal>
+                <div className="min-w-0 flex-1">
+                  <p className="font-semibold text-xs text-white truncate flex items-center justify-between">
+                    <span className="truncate">{user?.name || "Contestant"}</span>
+                    <span className="text-[10px] text-white/60">▾</span>
+                  </p>
+                  <p className="text-[10px] font-mono text-cyan-300 truncate">Performing Artist</p>
+                </div>
+              </div>
 
-        {/* ── Navigation Tabs ── */}
-        <div className="mt-10 flex flex-wrap gap-2 overflow-x-auto pb-2 scrollbar-none" role="tablist" aria-label="Dashboard sections">
-          {TABS.map((t) => (
-            <button
-              key={t.key}
-              role="tab"
-              aria-selected={tab === t.key}
-              onClick={() => setTab(t.key)}
-              className={cn(
-                "relative inline-flex min-h-[46px] cursor-pointer shrink-0 items-center gap-2 rounded-full border px-4.5 text-[12.5px] font-semibold uppercase tracking-[0.06em] transition-all duration-300",
-                tab === t.key
-                  ? "border-transparent text-[var(--on-accent)] shadow-lg shadow-[var(--accent)]/15"
-                  : "border-[var(--border)] text-[var(--fg-muted)] hover:border-[var(--border-strong)] hover:text-[var(--fg)] bg-[var(--surface)]"
-              )}
-            >
-              {tab === t.key && (
-                <motion.span
-                  layoutId="dash-tab"
-                  className="absolute inset-0 -z-10 rounded-full"
-                  style={{ background: "var(--grad-brand)" }}
-                  transition={{ type: "spring", stiffness: 350, damping: 32 }}
+              {/* Search input (as shown in reference screenshot) */}
+              <div className="mt-4 relative hidden sm:block">
+                <Search className="absolute left-3 top-2.5 size-3.5 text-white/40" />
+                <input
+                  type="text"
+                  placeholder="Search..."
+                  className="w-full rounded-xl bg-white/10 border border-white/10 pl-8 pr-3 py-2 text-xs text-white placeholder-white/40 outline-none focus:border-cyan-400/60"
                 />
-              )}
-              <t.Icon className="size-4" aria-hidden />
-              <span>{t.label}</span>
-              {t.count !== undefined && t.count !== 0 && (
-                <span className={cn(
-                  "rounded-full px-2 py-0.5 text-[10px] font-bold tabular-nums",
-                  tab === t.key ? "bg-black/30 text-white" : "bg-[var(--surface-2)] text-[var(--fg-muted)]"
-                )}>
-                  {t.count}
-                </span>
-              )}
-            </button>
-          ))}
-        </div>
+              </div>
 
-        {error && (
-          <div role="alert" className="mt-8 flex items-start gap-3 rounded-[var(--radius-lg)] border border-[color-mix(in_srgb,var(--danger)_40%,transparent)] bg-[color-mix(in_srgb,var(--danger)_10%,transparent)] p-5">
-            <AlertCircle className="mt-0.5 size-5 shrink-0 text-[var(--danger)]" aria-hidden />
-            <div>
-              <p className="text-sm text-[var(--danger)]">{error}</p>
-              <Button onClick={() => loadAll()} variant="outline" size="sm" className="mt-3">Retry</Button>
+              {/* Vertical Navigation Items (Matching Reference Screenshot!) */}
+              <nav className="mt-5 flex flex-row md:flex-col gap-1.5 overflow-x-auto md:overflow-visible pb-2 md:pb-0 scrollbar-none" role="tablist">
+                {TABS.map((t) => (
+                  <button
+                    key={t.key}
+                    role="tab"
+                    aria-selected={tab === t.key}
+                    onClick={() => setTab(t.key)}
+                    className={cn(
+                      "flex items-center justify-between rounded-xl px-3.5 py-2.5 text-xs font-semibold uppercase tracking-wider transition-all cursor-pointer text-left shrink-0",
+                      tab === t.key
+                        ? "bg-white/20 text-white font-bold shadow-sm border border-white/20"
+                        : "text-white/60 hover:text-white hover:bg-white/5"
+                    )}
+                  >
+                    <div className="flex items-center gap-2.5">
+                      <t.Icon className={cn("size-4 shrink-0", tab === t.key ? "text-cyan-300" : "text-white/60")} />
+                      <span className="whitespace-nowrap">{t.label}</span>
+                    </div>
+                    {t.count !== undefined && t.count !== 0 && (
+                      <span className={cn(
+                        "rounded-full px-2 py-0.5 text-[10px] font-mono ml-2",
+                        tab === t.key ? "bg-cyan-400 text-black font-bold" : "bg-white/10 text-white/70"
+                      )}>
+                        {t.count}
+                      </span>
+                    )}
+                  </button>
+                ))}
+              </nav>
             </div>
-          </div>
-        )}
 
-        {loading && (
-          <div className="mt-10 grid gap-5 sm:grid-cols-2 lg:grid-cols-3">
-            {Array.from({ length: 3 }).map((_, i) => (
-              <div key={i} className="skeleton h-56 rounded-[var(--radius-lg)]" />
-            ))}
-          </div>
-        )}
+            {/* Bottom branding footer */}
+            <div className="mt-6 pt-4 border-t border-white/10 hidden md:flex items-center justify-between text-[11px] text-white/50">
+              <span className="font-mono text-[10px]">Upgrade Talents</span>
+              <button onClick={logout} className="text-red-300 hover:text-red-200 text-[11px] flex items-center gap-1 cursor-pointer">
+                <LogOut className="size-3" /> Log out
+              </button>
+            </div>
+          </aside>
+
+          {/* ── RIGHT MAIN CANVAS ── */}
+          <main className="flex-1 bg-[var(--bg)]/40 p-4 sm:p-6 lg:p-7 overflow-y-auto">
+            {error && (
+              <div role="alert" className="mb-6 flex items-start gap-3 rounded-[var(--radius-lg)] border border-[color-mix(in_srgb,var(--danger)_40%,transparent)] bg-[color-mix(in_srgb,var(--danger)_10%,transparent)] p-4 text-xs">
+                <AlertCircle className="mt-0.5 size-4 shrink-0 text-[var(--danger)]" aria-hidden />
+                <div>
+                  <p className="text-[var(--danger)]">{error}</p>
+                  <Button onClick={() => loadAll()} variant="outline" size="sm" className="mt-2">Retry</Button>
+                </div>
+              </div>
+            )}
+
+            {loading && (
+              <div className="grid gap-5 sm:grid-cols-2 lg:grid-cols-3">
+                {Array.from({ length: 3 }).map((_, i) => (
+                  <div key={i} className="skeleton h-56 rounded-[var(--radius-lg)]" />
+                ))}
+              </div>
+            )}
 
         {/* ════════════════════════════════════════════════════════════════
             1. TICKETS TAB
@@ -1541,6 +1549,8 @@ export default function DashboardPage() {
             </div>
           </Reveal>
         )}
+          </main>
+        </div>
       </div>
 
       {/* ── Edit Profile Modal ── */}
