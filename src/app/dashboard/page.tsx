@@ -12,6 +12,7 @@ import {
   Medal, Download, Copy, Check, Camera, Edit3, Sparkles,
   ExternalLink, GraduationCap, ShieldCheck, MapPin, Phone,
   Mail, Flame, Star, Send, Layers, Package, Banknote,
+  ChevronLeft, ChevronRight, Share2,
 } from "lucide-react";
 import {
   bookingsApi, vipApi, profileApi, rewardsApi, certificatesApi, shopApi,
@@ -61,6 +62,68 @@ export default function DashboardPage() {
 
   // Edit Profile Modal
   const [editOpen, setEditOpen] = useState(false);
+
+  // Profile Suite Calendar & Quick Actions
+  const [calendarDate, setCalendarDate] = useState(() => new Date());
+  const [copiedRef, setCopiedRef] = useState(false);
+
+  const handleCopyReferral = useCallback(() => {
+    if (user?.referral_code) {
+      navigator.clipboard.writeText(user.referral_code);
+      setCopiedRef(true);
+      setTimeout(() => setCopiedRef(false), 2000);
+    }
+  }, [user?.referral_code]);
+
+  const calendarMonthYear = useMemo(() => {
+    return calendarDate.toLocaleString("default", { month: "long", year: "numeric" });
+  }, [calendarDate]);
+
+  const calendarDays = useMemo(() => {
+    const year = calendarDate.getFullYear();
+    const month = calendarDate.getMonth();
+    const firstDayIndex = new Date(year, month, 1).getDay();
+    const totalDays = new Date(year, month + 1, 0).getDate();
+    const prevMonthTotalDays = new Date(year, month, 0).getDate();
+
+    const days: { day: number; currentMonth: boolean; isToday: boolean }[] = [];
+    const today = new Date();
+    const isCurrentMonth = today.getFullYear() === year && today.getMonth() === month;
+
+    for (let i = firstDayIndex - 1; i >= 0; i--) {
+      days.push({ day: prevMonthTotalDays - i, currentMonth: false, isToday: false });
+    }
+    for (let d = 1; d <= totalDays; d++) {
+      const isToday = isCurrentMonth && today.getDate() === d;
+      days.push({ day: d, currentMonth: true, isToday });
+    }
+    const remaining = (7 - (days.length % 7)) % 7;
+    for (let r = 1; r <= remaining; r++) {
+      days.push({ day: r, currentMonth: false, isToday: false });
+    }
+    return days;
+  }, [calendarDate]);
+
+  const prevMonth = useCallback(() => {
+    setCalendarDate((prev) => new Date(prev.getFullYear(), prev.getMonth() - 1, 1));
+  }, []);
+
+  const nextMonth = useCallback(() => {
+    setCalendarDate((prev) => new Date(prev.getFullYear(), prev.getMonth() + 1, 1));
+  }, []);
+
+  const userAge = useMemo(() => {
+    if (!user?.date_of_birth) return null;
+    const dob = new Date(user.date_of_birth);
+    if (isNaN(dob.getTime())) return null;
+    const today = new Date();
+    let age = today.getFullYear() - dob.getFullYear();
+    const m = today.getMonth() - dob.getMonth();
+    if (m < 0 || (m === 0 && today.getDate() < dob.getDate())) {
+      age--;
+    }
+    return age >= 0 ? age : null;
+  }, [user?.date_of_birth]);
 
   useEffect(() => {
     if (!authLoading && !user) {
@@ -951,19 +1014,21 @@ export default function DashboardPage() {
         )}
 
         {/* ════════════════════════════════════════════════════════════════
-            8. PROFILE & PERSONAL DETAILS TAB
+            8. PROFILE & PERSONAL DETAILS TAB — ULTRA PRO EXECUTIVE SUITE
            ════════════════════════════════════════════════════════════════ */}
         {!loading && tab === "profile" && (
-          <Reveal className="mt-10">
-            <div className="grid gap-6 lg:grid-cols-[1fr_1.5fr]">
-              {(user?.requires_profile_completion || !user?.is_profile_completed || !user?.phone_number || !user?.date_of_birth || !user?.address) && (
-                <div className="lg:col-span-2 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4 rounded-2xl border border-amber-500/40 bg-amber-500/10 p-5 text-xs text-amber-200">
+          <Reveal className="mt-8">
+            <div className="flex flex-col gap-6">
+
+              {/* Incomplete Profile Alert if needed */}
+              {(user?.requires_profile_completion || !user?.is_profile_completed || !user?.phone_number || !user?.date_of_birth || !user?.address || !user?.parent_phone_number) && (
+                <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4 rounded-2xl border border-amber-500/40 bg-amber-500/10 p-5 text-xs text-amber-200">
                   <div className="flex items-start gap-3">
                     <AlertCircle className="size-5 shrink-0 text-amber-400 mt-0.5" />
                     <div>
                       <p className="font-bold text-amber-100 text-sm">Action Required: Complete Your Profile Details</p>
                       <p className="mt-1 text-amber-300/80 leading-relaxed">
-                        Please provide your full name, 10-digit mobile number, date of birth, and residential address to activate full account capabilities and participate in events.
+                        Please provide your full name, 10-digit mobile number, date of birth, residential address, and parent/guardian phone number to activate full account capabilities.
                       </p>
                     </div>
                   </div>
@@ -975,82 +1040,520 @@ export default function DashboardPage() {
                   </button>
                 </div>
               )}
-              {/* Profile Card */}
-              <div className="flex flex-col items-center justify-between rounded-[var(--radius-xl)] border border-[var(--border)] bg-[var(--surface)] p-8 text-center shadow-lg">
-                <div className="flex flex-col items-center">
-                  <div className="relative group size-28">
-                    <span className="grid size-full place-items-center overflow-hidden rounded-full border-2 border-[var(--accent)] bg-[var(--bg)] shadow-md">
-                      {user?.profile_photo ? (
-                        <img src={user.profile_photo} alt={user?.name || "Profile"} className="size-full object-cover" />
-                      ) : (
-                        <User className="size-12 text-[var(--fg-muted)]" aria-hidden />
-                      )}
-                    </span>
+
+              {/* ── TOP SECTION: 3 Modular Bento Widgets ── */}
+              <div className="grid gap-6 lg:grid-cols-12">
+
+                {/* 1. Main Identity & Profile Hero (6 cols on lg) */}
+                <div className="relative overflow-hidden rounded-[var(--radius-xl)] border border-[var(--border)] bg-[var(--surface)] p-6 sm:p-7 shadow-xl lg:col-span-6 flex flex-col justify-between">
+                  {/* Subtle decorative glow */}
+                  <div
+                    className="pointer-events-none absolute -right-16 -top-16 size-48 rounded-full blur-3xl opacity-20"
+                    style={{ background: "var(--grad-brand)" }}
+                    aria-hidden
+                  />
+
+                  <div>
+                    {/* Top row: Label & Status */}
+                    <div className="flex items-center justify-between gap-3 mb-6">
+                      <div className="flex items-center gap-2">
+                        <span className="size-2 rounded-full bg-emerald-400 animate-pulse" />
+                        <span className="font-mono text-[11px] font-bold uppercase tracking-wider text-[var(--fg-subtle)]">
+                          Contestant Identity
+                        </span>
+                      </div>
+                      <span className="inline-flex items-center gap-1.5 rounded-full border border-emerald-500/30 bg-emerald-500/10 px-3 py-1 text-[11px] font-semibold text-emerald-400">
+                        <ShieldCheck className="size-3.5" /> Verified Account
+                      </span>
+                    </div>
+
+                    {/* Identity Core: Avatar + Details */}
+                    <div className="flex flex-col sm:flex-row items-center sm:items-start gap-5">
+                      {/* Avatar with Camera trigger */}
+                      <div className="relative group shrink-0">
+                        <div className="size-24 sm:size-26 rounded-full p-1 bg-gradient-to-tr from-[var(--accent)] via-orange-400 to-amber-300 shadow-md">
+                          <div className="size-full overflow-hidden rounded-full bg-[var(--surface-2)] grid place-items-center">
+                            {user?.profile_photo ? (
+                              <img src={user.profile_photo} alt={user?.name || "Profile"} className="size-full object-cover" />
+                            ) : (
+                              <User className="size-11 text-[var(--fg-muted)]" aria-hidden />
+                            )}
+                          </div>
+                        </div>
+                        <button
+                          onClick={() => setEditOpen(true)}
+                          title="Update Profile Photo"
+                          aria-label="Change photo"
+                          className="absolute -bottom-1 -right-1 grid size-8 place-items-center rounded-full bg-[var(--accent)] text-white shadow-lg transition-transform hover:scale-110 active:scale-95 cursor-pointer"
+                        >
+                          <Camera className="size-4" />
+                        </button>
+                      </div>
+
+                      {/* Name & Credentials */}
+                      <div className="flex-1 text-center sm:text-left min-w-0">
+                        <div className="flex flex-wrap items-center justify-center sm:justify-start gap-2">
+                          <h2 className="font-display text-2xl sm:text-3xl font-bold tracking-tight text-[var(--fg)]">
+                            {user?.name || "Contestant"}
+                          </h2>
+                          <span className="rounded-md bg-[var(--accent)]/15 border border-[var(--accent)]/30 px-2 py-0.5 text-[10px] font-bold uppercase tracking-wide text-[var(--accent)]">
+                            {user?.role === "VIP" ? "VIP Member" : "Contestant"}
+                          </span>
+                        </div>
+
+                        <p className="mt-1 text-xs text-[var(--fg-subtle)] font-medium">
+                          Performing Arts &amp; Competitive Contests
+                        </p>
+
+                        {/* Quick metadata chips */}
+                        <div className="mt-4 flex flex-col gap-2 text-xs text-[var(--fg-muted)]">
+                          <div className="flex items-center justify-center sm:justify-start gap-2 truncate">
+                            <Mail className="size-3.5 shrink-0 text-[var(--accent)]" />
+                            <span className="truncate font-mono text-[12px]">{user?.email}</span>
+                          </div>
+                          {user?.phone_number && (
+                            <div className="flex items-center justify-center sm:justify-start gap-2">
+                              <Phone className="size-3.5 shrink-0 text-[var(--accent)]" />
+                              <span className="font-mono text-[12px]">+91 {user.phone_number}</span>
+                            </div>
+                          )}
+                          {user?.referral_code && (
+                            <div className="flex items-center justify-center sm:justify-start gap-2">
+                              <Coins className="size-3.5 shrink-0 text-amber-400" />
+                              <span className="font-mono text-[11px] text-[var(--fg-subtle)] uppercase">Referral ID:</span>
+                              <button
+                                onClick={handleCopyReferral}
+                                className="inline-flex items-center gap-1.5 rounded-lg border border-[var(--border)] bg-[var(--surface-2)] px-2 py-0.5 font-mono text-[11px] font-bold text-[var(--fg)] hover:border-[var(--accent)] transition-colors cursor-pointer"
+                                title="Click to copy referral code"
+                              >
+                                {user.referral_code}
+                                {copiedRef ? <Check className="size-3 text-emerald-400" /> : <Copy className="size-3 text-[var(--fg-subtle)]" />}
+                              </button>
+                            </div>
+                          )}
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+
+                  {/* Action buttons row */}
+                  <div className="mt-6 pt-5 border-t border-[var(--border)] flex flex-wrap items-center gap-2.5">
                     <button
                       onClick={() => setEditOpen(true)}
-                      title="Update Profile Photo"
-                      className="absolute bottom-0 right-0 grid size-8 place-items-center rounded-full bg-[var(--accent)] text-black shadow-md transition-transform hover:scale-110 active:scale-95"
+                      className="inline-flex items-center justify-center gap-2 rounded-xl px-4 py-2.5 text-xs font-bold text-[var(--on-accent)] transition-all active:scale-98 shadow-md cursor-pointer"
+                      style={{ background: "var(--grad-brand)" }}
                     >
-                      <Camera className="size-4" />
+                      <Edit3 className="size-3.5" /> Edit Profile Details
+                    </button>
+                    {user?.referral_code && (
+                      <button
+                        onClick={handleCopyReferral}
+                        className="inline-flex items-center justify-center gap-1.5 rounded-xl border border-[var(--border)] bg-[var(--surface-2)] px-3.5 py-2.5 text-xs font-semibold text-[var(--fg)] hover:border-[var(--accent)] transition-colors cursor-pointer"
+                      >
+                        {copiedRef ? <Check className="size-3.5 text-emerald-400" /> : <Share2 className="size-3.5 text-[var(--accent)]" />}
+                        {copiedRef ? "Referral Copied!" : "Share Referral"}
+                      </button>
+                    )}
+                    <button
+                      onClick={logout}
+                      className="ml-auto inline-flex items-center justify-center gap-1.5 rounded-xl border border-red-500/20 bg-red-500/5 px-3.5 py-2.5 text-xs font-semibold text-red-400 hover:bg-red-500/10 transition-colors cursor-pointer"
+                    >
+                      Log out
                     </button>
                   </div>
+                </div>
 
-                  <h2 className="mt-5 font-display text-2xl font-bold uppercase">{user?.name || "Artist"}</h2>
-                  <p className="mt-1 text-sm text-[var(--fg-muted)] font-mono [overflow-wrap:anywhere]">{user?.email}</p>
+                {/* 2. Interactive Contest & Events Calendar (3 cols on lg) */}
+                <div className="rounded-[var(--radius-xl)] border border-[var(--border)] bg-[var(--surface)] p-5 sm:p-6 shadow-xl lg:col-span-3 flex flex-col justify-between">
+                  <div>
+                    {/* Header with Month Title and Controls */}
+                    <div className="flex items-center justify-between mb-4">
+                      <div>
+                        <span className="font-mono text-[10px] font-bold uppercase tracking-wider text-[var(--fg-subtle)]">
+                          Contest Calendar
+                        </span>
+                        <h4 className="font-display text-base font-bold text-[var(--fg)]">
+                          {calendarMonthYear}
+                        </h4>
+                      </div>
+                      <div className="flex items-center gap-1">
+                        <button
+                          onClick={prevMonth}
+                          aria-label="Previous month"
+                          className="grid size-7 place-items-center rounded-lg border border-[var(--border)] bg-[var(--surface-2)] text-[var(--fg-muted)] hover:text-[var(--fg)] hover:border-[var(--accent)] transition-colors cursor-pointer"
+                        >
+                          <ChevronLeft className="size-3.5" />
+                        </button>
+                        <button
+                          onClick={nextMonth}
+                          aria-label="Next month"
+                          className="grid size-7 place-items-center rounded-lg border border-[var(--border)] bg-[var(--surface-2)] text-[var(--fg-muted)] hover:text-[var(--fg)] hover:border-[var(--accent)] transition-colors cursor-pointer"
+                        >
+                          <ChevronRight className="size-3.5" />
+                        </button>
+                      </div>
+                    </div>
 
-                  <div className="mt-3 inline-flex items-center gap-1.5 rounded-full border border-green-500/30 bg-green-500/10 px-3 py-1 text-[11px] font-semibold text-green-400">
-                    <ShieldCheck className="size-3.5" /> Verified Account
+                    {/* Weekday Labels */}
+                    <div className="grid grid-cols-7 gap-1 text-center font-mono text-[9px] uppercase tracking-wider text-[var(--fg-subtle)] mb-2">
+                      {["Su", "Mo", "Tu", "We", "Th", "Fr", "Sa"].map((d) => (
+                        <div key={d} className="py-1">{d}</div>
+                      ))}
+                    </div>
+
+                    {/* Calendar Days Grid */}
+                    <div className="grid grid-cols-7 gap-1 text-center font-mono text-xs">
+                      {calendarDays.slice(0, 35).map((item, idx) => (
+                        <div
+                          key={idx}
+                          className={cn(
+                            "relative grid size-7 sm:size-8 m-auto place-items-center rounded-full transition-all text-[11px]",
+                            item.isToday
+                              ? "bg-[var(--accent)] text-white font-bold shadow-sm"
+                              : item.currentMonth
+                              ? "text-[var(--fg)] hover:bg-[var(--surface-2)]"
+                              : "text-[var(--fg-subtle)]/35"
+                          )}
+                        >
+                          <span>{item.day}</span>
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+
+                  {/* Calendar Footer Info */}
+                  <div className="mt-4 pt-3 border-t border-[var(--border)] flex items-center justify-between text-[11px]">
+                    <span className="text-[var(--fg-muted)] flex items-center gap-1.5">
+                      <span className="size-2 rounded-full bg-[var(--accent)]" /> Today
+                    </span>
+                    <button
+                      onClick={() => setTab("competitions")}
+                      className="font-semibold text-[var(--accent)] hover:underline cursor-pointer"
+                    >
+                      View Live Schedule &rarr;
+                    </button>
                   </div>
                 </div>
 
-                <div className="mt-8 flex w-full flex-col gap-3">
-                  <button
-                    onClick={() => setEditOpen(true)}
-                    className="inline-flex w-full items-center justify-center gap-2 rounded-full py-3 text-xs font-bold text-[var(--on-accent)] transition-all active:scale-98"
-                    style={{ background: "var(--grad-brand)" }}
-                  >
-                    <Edit3 className="size-4" /> Edit Profile & Photo
-                  </button>
-                  <Button onClick={logout} variant="outline" className="w-full">
-                    Log out
-                  </Button>
+                {/* 3. Upcoming Contests & Events Widget (3 cols on lg) */}
+                <div className="rounded-[var(--radius-xl)] border border-[var(--border)] bg-[var(--surface)] p-5 sm:p-6 shadow-xl lg:col-span-3 flex flex-col justify-between">
+                  <div>
+                    <div className="flex items-center justify-between mb-4">
+                      <div>
+                        <span className="font-mono text-[10px] font-bold uppercase tracking-wider text-[var(--fg-subtle)]">
+                          Active Entries
+                        </span>
+                        <h4 className="font-display text-base font-bold text-[var(--fg)]">
+                          Upcoming Contests
+                        </h4>
+                      </div>
+                      <button
+                        onClick={() => setTab("competitions")}
+                        className="rounded-full border border-[var(--border)] bg-[var(--surface-2)] px-2.5 py-1 text-[10px] font-bold uppercase text-[var(--accent)] hover:border-[var(--accent)] transition-colors cursor-pointer"
+                      >
+                        View All
+                      </button>
+                    </div>
+
+                    {/* List of active registered competitions or empty card */}
+                    {competitions.length > 0 ? (
+                      <div className="flex flex-col gap-3">
+                        {competitions.slice(0, 2).map((comp: any, idx: number) => {
+                          const title = comp.competition_title || comp.title || "National Talent Competition";
+                          const cat = comp.category || "Talent Arena";
+                          return (
+                            <div
+                              key={comp._id || idx}
+                              onClick={() => setTab("competitions")}
+                              className="group cursor-pointer rounded-2xl border border-[var(--border)] bg-[var(--surface-2)] p-3.5 transition-all hover:border-[var(--accent)]"
+                            >
+                              <div className="flex items-center justify-between gap-2">
+                                <span className="rounded bg-[var(--accent)]/15 px-2 py-0.5 text-[9px] font-bold uppercase tracking-wider text-[var(--accent)]">
+                                  {cat}
+                                </span>
+                                <span className="flex items-center gap-1 text-[10px] text-emerald-400 font-semibold font-mono">
+                                  <span className="size-1.5 rounded-full bg-emerald-400" /> Registered
+                                </span>
+                              </div>
+                              <p className="mt-2 text-xs font-bold text-[var(--fg)] group-hover:text-[var(--accent)] transition-colors line-clamp-1">
+                                {title}
+                              </p>
+                              <div className="mt-2 flex items-center justify-between text-[10px] text-[var(--fg-muted)]">
+                                <span className="flex items-center gap-1 font-mono">
+                                  <Clock className="size-3" /> Round 1 Active
+                                </span>
+                                <ArrowUpRight className="size-3 group-hover:translate-x-0.5 group-hover:-translate-y-0.5 transition-transform text-[var(--accent)]" />
+                              </div>
+                            </div>
+                          );
+                        })}
+                      </div>
+                    ) : (
+                      <div className="flex flex-col items-center justify-center rounded-2xl border border-dashed border-[var(--border)] bg-[var(--surface-2)]/50 p-5 text-center">
+                        <Trophy className="size-8 text-[var(--accent)]/70 mb-2" />
+                        <p className="text-xs font-bold text-[var(--fg)]">No Live Entries Yet</p>
+                        <p className="mt-1 text-[11px] text-[var(--fg-muted)] leading-relaxed">
+                          Explore national audition categories and register your performance.
+                        </p>
+                        <Link
+                          href="/competitions"
+                          className="mt-3.5 inline-flex items-center gap-1.5 rounded-xl px-3 py-1.5 text-[11px] font-bold text-white shadow-sm"
+                          style={{ background: "var(--grad-brand)" }}
+                        >
+                          Explore Contests <ArrowUpRight className="size-3" />
+                        </Link>
+                      </div>
+                    )}
+                  </div>
+
+                  {/* Summary metric pill */}
+                  <div className="mt-4 pt-3 border-t border-[var(--border)] flex items-center justify-between text-[11px] text-[var(--fg-muted)] font-mono">
+                    <span>Enrolled: <strong className="text-[var(--fg)]">{competitions.length}</strong></span>
+                    <span>Passes: <strong className="text-[var(--fg)]">{tickets.length}</strong></span>
+                    <span>Coins: <strong className="text-amber-400">{coinsData.total_coins}</strong></span>
+                  </div>
                 </div>
+
               </div>
 
-              {/* Details Key-Value List */}
-              <div className="flex flex-col gap-6">
-              <div className="overflow-hidden rounded-[var(--radius-xl)] border border-[var(--border)] bg-[var(--surface)] shadow-lg">
-                <div className="border-b border-[var(--border)] px-7 py-5 flex items-center justify-between">
-                  <h3 className="font-display text-base font-bold uppercase tracking-wider text-[var(--fg)]">
-                    Personal Information
-                  </h3>
-                  <button
-                    onClick={() => setEditOpen(true)}
-                    className="inline-flex items-center gap-1.5 text-xs font-semibold text-[var(--accent)] hover:underline"
-                  >
-                    <Edit3 className="size-3.5" /> Edit
-                  </button>
-                </div>
-                <dl className="divide-y divide-[var(--border)]">
-                  {[
-                    { k: "Full Name", v: user?.name, icon: User },
-                    { k: "Email Address", v: user?.email, icon: Mail },
-                    { k: "Phone Number", v: user?.phone_number ? `+91 ${user.phone_number}` : null, icon: Phone },
-                    { k: "Date of Birth", v: user?.date_of_birth ? formatEventDate(user.date_of_birth) : null, icon: CalendarDays },
-                    { k: "Residential Address", v: user?.address, icon: MapPin },
-                    { k: "Parent / Emergency Contact", v: user?.parent_phone_number ? `+91 ${user.parent_phone_number}` : null, icon: Phone },
-                    { k: "My Unique Referral Code", v: user?.referral_code, icon: Coins },
-                  ].map((row) => (
-                    <div key={row.k} className="flex items-start justify-between gap-6 px-7 py-4.5">
-                      <dt className="flex items-center gap-2 shrink-0 font-mono text-[11px] uppercase tracking-wider text-[var(--fg-subtle)]">
-                        <row.icon className="size-3.5 text-[var(--accent)]" /> {row.k}
-                      </dt>
-                      <dd className="text-right text-sm font-semibold [overflow-wrap:anywhere]">{row.v || "—"}</dd>
+              {/* ── BOTTOM SECTION: 2 Balanced Modular Cards ── */}
+              <div className="grid gap-6 lg:grid-cols-12">
+
+                {/* Card A: Personal & Contestant Record (7 cols on lg) */}
+                <div className="rounded-[var(--radius-xl)] border border-[var(--border)] bg-[var(--surface)] p-6 sm:p-7 shadow-xl lg:col-span-7 flex flex-col justify-between">
+                  <div>
+                    {/* Header */}
+                    <div className="flex items-center justify-between pb-5 border-b border-[var(--border)]">
+                      <div>
+                        <span className="font-mono text-[10px] font-bold uppercase tracking-wider text-[var(--fg-subtle)]">
+                          Contestant Dossier
+                        </span>
+                        <h3 className="font-display text-lg sm:text-xl font-bold uppercase text-[var(--fg)]">
+                          Personal Information
+                        </h3>
+                      </div>
+                      <button
+                        onClick={() => setEditOpen(true)}
+                        className="inline-flex items-center gap-1.5 rounded-xl border border-[var(--border)] bg-[var(--surface-2)] px-3 py-1.5 text-xs font-semibold text-[var(--accent)] hover:border-[var(--accent)] transition-colors cursor-pointer"
+                      >
+                        <Edit3 className="size-3.5" /> Edit Details
+                      </button>
                     </div>
-                  ))}
-                </dl>
+
+                    {/* Section 1: Contestant Credentials Badges (4 Chips like Image 2) */}
+                    <div className="mt-5">
+                      <span className="block font-mono text-[10px] uppercase tracking-wider text-[var(--fg-subtle)] mb-2.5">
+                        Account &amp; Contestant Credentials
+                      </span>
+                      <div className="grid grid-cols-2 sm:grid-cols-4 gap-2.5">
+                        <div className="rounded-xl border border-[var(--border)] bg-[var(--surface-2)] p-3">
+                          <span className="block font-mono text-[9px] uppercase tracking-wider text-[var(--fg-subtle)]">Account Status</span>
+                          <p className="mt-1 font-bold text-xs text-emerald-400 flex items-center gap-1">
+                            <CheckCircle2 className="size-3" /> Active
+                          </p>
+                        </div>
+                        <div className="rounded-xl border border-[var(--border)] bg-[var(--surface-2)] p-3">
+                          <span className="block font-mono text-[9px] uppercase tracking-wider text-[var(--fg-subtle)]">Unique Referral</span>
+                          <p className="mt-1 font-mono font-bold text-xs text-[var(--fg)] truncate">
+                            {user?.referral_code || "N/A"}
+                          </p>
+                        </div>
+                        <div className="rounded-xl border border-[var(--border)] bg-[var(--surface-2)] p-3">
+                          <span className="block font-mono text-[9px] uppercase tracking-wider text-[var(--fg-subtle)]">UTI Coins</span>
+                          <p className="mt-1 font-mono font-bold text-xs text-amber-400 flex items-center gap-1">
+                            <Coins className="size-3" /> {coinsData.total_coins}
+                          </p>
+                        </div>
+                        <div className="rounded-xl border border-[var(--border)] bg-[var(--surface-2)] p-3">
+                          <span className="block font-mono text-[9px] uppercase tracking-wider text-[var(--fg-subtle)]">Gate Passes</span>
+                          <p className="mt-1 font-mono font-bold text-xs text-[var(--cyan)] flex items-center gap-1">
+                            <Ticket className="size-3" /> {tickets.length} Passes
+                          </p>
+                        </div>
+                      </div>
+                    </div>
+
+                    {/* Section 2: Detailed Personal Information Grid */}
+                    <div className="mt-6">
+                      <span className="block font-mono text-[10px] uppercase tracking-wider text-[var(--fg-subtle)] mb-2.5">
+                        Verified Personal Details
+                      </span>
+                      <div className="grid gap-3 sm:grid-cols-2">
+                        {/* Full Name */}
+                        <div className="rounded-2xl border border-[var(--border)] bg-[var(--surface-2)] p-3.5">
+                          <div className="flex items-center gap-2 text-xs font-medium text-[var(--fg-subtle)]">
+                            <User className="size-3.5 text-[var(--accent)]" /> Full Name
+                          </div>
+                          <p className="mt-1.5 text-sm font-semibold text-[var(--fg)]">
+                            {user?.name || "—"}
+                          </p>
+                        </div>
+
+                        {/* Email Address */}
+                        <div className="rounded-2xl border border-[var(--border)] bg-[var(--surface-2)] p-3.5">
+                          <div className="flex items-center gap-2 text-xs font-medium text-[var(--fg-subtle)]">
+                            <Mail className="size-3.5 text-[var(--accent)]" /> Registered Email
+                          </div>
+                          <p className="mt-1.5 text-sm font-semibold text-[var(--fg)] font-mono truncate">
+                            {user?.email || "—"}
+                          </p>
+                        </div>
+
+                        {/* Primary Phone */}
+                        <div className="rounded-2xl border border-[var(--border)] bg-[var(--surface-2)] p-3.5">
+                          <div className="flex items-center gap-2 text-xs font-medium text-[var(--fg-subtle)]">
+                            <Phone className="size-3.5 text-[var(--accent)]" /> Mobile Number
+                          </div>
+                          <p className="mt-1.5 text-sm font-semibold text-[var(--fg)] font-mono">
+                            {user?.phone_number ? `+91 ${user.phone_number}` : "—"}
+                          </p>
+                        </div>
+
+                        {/* Date of Birth & Age */}
+                        <div className="rounded-2xl border border-[var(--border)] bg-[var(--surface-2)] p-3.5">
+                          <div className="flex items-center gap-2 text-xs font-medium text-[var(--fg-subtle)]">
+                            <CalendarDays className="size-3.5 text-[var(--accent)]" /> Date of Birth
+                          </div>
+                          <p className="mt-1.5 text-sm font-semibold text-[var(--fg)] flex items-center gap-2">
+                            <span>{user?.date_of_birth ? formatEventDate(user.date_of_birth) : "—"}</span>
+                            {userAge !== null && (
+                              <span className="rounded-md bg-[var(--surface)] border border-[var(--border)] px-1.5 py-0.5 font-mono text-[10px] text-[var(--accent)] font-bold">
+                                {userAge} yrs
+                              </span>
+                            )}
+                          </p>
+                        </div>
+
+                        {/* Parent / Emergency Contact */}
+                        <div className="rounded-2xl border border-[var(--border)] bg-[var(--surface-2)] p-3.5">
+                          <div className="flex items-center gap-2 text-xs font-medium text-[var(--fg-subtle)]">
+                            <Phone className="size-3.5 text-[var(--accent)]" /> Parent / Guardian Phone
+                          </div>
+                          <p className="mt-1.5 text-sm font-semibold text-[var(--fg)] font-mono">
+                            {user?.parent_phone_number ? `+91 ${user.parent_phone_number}` : "—"}
+                          </p>
+                        </div>
+
+                        {/* Residential Address */}
+                        <div className="rounded-2xl border border-[var(--border)] bg-[var(--surface-2)] p-3.5">
+                          <div className="flex items-center gap-2 text-xs font-medium text-[var(--fg-subtle)]">
+                            <MapPin className="size-3.5 text-[var(--accent)]" /> Courier Shipping Address
+                          </div>
+                          <p className="mt-1.5 text-sm font-semibold text-[var(--fg)] [overflow-wrap:anywhere] line-clamp-2">
+                            {user?.address || "—"}
+                          </p>
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+                </div>
+
+                {/* Card B: Contestant Readiness & Onboarding Checklist (5 cols on lg) */}
+                <div className="rounded-[var(--radius-xl)] border border-[var(--border)] bg-[var(--surface)] p-6 sm:p-7 shadow-xl lg:col-span-5 flex flex-col justify-between">
+                  <div>
+                    {/* Header */}
+                    <div className="flex items-center justify-between pb-5 border-b border-[var(--border)]">
+                      <div>
+                        <span className="font-mono text-[10px] font-bold uppercase tracking-wider text-[var(--fg-subtle)]">
+                          Contest Eligibility
+                        </span>
+                        <h3 className="font-display text-lg sm:text-xl font-bold uppercase text-[var(--fg)]">
+                          Profile Readiness
+                        </h3>
+                      </div>
+                      <span className="rounded-full bg-emerald-500/15 border border-emerald-500/30 px-2.5 py-1 text-[11px] font-bold text-emerald-400 font-mono">
+                        5/5 Complete
+                      </span>
+                    </div>
+
+                    {/* Progress Bar */}
+                    <div className="mt-5">
+                      <div className="flex items-center justify-between text-xs text-[var(--fg-muted)] mb-1.5">
+                        <span className="font-medium">Onboarding Status</span>
+                        <span className="font-bold text-emerald-400 font-mono">100% Verified</span>
+                      </div>
+                      <div className="h-2 w-full overflow-hidden rounded-full bg-[var(--surface-2)] border border-[var(--border)]">
+                        <div
+                          className="h-full rounded-full transition-all duration-700"
+                          style={{ width: "100%", background: "var(--grad-brand)" }}
+                        />
+                      </div>
+                    </div>
+
+                    {/* Checklist Table / Rows (like Image 2) */}
+                    <div className="mt-5 space-y-2.5">
+                      {[
+                        {
+                          title: "Contestant Full Name",
+                          desc: "Legal identity for certificates & awards",
+                          badge: "Verified",
+                          ready: Boolean(user?.name),
+                        },
+                        {
+                          title: "Primary Mobile Number",
+                          desc: "WhatsApp & SMS backstage alerts",
+                          badge: "Active",
+                          ready: Boolean(user?.phone_number),
+                        },
+                        {
+                          title: "Parent / Emergency Contact",
+                          desc: "Safety record & guardian consent",
+                          badge: "Linked",
+                          ready: Boolean(user?.parent_phone_number),
+                        },
+                        {
+                          title: "Date of Birth & Age Category",
+                          desc: "Age-bracket contest validation",
+                          badge: "Approved",
+                          ready: Boolean(user?.date_of_birth),
+                        },
+                        {
+                          title: "Physical Shipping Address",
+                          desc: "Courier address for medals & trophies",
+                          badge: "Recorded",
+                          ready: Boolean(user?.address),
+                        },
+                      ].map((item, i) => (
+                        <div
+                          key={i}
+                          className="flex items-center justify-between gap-3 rounded-2xl border border-[var(--border)] bg-[var(--surface-2)] p-3 transition-colors hover:border-[var(--border-strong)]"
+                        >
+                          <div className="flex items-center gap-3 min-w-0">
+                            <span className="grid size-7 shrink-0 place-items-center rounded-full bg-emerald-500/15 text-emerald-400">
+                              <CheckCircle2 className="size-4" />
+                            </span>
+                            <div className="min-w-0">
+                              <p className="text-xs font-bold text-[var(--fg)] truncate">{item.title}</p>
+                              <p className="text-[10px] text-[var(--fg-subtle)] truncate">{item.desc}</p>
+                            </div>
+                          </div>
+                          <span className="shrink-0 rounded-lg border border-emerald-500/30 bg-emerald-500/10 px-2 py-0.5 font-mono text-[10px] font-bold text-emerald-400">
+                            {item.badge}
+                          </span>
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+
+                  {/* Bottom Quick Links / Security */}
+                  <div className="mt-6 pt-4 border-t border-[var(--border)] flex items-center justify-between text-xs">
+                    <Link
+                      href="/forgot-password"
+                      className="inline-flex items-center gap-1.5 text-[var(--fg-muted)] hover:text-[var(--accent)] transition-colors font-medium"
+                    >
+                      Security / Reset Password &rarr;
+                    </Link>
+                    <button
+                      onClick={() => setEditOpen(true)}
+                      className="font-semibold text-[var(--accent)] hover:underline cursor-pointer"
+                    >
+                      Update Details
+                    </button>
+                  </div>
+                </div>
+
               </div>
-              </div>
+
             </div>
           </Reveal>
         )}
