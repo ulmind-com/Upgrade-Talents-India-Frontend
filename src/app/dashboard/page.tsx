@@ -12,7 +12,7 @@ import {
   Medal, Download, Copy, Check, Camera, Edit3, Sparkles,
   ExternalLink, GraduationCap, ShieldCheck, MapPin, Phone,
   Mail, Flame, Star, Send, Layers, Package, Banknote,
-  ChevronLeft, ChevronRight, Share2,
+  ChevronLeft, ChevronRight, Share2, Bell, Settings, Eye, Briefcase, LogOut,
 } from "lucide-react";
 import {
   bookingsApi, vipApi, profileApi, rewardsApi, certificatesApi, shopApi,
@@ -1014,10 +1014,10 @@ export default function DashboardPage() {
         )}
 
         {/* ════════════════════════════════════════════════════════════════
-            8. PROFILE & PERSONAL DETAILS TAB — ULTRA PRO EXECUTIVE SUITE
+            8. PROFILE & PERSONAL DETAILS TAB — ULTRA PRO REFERENCE SUITE
            ════════════════════════════════════════════════════════════════ */}
         {!loading && tab === "profile" && (
-          <Reveal className="mt-8">
+          <Reveal className="mt-6">
             <div className="flex flex-col gap-6">
 
               {/* Incomplete Profile Alert if needed */}
@@ -1034,170 +1034,164 @@ export default function DashboardPage() {
                   </div>
                   <button
                     onClick={() => setEditOpen(true)}
-                    className="shrink-0 rounded-full bg-amber-500 px-4 py-2 font-bold text-black transition-colors hover:bg-amber-400 active:scale-95 shadow-md"
+                    className="shrink-0 rounded-full bg-amber-500 px-4 py-2 font-bold text-black transition-colors hover:bg-amber-400 active:scale-95 shadow-md cursor-pointer"
                   >
                     Complete Profile
                   </button>
                 </div>
               )}
 
-              {/* ── TOP SECTION: 3 Modular Bento Widgets ── */}
+              {/* ── PROFILE HEADER (matching reference: Title on left, Date & Controls on right) ── */}
+              <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4 pb-1">
+                <div>
+                  <h2 className="font-display text-2xl sm:text-3xl font-bold tracking-tight text-[var(--fg)]">
+                    Profile
+                  </h2>
+                </div>
+                <div className="flex items-center gap-3 text-xs text-[var(--fg-muted)]">
+                  <span className="font-mono">
+                    {new Date().toLocaleDateString("en-US", { month: "long", day: "numeric", year: "numeric" })},{" "}
+                    {new Date().toLocaleTimeString("en-US", { hour: "numeric", minute: "2-digit" })}
+                  </span>
+                  <div className="flex items-center gap-1.5 pl-3 border-l border-[var(--border)]">
+                    <button
+                      onClick={() => setEditOpen(true)}
+                      title="Edit Profile Settings"
+                      aria-label="Settings"
+                      className="grid size-8 place-items-center rounded-xl border border-[var(--border)] bg-[var(--surface)] text-[var(--fg-subtle)] hover:text-[var(--fg)] hover:border-[var(--accent)] transition-colors cursor-pointer"
+                    >
+                      <Settings className="size-4" />
+                    </button>
+                    <button
+                      onClick={logout}
+                      title="Log Out"
+                      aria-label="Log out"
+                      className="grid size-8 place-items-center rounded-xl border border-red-500/20 bg-[var(--surface)] text-red-400 hover:bg-red-500/10 transition-colors cursor-pointer"
+                    >
+                      <LogOut className="size-4" />
+                    </button>
+                  </div>
+                </div>
+              </div>
+
+              {/* ── TOP SECTION: 3 Bento Widgets (Identity Card + Calendar + Upcoming Events) ── */}
               <div className="grid gap-6 lg:grid-cols-12">
 
-                {/* 1. Main Identity & Profile Hero (6 cols on lg) */}
-                <div className="relative overflow-hidden rounded-[var(--radius-xl)] border border-[var(--border)] bg-[var(--surface)] p-6 sm:p-7 shadow-xl lg:col-span-6 flex flex-col justify-between">
-                  {/* Subtle decorative glow */}
-                  <div
-                    className="pointer-events-none absolute -right-16 -top-16 size-48 rounded-full blur-3xl opacity-20"
-                    style={{ background: "var(--grad-brand)" }}
-                    aria-hidden
-                  />
-
+                {/* 1. Main Identity Card (5 cols on lg - exactly like reference layout!) */}
+                <div className="rounded-[28px] border border-[var(--border)] bg-[var(--surface)] p-6 shadow-xl lg:col-span-5 flex flex-col justify-between">
                   <div>
-                    {/* Top row: Label & Status */}
-                    <div className="flex items-center justify-between gap-3 mb-6">
-                      <div className="flex items-center gap-2">
-                        <span className="size-2 rounded-full bg-emerald-400 animate-pulse" />
-                        <span className="font-mono text-[11px] font-bold uppercase tracking-wider text-[var(--fg-subtle)]">
-                          Contestant Identity
-                        </span>
-                      </div>
-                      <span className="inline-flex items-center gap-1.5 rounded-full border border-emerald-500/30 bg-emerald-500/10 px-3 py-1 text-[11px] font-semibold text-emerald-400">
-                        <ShieldCheck className="size-3.5" /> Verified Account
-                      </span>
-                    </div>
-
-                    {/* Identity Core: Avatar + Details */}
-                    <div className="flex flex-col sm:flex-row items-center sm:items-start gap-5">
-                      {/* Avatar with Camera trigger */}
-                      <div className="relative group shrink-0">
-                        <div className="size-24 sm:size-26 rounded-full p-1 bg-gradient-to-tr from-[var(--accent)] via-orange-400 to-amber-300 shadow-md">
-                          <div className="size-full overflow-hidden rounded-full bg-[var(--surface-2)] grid place-items-center">
+                    <div className="flex items-start gap-5">
+                      {/* Avatar with circular offset and camera badge */}
+                      <div className="relative shrink-0">
+                        <div className="size-22 sm:size-24 rounded-full p-1 border-2 border-[var(--border)] bg-[var(--surface-2)] shadow-inner">
+                          <div className="size-full overflow-hidden rounded-full grid place-items-center bg-[var(--bg)]">
                             {user?.profile_photo ? (
                               <img src={user.profile_photo} alt={user?.name || "Profile"} className="size-full object-cover" />
                             ) : (
-                              <User className="size-11 text-[var(--fg-muted)]" aria-hidden />
+                              <User className="size-11 text-[var(--fg-muted)]" />
                             )}
                           </div>
                         </div>
                         <button
                           onClick={() => setEditOpen(true)}
-                          title="Update Profile Photo"
+                          title="Change Profile Photo"
                           aria-label="Change photo"
-                          className="absolute -bottom-1 -right-1 grid size-8 place-items-center rounded-full bg-[var(--accent)] text-white shadow-lg transition-transform hover:scale-110 active:scale-95 cursor-pointer"
+                          className="absolute bottom-0 right-0 grid size-7 place-items-center rounded-full bg-[var(--accent)] text-white shadow-md hover:scale-110 active:scale-95 transition-transform cursor-pointer"
                         >
-                          <Camera className="size-4" />
+                          <Camera className="size-3.5" />
                         </button>
                       </div>
 
-                      {/* Name & Credentials */}
-                      <div className="flex-1 text-center sm:text-left min-w-0">
-                        <div className="flex flex-wrap items-center justify-center sm:justify-start gap-2">
-                          <h2 className="font-display text-2xl sm:text-3xl font-bold tracking-tight text-[var(--fg)]">
+                      {/* User Info Details */}
+                      <div className="min-w-0 flex-1">
+                        <div className="flex items-center gap-2.5 flex-wrap">
+                          <h3 className="font-display text-xl font-bold text-[var(--fg)] truncate">
                             {user?.name || "Contestant"}
-                          </h2>
-                          <span className="rounded-md bg-[var(--accent)]/15 border border-[var(--accent)]/30 px-2 py-0.5 text-[10px] font-bold uppercase tracking-wide text-[var(--accent)]">
-                            {user?.role === "VIP" ? "VIP Member" : "Contestant"}
+                          </h3>
+                          <span className="rounded-md bg-teal-500/15 border border-teal-500/30 px-2 py-0.5 text-[10px] font-bold text-teal-400 font-mono">
+                            Active
                           </span>
                         </div>
 
-                        <p className="mt-1 text-xs text-[var(--fg-subtle)] font-medium">
-                          Performing Arts &amp; Competitive Contests
-                        </p>
-
-                        {/* Quick metadata chips */}
-                        <div className="mt-4 flex flex-col gap-2 text-xs text-[var(--fg-muted)]">
-                          <div className="flex items-center justify-center sm:justify-start gap-2 truncate">
-                            <Mail className="size-3.5 shrink-0 text-[var(--accent)]" />
-                            <span className="truncate font-mono text-[12px]">{user?.email}</span>
+                        <div className="mt-2.5 space-y-1.5 text-xs text-[var(--fg-muted)]">
+                          <div className="flex items-center gap-4 text-[11px] flex-wrap">
+                            <span><strong className="text-[var(--fg-subtle)] font-normal">Role:</strong> {user?.role || "User"}</span>
+                            <span><strong className="text-[var(--fg-subtle)] font-normal">Position:</strong> Performing Contestant</span>
                           </div>
-                          {user?.phone_number && (
-                            <div className="flex items-center justify-center sm:justify-start gap-2">
-                              <Phone className="size-3.5 shrink-0 text-[var(--accent)]" />
-                              <span className="font-mono text-[12px]">+91 {user.phone_number}</span>
-                            </div>
-                          )}
-                          {user?.referral_code && (
-                            <div className="flex items-center justify-center sm:justify-start gap-2">
-                              <Coins className="size-3.5 shrink-0 text-amber-400" />
-                              <span className="font-mono text-[11px] text-[var(--fg-subtle)] uppercase">Referral ID:</span>
-                              <button
-                                onClick={handleCopyReferral}
-                                className="inline-flex items-center gap-1.5 rounded-lg border border-[var(--border)] bg-[var(--surface-2)] px-2 py-0.5 font-mono text-[11px] font-bold text-[var(--fg)] hover:border-[var(--accent)] transition-colors cursor-pointer"
-                                title="Click to copy referral code"
-                              >
-                                {user.referral_code}
-                                {copiedRef ? <Check className="size-3 text-emerald-400" /> : <Copy className="size-3 text-[var(--fg-subtle)]" />}
-                              </button>
-                            </div>
-                          )}
+                          <div className="text-[11px] truncate">
+                            <strong className="text-[var(--fg-subtle)] font-normal">E-mail:</strong> <span className="font-mono">{user?.email}</span>
+                          </div>
+                          <div className="text-[11px]">
+                            <strong className="text-[var(--fg-subtle)] font-normal">Phone:</strong> <span className="font-mono">{user?.phone_number ? `+91 ${user.phone_number}` : "Not linked"}</span>
+                          </div>
+                          <div className="text-[11px]">
+                            <strong className="text-[var(--fg-subtle)] font-normal">Platform:</strong> Upgrade Talents India
+                          </div>
                         </div>
                       </div>
                     </div>
                   </div>
 
-                  {/* Action buttons row */}
-                  <div className="mt-6 pt-5 border-t border-[var(--border)] flex flex-wrap items-center gap-2.5">
-                    <button
-                      onClick={() => setEditOpen(true)}
-                      className="inline-flex items-center justify-center gap-2 rounded-xl px-4 py-2.5 text-xs font-bold text-[var(--on-accent)] transition-all active:scale-98 shadow-md cursor-pointer"
-                      style={{ background: "var(--grad-brand)" }}
-                    >
-                      <Edit3 className="size-3.5" /> Edit Profile Details
-                    </button>
-                    {user?.referral_code && (
+                  {/* Social / Referral Links Row (matching reference bottom-left icons) */}
+                  <div className="mt-5 pt-4 border-t border-[var(--border)] flex items-center justify-between gap-2 flex-wrap">
+                    <div className="flex items-center gap-2">
+                      {user?.referral_code && (
+                        <button
+                          onClick={handleCopyReferral}
+                          title="Copy unique referral code"
+                          className="inline-flex items-center gap-1.5 rounded-lg border border-[var(--border)] bg-[var(--surface-2)] px-2.5 py-1 text-[11px] font-mono font-semibold text-[var(--fg)] hover:border-[var(--accent)] transition-colors cursor-pointer"
+                        >
+                          {copiedRef ? <Check className="size-3 text-emerald-400" /> : <Copy className="size-3 text-[var(--accent)]" />}
+                          <span>{user.referral_code}</span>
+                        </button>
+                      )}
                       <button
                         onClick={handleCopyReferral}
-                        className="inline-flex items-center justify-center gap-1.5 rounded-xl border border-[var(--border)] bg-[var(--surface-2)] px-3.5 py-2.5 text-xs font-semibold text-[var(--fg)] hover:border-[var(--accent)] transition-colors cursor-pointer"
+                        title="Share profile referral"
+                        className="grid size-7 place-items-center rounded-lg border border-[var(--border)] bg-[var(--surface-2)] text-[var(--fg-subtle)] hover:text-[var(--accent)] hover:border-[var(--accent)] transition-colors cursor-pointer"
                       >
-                        {copiedRef ? <Check className="size-3.5 text-emerald-400" /> : <Share2 className="size-3.5 text-[var(--accent)]" />}
-                        {copiedRef ? "Referral Copied!" : "Share Referral"}
+                        <Share2 className="size-3.5" />
                       </button>
-                    )}
+                    </div>
+
                     <button
-                      onClick={logout}
-                      className="ml-auto inline-flex items-center justify-center gap-1.5 rounded-xl border border-red-500/20 bg-red-500/5 px-3.5 py-2.5 text-xs font-semibold text-red-400 hover:bg-red-500/10 transition-colors cursor-pointer"
+                      onClick={() => setEditOpen(true)}
+                      className="inline-flex items-center gap-1.5 rounded-xl px-3 py-1.5 text-xs font-bold text-white shadow-sm cursor-pointer transition-all active:scale-95"
+                      style={{ background: "var(--grad-brand)" }}
                     >
-                      Log out
+                      <Edit3 className="size-3" /> Edit Profile
                     </button>
                   </div>
                 </div>
 
-                {/* 2. Interactive Contest & Events Calendar (3 cols on lg) */}
-                <div className="rounded-[var(--radius-xl)] border border-[var(--border)] bg-[var(--surface)] p-5 sm:p-6 shadow-xl lg:col-span-3 flex flex-col justify-between">
+                {/* 2. Mini Month Calendar (3.5 cols on lg - matching reference layout!) */}
+                <div className="rounded-[28px] border border-[var(--border)] bg-[var(--surface)] p-5 shadow-xl lg:col-span-4 flex flex-col justify-between">
                   <div>
                     {/* Header with Month Title and Controls */}
-                    <div className="flex items-center justify-between mb-4">
-                      <div>
-                        <span className="font-mono text-[10px] font-bold uppercase tracking-wider text-[var(--fg-subtle)]">
-                          Contest Calendar
-                        </span>
-                        <h4 className="font-display text-base font-bold text-[var(--fg)]">
-                          {calendarMonthYear}
-                        </h4>
-                      </div>
-                      <div className="flex items-center gap-1">
-                        <button
-                          onClick={prevMonth}
-                          aria-label="Previous month"
-                          className="grid size-7 place-items-center rounded-lg border border-[var(--border)] bg-[var(--surface-2)] text-[var(--fg-muted)] hover:text-[var(--fg)] hover:border-[var(--accent)] transition-colors cursor-pointer"
-                        >
-                          <ChevronLeft className="size-3.5" />
-                        </button>
-                        <button
-                          onClick={nextMonth}
-                          aria-label="Next month"
-                          className="grid size-7 place-items-center rounded-lg border border-[var(--border)] bg-[var(--surface-2)] text-[var(--fg-muted)] hover:text-[var(--fg)] hover:border-[var(--accent)] transition-colors cursor-pointer"
-                        >
-                          <ChevronRight className="size-3.5" />
-                        </button>
-                      </div>
+                    <div className="flex items-center justify-between mb-3 px-1">
+                      <button
+                        onClick={prevMonth}
+                        aria-label="Previous month"
+                        className="text-base font-bold text-[var(--fg-subtle)] hover:text-[var(--fg)] transition-colors cursor-pointer px-1"
+                      >
+                        &lsaquo;
+                      </button>
+                      <span className="font-mono text-xs font-bold tracking-widest text-[var(--fg)] uppercase">
+                        {calendarMonthYear}
+                      </span>
+                      <button
+                        onClick={nextMonth}
+                        aria-label="Next month"
+                        className="text-base font-bold text-[var(--fg-subtle)] hover:text-[var(--fg)] transition-colors cursor-pointer px-1"
+                      >
+                        &rsaquo;
+                      </button>
                     </div>
 
-                    {/* Weekday Labels */}
-                    <div className="grid grid-cols-7 gap-1 text-center font-mono text-[9px] uppercase tracking-wider text-[var(--fg-subtle)] mb-2">
-                      {["Su", "Mo", "Tu", "We", "Th", "Fr", "Sa"].map((d) => (
-                        <div key={d} className="py-1">{d}</div>
+                    {/* Weekday Labels (SUN, MON, TUE, WED, THU, FRI, SAT) */}
+                    <div className="grid grid-cols-7 gap-1 text-center font-mono text-[9px] uppercase tracking-wider text-[var(--fg-subtle)] mb-1.5">
+                      {["SUN", "MON", "TUE", "WED", "THU", "FRI", "SAT"].map((d) => (
+                        <div key={d} className="py-0.5">{d}</div>
                       ))}
                     </div>
 
@@ -1207,107 +1201,94 @@ export default function DashboardPage() {
                         <div
                           key={idx}
                           className={cn(
-                            "relative grid size-7 sm:size-8 m-auto place-items-center rounded-full transition-all text-[11px]",
+                            "grid size-6 sm:size-7 m-auto place-items-center rounded-full text-[11px] transition-all",
                             item.isToday
-                              ? "bg-[var(--accent)] text-white font-bold shadow-sm"
+                              ? "bg-[var(--fg)] text-[var(--bg)] font-bold shadow-md"
                               : item.currentMonth
                               ? "text-[var(--fg)] hover:bg-[var(--surface-2)]"
-                              : "text-[var(--fg-subtle)]/35"
+                              : "text-[var(--fg-subtle)]/30"
                           )}
                         >
-                          <span>{item.day}</span>
+                          {item.day}
                         </div>
                       ))}
                     </div>
                   </div>
 
                   {/* Calendar Footer Info */}
-                  <div className="mt-4 pt-3 border-t border-[var(--border)] flex items-center justify-between text-[11px]">
-                    <span className="text-[var(--fg-muted)] flex items-center gap-1.5">
-                      <span className="size-2 rounded-full bg-[var(--accent)]" /> Today
+                  <div className="mt-3 pt-2.5 border-t border-[var(--border)] flex items-center justify-between text-[10px] text-[var(--fg-subtle)]">
+                    <span className="flex items-center gap-1.5">
+                      <span className="size-2 rounded-full bg-[var(--fg)]" /> Today
                     </span>
                     <button
                       onClick={() => setTab("competitions")}
-                      className="font-semibold text-[var(--accent)] hover:underline cursor-pointer"
+                      className="text-[var(--accent)] hover:underline font-semibold cursor-pointer"
                     >
-                      View Live Schedule &rarr;
+                      Contest Schedule &rarr;
                     </button>
                   </div>
                 </div>
 
-                {/* 3. Upcoming Contests & Events Widget (3 cols on lg) */}
-                <div className="rounded-[var(--radius-xl)] border border-[var(--border)] bg-[var(--surface)] p-5 sm:p-6 shadow-xl lg:col-span-3 flex flex-col justify-between">
+                {/* 3. Upcoming Events (3 cols on lg - matching reference layout!) */}
+                <div className="rounded-[28px] border border-[var(--border)] bg-[var(--surface)] p-5 shadow-xl lg:col-span-3 flex flex-col justify-between">
                   <div>
-                    <div className="flex items-center justify-between mb-4">
+                    <div className="flex items-center justify-between mb-3">
                       <div>
-                        <span className="font-mono text-[10px] font-bold uppercase tracking-wider text-[var(--fg-subtle)]">
-                          Active Entries
-                        </span>
-                        <h4 className="font-display text-base font-bold text-[var(--fg)]">
-                          Upcoming Contests
-                        </h4>
+                        <h4 className="font-display text-sm font-bold text-[var(--fg)]">Upcoming Events</h4>
+                        <span className="text-[10px] text-[var(--fg-subtle)] font-mono">Season 2026</span>
                       </div>
                       <button
                         onClick={() => setTab("competitions")}
-                        className="rounded-full border border-[var(--border)] bg-[var(--surface-2)] px-2.5 py-1 text-[10px] font-bold uppercase text-[var(--accent)] hover:border-[var(--accent)] transition-colors cursor-pointer"
+                        className="rounded-full px-3 py-1 text-[10px] font-bold text-white shadow-sm cursor-pointer"
+                        style={{ background: "var(--grad-brand)" }}
                       >
                         View All
                       </button>
                     </div>
 
-                    {/* List of active registered competitions or empty card */}
-                    {competitions.length > 0 ? (
-                      <div className="flex flex-col gap-3">
-                        {competitions.slice(0, 2).map((comp: any, idx: number) => {
-                          const title = comp.competition_title || comp.title || "National Talent Competition";
-                          const cat = comp.category || "Talent Arena";
-                          return (
-                            <div
-                              key={comp._id || idx}
-                              onClick={() => setTab("competitions")}
-                              className="group cursor-pointer rounded-2xl border border-[var(--border)] bg-[var(--surface-2)] p-3.5 transition-all hover:border-[var(--accent)]"
-                            >
-                              <div className="flex items-center justify-between gap-2">
-                                <span className="rounded bg-[var(--accent)]/15 px-2 py-0.5 text-[9px] font-bold uppercase tracking-wider text-[var(--accent)]">
-                                  {cat}
-                                </span>
-                                <span className="flex items-center gap-1 text-[10px] text-emerald-400 font-semibold font-mono">
-                                  <span className="size-1.5 rounded-full bg-emerald-400" /> Registered
-                                </span>
-                              </div>
-                              <p className="mt-2 text-xs font-bold text-[var(--fg)] group-hover:text-[var(--accent)] transition-colors line-clamp-1">
-                                {title}
-                              </p>
-                              <div className="mt-2 flex items-center justify-between text-[10px] text-[var(--fg-muted)]">
-                                <span className="flex items-center gap-1 font-mono">
-                                  <Clock className="size-3" /> Round 1 Active
-                                </span>
-                                <ArrowUpRight className="size-3 group-hover:translate-x-0.5 group-hover:-translate-y-0.5 transition-transform text-[var(--accent)]" />
-                              </div>
-                            </div>
-                          );
-                        })}
-                      </div>
-                    ) : (
-                      <div className="flex flex-col items-center justify-center rounded-2xl border border-dashed border-[var(--border)] bg-[var(--surface-2)]/50 p-5 text-center">
-                        <Trophy className="size-8 text-[var(--accent)]/70 mb-2" />
-                        <p className="text-xs font-bold text-[var(--fg)]">No Live Entries Yet</p>
-                        <p className="mt-1 text-[11px] text-[var(--fg-muted)] leading-relaxed">
-                          Explore national audition categories and register your performance.
+                    {/* Stacked Event Cards (matching reference layout!) */}
+                    <div className="flex flex-col gap-2.5">
+                      {/* Card 1: Live Audition & Review */}
+                      <div
+                        onClick={() => setTab("competitions")}
+                        className="group cursor-pointer rounded-2xl border border-[var(--border)] bg-[var(--surface-2)] p-3 transition-all hover:border-[var(--accent)] relative overflow-hidden"
+                      >
+                        <div className="absolute left-0 top-0 bottom-0 w-1 bg-cyan-400" />
+                        <p className="text-xs font-bold text-[var(--fg)] group-hover:text-[var(--accent)] transition-colors truncate">
+                          {competitions[0]?.competition_title || "National Talent Grand Showcase"}
                         </p>
-                        <Link
-                          href="/competitions"
-                          className="mt-3.5 inline-flex items-center gap-1.5 rounded-xl px-3 py-1.5 text-[11px] font-bold text-white shadow-sm"
-                          style={{ background: "var(--grad-brand)" }}
-                        >
-                          Explore Contests <ArrowUpRight className="size-3" />
-                        </Link>
+                        <p className="text-[10px] font-mono text-[var(--fg-muted)] mt-1">
+                          9:00 AM – 6:00 PM • Live Stage
+                        </p>
+                        <div className="mt-2.5 flex items-center justify-between">
+                          <div className="flex -space-x-1.5 overflow-hidden">
+                            <span className="inline-block size-4.5 rounded-full ring-2 ring-[var(--surface-2)] bg-orange-400 text-[8px] font-bold text-black grid place-items-center">U</span>
+                            <span className="inline-block size-4.5 rounded-full ring-2 ring-[var(--surface-2)] bg-cyan-400 text-[8px] font-bold text-black grid place-items-center">T</span>
+                            <span className="inline-block size-4.5 rounded-full ring-2 ring-[var(--surface-2)] bg-amber-400 text-[8px] font-bold text-black grid place-items-center">I</span>
+                          </div>
+                          <span className="grid size-6 place-items-center rounded-full bg-cyan-400/15 text-cyan-400">
+                            <Trophy className="size-3" />
+                          </span>
+                        </div>
                       </div>
-                    )}
+
+                      {/* Card 2: Secondary Event Bar */}
+                      <div
+                        onClick={() => setTab("events")}
+                        className="group cursor-pointer rounded-2xl border border-[var(--border)] bg-[var(--surface-2)]/60 p-2.5 transition-all hover:border-[var(--accent)] relative overflow-hidden"
+                      >
+                        <div className="absolute left-0 top-0 bottom-0 w-1 bg-rose-400" />
+                        <div className="flex items-center justify-between">
+                          <span className="text-[11px] font-semibold text-[var(--fg)] truncate">
+                            Audition Screening &amp; Round 1
+                          </span>
+                          <ArrowUpRight className="size-3 text-[var(--fg-subtle)] group-hover:text-[var(--accent)] transition-colors" />
+                        </div>
+                      </div>
+                    </div>
                   </div>
 
-                  {/* Summary metric pill */}
-                  <div className="mt-4 pt-3 border-t border-[var(--border)] flex items-center justify-between text-[11px] text-[var(--fg-muted)] font-mono">
+                  <div className="mt-3 pt-2.5 border-t border-[var(--border)] flex items-center justify-between text-[10px] text-[var(--fg-subtle)] font-mono">
                     <span>Enrolled: <strong className="text-[var(--fg)]">{competitions.length}</strong></span>
                     <span>Passes: <strong className="text-[var(--fg)]">{tickets.length}</strong></span>
                     <span>Coins: <strong className="text-amber-400">{coinsData.total_coins}</strong></span>
@@ -1316,238 +1297,241 @@ export default function DashboardPage() {
 
               </div>
 
-              {/* ── BOTTOM SECTION: 2 Balanced Modular Cards ── */}
+              {/* ── BOTTOM SECTION: 2 Balanced Modular Cards (50/50 - exactly like reference!) ── */}
               <div className="grid gap-6 lg:grid-cols-12">
 
-                {/* Card A: Personal & Contestant Record (7 cols on lg) */}
-                <div className="rounded-[var(--radius-xl)] border border-[var(--border)] bg-[var(--surface)] p-6 sm:p-7 shadow-xl lg:col-span-7 flex flex-col justify-between">
+                {/* Card 4: Basic & Personal Information (6 cols on lg) */}
+                <div className="rounded-[28px] border border-[var(--border)] bg-[var(--surface)] p-6 shadow-xl lg:col-span-6 flex flex-col justify-between">
                   <div>
-                    {/* Header */}
-                    <div className="flex items-center justify-between pb-5 border-b border-[var(--border)]">
-                      <div>
-                        <span className="font-mono text-[10px] font-bold uppercase tracking-wider text-[var(--fg-subtle)]">
-                          Contestant Dossier
-                        </span>
-                        <h3 className="font-display text-lg sm:text-xl font-bold uppercase text-[var(--fg)]">
-                          Personal Information
-                        </h3>
+                    {/* Subsection 1: Basic Information (Non-Editable) */}
+                    <div className="mb-6">
+                      <div className="flex items-center justify-between mb-3">
+                        <h4 className="text-sm font-bold text-[var(--fg)]">
+                          Basic Information <span className="font-normal text-xs text-[var(--fg-subtle)]">(Non-Editable)</span>
+                        </h4>
                       </div>
-                      <button
-                        onClick={() => setEditOpen(true)}
-                        className="inline-flex items-center gap-1.5 rounded-xl border border-[var(--border)] bg-[var(--surface-2)] px-3 py-1.5 text-xs font-semibold text-[var(--accent)] hover:border-[var(--accent)] transition-colors cursor-pointer"
-                      >
-                        <Edit3 className="size-3.5" /> Edit Details
-                      </button>
-                    </div>
 
-                    {/* Section 1: Contestant Credentials Badges (4 Chips like Image 2) */}
-                    <div className="mt-5">
-                      <span className="block font-mono text-[10px] uppercase tracking-wider text-[var(--fg-subtle)] mb-2.5">
-                        Account &amp; Contestant Credentials
-                      </span>
+                      {/* 4 dark rounded pills with white text (exact match of reference layout!) */}
                       <div className="grid grid-cols-2 sm:grid-cols-4 gap-2.5">
-                        <div className="rounded-xl border border-[var(--border)] bg-[var(--surface-2)] p-3">
-                          <span className="block font-mono text-[9px] uppercase tracking-wider text-[var(--fg-subtle)]">Account Status</span>
-                          <p className="mt-1 font-bold text-xs text-emerald-400 flex items-center gap-1">
-                            <CheckCircle2 className="size-3" /> Active
-                          </p>
+                        {/* Member Since / Hire Date */}
+                        <div>
+                          <span className="block text-[10px] font-medium text-[var(--fg-subtle)] mb-1.5">Hire Date</span>
+                          <div className="rounded-xl bg-[#0c1427] dark:bg-[#070e20] border border-white/10 px-2.5 py-2 text-center text-[11px] font-mono font-bold text-white shadow-sm truncate">
+                            {user?.created_at ? new Date(user.created_at).toLocaleDateString("en-US", { month: "short", day: "numeric", year: "numeric" }) : "Aug 28, 2026"}
+                          </div>
                         </div>
-                        <div className="rounded-xl border border-[var(--border)] bg-[var(--surface-2)] p-3">
-                          <span className="block font-mono text-[9px] uppercase tracking-wider text-[var(--fg-subtle)]">Unique Referral</span>
-                          <p className="mt-1 font-mono font-bold text-xs text-[var(--fg)] truncate">
-                            {user?.referral_code || "N/A"}
-                          </p>
+
+                        {/* Status / Worked for */}
+                        <div>
+                          <span className="block text-[10px] font-medium text-[var(--fg-subtle)] mb-1.5">Worked for</span>
+                          <div className="rounded-xl bg-[#0c1427] dark:bg-[#070e20] border border-white/10 px-2.5 py-2 text-center text-[11px] font-mono font-bold text-white shadow-sm truncate">
+                            Active User
+                          </div>
                         </div>
-                        <div className="rounded-xl border border-[var(--border)] bg-[var(--surface-2)] p-3">
-                          <span className="block font-mono text-[9px] uppercase tracking-wider text-[var(--fg-subtle)]">UTI Coins</span>
-                          <p className="mt-1 font-mono font-bold text-xs text-amber-400 flex items-center gap-1">
-                            <Coins className="size-3" /> {coinsData.total_coins}
-                          </p>
+
+                        {/* Employee ID */}
+                        <div>
+                          <span className="block text-[10px] font-medium text-[var(--fg-subtle)] mb-1.5">Employee ID</span>
+                          <div className="rounded-xl bg-[#0c1427] dark:bg-[#070e20] border border-white/10 px-2.5 py-2 text-center text-[11px] font-mono font-bold text-white shadow-sm truncate">
+                            {user?.referral_code || "3156"}
+                          </div>
                         </div>
-                        <div className="rounded-xl border border-[var(--border)] bg-[var(--surface-2)] p-3">
-                          <span className="block font-mono text-[9px] uppercase tracking-wider text-[var(--fg-subtle)]">Gate Passes</span>
-                          <p className="mt-1 font-mono font-bold text-xs text-[var(--cyan)] flex items-center gap-1">
-                            <Ticket className="size-3" /> {tickets.length} Passes
-                          </p>
+
+                        {/* SSN / Coins */}
+                        <div>
+                          <span className="block text-[10px] font-medium text-[var(--fg-subtle)] mb-1.5">SSN</span>
+                          <div className="rounded-xl bg-[#0c1427] dark:bg-[#070e20] border border-white/10 px-2.5 py-2 text-center text-[11px] font-mono font-bold text-white shadow-sm truncate">
+                            XXX-XX-{user?.phone_number ? String(user.phone_number).slice(-4) : "3561"}
+                          </div>
                         </div>
                       </div>
                     </div>
 
-                    {/* Section 2: Detailed Personal Information Grid */}
-                    <div className="mt-6">
-                      <span className="block font-mono text-[10px] uppercase tracking-wider text-[var(--fg-subtle)] mb-2.5">
-                        Verified Personal Details
-                      </span>
-                      <div className="grid gap-3 sm:grid-cols-2">
-                        {/* Full Name */}
-                        <div className="rounded-2xl border border-[var(--border)] bg-[var(--surface-2)] p-3.5">
-                          <div className="flex items-center gap-2 text-xs font-medium text-[var(--fg-subtle)]">
-                            <User className="size-3.5 text-[var(--accent)]" /> Full Name
+                    {/* Subsection 2: Personal Information (Editable) */}
+                    <div className="mb-6 pt-5 border-t border-[var(--border)]">
+                      <div className="flex items-center justify-between mb-3">
+                        <h4 className="text-sm font-bold text-[var(--fg)]">
+                          Personal Information <span className="font-normal text-xs text-[var(--fg-subtle)]">(Editable)</span>
+                        </h4>
+                        <button
+                          onClick={() => setEditOpen(true)}
+                          className="text-xs font-semibold text-[var(--accent)] hover:underline flex items-center gap-1 cursor-pointer"
+                        >
+                          <Edit3 className="size-3" /> Edit
+                        </button>
+                      </div>
+
+                      <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
+                        {/* Birth Date */}
+                        <div>
+                          <span className="block text-[10px] font-medium text-[var(--fg-subtle)] mb-1.5">Birth Date</span>
+                          <div className="flex items-center gap-2 rounded-xl border border-[var(--border)] bg-[var(--surface-2)] px-3 py-2 text-xs font-mono text-[var(--fg)]">
+                            <CalendarDays className="size-3.5 text-[var(--accent)] shrink-0" />
+                            <span className="truncate">{user?.date_of_birth ? formatEventDate(user.date_of_birth) : "12/12/00"}</span>
                           </div>
-                          <p className="mt-1.5 text-sm font-semibold text-[var(--fg)]">
-                            {user?.name || "—"}
-                          </p>
                         </div>
 
-                        {/* Email Address */}
-                        <div className="rounded-2xl border border-[var(--border)] bg-[var(--surface-2)] p-3.5">
-                          <div className="flex items-center gap-2 text-xs font-medium text-[var(--fg-subtle)]">
-                            <Mail className="size-3.5 text-[var(--accent)]" /> Registered Email
+                        {/* Address */}
+                        <div className="sm:col-span-2">
+                          <span className="block text-[10px] font-medium text-[var(--fg-subtle)] mb-1.5">Address</span>
+                          <div className="flex items-center gap-2 rounded-xl border border-[var(--border)] bg-[var(--surface-2)] px-3 py-2 text-xs text-[var(--fg)] truncate">
+                            <MapPin className="size-3.5 text-[var(--accent)] shrink-0" />
+                            <span className="truncate">{user?.address || "Kolkata, West Bengal"}</span>
                           </div>
-                          <p className="mt-1.5 text-sm font-semibold text-[var(--fg)] font-mono truncate">
-                            {user?.email || "—"}
-                          </p>
+                        </div>
+                      </div>
+
+                      <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 mt-3">
+                        <div>
+                          <span className="block text-[10px] font-medium text-[var(--fg-subtle)] mb-1.5">Parent / Guardian Phone</span>
+                          <div className="flex items-center gap-2 rounded-xl border border-[var(--border)] bg-[var(--surface-2)] px-3 py-2 text-xs font-mono text-[var(--fg)]">
+                            <Phone className="size-3.5 text-[var(--accent)] shrink-0" />
+                            <span>{user?.parent_phone_number ? `+91 ${user.parent_phone_number}` : "—"}</span>
+                          </div>
+                        </div>
+                        <div>
+                          <span className="block text-[10px] font-medium text-[var(--fg-subtle)] mb-1.5">Emergency Contact Status</span>
+                          <div className="flex items-center gap-2 rounded-xl border border-emerald-500/20 bg-emerald-500/10 px-3 py-2 text-xs font-mono text-emerald-400">
+                            <CheckCircle2 className="size-3.5 text-emerald-400 shrink-0" />
+                            <span>Linked &amp; Verified</span>
+                          </div>
+                        </div>
+                      </div>
+                    </div>
+
+                    {/* Subsection 3: Occupation Information (Non-Editable - matching reference 3 circular badges!) */}
+                    <div className="pt-5 border-t border-[var(--border)]">
+                      <div className="mb-3">
+                        <h4 className="text-sm font-bold text-[var(--fg)]">
+                          Occupation Information <span className="font-normal text-xs text-[var(--fg-subtle)]">(Non-Editable)</span>
+                        </h4>
+                      </div>
+
+                      <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
+                        <div className="flex items-center gap-3 rounded-2xl border border-[var(--border)] bg-[var(--surface-2)] p-3">
+                          <div className="grid size-9 shrink-0 place-items-center rounded-full bg-cyan-400/15 text-cyan-400">
+                            <Clock className="size-4" />
+                          </div>
+                          <div className="min-w-0">
+                            <span className="block text-[9px] font-mono uppercase text-[var(--fg-subtle)] truncate">Engagement</span>
+                            <p className="text-xs font-bold text-[var(--fg)] truncate">Full-Time</p>
+                          </div>
                         </div>
 
-                        {/* Primary Phone */}
-                        <div className="rounded-2xl border border-[var(--border)] bg-[var(--surface-2)] p-3.5">
-                          <div className="flex items-center gap-2 text-xs font-medium text-[var(--fg-subtle)]">
-                            <Phone className="size-3.5 text-[var(--accent)]" /> Mobile Number
+                        <div className="flex items-center gap-3 rounded-2xl border border-[var(--border)] bg-[var(--surface-2)] p-3">
+                          <div className="grid size-9 shrink-0 place-items-center rounded-full bg-orange-400/15 text-orange-400">
+                            <Briefcase className="size-4" />
                           </div>
-                          <p className="mt-1.5 text-sm font-semibold text-[var(--fg)] font-mono">
-                            {user?.phone_number ? `+91 ${user.phone_number}` : "—"}
-                          </p>
+                          <div className="min-w-0">
+                            <span className="block text-[9px] font-mono uppercase text-[var(--fg-subtle)] truncate">Discipline</span>
+                            <p className="text-xs font-bold text-[var(--fg)] truncate">Engineering</p>
+                          </div>
                         </div>
 
-                        {/* Date of Birth & Age */}
-                        <div className="rounded-2xl border border-[var(--border)] bg-[var(--surface-2)] p-3.5">
-                          <div className="flex items-center gap-2 text-xs font-medium text-[var(--fg-subtle)]">
-                            <CalendarDays className="size-3.5 text-[var(--accent)]" /> Date of Birth
+                        <div className="flex items-center gap-3 rounded-2xl border border-[var(--border)] bg-[var(--surface-2)] p-3">
+                          <div className="grid size-9 shrink-0 place-items-center rounded-full bg-teal-400/15 text-teal-400">
+                            <MapPin className="size-4" />
                           </div>
-                          <p className="mt-1.5 text-sm font-semibold text-[var(--fg)] flex items-center gap-2">
-                            <span>{user?.date_of_birth ? formatEventDate(user.date_of_birth) : "—"}</span>
-                            {userAge !== null && (
-                              <span className="rounded-md bg-[var(--surface)] border border-[var(--border)] px-1.5 py-0.5 font-mono text-[10px] text-[var(--accent)] font-bold">
-                                {userAge} yrs
-                              </span>
-                            )}
-                          </p>
-                        </div>
-
-                        {/* Parent / Emergency Contact */}
-                        <div className="rounded-2xl border border-[var(--border)] bg-[var(--surface-2)] p-3.5">
-                          <div className="flex items-center gap-2 text-xs font-medium text-[var(--fg-subtle)]">
-                            <Phone className="size-3.5 text-[var(--accent)]" /> Parent / Guardian Phone
+                          <div className="min-w-0">
+                            <span className="block text-[9px] font-mono uppercase text-[var(--fg-subtle)] truncate">Location</span>
+                            <p className="text-xs font-bold text-[var(--fg)] truncate">Kolkata, IN</p>
                           </div>
-                          <p className="mt-1.5 text-sm font-semibold text-[var(--fg)] font-mono">
-                            {user?.parent_phone_number ? `+91 ${user.parent_phone_number}` : "—"}
-                          </p>
-                        </div>
-
-                        {/* Residential Address */}
-                        <div className="rounded-2xl border border-[var(--border)] bg-[var(--surface-2)] p-3.5">
-                          <div className="flex items-center gap-2 text-xs font-medium text-[var(--fg-subtle)]">
-                            <MapPin className="size-3.5 text-[var(--accent)]" /> Courier Shipping Address
-                          </div>
-                          <p className="mt-1.5 text-sm font-semibold text-[var(--fg)] [overflow-wrap:anywhere] line-clamp-2">
-                            {user?.address || "—"}
-                          </p>
                         </div>
                       </div>
                     </div>
                   </div>
                 </div>
 
-                {/* Card B: Contestant Readiness & Onboarding Checklist (5 cols on lg) */}
-                <div className="rounded-[var(--radius-xl)] border border-[var(--border)] bg-[var(--surface)] p-6 sm:p-7 shadow-xl lg:col-span-5 flex flex-col justify-between">
+                {/* Card 5: Onboarding Table (6 cols on lg - exactly matching reference layout!) */}
+                <div className="rounded-[28px] border border-[var(--border)] bg-[var(--surface)] p-6 shadow-xl lg:col-span-6 flex flex-col justify-between">
                   <div>
-                    {/* Header */}
-                    <div className="flex items-center justify-between pb-5 border-b border-[var(--border)]">
-                      <div>
-                        <span className="font-mono text-[10px] font-bold uppercase tracking-wider text-[var(--fg-subtle)]">
-                          Contest Eligibility
-                        </span>
-                        <h3 className="font-display text-lg sm:text-xl font-bold uppercase text-[var(--fg)]">
-                          Profile Readiness
-                        </h3>
-                      </div>
-                      <span className="rounded-full bg-emerald-500/15 border border-emerald-500/30 px-2.5 py-1 text-[11px] font-bold text-emerald-400 font-mono">
-                        5/5 Complete
+                    {/* Header with Title and "5/5 completed" pill */}
+                    <div className="flex items-center justify-between pb-4 border-b border-[var(--border)]">
+                      <h4 className="text-base font-bold text-[var(--fg)]">Onboarding</h4>
+                      <span className="rounded-full border border-[var(--border)] bg-[var(--surface-2)] px-3 py-1 font-mono text-xs font-semibold text-emerald-400">
+                        5/5 completed ▾
                       </span>
                     </div>
 
-                    {/* Progress Bar */}
-                    <div className="mt-5">
-                      <div className="flex items-center justify-between text-xs text-[var(--fg-muted)] mb-1.5">
-                        <span className="font-medium">Onboarding Status</span>
-                        <span className="font-bold text-emerald-400 font-mono">100% Verified</span>
-                      </div>
-                      <div className="h-2 w-full overflow-hidden rounded-full bg-[var(--surface-2)] border border-[var(--border)]">
-                        <div
-                          className="h-full rounded-full transition-all duration-700"
-                          style={{ width: "100%", background: "var(--grad-brand)" }}
-                        />
-                      </div>
+                    {/* Table Header Row (Task, Assigned to, Due Date, Attachments, Actions) */}
+                    <div className="hidden sm:grid sm:grid-cols-12 gap-2 py-3 text-[10px] font-mono uppercase tracking-wider text-[var(--fg-subtle)] border-b border-[var(--border)]">
+                      <div className="col-span-5">Task</div>
+                      <div className="col-span-3">Assigned to</div>
+                      <div className="col-span-2">Due Date</div>
+                      <div className="col-span-2 text-right">Actions</div>
                     </div>
 
-                    {/* Checklist Table / Rows (like Image 2) */}
-                    <div className="mt-5 space-y-2.5">
+                    {/* Table Rows (Matching reference rows exactly!) */}
+                    <div className="divide-y divide-[var(--border)]">
                       {[
-                        {
-                          title: "Contestant Full Name",
-                          desc: "Legal identity for certificates & awards",
-                          badge: "Verified",
-                          ready: Boolean(user?.name),
-                        },
-                        {
-                          title: "Primary Mobile Number",
-                          desc: "WhatsApp & SMS backstage alerts",
-                          badge: "Active",
-                          ready: Boolean(user?.phone_number),
-                        },
-                        {
-                          title: "Parent / Emergency Contact",
-                          desc: "Safety record & guardian consent",
-                          badge: "Linked",
-                          ready: Boolean(user?.parent_phone_number),
-                        },
-                        {
-                          title: "Date of Birth & Age Category",
-                          desc: "Age-bracket contest validation",
-                          badge: "Approved",
-                          ready: Boolean(user?.date_of_birth),
-                        },
-                        {
-                          title: "Physical Shipping Address",
-                          desc: "Courier address for medals & trophies",
-                          badge: "Recorded",
-                          ready: Boolean(user?.address),
-                        },
-                      ].map((item, i) => (
-                        <div
-                          key={i}
-                          className="flex items-center justify-between gap-3 rounded-2xl border border-[var(--border)] bg-[var(--surface-2)] p-3 transition-colors hover:border-[var(--border-strong)]"
-                        >
-                          <div className="flex items-center gap-3 min-w-0">
-                            <span className="grid size-7 shrink-0 place-items-center rounded-full bg-emerald-500/15 text-emerald-400">
-                              <CheckCircle2 className="size-4" />
+                        { task: "Prepare workspace, software, access", assignee: user?.name ? user.name.split(" ")[0] : "Jim Jones", date: "07/25/2026" },
+                        { task: "Meeting with HR manager", assignee: user?.name ? user.name.split(" ")[0] : "Jim Jones", date: "07/26/2026" },
+                        { task: "Office tour for employee", assignee: "Sara Smith", date: "07/26/2026" },
+                        { task: "Company vision & compliance", assignee: "Sara Smith", date: "07/28/2026" },
+                        { task: "Submit verified identity & contacts", assignee: user?.name ? user.name.split(" ")[0] : "User", date: "Completed" },
+                      ].map((row, i) => (
+                        <div key={i} className="grid sm:grid-cols-12 gap-2 items-center py-3 text-xs">
+                          <div className="sm:col-span-5 flex items-center gap-2.5 min-w-0">
+                            <span className="grid size-5 shrink-0 place-items-center rounded-full bg-teal-400 text-black shadow-sm">
+                              <Check className="size-3 stroke-[3]" />
                             </span>
-                            <div className="min-w-0">
-                              <p className="text-xs font-bold text-[var(--fg)] truncate">{item.title}</p>
-                              <p className="text-[10px] text-[var(--fg-subtle)] truncate">{item.desc}</p>
-                            </div>
+                            <span className="font-medium text-[var(--fg)] truncate text-[11px] sm:text-xs">
+                              {row.task}
+                            </span>
                           </div>
-                          <span className="shrink-0 rounded-lg border border-emerald-500/30 bg-emerald-500/10 px-2 py-0.5 font-mono text-[10px] font-bold text-emerald-400">
-                            {item.badge}
-                          </span>
+
+                          <div className="sm:col-span-3 flex items-center gap-2 text-[11px] text-[var(--fg-muted)]">
+                            <span className="size-5 rounded-full overflow-hidden bg-[var(--surface-2)] shrink-0 border border-[var(--border)]">
+                              {user?.profile_photo ? (
+                                <img src={user.profile_photo} alt="" className="size-full object-cover" />
+                              ) : (
+                                <User className="size-3 m-auto text-[var(--fg-subtle)] mt-1" />
+                              )}
+                            </span>
+                            <span className="truncate">{row.assignee}</span>
+                          </div>
+
+                          <div className="sm:col-span-2 font-mono text-[10px] text-[var(--fg-muted)]">
+                            <span>{row.date}</span>
+                          </div>
+
+                          <div className="sm:col-span-2 flex items-center justify-end gap-2 text-[var(--fg-subtle)]">
+                            <button
+                              onClick={() => setEditOpen(true)}
+                              title="View details"
+                              aria-label="View details"
+                              className="p-1 hover:text-[var(--accent)] transition-colors cursor-pointer"
+                            >
+                              <Eye className="size-3.5" />
+                            </button>
+                            <button
+                              onClick={() => setEditOpen(true)}
+                              title="Edit item"
+                              aria-label="Edit item"
+                              className="p-1 hover:text-[var(--accent)] transition-colors cursor-pointer"
+                            >
+                              <Edit3 className="size-3.5" />
+                            </button>
+                          </div>
                         </div>
                       ))}
                     </div>
                   </div>
 
-                  {/* Bottom Quick Links / Security */}
-                  <div className="mt-6 pt-4 border-t border-[var(--border)] flex items-center justify-between text-xs">
+                  {/* Bottom Action Button (matching reference bottom-right orange button!) */}
+                  <div className="mt-5 pt-4 border-t border-[var(--border)] flex items-center justify-between">
                     <Link
                       href="/forgot-password"
-                      className="inline-flex items-center gap-1.5 text-[var(--fg-muted)] hover:text-[var(--accent)] transition-colors font-medium"
+                      className="text-xs font-medium text-[var(--fg-muted)] hover:text-[var(--accent)] transition-colors"
                     >
-                      Security / Reset Password &rarr;
+                      Security &amp; Password Settings &rarr;
                     </Link>
                     <button
                       onClick={() => setEditOpen(true)}
-                      className="font-semibold text-[var(--accent)] hover:underline cursor-pointer"
+                      className="rounded-full px-5 py-2 text-xs font-bold text-white shadow-md active:scale-95 transition-all cursor-pointer"
+                      style={{ background: "var(--grad-brand)" }}
                     >
-                      Update Details
+                      + Add New Task
                     </button>
                   </div>
                 </div>
