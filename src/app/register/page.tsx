@@ -66,7 +66,11 @@ export default function RegisterPage() {
       const res = await authApi.googleLogin(idToken);
       tokenStore.set(res.access_token);
       await refresh();
-      router.push("/dashboard");
+      if (res.requires_profile_completion || !res.is_profile_completed) {
+        router.push("/dashboard?tab=profile&setup=true");
+      } else {
+        router.push("/dashboard");
+      }
     } catch (err: any) {
       if (err?.code === "auth/popup-closed-by-user" || err?.code === "auth/cancelled-popup-request") return;
       setFormError(err?.message || "Google sign-up failed. Please try again.");
@@ -135,7 +139,11 @@ export default function RegisterPage() {
       if (res?.access_token) {
         tokenStore.set(res.access_token);
         await refresh();
-        router.push("/dashboard");
+        if (res.requires_profile_completion || !res.is_profile_completed) {
+          router.push("/dashboard?tab=profile&setup=true");
+        } else {
+          router.push("/dashboard");
+        }
       } else {
         router.push("/login");
       }

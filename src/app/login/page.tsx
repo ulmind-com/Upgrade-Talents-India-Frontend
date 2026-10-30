@@ -4,7 +4,7 @@ import Link from "next/link";
 import { useRouter, useSearchParams } from "next/navigation";
 import { Suspense, useState, useEffect } from "react";
 import { motion, type Variants } from "framer-motion";
-import { Eye, EyeOff, ArrowRight, Ticket, ShieldCheck, Sparkles, Gavel, ScanLine } from "lucide-react";
+import { Eye, EyeOff, ArrowRight, Ticket, ShieldCheck, Sparkles, Gavel, ScanLine, AlertCircle } from "lucide-react";
 import { authApi, tokenStore } from "@/lib/api";
 import { useAuth } from "@/components/motion/Providers";
 import { AuthShell, Field, FormAlert, Input } from "@/components/ui/Form";
@@ -76,6 +76,13 @@ function LoginForm() {
         router.push("/judge");
       } else if (role === "VOLUNTEER") {
         router.push("/volunteer");
+      } else if (
+        res.requires_profile_completion ||
+        !res.is_profile_completed ||
+        me?.requires_profile_completion ||
+        !me?.is_profile_completed
+      ) {
+        router.push("/dashboard?tab=profile&setup=true");
       } else {
         router.push(next);
       }
@@ -102,6 +109,13 @@ function LoginForm() {
         router.push("/judge");
       } else if (role === "VOLUNTEER") {
         router.push("/volunteer");
+      } else if (
+        res.requires_profile_completion ||
+        !res.is_profile_completed ||
+        me?.requires_profile_completion ||
+        !me?.is_profile_completed
+      ) {
+        router.push("/dashboard?tab=profile&setup=true");
       } else {
         router.push(next);
       }
@@ -167,17 +181,26 @@ function LoginForm() {
         </motion.div>
 
         <motion.div variants={itemV}>
-        <Field label="Password" error={errors.password} required>
-          {({ id, describedBy, invalid }) => (
+          <div className="flex flex-col gap-2">
+            <div className="flex items-center justify-between">
+              <label htmlFor="login-password" className="text-[13px] font-semibold text-[var(--fg)]">
+                Password <span className="text-[var(--accent)]" aria-hidden>*</span>
+              </label>
+              <Link
+                href="/forgot-password"
+                className="text-[12px] font-semibold text-[var(--accent)] transition-colors hover:underline"
+              >
+                Forgot password?
+              </Link>
+            </div>
             <div className="relative">
               <Input
-                id={id}
+                id="login-password"
                 type={show ? "text" : "password"}
                 autoComplete="current-password"
                 value={password}
                 onChange={(e) => setPassword(e.target.value)}
-                aria-describedby={describedBy}
-                invalid={invalid}
+                invalid={!!errors.password}
                 placeholder="••••••••"
                 className="pr-14"
               />
@@ -190,8 +213,12 @@ function LoginForm() {
                 {show ? <EyeOff className="size-4" aria-hidden /> : <Eye className="size-4" aria-hidden />}
               </button>
             </div>
-          )}
-        </Field>
+            {errors.password && (
+              <p className="flex items-start gap-1.5 text-[12px] text-[var(--danger)]">
+                <AlertCircle className="mt-0.5 size-3.5 shrink-0" aria-hidden /> {errors.password}
+              </p>
+            )}
+          </div>
         </motion.div>
 
         <motion.div variants={itemV}>

@@ -470,18 +470,84 @@ export const authApi = {
     apiFetch<any>("/api/auth/register/step3", { method: "POST", form, regAuth: true }),
 
   login: (email: string, password: string) =>
-    apiFetch<{ access_token: string; token_type: string }>("/api/auth/login", {
+    apiFetch<{
+      access_token: string;
+      token_type: string;
+      user_email?: string;
+      role?: string;
+      registration_complete?: boolean;
+      is_profile_completed?: boolean;
+      profile_completed?: boolean;
+      requires_profile_completion?: boolean;
+      prompt_profile_form?: boolean;
+      first_time_login?: boolean;
+      missing_fields?: string[];
+      next_step?: string;
+      redirect_url?: string;
+      user?: any;
+    }>("/api/auth/login", {
       method: "POST",
       body: { email, password },
     }),
 
   googleLogin: (id_token: string, referral_code?: string) =>
-    apiFetch<{ access_token: string; token_type: string }>("/api/auth/google-login", {
+    apiFetch<{
+      access_token: string;
+      token_type: string;
+      user_email?: string;
+      role?: string;
+      registration_complete?: boolean;
+      is_profile_completed?: boolean;
+      profile_completed?: boolean;
+      requires_profile_completion?: boolean;
+      prompt_profile_form?: boolean;
+      first_time_login?: boolean;
+      missing_fields?: string[];
+      next_step?: string;
+      redirect_url?: string;
+      user?: any;
+    }>("/api/auth/google-login", {
       method: "POST",
       body: { id_token, referral_code },
     }),
 
   me: () => apiFetch<any>("/api/auth/me", { auth: true, cache: "no-store" }),
+
+  status: () => apiFetch<any>("/api/auth/status", { auth: true, cache: "no-store" }),
+
+  completeProfile: (form: FormData) =>
+    apiFetch<any>("/api/auth/complete-profile", { method: "POST", form, auth: true }),
+
+  completeProfileJson: (body: any) =>
+    apiFetch<any>("/api/auth/complete-profile-json", { method: "POST", body, auth: true }),
+
+  /* ── User Password Reset (Forgot Password) ── */
+  forgotPasswordRequest: (email: string) =>
+    apiFetch<{ message: string; email: string; expires_in_minutes: number }>(
+      "/api/auth/forgot-password/request",
+      { method: "POST", body: { email } }
+    ),
+
+  forgotPasswordVerifyOtp: (email: string, otp: string) =>
+    apiFetch<{
+      message: string;
+      email: string;
+      reset_token: string;
+      token_type: string;
+      expires_in_minutes: number;
+    }>("/api/auth/forgot-password/verify-otp", { method: "POST", body: { email, otp } }),
+
+  forgotPasswordReset: (reset_token: string, new_password: string, confirm_password: string) =>
+    apiFetch<{ message: string; email: string; success: boolean; redirect_url: string }>(
+      "/api/auth/forgot-password/reset-password",
+      { method: "POST", body: { reset_token, new_password, confirm_password } }
+    ),
+
+  forgotPasswordConfirm: (email: string, otp: string, new_password: string, confirm_password: string) =>
+    apiFetch<{ message: string; email: string; success: boolean; redirect_url: string }>(
+      "/api/auth/forgot-password/confirm",
+      { method: "POST", body: { email, otp, new_password, confirm_password } }
+    ),
 };
 
 /* ─────────────── PROFILE ─────────────── */
@@ -618,7 +684,7 @@ export const walletApi = {
   referralProfile: () => apiFetch<any>("/api/rewards/referral-profile", { auth: true, cache: "no-store" }),
 };
 
-/* ─────────────── AADHAAR KYC (DigiLocker) ─────────────── */
+/* ─────────────── AADHAAR IDENTITY KYC ─────────────── */
 
 export type KycStatus = {
   email?: string;
@@ -641,56 +707,13 @@ export type KycStatus = {
 
 export const kycApi = {
   status: () => apiFetch<KycStatus>("/api/kyc/status", { auth: true }),
-  sendOtp: (aadhaar_number: string) =>
+  verifyDocument: (form: FormData) =>
     apiFetch<{
-      success: boolean;
       message: string;
-      reference_id: string;
-      masked_mobile?: string;
-      mode?: string;
-      sandbox_otp?: string;
-    }>(
-      "/api/kyc/digilocker/send-otp",
-      { method: "POST", body: { aadhaar_number }, auth: true }
-    ),
-  verifyOtp: (reference_id: string, otp: string) =>
-    apiFetch<{
-      success: boolean;
       kyc_status: string;
       aadhaar_masked?: string;
-      message: string;
-      verification_id?: string;
-      verified_details?: { name?: string; date_of_birth?: string; gender?: string; address?: string };
-    }>("/api/kyc/digilocker/verify-otp", { method: "POST", body: { reference_id, otp }, auth: true }),
-};
-
-/* Official DigiLocker OAuth 2.0 (MeitY Govt of India) */
-export const digilockerApi = {
-  getAuthorizeUrl: (user_email?: string, redirect_uri?: string) =>
-    apiFetch<{
-      success: boolean;
-      authorization_url: string;
-      state: string;
-      redirect_uri: string;
-      message: string;
-    }>("/api/digilocker/authorize", {
-      query: {
-        format: "json",
-        ...(user_email ? { user_email } : {}),
-        ...(redirect_uri ? { redirect_uri } : {}),
-      },
-      auth: true,
-    }),
-  status: (user_email?: string) =>
-    apiFetch<KycStatus>("/api/digilocker/status", {
-      query: user_email ? { user_email } : undefined,
-      auth: true,
-    }),
-  revoke: (user_email?: string) =>
-    apiFetch<{ success: boolean; user_email: string; message: string }>(
-      "/api/digilocker/revoke",
-      { method: "POST", body: user_email ? { user_email } : {}, auth: true }
-    ),
+      source?: string;
+    }>("/api/kyc/verify-document", { method: "POST", form, auth: true }),
 };
 
 /* ─────────────── JUDGE AUTH (Password & OTP) ─────────────── */

@@ -71,12 +71,32 @@ export default function DashboardPage() {
 
   useEffect(() => {
     if (typeof window !== "undefined") {
-      const qTab = new URLSearchParams(window.location.search).get("tab");
+      const sp = new URLSearchParams(window.location.search);
+      const qTab = sp.get("tab");
       if (qTab && ["tickets", "competitions", "certificates", "rewards", "vip", "events", "orders", "profile"].includes(qTab)) {
         setTab(qTab as Tab);
       }
+      if (sp.get("setup") === "true") {
+        setTab("profile");
+        setEditOpen(true);
+      }
     }
   }, []);
+
+  useEffect(() => {
+    if (!authLoading && user) {
+      const isIncomplete =
+        user.requires_profile_completion === true ||
+        user.is_profile_completed === false ||
+        !user.phone_number ||
+        !user.date_of_birth ||
+        !user.address;
+      if (isIncomplete) {
+        setTab("profile");
+        setEditOpen(true);
+      }
+    }
+  }, [authLoading, user]);
 
   const loadAll = useCallback(() => {
     if (!user) return;
@@ -930,6 +950,25 @@ export default function DashboardPage() {
         {!loading && tab === "profile" && (
           <Reveal className="mt-10">
             <div className="grid gap-6 lg:grid-cols-[1fr_1.5fr]">
+              {(user?.requires_profile_completion || !user?.is_profile_completed || !user?.phone_number || !user?.date_of_birth || !user?.address) && (
+                <div className="lg:col-span-2 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4 rounded-2xl border border-amber-500/40 bg-amber-500/10 p-5 text-xs text-amber-200">
+                  <div className="flex items-start gap-3">
+                    <AlertCircle className="size-5 shrink-0 text-amber-400 mt-0.5" />
+                    <div>
+                      <p className="font-bold text-amber-100 text-sm">Action Required: Complete Your Profile Details</p>
+                      <p className="mt-1 text-amber-300/80 leading-relaxed">
+                        Please provide your full name, 10-digit mobile number, date of birth, and residential address to activate full account capabilities and participate in events.
+                      </p>
+                    </div>
+                  </div>
+                  <button
+                    onClick={() => setEditOpen(true)}
+                    className="shrink-0 rounded-full bg-amber-500 px-4 py-2 font-bold text-black transition-colors hover:bg-amber-400 active:scale-95 shadow-md"
+                  >
+                    Complete Profile
+                  </button>
+                </div>
+              )}
               {/* Profile Card */}
               <div className="flex flex-col items-center justify-between rounded-[var(--radius-xl)] border border-[var(--border)] bg-[var(--surface)] p-8 text-center shadow-lg">
                 <div className="flex flex-col items-center">
@@ -1288,20 +1327,42 @@ function EditProfileModal({
 
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
-    setBusy(true);
     setErr(null);
+
+    const cleanPhone = phone.replace(/\D/g, "");
+    if (!name.trim()) {
+      setErr("Full Name is required.");
+      return;
+    }
+    if (!cleanPhone || cleanPhone.length < 10) {
+      setErr("A valid 10-digit mobile number is required.");
+      return;
+    }
+    if (!dob) {
+      setErr("Date of birth is required.");
+      return;
+    }
+    if (!address.trim()) {
+      setErr("Residential address is required.");
+      return;
+    }
+
+    setBusy(true);
 
     try {
       const fd = new FormData();
-      if (name.trim()) fd.append("name", name.trim());
-      if (phone.trim()) fd.append("phone_number", phone.trim());
-      if (dob) fd.append("date_of_birth", dob);
-      if (address.trim()) fd.append("address", address.trim());
-      if (parentPhone.trim()) fd.append("parent_phone_number", parentPhone.trim());
+      fd.append("name", name.trim());
+      fd.append("phone_number", cleanPhone);
+      fd.append("date_of_birth", dob);
+      fd.append("address", address.trim());
+      if (parentPhone.trim()) fd.append("parent_phone_number", parentPhone.replace(/\D/g, ""));
       if (photoFile) fd.append("profile_photo", photoFile);
 
       await profileApi.update(fd);
       await onSaved();
+      if (typeof window !== "undefined") {
+        window.history.replaceState({}, "", "/dashboard?tab=profile");
+      }
       onClose();
     } catch (e: any) {
       setErr(e?.message || "Could not update profile.");
@@ -1396,25 +1457,28 @@ function EditProfileModal({
 
           <div>
             <label className="block font-mono text-[11px] uppercase tracking-wider text-[var(--fg-subtle)] mb-1.5">
-              Full Name
+              Full Name <span className="text-[var(--accent)]">*</span>
             </label>
             <input
               type="text"
               value={name}
               onChange={(e) => setName(e.target.value)}
               required
+              placeholder="e.g. Rahul Sharma"
               className="w-full rounded-xl border border-[var(--border)] bg-[var(--surface)] px-4 py-2.5 text-sm font-semibold outline-none focus:border-[var(--accent)]"
             />
           </div>
 
           <div>
             <label className="block font-mono text-[11px] uppercase tracking-wider text-[var(--fg-subtle)] mb-1.5">
-              Phone Number
+              Phone Number (10 Digits) <span className="text-[var(--accent)]">*</span>
             </label>
             <input
               type="tel"
+              inputMode="tel"
               value={phone}
               onChange={(e) => setPhone(e.target.value)}
+              required
               placeholder="e.g. 9876543210"
               className="w-full rounded-xl border border-[var(--border)] bg-[var(--surface)] px-4 py-2.5 text-sm font-semibold outline-none focus:border-[var(--accent)]"
             />
@@ -1422,12 +1486,13 @@ function EditProfileModal({
 
           <div>
             <label className="block font-mono text-[11px] uppercase tracking-wider text-[var(--fg-subtle)] mb-1.5">
-              Date of Birth
+              Date of Birth <span className="text-[var(--accent)]">*</span>
             </label>
             <input
               type="date"
               value={dob}
               onChange={(e) => setDob(e.target.value)}
+              required
               max={new Date().toISOString().slice(0, 10)}
               className="w-full rounded-xl border border-[var(--border)] bg-[var(--surface)] px-4 py-2.5 text-sm font-semibold outline-none focus:border-[var(--accent)]"
             />
@@ -1435,12 +1500,13 @@ function EditProfileModal({
 
           <div>
             <label className="block font-mono text-[11px] uppercase tracking-wider text-[var(--fg-subtle)] mb-1.5">
-              Residential Address / City
+              Residential Address / City <span className="text-[var(--accent)]">*</span>
             </label>
             <input
               type="text"
               value={address}
               onChange={(e) => setAddress(e.target.value)}
+              required
               placeholder="e.g. Kolkata, West Bengal"
               className="w-full rounded-xl border border-[var(--border)] bg-[var(--surface)] px-4 py-2.5 text-sm font-semibold outline-none focus:border-[var(--accent)]"
             />

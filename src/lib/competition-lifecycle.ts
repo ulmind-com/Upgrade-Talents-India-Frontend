@@ -14,6 +14,11 @@ export interface CompetitionLifecycleInput {
   start_time?: string | null;
   time?: string | null;
   end_time?: string | null;
+  can_register?: boolean | null;
+  is_registration_open?: boolean | null;
+  registration_status?: string | null;
+  registration_reason?: string | null;
+  reason?: string | null;
 }
 
 export interface CompetitionLifecycleResult {
@@ -71,6 +76,12 @@ export function parseDateWithTime(
 
   const trimmed = String(dateInput).trim();
   if (!trimmed) return null;
+
+  // Handle ISO 8601 strings with timezone directly
+  if (trimmed.includes("T") && (trimmed.endsWith("Z") || trimmed.includes("+") || trimmed.lastIndexOf("-") > 10)) {
+    const parsed = new Date(trimmed);
+    if (!isNaN(parsed.getTime())) return parsed;
+  }
 
   // Check if standard YYYY-MM-DD
   const ymdMatch = trimmed.match(/^(\d{4})-(\d{1,2})-(\d{1,2})/);
@@ -179,15 +190,35 @@ export function getCompetitionLifecycle(comp: CompetitionLifecycleInput): Compet
   let isRegClosed = false;
   let regMessage = "Registration is open.";
 
+  const isExplicitClosed =
+    comp.can_register === false ||
+    comp.is_registration_open === false ||
+    String(comp.registration_status || "").toUpperCase() === "CLOSED";
+
+  const isExplicitUpcoming =
+    String(comp.registration_status || "").toUpperCase() === "UPCOMING";
+
   if (isResultsOut || isEnded) {
     isRegClosed = true;
     regMessage = "Competition has concluded. Registration is closed.";
-  } else if (regDeadlineMs && now > regDeadlineMs) {
+  } else if (regDeadlineMs && now >= regDeadlineMs) {
+    // Deadline passed: strictly prevent registration
     isRegClosed = true;
     regMessage = `Registration closed on ${formatEventDate(comp.registration_deadline)}.`;
-  } else if (regStartMs && now < regStartMs) {
+  } else if (isExplicitClosed) {
+    isRegClosed = true;
+    regMessage =
+      comp.registration_reason ||
+      comp.reason ||
+      "Registration for this competition is closed.";
+  } else if (isExplicitUpcoming || (regStartMs && now < regStartMs)) {
     isRegUpcoming = true;
-    regMessage = `Registration opens on ${formatEventDate(comp.registration_start_date)}.`;
+    regMessage =
+      comp.registration_reason ||
+      comp.reason ||
+      (comp.registration_start_date
+        ? `Registration opens on ${formatEventDate(comp.registration_start_date)}.`
+        : "Registration opens soon.");
   } else if (startMs && now >= startMs) {
     isRegClosed = true;
     regMessage = "Competition has commenced. Registration is closed.";
