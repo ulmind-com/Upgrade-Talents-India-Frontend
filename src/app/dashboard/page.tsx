@@ -19,7 +19,6 @@ import {
 } from "@/lib/api";
 import { useAuth, usePageScrollLock } from "@/components/motion/Providers";
 import CoinLedger from "@/components/account/CoinLedger";
-import AadhaarKyc from "@/components/account/AadhaarKyc";
 import { Badge, Button, SectionLabel, Spotlights } from "@/components/ui/Primitives";
 import { Reveal, SplitHeading } from "@/components/motion/Reveal";
 import { cn, formatEventDate, formatINR, isEventExpired } from "@/lib/utils";
@@ -64,9 +63,31 @@ export default function DashboardPage() {
   const [editOpen, setEditOpen] = useState(false);
 
   useEffect(() => {
-    if (!authLoading && !user) router.replace("/login?next=/dashboard");
-    if (isJudge) router.replace("/judge");
-    if (isVolunteer) router.replace("/volunteer");
+    if (!authLoading && !user) {
+      router.replace("/login?next=/dashboard");
+      return;
+    }
+    if (isJudge) {
+      router.replace("/judge");
+      return;
+    }
+    if (isVolunteer) {
+      router.replace("/volunteer");
+      return;
+    }
+    if (!authLoading && user) {
+      const isIncomplete =
+        user.requires_profile_completion === true ||
+        user.is_profile_completed === false ||
+        user.profile_completed === false ||
+        !user.phone_number ||
+        !user.date_of_birth ||
+        !user.address ||
+        !user.parent_phone_number;
+      if (isIncomplete) {
+        router.replace("/complete-profile");
+      }
+    }
   }, [authLoading, user, isJudge, isVolunteer, router]);
 
   useEffect(() => {
@@ -82,21 +103,6 @@ export default function DashboardPage() {
       }
     }
   }, []);
-
-  useEffect(() => {
-    if (!authLoading && user) {
-      const isIncomplete =
-        user.requires_profile_completion === true ||
-        user.is_profile_completed === false ||
-        !user.phone_number ||
-        !user.date_of_birth ||
-        !user.address;
-      if (isIncomplete) {
-        setTab("profile");
-        setEditOpen(true);
-      }
-    }
-  }, [authLoading, user]);
 
   const loadAll = useCallback(() => {
     if (!user) return;
@@ -1044,8 +1050,6 @@ export default function DashboardPage() {
                   ))}
                 </dl>
               </div>
-
-              <AadhaarKyc />
               </div>
             </div>
           </Reveal>
@@ -1330,6 +1334,7 @@ function EditProfileModal({
     setErr(null);
 
     const cleanPhone = phone.replace(/\D/g, "");
+    const cleanParentPhone = parentPhone.replace(/\D/g, "");
     if (!name.trim()) {
       setErr("Full Name is required.");
       return;
@@ -1346,6 +1351,10 @@ function EditProfileModal({
       setErr("Residential address is required.");
       return;
     }
+    if (!cleanParentPhone || cleanParentPhone.length < 10) {
+      setErr("A valid 10-digit Parent/Guardian phone number is required.");
+      return;
+    }
 
     setBusy(true);
 
@@ -1355,7 +1364,7 @@ function EditProfileModal({
       fd.append("phone_number", cleanPhone);
       fd.append("date_of_birth", dob);
       fd.append("address", address.trim());
-      if (parentPhone.trim()) fd.append("parent_phone_number", parentPhone.replace(/\D/g, ""));
+      fd.append("parent_phone_number", cleanParentPhone);
       if (photoFile) fd.append("profile_photo", photoFile);
 
       await profileApi.update(fd);
@@ -1514,12 +1523,14 @@ function EditProfileModal({
 
           <div>
             <label className="block font-mono text-[11px] uppercase tracking-wider text-[var(--fg-subtle)] mb-1.5">
-              Parent / Guardian Phone (Optional)
+              Parent / Guardian Phone Number <span className="text-[var(--accent)]">*</span>
             </label>
             <input
               type="tel"
+              inputMode="tel"
               value={parentPhone}
               onChange={(e) => setParentPhone(e.target.value)}
+              required
               placeholder="e.g. 9876543211"
               className="w-full rounded-xl border border-[var(--border)] bg-[var(--surface)] px-4 py-2.5 text-sm font-semibold outline-none focus:border-[var(--accent)]"
             />

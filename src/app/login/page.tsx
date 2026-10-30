@@ -42,6 +42,7 @@ function LoginForm() {
 
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
+  const [rememberMe, setRememberMe] = useState(true);
   const [show, setShow] = useState(false);
   const [errors, setErrors] = useState<{ email?: string; password?: string }>({});
   const [formError, setFormError] = useState<string | null>(null);
@@ -79,10 +80,16 @@ function LoginForm() {
       } else if (
         res.requires_profile_completion ||
         !res.is_profile_completed ||
+        !res.profile_completed ||
         me?.requires_profile_completion ||
-        !me?.is_profile_completed
+        !me?.is_profile_completed ||
+        !me?.profile_completed ||
+        !me?.phone_number ||
+        !me?.date_of_birth ||
+        !me?.address ||
+        !me?.parent_phone_number
       ) {
-        router.push("/dashboard?tab=profile&setup=true");
+        router.push("/complete-profile");
       } else {
         router.push(next);
       }
@@ -112,10 +119,16 @@ function LoginForm() {
       } else if (
         res.requires_profile_completion ||
         !res.is_profile_completed ||
+        !res.profile_completed ||
         me?.requires_profile_completion ||
-        !me?.is_profile_completed
+        !me?.is_profile_completed ||
+        !me?.profile_completed ||
+        !me?.phone_number ||
+        !me?.date_of_birth ||
+        !me?.address ||
+        !me?.parent_phone_number
       ) {
-        router.push("/dashboard?tab=profile&setup=true");
+        router.push("/complete-profile");
       } else {
         router.push(next);
       }
@@ -219,6 +232,18 @@ function LoginForm() {
               </p>
             )}
           </div>
+        </motion.div>
+
+        <motion.div variants={itemV} className="flex items-center justify-between text-xs text-[var(--fg-muted)]">
+          <label className="flex items-center gap-2 cursor-pointer select-none">
+            <input
+              type="checkbox"
+              checked={rememberMe}
+              onChange={(e) => setRememberMe(e.target.checked)}
+              className="size-4 rounded border-[var(--border)] accent-[var(--accent)]"
+            />
+            <span>Remember this device</span>
+          </label>
         </motion.div>
 
         <motion.div variants={itemV}>

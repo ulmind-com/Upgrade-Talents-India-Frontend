@@ -66,8 +66,16 @@ export default function RegisterPage() {
       const res = await authApi.googleLogin(idToken);
       tokenStore.set(res.access_token);
       await refresh();
-      if (res.requires_profile_completion || !res.is_profile_completed) {
-        router.push("/dashboard?tab=profile&setup=true");
+      if (
+        res.requires_profile_completion ||
+        !res.is_profile_completed ||
+        !res.profile_completed ||
+        !res.user?.phone_number ||
+        !res.user?.date_of_birth ||
+        !res.user?.address ||
+        !res.user?.parent_phone_number
+      ) {
+        router.push("/complete-profile");
       } else {
         router.push("/dashboard");
       }
@@ -110,10 +118,14 @@ export default function RegisterPage() {
     e.preventDefault();
     setFormError(null);
     const errs: Record<string, string> = {};
+    const cleanPhone = phone.replace(/\D/g, "");
+    const cleanParentPhone = parentPhone.replace(/\D/g, "");
+
     if (!name.trim()) errs.name = "Enter your full name.";
-    if (!/^\d{10,15}$/.test(phone.replace(/\D/g, ""))) errs.phone = "Enter a valid phone number.";
+    if (!cleanPhone || cleanPhone.length < 10) errs.phone = "Enter a valid 10-digit mobile number.";
+    if (!cleanParentPhone || cleanParentPhone.length < 10) errs.parentPhone = "Enter a valid 10-digit parent/guardian phone number.";
     if (!dob) errs.dob = "Select your date of birth.";
-    if (!address.trim()) errs.address = "Enter your address.";
+    if (!address.trim()) errs.address = "Enter your residential address.";
     if (password.length < 6) errs.password = "Use at least 6 characters.";
     if (password !== confirm) errs.confirm = "Passwords don't match.";
     setErrors(errs);
@@ -128,10 +140,10 @@ export default function RegisterPage() {
       fd.append("password", password);
       fd.append("confirm_password", confirm);
       fd.append("name", name.trim());
-      fd.append("phone_number", phone.replace(/\D/g, ""));
+      fd.append("phone_number", cleanPhone);
       fd.append("date_of_birth", dob);
       fd.append("address", address.trim());
-      if (parentPhone.trim()) fd.append("parent_phone_number", parentPhone.replace(/\D/g, ""));
+      fd.append("parent_phone_number", cleanParentPhone);
       if (photo) fd.append("profile_photo", photo);
 
       const res = await authApi.registerStep3(fd);
@@ -139,8 +151,12 @@ export default function RegisterPage() {
       if (res?.access_token) {
         tokenStore.set(res.access_token);
         await refresh();
-        if (res.requires_profile_completion || !res.is_profile_completed) {
-          router.push("/dashboard?tab=profile&setup=true");
+        if (
+          res.requires_profile_completion ||
+          !res.is_profile_completed ||
+          !res.profile_completed
+        ) {
+          router.push("/complete-profile");
         } else {
           router.push("/dashboard");
         }
@@ -309,10 +325,10 @@ export default function RegisterPage() {
                     onChange={(e) => setPhone(e.target.value)} aria-describedby={describedBy} invalid={invalid} placeholder="9876543210" />
                 )}
               </Field>
-              <Field label="Parent's phone" hint="Required for minors.">
-                {({ id }) => (
+              <Field label="Parent / Guardian phone" error={errors.parentPhone} required>
+                {({ id, describedBy, invalid }) => (
                   <Input id={id} type="tel" inputMode="tel" value={parentPhone}
-                    onChange={(e) => setParentPhone(e.target.value)} placeholder="Optional" />
+                    onChange={(e) => setParentPhone(e.target.value)} aria-describedby={describedBy} invalid={invalid} placeholder="9876543211" />
                 )}
               </Field>
             </div>
