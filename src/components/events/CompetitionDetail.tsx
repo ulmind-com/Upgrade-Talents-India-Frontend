@@ -16,6 +16,7 @@ import { useAuth } from "@/components/motion/Providers";
 import { competeApi, profileApi, publicApi, certificatesApi } from "@/lib/api";
 import { imageFor, formatEventDate, cn } from "@/lib/utils";
 import { getCompetitionLifecycle } from "@/lib/competition-lifecycle";
+import VerifiedBadge from "@/components/ui/VerifiedBadge";
 
 type RulesObj = {
   terms_and_conditions?: string;
@@ -81,6 +82,8 @@ type Row = {
   judge_score?: number;
   raw_judge_score?: number;
   final_score?: number;
+  is_verified?: boolean;
+  verified_badge?: boolean;
 };
 
 const nf = (n?: number) => new Intl.NumberFormat("en-IN").format(Math.round(Number(n ?? 0)));
@@ -1151,9 +1154,12 @@ export default function CompetitionDetail({
                     </span>
                     <img src={imageFor(r.profile_photo, i)} alt="" className="size-9 shrink-0 rounded-full object-cover" />
                     <div className="min-w-0 flex-1">
-                      <div className="flex items-center gap-1.5">
-                        <p className="truncate text-[13.5px] font-semibold leading-tight">
-                          {r.name || "—"}{" "}
+                      <div className="flex items-center gap-1.5 flex-wrap">
+                        <p className="truncate text-[13.5px] font-semibold leading-tight flex items-center gap-1">
+                          <span>{r.name || "—"}</span>
+                          {(r.is_verified || r.verified_badge || (isSelfRow && user?.is_verified)) && (
+                            <VerifiedBadge size="xs" />
+                          )}
                           {top && i === 0 && <Crown className="ml-0.5 inline size-3.5 text-[var(--accent)]" aria-hidden />}
                         </p>
                         {isSelfRow && (

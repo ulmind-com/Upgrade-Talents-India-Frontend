@@ -9,6 +9,7 @@ import { SectionLabel } from "@/components/ui/Primitives";
 import { publicApi, competeApi } from "@/lib/api";
 import { imageFor } from "@/lib/utils";
 import Link from "next/link";
+import VerifiedBadge from "@/components/ui/VerifiedBadge";
 
 type Row = {
   rank?: number;
@@ -20,6 +21,8 @@ type Row = {
   judge_score?: number;
   final_score?: number;
   points?: number;
+  is_verified?: boolean;
+  verified_badge?: boolean;
 };
 
 type Comp = { _id?: string; id?: string; title?: string; name?: string };
@@ -81,7 +84,10 @@ function PodiumCard({ row, place }: { row: Row; place: 0 | 1 | 2 }) {
       <m.Icon className="absolute right-4 top-4 size-5" style={{ color: m.ring }} aria-hidden />
 
       <Avatar row={row} size={place === 0 ? 92 : 76} ring={m.ring} />
-      <p className="mt-4 line-clamp-1 font-display text-[clamp(1.05rem,2.4vw,1.4rem)] font-bold leading-tight">{row.name || "—"}</p>
+      <p className="mt-4 line-clamp-1 font-display text-[clamp(1.05rem,2.4vw,1.4rem)] font-bold leading-tight flex items-center justify-center gap-1.5">
+        <span>{row.name || "—"}</span>
+        {(row.is_verified || row.verified_badge) && <VerifiedBadge size="sm" />}
+      </p>
       <p className="text-[12.5px] text-[var(--fg-subtle)]">{handle(row)}</p>
 
       <p className="mt-3 font-display text-[clamp(1.6rem,4vw,2.4rem)] font-bold leading-none text-gradient">{nf(row.points ?? row.final_score ?? row.audience_votes)}</p>
@@ -414,7 +420,10 @@ export default function LeaderboardView({
                             <div className="flex items-center gap-3">
                               <Avatar row={r} size={38} />
                               <div className="min-w-0">
-                                <p className="truncate font-semibold leading-tight">{r.name || "—"}</p>
+                                <p className="truncate font-semibold leading-tight flex items-center gap-1">
+                                  <span>{r.name || "—"}</span>
+                                  {(r.is_verified || r.verified_badge) && <VerifiedBadge size="xs" />}
+                                </p>
                                 <p className="truncate text-[11.5px] text-[var(--fg-subtle)]">{handle(r)}</p>
                               </div>
                             </div>

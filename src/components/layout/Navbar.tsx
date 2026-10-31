@@ -15,6 +15,7 @@ import ThemeSwitch from "@/components/ui/ThemeSwitch";
 import { Button, Magnetic } from "@/components/ui/Primitives";
 import { useAuth, useTheme } from "@/components/motion/Providers";
 import { cn, isUsableImageUrl } from "@/lib/utils";
+import VerifiedBadge from "@/components/ui/VerifiedBadge";
 
 const NAV = [
   { label: "Home", href: "/" },
@@ -368,7 +369,10 @@ export default function Navbar({ brandName = "UPGRADE TALENTS INDIA", logo }: { 
                         ) : (
                           <>
                             <div className="border-b border-[var(--border)] px-3 py-2.5">
-                              <p className="truncate text-xs font-bold text-white">{user.name || "Valued Artist"}</p>
+                              <p className="truncate text-xs font-bold text-white flex items-center gap-1.5">
+                                <span>{user.name || "Valued Artist"}</span>
+                                {(user.is_verified || user.verified_badge) && <VerifiedBadge size="xs" />}
+                              </p>
                               <p className="truncate font-mono text-[11px] text-[var(--fg-subtle)]">{user.email}</p>
                             </div>
 

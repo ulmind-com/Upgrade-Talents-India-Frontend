@@ -24,6 +24,7 @@ import { Badge, Button, SectionLabel, Spotlights } from "@/components/ui/Primiti
 import { Reveal, SplitHeading } from "@/components/motion/Reveal";
 import { cn, formatEventDate, formatINR, isEventExpired, imageFor, FALLBACK_IMAGES } from "@/lib/utils";
 import { TicketPass } from "@/components/ticket/TicketPass";
+import VerifiedBadge from "@/components/ui/VerifiedBadge";
 
 declare global { interface Window { Razorpay?: any } }
 
@@ -395,7 +396,12 @@ export default function DashboardPage() {
                 </div>
                 <div className="min-w-0 flex-1">
                   <p className="font-semibold text-xs text-white truncate flex items-center justify-between">
-                    <span className="truncate">{user?.name || "Contestant"}</span>
+                    <span className="truncate flex items-center gap-1">
+                      {user?.name || "Contestant"}
+                      {(user?.is_verified || user?.verified_badge || user?.verified_tick) && (
+                        <VerifiedBadge size="xs" />
+                      )}
+                    </span>
                     <span className="text-[10px] text-white/60">▾</span>
                   </p>
                   <p className="text-[10px] font-mono text-cyan-300 truncate">Performing Artist</p>
@@ -1217,13 +1223,23 @@ export default function DashboardPage() {
                       {/* User Info Details */}
                       <div className="min-w-0 flex-1">
                         <div className="flex items-center gap-2 flex-wrap">
-                          <h3 className="font-display text-xl sm:text-2xl font-bold text-[var(--fg)] tracking-tight">
+                          <h3 className="font-display text-xl sm:text-2xl font-bold text-[var(--fg)] tracking-tight flex items-center gap-1.5">
                             {user?.name || "Contestant"}
+                            {(user?.is_verified || user?.verified_badge || user?.verified_tick) && (
+                              <VerifiedBadge size="md" />
+                            )}
                           </h3>
-                          <span className="rounded-md bg-emerald-500/15 border border-emerald-500/30 px-2 py-0.5 text-[10px] font-bold text-emerald-400 font-mono flex items-center gap-1">
-                            <span className="size-1.5 rounded-full bg-emerald-400 animate-pulse" />
-                            Active
-                          </span>
+                          {(user?.is_verified || user?.verified_badge || user?.verified_tick) ? (
+                            <span className="rounded-md bg-sky-500/15 border border-sky-500/40 px-2.5 py-0.5 text-[10.5px] font-bold text-sky-300 font-mono flex items-center gap-1.5 shadow-sm">
+                              <VerifiedBadge size="xs" />
+                              Aadhaar Verified
+                            </span>
+                          ) : (
+                            <span className="rounded-md bg-emerald-500/15 border border-emerald-500/30 px-2 py-0.5 text-[10px] font-bold text-emerald-400 font-mono flex items-center gap-1">
+                              <span className="size-1.5 rounded-full bg-emerald-400 animate-pulse" />
+                              Active
+                            </span>
+                          )}
                         </div>
 
                         <div className="mt-2.5 space-y-1.5 text-xs text-[var(--fg-muted)]">
@@ -1578,7 +1594,7 @@ export default function DashboardPage() {
                         </div>
                       </div>
 
-                      <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 mt-3">
+                      <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 mt-3">
                         <div>
                           <span className="block text-[10px] font-medium text-[var(--fg-subtle)] mb-1.5">Parent / Guardian Phone</span>
                           <div className="flex items-center gap-2 rounded-xl border border-[var(--border)] bg-[var(--surface-2)] px-3 py-2 text-xs font-mono text-[var(--fg)]">
@@ -1591,6 +1607,22 @@ export default function DashboardPage() {
                           <div className="flex items-center gap-2 rounded-xl border border-emerald-500/20 bg-emerald-500/10 px-3 py-2 text-xs font-mono text-emerald-400">
                             <CheckCircle2 className="size-3.5 text-emerald-400 shrink-0" />
                             <span className="font-semibold">Linked &amp; Verified</span>
+                          </div>
+                        </div>
+                        <div>
+                          <span className="block text-[10px] font-medium text-[var(--fg-subtle)] mb-1.5">Aadhaar &amp; Blue Badge</span>
+                          <div className={`flex items-center gap-2 rounded-xl border px-3 py-2 text-xs font-mono ${
+                            user?.is_verified || user?.verified_badge || user?.verified_tick
+                              ? "border-sky-500/30 bg-sky-500/10 text-sky-300"
+                              : "border-[var(--border)] bg-[var(--surface-2)] text-[var(--fg-subtle)]"
+                          }`}>
+                            {user?.is_verified || user?.verified_badge || user?.verified_tick ? (
+                              <span className="font-semibold flex items-center gap-1.5 truncate">
+                                <VerifiedBadge size="xs" /> Lifetime Verified
+                              </span>
+                            ) : (
+                              <span className="font-medium text-amber-300 truncate">Venue Check Pending</span>
+                            )}
                           </div>
                         </div>
                       </div>
