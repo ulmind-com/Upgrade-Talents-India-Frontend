@@ -260,11 +260,16 @@ export default function CompleteProfilePage() {
                 max={new Date().toISOString().slice(0, 10)}
                 value={dob}
                 onChange={(e) => setDob(e.target.value)}
+                onClick={(e) => {
+                  try {
+                    (e.target as any).showPicker?.();
+                  } catch {}
+                }}
                 aria-describedby={describedBy}
                 invalid={invalid}
-                className="pl-11"
+                className="pl-11 cursor-pointer"
               />
-              <Calendar className="absolute left-3.5 top-3.5 size-4 text-[var(--fg-subtle)]" aria-hidden />
+              <Calendar className="pointer-events-none absolute left-3.5 top-3.5 size-4 text-[var(--fg-subtle)]" aria-hidden />
             </div>
           )}
         </Field>

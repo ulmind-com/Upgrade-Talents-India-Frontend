@@ -69,7 +69,7 @@ export default function RegisterPage() {
     try {
       const { signInWithGoogle } = await import("@/lib/firebase");
       const { idToken } = await signInWithGoogle();
-      const res = await authApi.googleLogin(idToken);
+      const res = await authApi.googleLogin(idToken, referral.trim() || undefined);
       tokenStore.set(res.access_token);
       await refresh();
       if (

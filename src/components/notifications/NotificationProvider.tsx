@@ -171,13 +171,22 @@ export function NotificationProvider({ children }: { children: React.ReactNode }
       }
       socket.current = ws;
 
+      let pingTimer: ReturnType<typeof setInterval> | null = null;
+
       ws.onopen = () => {
         attempts.current = 0;
         setLive(true);
+        pingTimer = setInterval(() => {
+          if (ws.readyState === WebSocket.OPEN) {
+            try { ws.send("ping"); } catch {}
+          }
+        }, 25000);
       };
       ws.onmessage = (e) => {
         try {
+          if (e.data === "pong") return;
           const data = JSON.parse(e.data);
+          if (data?.event === "pong") return;
           const n: NotificationItem | undefined = data?.notification || (data?.id ? data : undefined);
           if (!n?.id) {
             refreshCount();
@@ -190,6 +199,7 @@ export function NotificationProvider({ children }: { children: React.ReactNode }
         }
       };
       ws.onclose = () => {
+        if (pingTimer) clearInterval(pingTimer);
         setLive(false);
         if (stopped) return;
         attempts.current += 1;
