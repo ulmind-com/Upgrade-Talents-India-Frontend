@@ -127,11 +127,22 @@ export default function Navbar({ brandName = "UPGRADE TALENTS INDIA", logo }: { 
     <>
       <header
         className={cn(
-          "fixed inset-x-0 top-0 z-[80] transition-all duration-500 ease-[cubic-bezier(0.16,1,0.3,1)]",
-          scrolled ? "py-2.5 sm:py-3" : "py-4 sm:py-5"
+          "fixed inset-x-0 top-0 z-[80] transition-all duration-300 ease-[cubic-bezier(0.16,1,0.3,1)]",
+          scrolled ? "py-2 sm:py-2.5" : "py-4 sm:py-5"
         )}
       >
-        {/* Top scrim — keeps nav legible over bright hero imagery (both themes) */}
+        {/* Full-width protective backdrop when scrolled — prevents text bleed & overlaps */}
+        <div
+          aria-hidden
+          className={cn(
+            "pointer-events-none absolute inset-0 -z-10 transition-opacity duration-300",
+            scrolled
+              ? "opacity-100 bg-[var(--bg)]/95 backdrop-blur-2xl border-b border-[var(--border)] shadow-[0_12px_32px_-10px_rgba(0,0,0,0.5)]"
+              : "opacity-0"
+          )}
+        />
+
+        {/* Top scrim — keeps nav legible over bright hero imagery at page top */}
         <div
           aria-hidden
           className={cn(
@@ -148,9 +159,9 @@ export default function Navbar({ brandName = "UPGRADE TALENTS INDIA", logo }: { 
         <div className="mx-auto w-full max-w-[1440px] px-3 sm:px-5 lg:px-6 xl:px-8 relative">
           <nav
             className={cn(
-              "flex items-center justify-between gap-2.5 sm:gap-4 xl:gap-5 rounded-full px-3.5 py-2 transition-all duration-500 sm:px-4 md:px-5 md:py-2.5",
+              "flex items-center justify-between gap-2.5 sm:gap-4 xl:gap-5 rounded-full px-3.5 py-2 transition-all duration-300 sm:px-4 md:px-5 md:py-2.5",
               scrolled
-                ? "glass shadow-[0_20px_60px_-28px_rgba(0,0,0,0.9)]"
+                ? "bg-[var(--surface-2)]/90 backdrop-blur-2xl border border-[var(--border-strong)] shadow-[0_16px_40px_-20px_rgba(0,0,0,0.8)]"
                 : "on-media border border-white/10 bg-black/25 backdrop-blur-md"
             )}
           >

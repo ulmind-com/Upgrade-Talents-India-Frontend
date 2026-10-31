@@ -118,10 +118,14 @@ export function DateInput({
       <button
         type="button"
         tabIndex={-1}
-        onClick={triggerPicker}
+        onClick={(e) => {
+          e.preventDefault();
+          e.stopPropagation();
+          triggerPicker();
+        }}
         aria-label="Open calendar to pick date"
         title="Open calendar"
-        className="pointer-events-none absolute right-2.5 z-[1] grid size-8 place-items-center rounded-lg border border-[var(--border-strong,var(--border))] bg-[var(--surface-2)] text-[var(--accent)] shadow-sm transition-all"
+        className="absolute right-2.5 z-[2] grid size-8 place-items-center rounded-lg border border-[var(--border-strong,var(--border))] bg-[var(--surface-2)] text-[var(--accent)] shadow-sm transition-all hover:scale-105 active:scale-95 cursor-pointer"
       >
         <Calendar className="size-4.5" aria-hidden />
       </button>

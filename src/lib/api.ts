@@ -11,8 +11,18 @@ const ROLE_KEY = "uti_user_role";
 const REG_TOKEN_KEY = "uti_registration_token";
 
 export const tokenStore = {
-  get: () => (typeof window === "undefined" ? null : localStorage.getItem(TOKEN_KEY)),
-  set: (t: string) => localStorage.setItem(TOKEN_KEY, t),
+  get: () => {
+    try {
+      return typeof window === "undefined" ? null : localStorage.getItem(TOKEN_KEY);
+    } catch {
+      return null;
+    }
+  },
+  set: (t: string) => {
+    try {
+      if (typeof window !== "undefined") localStorage.setItem(TOKEN_KEY, t);
+    } catch {}
+  },
   clear: () => {
     if (typeof window !== "undefined") {
       try {
@@ -23,17 +33,39 @@ export const tokenStore = {
       } catch {}
     }
   },
-  getRole: () => (typeof window === "undefined" ? null : localStorage.getItem(ROLE_KEY)),
+  getRole: () => {
+    try {
+      return typeof window === "undefined" ? null : localStorage.getItem(ROLE_KEY);
+    } catch {
+      return null;
+    }
+  },
   setRole: (r: string) => {
-    if (typeof window !== "undefined") localStorage.setItem(ROLE_KEY, r);
+    try {
+      if (typeof window !== "undefined") localStorage.setItem(ROLE_KEY, r);
+    } catch {}
   },
   clearRole: () => {
-    if (typeof window !== "undefined") localStorage.removeItem(ROLE_KEY);
+    try {
+      if (typeof window !== "undefined") localStorage.removeItem(ROLE_KEY);
+    } catch {}
   },
-  getReg: () => (typeof window === "undefined" ? null : localStorage.getItem(REG_TOKEN_KEY)),
-  setReg: (t: string) => localStorage.setItem(REG_TOKEN_KEY, t),
+  getReg: () => {
+    try {
+      return typeof window === "undefined" ? null : localStorage.getItem(REG_TOKEN_KEY);
+    } catch {
+      return null;
+    }
+  },
+  setReg: (t: string) => {
+    try {
+      if (typeof window !== "undefined") localStorage.setItem(REG_TOKEN_KEY, t);
+    } catch {}
+  },
   clearReg: () => {
-    if (typeof window !== "undefined") localStorage.removeItem(REG_TOKEN_KEY);
+    try {
+      if (typeof window !== "undefined") localStorage.removeItem(REG_TOKEN_KEY);
+    } catch {}
   },
 };
 

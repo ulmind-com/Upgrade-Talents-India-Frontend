@@ -155,25 +155,25 @@ export default function CompleteProfilePage() {
         {formError && <FormAlert tone="error">{formError}</FormAlert>}
 
         {/* User Identity Preview Banner */}
-        <div className="flex items-center justify-between rounded-2xl border border-[var(--border)] bg-[var(--surface-2)] p-4">
-          <div className="flex items-center gap-3">
-            <div className="relative size-12 shrink-0 overflow-hidden rounded-full border border-[var(--accent)] bg-[var(--surface)]">
+        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3.5 rounded-2xl border border-[var(--border)] bg-[var(--surface-2)] p-4 shadow-sm">
+          <div className="flex items-center gap-3 min-w-0">
+            <div className="relative size-12 shrink-0 overflow-hidden rounded-full border-2 border-[var(--accent)] bg-[var(--surface)] shadow-inner">
               {photoPreview ? (
                 <img src={photoPreview} alt="" className="size-full object-cover" />
               ) : (
                 <User className="size-6 m-auto text-[var(--fg-muted)] mt-2.5" />
               )}
             </div>
-            <div>
-              <p className="font-semibold text-sm text-[var(--fg)]">{name || user?.name || "Participant"}</p>
-              <p className="text-xs text-[var(--fg-muted)] font-mono">{user?.email}</p>
+            <div className="min-w-0">
+              <p className="font-semibold text-sm text-[var(--fg)] truncate">{name || user?.name || "Participant"}</p>
+              <p className="text-xs text-[var(--fg-muted)] font-mono break-all sm:truncate">{user?.email}</p>
             </div>
           </div>
 
           <button
             type="button"
             onClick={() => fileInputRef.current?.click()}
-            className="inline-flex items-center gap-1.5 rounded-full border border-[var(--border)] bg-[var(--surface)] px-3 py-1.5 text-xs font-semibold hover:border-[var(--accent)] transition-colors"
+            className="self-start sm:self-auto inline-flex items-center gap-1.5 rounded-full border border-[var(--border)] bg-[var(--surface)] px-3.5 py-1.5 text-xs font-semibold hover:border-[var(--accent)] transition-colors shrink-0 shadow-sm cursor-pointer"
           >
             <Camera className="size-3.5 text-[var(--accent)]" /> {photoPreview ? "Change Photo" : "Upload Photo"}
           </button>

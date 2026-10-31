@@ -67,6 +67,7 @@ export default function DashboardPage() {
   // Profile Suite Calendar & Quick Actions
   const [calendarDate, setCalendarDate] = useState(() => new Date());
   const [copiedRef, setCopiedRef] = useState(false);
+  const [copiedEmail, setCopiedEmail] = useState(false);
 
   const handleCopyReferral = useCallback(() => {
     if (user?.referral_code) {
@@ -75,6 +76,14 @@ export default function DashboardPage() {
       setTimeout(() => setCopiedRef(false), 2000);
     }
   }, [user?.referral_code]);
+
+  const handleCopyEmail = useCallback(() => {
+    if (user?.email) {
+      navigator.clipboard.writeText(user.email);
+      setCopiedEmail(true);
+      setTimeout(() => setCopiedEmail(false), 2000);
+    }
+  }, [user?.email]);
 
   const calendarMonthYear = useMemo(() => {
     return calendarDate.toLocaleString("default", { month: "long", year: "numeric" });
@@ -1180,18 +1189,18 @@ export default function DashboardPage() {
               {/* ── TOP SECTION: 3 Bento Widgets (Identity Card + Calendar + Upcoming Competitions) ── */}
               <div className="grid gap-6 lg:grid-cols-12">
 
-                {/* 1. Main Identity Card (5 cols on lg - exactly like reference layout!) */}
+                {/* 1. Main Identity Card (5 cols on lg - Executive Artist Suite) */}
                 <div className="rounded-[28px] border border-[var(--border)] bg-[var(--surface)] p-6 shadow-xl lg:col-span-5 flex flex-col justify-between">
                   <div>
-                    <div className="flex items-start gap-5">
+                    <div className="flex items-start gap-4 sm:gap-5">
                       {/* Avatar with circular offset and camera badge */}
                       <div className="relative shrink-0">
-                        <div className="size-22 sm:size-24 rounded-full p-1 border-2 border-[var(--border)] bg-[var(--surface-2)] shadow-inner">
+                        <div className="size-20 sm:size-24 rounded-full p-1 border-2 border-[var(--border-strong)] bg-[var(--surface-2)] shadow-md">
                           <div className="size-full overflow-hidden rounded-full grid place-items-center bg-[var(--bg)]">
                             {user?.profile_photo ? (
                               <img src={user.profile_photo} alt={user?.name || "Profile"} className="size-full object-cover" />
                             ) : (
-                              <User className="size-11 text-[var(--fg-muted)]" />
+                              <User className="size-10 sm:size-11 text-[var(--fg-muted)]" />
                             )}
                           </div>
                         </div>
@@ -1207,75 +1216,106 @@ export default function DashboardPage() {
 
                       {/* User Info Details */}
                       <div className="min-w-0 flex-1">
-                        <div className="flex items-center gap-2.5 flex-wrap">
-                          <h3 className="font-display text-xl font-bold text-[var(--fg)] truncate">
+                        <div className="flex items-center gap-2 flex-wrap">
+                          <h3 className="font-display text-xl sm:text-2xl font-bold text-[var(--fg)] tracking-tight">
                             {user?.name || "Contestant"}
                           </h3>
-                          <span className="rounded-md bg-teal-500/15 border border-teal-500/30 px-2 py-0.5 text-[10px] font-bold text-teal-400 font-mono">
+                          <span className="rounded-md bg-emerald-500/15 border border-emerald-500/30 px-2 py-0.5 text-[10px] font-bold text-emerald-400 font-mono flex items-center gap-1">
+                            <span className="size-1.5 rounded-full bg-emerald-400 animate-pulse" />
                             Active
                           </span>
                         </div>
 
                         <div className="mt-2.5 space-y-1.5 text-xs text-[var(--fg-muted)]">
-                          <div className="flex items-center gap-4 text-[11px] flex-wrap">
-                            <span><strong className="text-[var(--fg-subtle)] font-normal">Role:</strong> {user?.role || "User"}</span>
-                            <span><strong className="text-[var(--fg-subtle)] font-normal">Position:</strong> Performing Contestant</span>
+                          <div className="flex items-center gap-3 text-[11px] flex-wrap">
+                            <span className="inline-flex items-center gap-1">
+                              <strong className="text-[var(--fg-subtle)] font-normal">Role:</strong>
+                              <span className="font-semibold text-[var(--fg)]">{user?.role || "User"}</span>
+                            </span>
+                            <span className="inline-flex items-center gap-1">
+                              <strong className="text-[var(--fg-subtle)] font-normal">Position:</strong>
+                              <span className="font-semibold text-cyan-400">Performing Artist</span>
+                            </span>
                           </div>
-                          <div className="text-[11px] truncate">
-                            <strong className="text-[var(--fg-subtle)] font-normal">E-mail:</strong> <span className="font-mono">{user?.email}</span>
+
+                          <div className="flex items-center gap-1.5 text-[11px] flex-wrap">
+                            <strong className="text-[var(--fg-subtle)] font-normal shrink-0">E-mail:</strong>
+                            <span className="font-mono text-[var(--fg)] break-all">{user?.email || "—"}</span>
+                            {user?.email && (
+                              <button
+                                onClick={handleCopyEmail}
+                                title="Copy email address"
+                                aria-label="Copy email"
+                                className="p-0.5 text-[var(--fg-subtle)] hover:text-[var(--accent)] transition-colors cursor-pointer"
+                              >
+                                {copiedEmail ? <Check className="size-3 text-emerald-400" /> : <Copy className="size-3" />}
+                              </button>
+                            )}
                           </div>
-                          <div className="text-[11px]">
-                            <strong className="text-[var(--fg-subtle)] font-normal">Phone:</strong> <span className="font-mono">{user?.phone_number ? `+91 ${user.phone_number}` : "Not linked"}</span>
+
+                          <div className="flex items-center gap-1.5 text-[11px]">
+                            <strong className="text-[var(--fg-subtle)] font-normal">Phone:</strong>
+                            <span className="font-mono text-[var(--fg)] font-medium">
+                              {user?.phone_number ? `+91 ${user.phone_number}` : "Not linked"}
+                            </span>
+                            {user?.phone_number && (
+                              <span className="rounded bg-emerald-500/10 px-1.5 py-0.2 text-[9px] font-mono font-semibold text-emerald-400">
+                                Verified
+                              </span>
+                            )}
                           </div>
-                          <div className="text-[11px]">
-                            <strong className="text-[var(--fg-subtle)] font-normal">Platform:</strong> Upgrade Talents India
+
+                          <div className="text-[11px] flex items-center gap-1.5">
+                            <strong className="text-[var(--fg-subtle)] font-normal">Platform:</strong>
+                            <span className="font-medium text-[var(--accent)]">Upgrade Talents India</span>
                           </div>
                         </div>
                       </div>
                     </div>
                   </div>
 
-                  {/* Social / Referral Links Row (matching reference bottom-left icons) */}
+                  {/* Social / Referral Links Row */}
                   <div className="mt-5 pt-4 border-t border-[var(--border)] flex items-center justify-between gap-2 flex-wrap">
                     <div className="flex items-center gap-2">
                       {user?.referral_code && (
                         <button
                           onClick={handleCopyReferral}
-                          title="Copy unique referral code"
-                          className="inline-flex items-center gap-1.5 rounded-lg border border-[var(--border)] bg-[var(--surface-2)] px-2.5 py-1 text-[11px] font-mono font-semibold text-[var(--fg)] hover:border-[var(--accent)] transition-colors cursor-pointer"
+                          title="Click to copy unique talent referral code"
+                          className="inline-flex items-center gap-1.5 rounded-xl border border-[var(--border)] bg-[var(--surface-2)] px-3 py-1.5 text-xs font-mono font-bold text-[var(--fg)] hover:border-[var(--accent)] hover:text-[var(--accent)] transition-colors cursor-pointer shadow-sm"
                         >
-                          {copiedRef ? <Check className="size-3 text-emerald-400" /> : <Copy className="size-3 text-[var(--accent)]" />}
+                          {copiedRef ? <Check className="size-3.5 text-emerald-400" /> : <Copy className="size-3.5 text-[var(--accent)]" />}
                           <span>{user.referral_code}</span>
                         </button>
                       )}
                       <button
                         onClick={handleCopyReferral}
                         title="Share profile referral"
-                        className="grid size-7 place-items-center rounded-lg border border-[var(--border)] bg-[var(--surface-2)] text-[var(--fg-subtle)] hover:text-[var(--accent)] hover:border-[var(--accent)] transition-colors cursor-pointer"
+                        aria-label="Share profile referral"
+                        className="grid size-8 place-items-center rounded-xl border border-[var(--border)] bg-[var(--surface-2)] text-[var(--fg-subtle)] hover:text-[var(--accent)] hover:border-[var(--accent)] transition-colors cursor-pointer shadow-sm"
                       >
-                        <Share2 className="size-3.5" />
+                        <Share2 className="size-4" />
                       </button>
                     </div>
 
                     <button
                       onClick={() => setEditOpen(true)}
-                      className="inline-flex items-center gap-1.5 rounded-xl px-3 py-1.5 text-xs font-bold text-white shadow-sm cursor-pointer transition-all active:scale-95"
+                      className="inline-flex items-center gap-1.5 rounded-xl px-4 py-2 text-xs font-bold text-white shadow-sm cursor-pointer transition-all active:scale-95"
                       style={{ background: "var(--grad-brand)" }}
                     >
-                      <Edit3 className="size-3" /> Edit Profile
+                      <Edit3 className="size-3.5" /> Edit Profile
                     </button>
                   </div>
                 </div>
 
-                {/* 2. Mini Month Calendar (3.5 cols on lg - matching reference layout!) */}
-                <div className="rounded-[28px] border border-[var(--border)] bg-[var(--surface)] p-5 shadow-xl lg:col-span-4 flex flex-col justify-between">
+                {/* 2. Mini Month Calendar (3 cols on lg) */}
+                <div className="rounded-[28px] border border-[var(--border)] bg-[var(--surface)] p-5 shadow-xl lg:col-span-3 flex flex-col justify-between">
                   <div>
                     {/* Header with Month Title and Controls */}
                     <div className="flex items-center justify-between mb-3 px-1">
                       <button
                         onClick={prevMonth}
                         aria-label="Previous month"
-                        className="text-base font-bold text-[var(--fg-subtle)] hover:text-[var(--fg)] transition-colors cursor-pointer px-1"
+                        className="text-base font-bold text-[var(--fg-subtle)] hover:text-[var(--fg)] transition-colors cursor-pointer px-1.5 py-0.5 rounded-lg hover:bg-[var(--surface-2)]"
                       >
                         &lsaquo;
                       </button>
@@ -1285,7 +1325,7 @@ export default function DashboardPage() {
                       <button
                         onClick={nextMonth}
                         aria-label="Next month"
-                        className="text-base font-bold text-[var(--fg-subtle)] hover:text-[var(--fg)] transition-colors cursor-pointer px-1"
+                        className="text-base font-bold text-[var(--fg-subtle)] hover:text-[var(--fg)] transition-colors cursor-pointer px-1.5 py-0.5 rounded-lg hover:bg-[var(--surface-2)]"
                       >
                         &rsaquo;
                       </button>
@@ -1332,8 +1372,8 @@ export default function DashboardPage() {
                   </div>
                 </div>
 
-                {/* 3. Upcoming Competitions (3 cols on lg - matching executive reference layout!) */}
-                <div className="rounded-[28px] border border-[var(--border)] bg-[var(--surface)] p-5 shadow-xl lg:col-span-3 flex flex-col justify-between">
+                {/* 3. Upcoming Competitions (4 cols on lg - Generous room, no text crushing!) */}
+                <div className="rounded-[28px] border border-[var(--border)] bg-[var(--surface)] p-5 shadow-xl lg:col-span-4 flex flex-col justify-between">
                   <div>
                     <div className="flex items-center justify-between mb-3.5">
                       <div>
@@ -1364,6 +1404,7 @@ export default function DashboardPage() {
                           <Link
                             key={comp.id || idx}
                             href={compLink}
+                            title={comp.title}
                             className="group relative flex items-center gap-3 rounded-2xl border border-[var(--border)] bg-[var(--surface-2)]/70 p-2.5 transition-all duration-300 hover:border-[var(--accent)] hover:bg-[var(--surface-2)] hover:shadow-lg hover:shadow-[var(--accent)]/5 cursor-pointer overflow-hidden"
                           >
                             {/* Left accent vertical indicator bar */}
@@ -1375,7 +1416,7 @@ export default function DashboardPage() {
                             />
 
                             {/* Competition Image Thumbnail */}
-                            <div className="relative size-16 shrink-0 overflow-hidden rounded-xl border border-[var(--border)] bg-[var(--surface)] shadow-inner">
+                            <div className="relative size-14 shrink-0 overflow-hidden rounded-xl border border-[var(--border)] bg-[var(--surface)] shadow-inner">
                               <img
                                 src={img}
                                 alt={comp.title}
@@ -1396,7 +1437,7 @@ export default function DashboardPage() {
 
                             {/* Competition Details: Name, Date, Time */}
                             <div className="flex-1 min-w-0 pr-1">
-                              <h5 className="font-display text-xs font-bold text-[var(--fg)] group-hover:text-[var(--accent)] transition-colors line-clamp-1">
+                              <h5 className="font-display text-xs font-bold text-[var(--fg)] group-hover:text-[var(--accent)] transition-colors truncate block">
                                 {comp.title}
                               </h5>
 
@@ -1424,60 +1465,79 @@ export default function DashboardPage() {
                     </div>
                   </div>
 
-                  <div className="mt-3 pt-2.5 border-t border-[var(--border)] flex items-center justify-between text-[10px] text-[var(--fg-subtle)] font-mono">
-                    <span>Enrolled: <strong className="text-[var(--fg)]">{competitions.length}</strong></span>
-                    <span>Passes: <strong className="text-[var(--fg)]">{tickets.length}</strong></span>
-                    <span>Coins: <strong className="text-amber-400">{coinsData.total_coins}</strong></span>
+                  {/* High-visibility KPI chips */}
+                  <div className="mt-3 pt-3 border-t border-[var(--border)] grid grid-cols-3 gap-2 text-center">
+                    <div className="rounded-xl border border-[var(--border)] bg-[var(--surface-2)]/60 py-1.5 px-2">
+                      <span className="block text-[9px] font-mono uppercase text-[var(--fg-subtle)]">Enrolled</span>
+                      <strong className="text-xs font-bold text-[var(--fg)]">{competitions.length}</strong>
+                    </div>
+                    <div className="rounded-xl border border-[var(--border)] bg-[var(--surface-2)]/60 py-1.5 px-2">
+                      <span className="block text-[9px] font-mono uppercase text-[var(--fg-subtle)]">Passes</span>
+                      <strong className="text-xs font-bold text-[var(--fg)]">{tickets.length}</strong>
+                    </div>
+                    <div className="rounded-xl border border-amber-500/20 bg-amber-500/5 py-1.5 px-2">
+                      <span className="block text-[9px] font-mono uppercase text-amber-300/80">Coins</span>
+                      <strong className="text-xs font-bold text-amber-400 font-mono">{coinsData.total_coins}</strong>
+                    </div>
                   </div>
                 </div>
 
               </div>
 
-              {/* ── BOTTOM SECTION: 2 Balanced Modular Cards (50/50 - exactly like reference!) ── */}
+              {/* ── BOTTOM SECTION: 2 Balanced Modular Cards (Talent Credentials & Contestant Journey) ── */}
               <div className="grid gap-6 lg:grid-cols-12">
 
-                {/* Card 4: Basic & Personal Information (6 cols on lg) */}
+                {/* Card 4: Talent Identity & Verified Credentials (6 cols on lg) */}
                 <div className="rounded-[28px] border border-[var(--border)] bg-[var(--surface)] p-6 shadow-xl lg:col-span-6 flex flex-col justify-between">
                   <div>
-                    {/* Subsection 1: Basic Information (Non-Editable) */}
+                    {/* Subsection 1: Official Talent Credentials */}
                     <div className="mb-6">
                       <div className="flex items-center justify-between mb-3">
-                        <h4 className="text-sm font-bold text-[var(--fg)]">
-                          Basic Information <span className="font-normal text-xs text-[var(--fg-subtle)]">(Non-Editable)</span>
+                        <h4 className="text-sm font-bold text-[var(--fg)] flex items-center gap-2">
+                          <ShieldCheck className="size-4 text-[var(--accent)]" />
+                          Talent Credentials <span className="font-normal text-xs text-[var(--fg-subtle)]">(Official)</span>
                         </h4>
+                        <span className="rounded-full bg-emerald-500/10 border border-emerald-500/30 px-2.5 py-0.5 text-[10px] font-mono font-bold text-emerald-400">
+                          Active Account
+                        </span>
                       </div>
 
-                      {/* 4 dark rounded pills with white text (exact match of reference layout!) */}
+                      {/* 4 dark/glass rounded credential pills */}
                       <div className="grid grid-cols-2 sm:grid-cols-4 gap-2.5">
-                        {/* Member Since / Hire Date */}
+                        {/* Member Since */}
                         <div>
-                          <span className="block text-[10px] font-medium text-[var(--fg-subtle)] mb-1.5">Hire Date</span>
-                          <div className="rounded-xl bg-[#0c1427] dark:bg-[#070e20] border border-white/10 px-2.5 py-2 text-center text-[11px] font-mono font-bold text-white shadow-sm truncate">
-                            {user?.created_at ? new Date(user.created_at).toLocaleDateString("en-US", { month: "short", day: "numeric", year: "numeric" }) : "Aug 28, 2026"}
+                          <span className="block text-[10px] font-medium text-[var(--fg-subtle)] mb-1.5">Member Since</span>
+                          <div className="rounded-xl bg-[var(--surface-2)] border border-[var(--border)] px-2.5 py-2 text-center text-[11px] font-mono font-bold text-[var(--fg)] shadow-sm">
+                            {user?.created_at ? formatEventDate(user.created_at) : "30 Oct 2026"}
                           </div>
                         </div>
 
-                        {/* Status / Worked for */}
+                        {/* Talent Track */}
                         <div>
-                          <span className="block text-[10px] font-medium text-[var(--fg-subtle)] mb-1.5">Worked for</span>
-                          <div className="rounded-xl bg-[#0c1427] dark:bg-[#070e20] border border-white/10 px-2.5 py-2 text-center text-[11px] font-mono font-bold text-white shadow-sm truncate">
-                            Active User
+                          <span className="block text-[10px] font-medium text-[var(--fg-subtle)] mb-1.5">Talent Track</span>
+                          <div className="rounded-xl bg-[var(--surface-2)] border border-[var(--border)] px-2.5 py-2 text-center text-[11px] font-mono font-bold text-cyan-400 shadow-sm">
+                            Contestant
                           </div>
                         </div>
 
-                        {/* Employee ID */}
+                        {/* Talent Code */}
                         <div>
-                          <span className="block text-[10px] font-medium text-[var(--fg-subtle)] mb-1.5">Employee ID</span>
-                          <div className="rounded-xl bg-[#0c1427] dark:bg-[#070e20] border border-white/10 px-2.5 py-2 text-center text-[11px] font-mono font-bold text-white shadow-sm truncate">
-                            {user?.referral_code || "3156"}
-                          </div>
+                          <span className="block text-[10px] font-medium text-[var(--fg-subtle)] mb-1.5">Talent Code</span>
+                          <button
+                            type="button"
+                            onClick={handleCopyReferral}
+                            title="Click to copy Talent Code"
+                            className="w-full rounded-xl bg-[var(--surface-2)] border border-[var(--border)] hover:border-[var(--accent)] px-2 py-2 text-center text-[11px] font-mono font-bold text-[var(--accent)] shadow-sm cursor-pointer transition-colors"
+                          >
+                            {user?.referral_code || "UTI-ARTIST"}
+                          </button>
                         </div>
 
-                        {/* SSN / Coins */}
+                        {/* Govt ID Verification */}
                         <div>
-                          <span className="block text-[10px] font-medium text-[var(--fg-subtle)] mb-1.5">SSN</span>
-                          <div className="rounded-xl bg-[#0c1427] dark:bg-[#070e20] border border-white/10 px-2.5 py-2 text-center text-[11px] font-mono font-bold text-white shadow-sm truncate">
-                            XXX-XX-{user?.phone_number ? String(user.phone_number).slice(-4) : "3561"}
+                          <span className="block text-[10px] font-medium text-[var(--fg-subtle)] mb-1.5">Govt ID Status</span>
+                          <div className="rounded-xl bg-emerald-500/10 border border-emerald-500/30 px-2 py-2 text-center text-[11px] font-mono font-bold text-emerald-400 shadow-sm flex items-center justify-center gap-1">
+                            <CheckCircle2 className="size-3 shrink-0" /> Verified
                           </div>
                         </div>
                       </div>
@@ -1486,33 +1546,34 @@ export default function DashboardPage() {
                     {/* Subsection 2: Personal Information (Editable) */}
                     <div className="mb-6 pt-5 border-t border-[var(--border)]">
                       <div className="flex items-center justify-between mb-3">
-                        <h4 className="text-sm font-bold text-[var(--fg)]">
-                          Personal Information <span className="font-normal text-xs text-[var(--fg-subtle)]">(Editable)</span>
+                        <h4 className="text-sm font-bold text-[var(--fg)] flex items-center gap-2">
+                          <User className="size-4 text-[var(--accent)]" />
+                          Personal &amp; Contact Details
                         </h4>
                         <button
                           onClick={() => setEditOpen(true)}
-                          className="text-xs font-semibold text-[var(--accent)] hover:underline flex items-center gap-1 cursor-pointer"
+                          className="inline-flex items-center gap-1 text-xs font-semibold text-[var(--accent)] hover:underline cursor-pointer"
                         >
-                          <Edit3 className="size-3" /> Edit
+                          <Edit3 className="size-3" /> Edit Details
                         </button>
                       </div>
 
                       <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
                         {/* Birth Date */}
-                        <div>
-                          <span className="block text-[10px] font-medium text-[var(--fg-subtle)] mb-1.5">Birth Date</span>
-                          <div className="flex items-center gap-2 rounded-xl border border-[var(--border)] bg-[var(--surface-2)] px-3 py-2 text-xs font-mono text-[var(--fg)]">
-                            <CalendarDays className="size-3.5 text-[var(--accent)] shrink-0" />
-                            <span className="truncate">{user?.date_of_birth ? formatEventDate(user.date_of_birth) : "12/12/00"}</span>
+                        <div className="sm:col-span-1">
+                          <span className="block text-[10px] font-medium text-[var(--fg-subtle)] mb-1.5">Date of Birth</span>
+                          <div className="flex items-center gap-2 rounded-xl border border-[var(--border)] bg-[var(--surface-2)] px-3 py-2 text-xs font-mono font-semibold text-[var(--fg)]">
+                            <CalendarDays className="size-4 text-[var(--accent)] shrink-0" />
+                            <span>{user?.date_of_birth ? formatEventDate(user.date_of_birth) : "18 Feb 2002"}</span>
                           </div>
                         </div>
 
                         {/* Address */}
                         <div className="sm:col-span-2">
-                          <span className="block text-[10px] font-medium text-[var(--fg-subtle)] mb-1.5">Address</span>
-                          <div className="flex items-center gap-2 rounded-xl border border-[var(--border)] bg-[var(--surface-2)] px-3 py-2 text-xs text-[var(--fg)] truncate">
-                            <MapPin className="size-3.5 text-[var(--accent)] shrink-0" />
-                            <span className="truncate">{user?.address || "Kolkata, West Bengal"}</span>
+                          <span className="block text-[10px] font-medium text-[var(--fg-subtle)] mb-1.5">Full Residential Address</span>
+                          <div className="flex items-center gap-2 rounded-xl border border-[var(--border)] bg-[var(--surface-2)] px-3 py-2 text-xs text-[var(--fg)]">
+                            <MapPin className="size-4 text-[var(--accent)] shrink-0 mt-0.5" />
+                            <span className="font-medium capitalize">{user?.address || "Kolkata, West Bengal, India"}</span>
                           </div>
                         </div>
                       </div>
@@ -1522,55 +1583,58 @@ export default function DashboardPage() {
                           <span className="block text-[10px] font-medium text-[var(--fg-subtle)] mb-1.5">Parent / Guardian Phone</span>
                           <div className="flex items-center gap-2 rounded-xl border border-[var(--border)] bg-[var(--surface-2)] px-3 py-2 text-xs font-mono text-[var(--fg)]">
                             <Phone className="size-3.5 text-[var(--accent)] shrink-0" />
-                            <span>{user?.parent_phone_number ? `+91 ${user.parent_phone_number}` : "—"}</span>
+                            <span className="font-semibold">{user?.parent_phone_number ? `+91 ${user.parent_phone_number}` : "Not linked"}</span>
                           </div>
                         </div>
                         <div>
                           <span className="block text-[10px] font-medium text-[var(--fg-subtle)] mb-1.5">Emergency Contact Status</span>
                           <div className="flex items-center gap-2 rounded-xl border border-emerald-500/20 bg-emerald-500/10 px-3 py-2 text-xs font-mono text-emerald-400">
                             <CheckCircle2 className="size-3.5 text-emerald-400 shrink-0" />
-                            <span>Linked &amp; Verified</span>
+                            <span className="font-semibold">Linked &amp; Verified</span>
                           </div>
                         </div>
                       </div>
                     </div>
 
-                    {/* Subsection 3: Occupation Information (Non-Editable - matching reference 3 circular badges!) */}
+                    {/* Subsection 3: Talent Discipline & Representation */}
                     <div className="pt-5 border-t border-[var(--border)]">
                       <div className="mb-3">
-                        <h4 className="text-sm font-bold text-[var(--fg)]">
-                          Occupation Information <span className="font-normal text-xs text-[var(--fg-subtle)]">(Non-Editable)</span>
+                        <h4 className="text-sm font-bold text-[var(--fg)] flex items-center gap-2">
+                          <Sparkles className="size-4 text-amber-400" />
+                          Talent Profile &amp; Representation
                         </h4>
                       </div>
 
                       <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
                         <div className="flex items-center gap-3 rounded-2xl border border-[var(--border)] bg-[var(--surface-2)] p-3">
-                          <div className="grid size-9 shrink-0 place-items-center rounded-full bg-cyan-400/15 text-cyan-400">
-                            <Clock className="size-4" />
+                          <div className="grid size-10 shrink-0 place-items-center rounded-xl bg-cyan-400/15 text-cyan-400">
+                            <Sparkles className="size-5" />
                           </div>
                           <div className="min-w-0">
-                            <span className="block text-[9px] font-mono uppercase text-[var(--fg-subtle)] truncate">Engagement</span>
-                            <p className="text-xs font-bold text-[var(--fg)] truncate">Full-Time</p>
+                            <span className="block text-[9px] font-mono uppercase text-[var(--fg-subtle)] truncate">Art Discipline</span>
+                            <p className="text-xs font-bold text-[var(--fg)] truncate">Dance &amp; Arts</p>
                           </div>
                         </div>
 
                         <div className="flex items-center gap-3 rounded-2xl border border-[var(--border)] bg-[var(--surface-2)] p-3">
-                          <div className="grid size-9 shrink-0 place-items-center rounded-full bg-orange-400/15 text-orange-400">
-                            <Briefcase className="size-4" />
+                          <div className="grid size-10 shrink-0 place-items-center rounded-full bg-amber-400/15 text-amber-400">
+                            <Trophy className="size-5" />
                           </div>
                           <div className="min-w-0">
-                            <span className="block text-[9px] font-mono uppercase text-[var(--fg-subtle)] truncate">Discipline</span>
-                            <p className="text-xs font-bold text-[var(--fg)] truncate">Engineering</p>
+                            <span className="block text-[9px] font-mono uppercase text-[var(--fg-subtle)] truncate">Performance Level</span>
+                            <p className="text-xs font-bold text-[var(--fg)] truncate">State Contestant</p>
                           </div>
                         </div>
 
                         <div className="flex items-center gap-3 rounded-2xl border border-[var(--border)] bg-[var(--surface-2)] p-3">
-                          <div className="grid size-9 shrink-0 place-items-center rounded-full bg-teal-400/15 text-teal-400">
-                            <MapPin className="size-4" />
+                          <div className="grid size-10 shrink-0 place-items-center rounded-full bg-emerald-400/15 text-emerald-400">
+                            <MapPin className="size-5" />
                           </div>
                           <div className="min-w-0">
-                            <span className="block text-[9px] font-mono uppercase text-[var(--fg-subtle)] truncate">Location</span>
-                            <p className="text-xs font-bold text-[var(--fg)] truncate">Kolkata, IN</p>
+                            <span className="block text-[9px] font-mono uppercase text-[var(--fg-subtle)] truncate">Representation</span>
+                            <p className="text-xs font-bold text-[var(--fg)] truncate">
+                              {user?.address ? user.address.split(",").slice(-2).join(", ") : "West Bengal, India"}
+                            </p>
                           </div>
                         </div>
                       </div>
@@ -1578,97 +1642,85 @@ export default function DashboardPage() {
                   </div>
                 </div>
 
-                {/* Card 5: Onboarding Table (6 cols on lg - exactly matching reference layout!) */}
+                {/* Card 5: Contestant Journey & Milestones Roadmap (6 cols on lg) */}
                 <div className="rounded-[28px] border border-[var(--border)] bg-[var(--surface)] p-6 shadow-xl lg:col-span-6 flex flex-col justify-between">
                   <div>
-                    {/* Header with Title and "5/5 completed" pill */}
+                    {/* Header with Title and "5/5 Verified" pill */}
                     <div className="flex items-center justify-between pb-4 border-b border-[var(--border)]">
-                      <h4 className="text-base font-bold text-[var(--fg)]">Onboarding</h4>
-                      <span className="rounded-full border border-[var(--border)] bg-[var(--surface-2)] px-3 py-1 font-mono text-xs font-semibold text-emerald-400">
-                        5/5 completed ▾
+                      <div>
+                        <h4 className="text-base font-bold text-[var(--fg)] flex items-center gap-2">
+                          <Award className="size-4.5 text-[var(--accent)]" />
+                          Contestant Journey &amp; Milestones
+                        </h4>
+                        <span className="text-[11px] text-[var(--fg-subtle)] font-mono">Official verification checkpoints</span>
+                      </div>
+                      <span className="rounded-full border border-emerald-500/30 bg-emerald-500/15 px-3 py-1 font-mono text-xs font-bold text-emerald-400 flex items-center gap-1.5 shadow-sm">
+                        <CheckCircle2 className="size-3.5" /> 5/5 Verified
                       </span>
                     </div>
 
-                    {/* Table Header Row (Task, Assigned to, Due Date, Attachments, Actions) */}
+                    {/* Table Header Row */}
                     <div className="hidden sm:grid sm:grid-cols-12 gap-2 py-3 text-[10px] font-mono uppercase tracking-wider text-[var(--fg-subtle)] border-b border-[var(--border)]">
-                      <div className="col-span-5">Task</div>
-                      <div className="col-span-3">Assigned to</div>
-                      <div className="col-span-2">Due Date</div>
-                      <div className="col-span-2 text-right">Actions</div>
+                      <div className="col-span-6">Verification Milestone</div>
+                      <div className="col-span-3">Category</div>
+                      <div className="col-span-3 text-right">Status</div>
                     </div>
 
-                    {/* Table Rows (Matching reference rows exactly!) */}
+                    {/* Table Rows */}
                     <div className="divide-y divide-[var(--border)]">
                       {[
-                        { task: "Prepare workspace, software, access", assignee: user?.name ? user.name.split(" ")[0] : "Jim Jones", date: "07/25/2026" },
-                        { task: "Meeting with HR manager", assignee: user?.name ? user.name.split(" ")[0] : "Jim Jones", date: "07/26/2026" },
-                        { task: "Office tour for employee", assignee: "Sara Smith", date: "07/26/2026" },
-                        { task: "Company vision & compliance", assignee: "Sara Smith", date: "07/28/2026" },
-                        { task: "Submit verified identity & contacts", assignee: user?.name ? user.name.split(" ")[0] : "User", date: "Completed" },
+                        { title: "Contestant Profile Activated", sub: "Name, mobile & verified credentials", cat: "Identity", status: "Verified", date: "Completed" },
+                        { title: "Guardian Emergency Contact", sub: "Parent/guardian safety contact verified", cat: "Safety", status: "Verified", date: "Completed" },
+                        { title: "Age Bracket Clearance", sub: "DOB validated for competition categories", cat: "Eligibility", status: "Cleared", date: "Completed" },
+                        { title: "Digital Artist Pass & QR", sub: "Unique contestant entry pass issued", cat: "Credentials", status: "Issued", date: "Active" },
+                        { title: "Referral Rewards Program", sub: "Earn 500 UTI Coins per invited friend", cat: "Rewards", status: "Active", date: "Ongoing" },
                       ].map((row, i) => (
-                        <div key={i} className="grid sm:grid-cols-12 gap-2 items-center py-3 text-xs">
-                          <div className="sm:col-span-5 flex items-center gap-2.5 min-w-0">
-                            <span className="grid size-5 shrink-0 place-items-center rounded-full bg-teal-400 text-black shadow-sm">
-                              <Check className="size-3 stroke-[3]" />
+                        <div key={i} className="grid sm:grid-cols-12 gap-2 items-center py-3.5 text-xs">
+                          <div className="sm:col-span-6 flex items-start gap-2.5 min-w-0">
+                            <span className="grid size-5 shrink-0 place-items-center rounded-full bg-emerald-500/20 text-emerald-400 border border-emerald-500/30 mt-0.5">
+                              <Check className="size-3 stroke-[2.5]" />
                             </span>
-                            <span className="font-medium text-[var(--fg)] truncate text-[11px] sm:text-xs">
-                              {row.task}
+                            <div className="min-w-0">
+                              <span className="font-semibold text-[var(--fg)] text-xs block truncate">
+                                {row.title}
+                              </span>
+                              <span className="text-[10px] text-[var(--fg-subtle)] block truncate">
+                                {row.sub}
+                              </span>
+                            </div>
+                          </div>
+
+                          <div className="sm:col-span-3 text-[11px] font-mono text-[var(--fg-muted)]">
+                            <span className="rounded-md border border-[var(--border)] bg-[var(--surface-2)] px-2 py-0.5 text-[10px] font-medium text-[var(--fg-subtle)]">
+                              {row.cat}
                             </span>
                           </div>
 
-                          <div className="sm:col-span-3 flex items-center gap-2 text-[11px] text-[var(--fg-muted)]">
-                            <span className="size-5 rounded-full overflow-hidden bg-[var(--surface-2)] shrink-0 border border-[var(--border)]">
-                              {user?.profile_photo ? (
-                                <img src={user.profile_photo} alt="" className="size-full object-cover" />
-                              ) : (
-                                <User className="size-3 m-auto text-[var(--fg-subtle)] mt-1" />
-                              )}
+                          <div className="sm:col-span-3 flex items-center justify-end gap-1.5">
+                            <span className="rounded-full bg-emerald-500/15 border border-emerald-500/30 px-2.5 py-0.5 text-[10px] font-mono font-bold text-emerald-400">
+                              {row.status}
                             </span>
-                            <span className="truncate">{row.assignee}</span>
-                          </div>
-
-                          <div className="sm:col-span-2 font-mono text-[10px] text-[var(--fg-muted)]">
-                            <span>{row.date}</span>
-                          </div>
-
-                          <div className="sm:col-span-2 flex items-center justify-end gap-2 text-[var(--fg-subtle)]">
-                            <button
-                              onClick={() => setEditOpen(true)}
-                              title="View details"
-                              aria-label="View details"
-                              className="p-1 hover:text-[var(--accent)] transition-colors cursor-pointer"
-                            >
-                              <Eye className="size-3.5" />
-                            </button>
-                            <button
-                              onClick={() => setEditOpen(true)}
-                              title="Edit item"
-                              aria-label="Edit item"
-                              className="p-1 hover:text-[var(--accent)] transition-colors cursor-pointer"
-                            >
-                              <Edit3 className="size-3.5" />
-                            </button>
                           </div>
                         </div>
                       ))}
                     </div>
                   </div>
 
-                  {/* Bottom Action Button (matching reference bottom-right orange button!) */}
-                  <div className="mt-5 pt-4 border-t border-[var(--border)] flex items-center justify-between">
+                  {/* Bottom Action Footer */}
+                  <div className="mt-5 pt-4 border-t border-[var(--border)] flex flex-col sm:flex-row sm:items-center justify-between gap-3">
                     <Link
                       href="/forgot-password"
-                      className="text-xs font-medium text-[var(--fg-muted)] hover:text-[var(--accent)] transition-colors"
+                      className="text-xs font-semibold text-[var(--fg-muted)] hover:text-[var(--accent)] transition-colors inline-flex items-center gap-1"
                     >
                       Security &amp; Password Settings &rarr;
                     </Link>
-                    <button
-                      onClick={() => setEditOpen(true)}
-                      className="rounded-full px-5 py-2 text-xs font-bold text-white shadow-md active:scale-95 transition-all cursor-pointer"
+                    <Link
+                      href="/competitions"
+                      className="inline-flex items-center justify-center gap-1.5 rounded-full px-5 py-2 text-xs font-bold text-white shadow-md active:scale-95 transition-all cursor-pointer self-start sm:self-auto"
                       style={{ background: "var(--grad-brand)" }}
                     >
-                      + Add New Task
-                    </button>
+                      <Trophy className="size-3.5 text-amber-200" /> Explore Competitions &rarr;
+                    </Link>
                   </div>
                 </div>
 
@@ -2140,8 +2192,15 @@ function EditProfileModal({
               <button
                 type="button"
                 tabIndex={-1}
+                onClick={() => {
+                  try {
+                    (document.getElementById("edit-profile-dob") as any)?.showPicker?.();
+                  } catch {
+                    document.getElementById("edit-profile-dob")?.focus();
+                  }
+                }}
                 aria-label="Open calendar"
-                className="pointer-events-none absolute right-2.5 z-[1] grid size-7 place-items-center rounded-lg border border-[var(--border)] bg-[var(--surface-2)] text-[var(--accent)] shadow-sm"
+                className="absolute right-2.5 z-[2] grid size-7 place-items-center rounded-lg border border-[var(--border)] bg-[var(--surface-2)] text-[var(--accent)] shadow-sm hover:scale-105 active:scale-95 transition-all cursor-pointer"
               >
                 <Calendar className="size-3.5" aria-hidden />
               </button>
