@@ -2122,14 +2122,30 @@ function EditProfileModal({
             <label className="block font-mono text-[11px] uppercase tracking-wider text-[var(--fg-subtle)] mb-1.5">
               Date of Birth <span className="text-[var(--accent)]">*</span>
             </label>
-            <input
-              type="date"
-              value={dob}
-              onChange={(e) => setDob(e.target.value)}
-              required
-              max={new Date().toISOString().slice(0, 10)}
-              className="w-full rounded-xl border border-[var(--border)] bg-[var(--surface)] px-4 py-2.5 text-sm font-semibold outline-none focus:border-[var(--accent)]"
-            />
+            <div className="relative flex items-center">
+              <input
+                id="edit-profile-dob"
+                type="date"
+                value={dob}
+                onChange={(e) => setDob(e.target.value)}
+                required
+                max={new Date().toISOString().slice(0, 10)}
+                onClick={(e) => {
+                  try {
+                    (e.target as any).showPicker?.();
+                  } catch {}
+                }}
+                className="uti-date-input w-full rounded-xl border border-[var(--border)] bg-[var(--surface)] pl-4 pr-12 py-2.5 text-sm font-semibold outline-none focus:border-[var(--accent)] cursor-pointer"
+              />
+              <button
+                type="button"
+                tabIndex={-1}
+                aria-label="Open calendar"
+                className="pointer-events-none absolute right-2.5 z-[1] grid size-7 place-items-center rounded-lg border border-[var(--border)] bg-[var(--surface-2)] text-[var(--accent)] shadow-sm"
+              >
+                <Calendar className="size-3.5" aria-hidden />
+              </button>
+            </div>
           </div>
 
           <div>

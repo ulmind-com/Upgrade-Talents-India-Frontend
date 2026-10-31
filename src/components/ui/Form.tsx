@@ -1,8 +1,8 @@
 "use client";
 
-import { useId, type InputHTMLAttributes, type ReactNode } from "react";
+import { useId, useRef, type InputHTMLAttributes, type ReactNode } from "react";
 import Link from "next/link";
-import { AlertCircle, CheckCircle2 } from "lucide-react";
+import { AlertCircle, CheckCircle2, Calendar } from "lucide-react";
 import { useTheme } from "@/components/motion/Providers";
 import { cn } from "@/lib/utils";
 
@@ -61,6 +61,71 @@ export function Input({
         className
       )}
     />
+  );
+}
+
+export function DateInput({
+  invalid,
+  className,
+  value,
+  onChange,
+  max,
+  min,
+  id,
+  autoComplete = "bday",
+  placeholder,
+  ...props
+}: InputHTMLAttributes<HTMLInputElement> & { invalid?: boolean }) {
+  const inputRef = useRef<HTMLInputElement>(null);
+
+  const triggerPicker = () => {
+    const el = inputRef.current;
+    if (!el) return;
+    try {
+      if (typeof el.showPicker === "function") {
+        el.showPicker();
+      } else {
+        el.focus();
+      }
+    } catch {
+      el.focus();
+    }
+  };
+
+  return (
+    <div className="relative flex items-center w-full">
+      <input
+        ref={inputRef}
+        id={id}
+        type="date"
+        value={value}
+        onChange={onChange}
+        max={max || new Date().toISOString().slice(0, 10)}
+        min={min || "1930-01-01"}
+        autoComplete={autoComplete}
+        aria-invalid={invalid || undefined}
+        onClick={triggerPicker}
+        className={cn(
+          "h-12 w-full rounded-xl border bg-[var(--bg-elevated)] pl-4 pr-12 text-[15px] text-[var(--fg)] outline-none transition-all cursor-pointer font-medium",
+          "placeholder:text-[var(--fg-subtle)] focus:border-[var(--accent)] focus:ring-1 focus:ring-[var(--accent)]/30",
+          "uti-date-input",
+          invalid ? "border-[var(--danger)]" : "border-[var(--border)]",
+          className
+        )}
+        {...props}
+      />
+      {/* Visual calendar button: highly visible in both dark & day mode */}
+      <button
+        type="button"
+        tabIndex={-1}
+        onClick={triggerPicker}
+        aria-label="Open calendar to pick date"
+        title="Open calendar"
+        className="pointer-events-none absolute right-2.5 z-[1] grid size-8 place-items-center rounded-lg border border-[var(--border-strong,var(--border))] bg-[var(--surface-2)] text-[var(--accent)] shadow-sm transition-all"
+      >
+        <Calendar className="size-4.5" aria-hidden />
+      </button>
+    </div>
   );
 }
 

@@ -555,6 +555,56 @@ p { text-wrap: pretty; overflow-wrap: anywhere; }
   .cue-bob { animation: none; }
 }
 
+/* ── DATE INPUT & CALENDAR PICKER ACCESSIBILITY (DARK & DAY MODES) ── */
+:root,
+:root[data-theme="dark"] input[type="date"] {
+  color-scheme: dark;
+}
+
+:root[data-theme="blue"] input[type="date"] {
+  color-scheme: light;
+}
+
+/* General date inputs across the site */
+input[type="date"] {
+  position: relative;
+}
+
+/* Ensure WebKit native calendar indicator is styled and clickable */
+input[type="date"]::-webkit-calendar-picker-indicator {
+  cursor: pointer;
+  border-radius: 6px;
+  padding: 4px;
+  opacity: 0.95;
+  transition: transform 0.15s ease, opacity 0.15s ease;
+}
+
+input[type="date"]::-webkit-calendar-picker-indicator:hover {
+  opacity: 1;
+  transform: scale(1.12);
+}
+
+:root[data-theme="dark"] input[type="date"]::-webkit-calendar-picker-indicator {
+  filter: invert(1) brightness(1.2);
+}
+
+:root[data-theme="blue"] input[type="date"]::-webkit-calendar-picker-indicator {
+  filter: invert(0.2) sepia(0.9) hue-rotate(340deg) saturate(3.5);
+}
+
+/* For our specialized DateInput component where custom trigger button is present */
+.uti-date-input::-webkit-calendar-picker-indicator {
+  position: absolute;
+  right: 0.5rem;
+  top: 50%;
+  transform: translateY(-50%);
+  width: 2.2rem;
+  height: 2.2rem;
+  opacity: 0;
+  cursor: pointer;
+  z-index: 2;
+}
+
 /* ── PRINT STYLES: ONLY PRINT THE TICKET PASS ─────────── */
 @media print {
   @page {

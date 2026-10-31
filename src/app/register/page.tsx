@@ -7,7 +7,7 @@ import { motion, AnimatePresence } from "framer-motion";
 import { ArrowRight, ArrowLeft, Eye, EyeOff, Upload, Check, Mail, KeyRound, UserRound } from "lucide-react";
 import { authApi, tokenStore } from "@/lib/api";
 import { useAuth } from "@/components/motion/Providers";
-import { AuthShell, Field, FormAlert, Input } from "@/components/ui/Form";
+import { AuthShell, Field, FormAlert, Input, DateInput } from "@/components/ui/Form";
 import { OtpVerify } from "@/components/ui/OtpVerify";
 import { Button } from "@/components/ui/Primitives";
 import { cn, imageFor } from "@/lib/utils";
@@ -349,8 +349,13 @@ export default function RegisterPage() {
 
             <Field label="Date of birth" error={errors.dob} required>
               {({ id, describedBy, invalid }) => (
-                <Input id={id} type="date" autoComplete="bday" value={dob}
-                  onChange={(e) => setDob(e.target.value)} aria-describedby={describedBy} invalid={invalid} />
+                <DateInput
+                  id={id}
+                  value={dob}
+                  onChange={(e) => setDob(e.target.value)}
+                  aria-describedby={describedBy}
+                  invalid={invalid}
+                />
               )}
             </Field>
 

@@ -9,7 +9,7 @@ import {
 } from "lucide-react";
 import { authApi, profileApi } from "@/lib/api";
 import { useAuth } from "@/components/motion/Providers";
-import { AuthShell, Field, FormAlert, Input } from "@/components/ui/Form";
+import { AuthShell, Field, FormAlert, Input, DateInput } from "@/components/ui/Form";
 import { Button } from "@/components/ui/Primitives";
 import { imageFor } from "@/lib/utils";
 
@@ -252,25 +252,13 @@ export default function CompleteProfilePage() {
         {/* 3. Date of Birth */}
         <Field label="Date of Birth" error={errors.dob} hint="Used for competition age-category validation." required>
           {({ id, describedBy, invalid }) => (
-            <div className="relative">
-              <Input
-                id={id}
-                type="date"
-                autoComplete="bday"
-                max={new Date().toISOString().slice(0, 10)}
-                value={dob}
-                onChange={(e) => setDob(e.target.value)}
-                onClick={(e) => {
-                  try {
-                    (e.target as any).showPicker?.();
-                  } catch {}
-                }}
-                aria-describedby={describedBy}
-                invalid={invalid}
-                className="pl-11 cursor-pointer"
-              />
-              <Calendar className="pointer-events-none absolute left-3.5 top-3.5 size-4 text-[var(--fg-subtle)]" aria-hidden />
-            </div>
+            <DateInput
+              id={id}
+              value={dob}
+              onChange={(e) => setDob(e.target.value)}
+              aria-describedby={describedBy}
+              invalid={invalid}
+            />
           )}
         </Field>
 
