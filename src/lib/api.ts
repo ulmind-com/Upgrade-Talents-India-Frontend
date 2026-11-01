@@ -373,8 +373,8 @@ export const publicApi = {
       apiFetch<any[]>("/api/public/users/me/home/live-voting", { cache: "no-store" }).catch(() => [])
     ),
   leaderboard: (id: string) =>
-    apiFetch<{ ranking_mode?: string; leaderboard?: any[] }>(`/api/v1/competitions/${id}/leaderboard`, { revalidate: 10 }).catch(() =>
-      apiFetch<{ ranking_mode?: string; leaderboard?: any[] }>(`/api/public/competitions/${id}/leaderboard`, { revalidate: 10 })
+    apiFetch<{ ranking_mode?: string; leaderboard?: any[] }>(`/api/v1/competitions/${id}/leaderboard`, { cache: "no-store" }).catch(() =>
+      apiFetch<{ ranking_mode?: string; leaderboard?: any[] }>(`/api/public/competitions/${id}/leaderboard`, { cache: "no-store" })
     ),
   verifyCertificate: (token: string) =>
     apiFetch<any>(`/api/public/certificates/verify/${encodeURIComponent(token)}`, { revalidate: 30 }),

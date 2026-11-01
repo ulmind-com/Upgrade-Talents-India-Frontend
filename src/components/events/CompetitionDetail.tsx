@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect, useMemo } from "react";
+import { useState, useEffect, useMemo, useCallback } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { motion, AnimatePresence } from "framer-motion";
@@ -94,45 +94,6 @@ const ALLOWED_AUDIO_EXTENSIONS = [
   ".mp3", ".wav", ".m4a", ".aac", ".flac", ".ogg", ".wma", ".opus", ".aiff"
 ];
 
-const FALLBACK_CONTESTANTS: Row[] = [
-  {
-    participant_id: "c1",
-    name: "Priya Sharma",
-    email: "priya.sharma@talent.in",
-    profile_photo: "https://images.unsplash.com/photo-1534528741775-53994a69daeb?auto=format&fit=crop&w=400&q=80",
-    audience_votes: 24,
-    rank: 1,
-    final_score: 94.2,
-  },
-  {
-    participant_id: "c2",
-    name: "Rahul Verma",
-    email: "rahul.verma@talent.in",
-    profile_photo: "https://images.unsplash.com/photo-1507003211169-0a1dd7228f2d?auto=format&fit=crop&w=400&q=80",
-    audience_votes: 19,
-    rank: 2,
-    final_score: 89.6,
-  },
-  {
-    participant_id: "c3",
-    name: "Ananya Sen",
-    email: "ananya.sen@talent.in",
-    profile_photo: "https://images.unsplash.com/photo-1494790108377-be9c29b29330?auto=format&fit=crop&w=400&q=80",
-    audience_votes: 15,
-    rank: 3,
-    final_score: 85.0,
-  },
-  {
-    participant_id: "c4",
-    name: "Sourav Chatterjee",
-    email: "sourav.c@talent.in",
-    profile_photo: "https://images.unsplash.com/photo-1500648767791-00dcc994a43e?auto=format&fit=crop&w=400&q=80",
-    audience_votes: 11,
-    rank: 4,
-    final_score: 80.4,
-  },
-];
-
 export default function CompetitionDetail({
   comp,
   initialLeaderboard,
@@ -166,15 +127,15 @@ export default function CompetitionDetail({
   const [busy, setBusy] = useState(false);
   const [msg, setMsg] = useState<{ tone: "ok" | "err"; text: string } | null>(null);
 
-  const initialRowsList =
+  const initialRowsList: Row[] =
     Array.isArray(initialLeaderboard) && initialLeaderboard.length > 0
       ? initialLeaderboard.map((r: any) => ({
           ...r,
-          audience_votes: r.audience_votes ?? r.raw_audience_votes,
+          audience_votes: r.audience_votes ?? r.raw_audience_votes ?? 0,
           final_score: r.final_score,
+          is_verified: Boolean(r.is_verified || r.verified_badge || r.verified_tick),
+          verified_badge: Boolean(r.is_verified || r.verified_badge || r.verified_tick),
         }))
-      : comp.audience_voting_enabled
-      ? FALLBACK_CONTESTANTS
       : [];
 
   const [rows, setRows] = useState<Row[]>(initialRowsList);
@@ -205,6 +166,54 @@ export default function CompetitionDetail({
           r.participant_id?.toLowerCase() === user.email.toLowerCase()
       ))
   );
+
+  // Authoritative live leaderboard loader
+  const loadLeaderboard = useCallback(async () => {
+    if (!id) return;
+    try {
+      const data = await publicApi.leaderboard(id);
+      if (Array.isArray(data?.leaderboard)) {
+        const mapped: Row[] = data.leaderboard.map((r: any) => ({
+          ...r,
+          audience_votes: r.audience_votes ?? r.raw_audience_votes ?? 0,
+          final_score: r.final_score,
+          is_verified: Boolean(r.is_verified || r.verified_badge || r.verified_tick),
+          verified_badge: Boolean(r.is_verified || r.verified_badge || r.verified_tick),
+        }));
+
+        // If current user is registered/participant and not yet indexed in rows, inject user
+        if (user?.email && (isParticipant || enrollmentInfo?.reference || step === "submit" || step === "done")) {
+          const userInList = mapped.some(
+            (r: any) =>
+              r.email?.toLowerCase() === user.email?.toLowerCase() ||
+              r.participant_id?.toLowerCase() === user.email?.toLowerCase()
+          );
+          if (!userInList) {
+            mapped.push({
+              participant_id: user.email,
+              name: user.name || "You",
+              email: user.email,
+              profile_photo: user.profile_photo || user.avatar || "",
+              audience_votes: 0,
+              final_score: 0,
+              rank: mapped.length + 1,
+              is_verified: Boolean(user.is_verified || user.verified_badge),
+              verified_badge: Boolean(user.is_verified || user.verified_badge),
+            });
+          }
+        }
+
+        setRows(mapped);
+      }
+    } catch (e) {
+      console.warn("Could not fetch live leaderboard:", e);
+    }
+  }, [id, user, isParticipant, enrollmentInfo, step]);
+
+  // Fetch live leaderboard on mount & when competition changes
+  useEffect(() => {
+    loadLeaderboard();
+  }, [loadLeaderboard]);
 
   // Authoritative enrollment check directly for this competition ID
   useEffect(() => {
@@ -239,6 +248,7 @@ export default function CompetitionDetail({
                   : `You are enrolled in this competition! (${reg.registration_reference || "Confirmed"}) Upload your entry below.`,
               });
             }
+            loadLeaderboard();
             return;
           } else {
             // Unconfirmed / Pending Payment — Keep registration step active so user can complete payment
@@ -477,6 +487,7 @@ export default function CompetitionDetail({
           cash_payment: isCash,
         }));
         setStep(fields.length ? "submit" : "done");
+        loadLeaderboard();
         if (isCash) {
           setMsg({
             tone: "ok",
@@ -539,6 +550,7 @@ export default function CompetitionDetail({
             setEnrollmentInfo((s) => ({ ...s, reference: regRes.reference }));
             setStep(fields.length ? "submit" : "done");
             setMsg({ tone: "ok", text: "Payment verified! You are registered. Please upload your entry below." });
+            loadLeaderboard();
           } catch (e: any) {
             setMsg({ tone: "err", text: e?.message || "Payment verification failed. Please contact support." });
           } finally {
@@ -558,6 +570,7 @@ export default function CompetitionDetail({
       if (/already registered and confirmed/i.test(m)) {
         setStep(fields.length ? "submit" : "done");
         setMsg({ tone: "ok", text: "You're already registered. Upload your entry below." });
+        loadLeaderboard();
       } else {
         setStep("register");
         setMsg({ tone: "err", text: m || "Could not register." });
@@ -1131,9 +1144,15 @@ export default function CompetitionDetail({
           </div>
 
           {rows.length === 0 ? (
-            <p className="mt-4 rounded-xl border border-dashed border-[var(--border-strong)] bg-[var(--surface)] px-4 py-8 text-center text-[13px] text-[var(--fg-muted)]">
-              No entries ranked yet. Be the first to compete!
-            </p>
+            <div className="mt-4 flex flex-col items-center justify-center rounded-2xl border border-dashed border-[var(--border)] bg-[var(--surface-2)]/40 p-8 text-center backdrop-blur-sm">
+              <div className="flex size-12 items-center justify-center rounded-2xl bg-[var(--surface-3)] text-[var(--fg-muted)] mb-3">
+                <Trophy className="size-6 text-[var(--accent)]" />
+              </div>
+              <p className="text-sm font-semibold text-white">No contestants registered yet</p>
+              <p className="mt-1 text-xs text-[var(--fg-muted)] max-w-sm">
+                Be the first to register and compete on stage!
+              </p>
+            </div>
           ) : (
             <div className="mt-4 overflow-hidden rounded-[var(--radius-lg)] border border-[var(--border)] bg-[var(--surface)] shadow-md">
               {rows.slice(0, 8).map((r, i) => {
