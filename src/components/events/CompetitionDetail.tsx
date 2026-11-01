@@ -8,7 +8,7 @@ import {
   Trophy, Calendar, Gavel, Upload, CheckCircle2, AlertCircle, ListChecks,
   ShieldCheck, LogIn, Loader2, Heart, Crown, FileUp, Link2, Film, Music, X,
   Radio, ArrowRight, Award, ExternalLink, Sparkles, MessageSquare, Play, Pause,
-  CreditCard, Banknote, Zap, Clock,
+  CreditCard, Banknote, Zap, Clock, Users, Mic
 } from "lucide-react";
 import { Reveal, StaggerGroup, StaggerItem } from "@/components/motion/Reveal";
 import { SectionLabel, Badge } from "@/components/ui/Primitives";
@@ -144,6 +144,61 @@ export default function CompetitionDetail({
   const [userCert, setUserCert] = useState<any | null>(null);
   const [downloadingCert, setDownloadingCert] = useState(false);
 
+  // Live stage tracking & lineup
+  const [stageData, setStageData] = useState<any | null>(null);
+  const [showLineupModal, setShowLineupModal] = useState(false);
+
+  const loadStageData = useCallback(async () => {
+    if (!id) return;
+    try {
+      const data = await publicApi.liveStage(id);
+      setStageData(data);
+    } catch {
+      // Ignored if stage not initialized
+    }
+  }, [id]);
+
+  useEffect(() => {
+    loadStageData();
+    const interval = setInterval(loadStageData, 7000);
+    return () => clearInterval(interval);
+  }, [loadStageData]);
+
+  // User queue position in the performance lineup
+  const userQueueInfo = useMemo(() => {
+    if (!user?.email || !stageData?.lineup) return null;
+    const uEmail = user.email.toLowerCase().trim();
+    const lineup: any[] = stageData.lineup || [];
+    const myIndex = lineup.findIndex(
+      (p: any) => (p.user_email || "").toLowerCase().trim() === uEmail
+    );
+    if (myIndex === -1) return null;
+
+    const myEntry = lineup[myIndex];
+    const myOrder = myEntry.order || myIndex + 1;
+    const currentPerformer = stageData.current_performer;
+    const currentEmail = (currentPerformer?.user_email || "").toLowerCase().trim();
+    const isCurrent = Boolean(currentEmail && currentEmail === uEmail);
+
+    let currIdx = -1;
+    if (currentEmail) {
+      currIdx = lineup.findIndex((p: any) => (p.user_email || "").toLowerCase().trim() === currentEmail);
+    }
+    const isCompleted = myEntry.stage_status === "COMPLETED";
+    const aheadCount = currIdx >= 0 ? Math.max(0, myIndex - currIdx) : myIndex;
+    const isNextUp = !isCurrent && !isCompleted && aheadCount === 1;
+
+    return {
+      entry: myEntry,
+      order: myOrder,
+      isCurrent,
+      isNextUp,
+      isCompleted,
+      aheadCount,
+      totalParticipants: lineup.length,
+    };
+  }, [user?.email, stageData]);
+
   const lifecycle = getCompetitionLifecycle(comp);
   const open = lifecycle.canRegister;
   const isResultsPublished = lifecycle.isResultsOut;
@@ -155,6 +210,7 @@ export default function CompetitionDetail({
   );
 
   const isParticipant = Boolean(
+    Boolean(userQueueInfo) ||
     enrollmentInfo?.reference ||
     enrollmentInfo?.submission_id ||
     step === "submit" ||
@@ -812,8 +868,164 @@ export default function CompetitionDetail({
           </motion.div>
         )}
 
+        {/* ── Public Live Stage Performer Announcement Banner ── */}
+        {stageData?.has_active_performer && stageData?.current_performer && (
+          <motion.div
+            initial={{ opacity: 0, y: -10 }}
+            animate={{ opacity: 1, y: 0 }}
+            className="mb-8 relative overflow-hidden rounded-2xl border-2 border-rose-500/50 bg-gradient-to-r from-rose-950/40 via-[var(--surface)] to-rose-950/20 p-5 shadow-xl"
+          >
+            <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
+              <div className="flex items-center gap-3.5">
+                <div className="relative shrink-0">
+                  {stageData.current_performer.avatar || stageData.current_performer.user_photo ? (
+                    <img
+                      src={imageFor(stageData.current_performer.avatar || stageData.current_performer.user_photo, 1)}
+                      alt={stageData.current_performer.participant_name}
+                      className="size-14 rounded-2xl object-cover border-2 border-rose-500 shadow-md"
+                    />
+                  ) : (
+                    <div className="grid size-14 place-items-center rounded-2xl border-2 border-rose-500 bg-rose-500/20 text-rose-300 font-black text-xl shadow-md">
+                      {((stageData.current_performer.participant_name || stageData.current_performer.user_name || "P")[0] || "P").toUpperCase()}
+                    </div>
+                  )}
+                  {(stageData.current_performer.is_verified || stageData.current_performer.verified_badge) && (
+                    <span className="absolute -bottom-1 -right-1">
+                      <VerifiedBadge size="sm" />
+                    </span>
+                  )}
+                </div>
+
+                <div>
+                  <div className="flex items-center gap-2">
+                    <span className="rounded-full bg-rose-500 px-2.5 py-0.5 text-[10px] font-extrabold uppercase tracking-wider text-white flex items-center gap-1 shadow-sm animate-pulse">
+                      <Radio className="size-3" /> Live on Stage Now
+                    </span>
+                    <span className="text-[11px] font-mono font-bold text-rose-300">
+                      Order #{stageData.current_performer.stage_order || 1}
+                    </span>
+                  </div>
+                  <h3 className="mt-1 text-base font-extrabold text-[var(--fg)] flex items-center gap-1.5">
+                    <span>{stageData.current_performer.participant_name || stageData.current_performer.user_name}</span>
+                    {(stageData.current_performer.is_verified || stageData.current_performer.verified_badge) && (
+                      <VerifiedBadge size="sm" />
+                    )}
+                  </h3>
+                  <p className="text-xs text-[var(--fg-muted)]">
+                    {stageData.current_performer.entry_title || "Official Performance Entry"}
+                    {stageData.current_performer.registration_reference ? ` • Ref: ${stageData.current_performer.registration_reference}` : ""}
+                  </p>
+                </div>
+              </div>
+
+              <div className="flex items-center gap-2 shrink-0">
+                <button
+                  type="button"
+                  onClick={() => setShowLineupModal(true)}
+                  className="inline-flex cursor-pointer items-center justify-center gap-1.5 rounded-full border border-rose-500/40 bg-rose-500/20 px-4 py-2 text-xs font-bold text-rose-200 hover:bg-rose-500/30 transition-all shadow-md active:scale-95"
+                >
+                  <Users className="size-3.5" />
+                  <span>Performance Lineup ({stageData.total_participants || stageData.lineup?.length || 0})</span>
+                </button>
+              </div>
+            </div>
+          </motion.div>
+        )}
+
+        {/* ── Registered Contestant Personalized Queue & Backstage Status Card ── */}
+        {userQueueInfo && (
+          <motion.div
+            initial={{ opacity: 0, y: -10 }}
+            animate={{ opacity: 1, y: 0 }}
+            className={cn(
+              "mb-8 overflow-hidden rounded-2xl border-2 p-5 shadow-lg",
+              userQueueInfo.isCurrent
+                ? "border-rose-500 bg-gradient-to-r from-rose-500/20 via-[var(--surface)] to-rose-500/10 shadow-rose-500/20"
+                : userQueueInfo.isNextUp
+                ? "border-amber-500 bg-gradient-to-r from-amber-500/20 via-[var(--surface)] to-amber-500/10 shadow-amber-500/20 animate-pulse"
+                : userQueueInfo.isCompleted
+                ? "border-emerald-500/40 bg-gradient-to-r from-emerald-500/15 via-[var(--surface)] to-emerald-500/5 shadow-emerald-500/10"
+                : "border-sky-500/40 bg-gradient-to-r from-sky-500/15 via-[var(--surface)] to-indigo-500/10"
+            )}
+          >
+            <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
+              <div className="flex items-center gap-3.5">
+                <div className={cn(
+                  "grid size-12 shrink-0 place-items-center rounded-2xl border shadow-inner",
+                  userQueueInfo.isCurrent
+                    ? "border-rose-500 bg-rose-500/20 text-rose-400"
+                    : userQueueInfo.isNextUp
+                    ? "border-amber-500 bg-amber-500/20 text-amber-400"
+                    : userQueueInfo.isCompleted
+                    ? "border-emerald-500 bg-emerald-500/20 text-emerald-400"
+                    : "border-sky-500 bg-sky-500/20 text-sky-400"
+                )}>
+                  {userQueueInfo.isCurrent ? (
+                    <Mic className="size-6 animate-pulse" />
+                  ) : userQueueInfo.isNextUp ? (
+                    <Zap className="size-6 animate-bounce" />
+                  ) : userQueueInfo.isCompleted ? (
+                    <CheckCircle2 className="size-6" />
+                  ) : (
+                    <Clock className="size-6" />
+                  )}
+                </div>
+
+                <div>
+                  <div className="flex flex-wrap items-center gap-2">
+                    <span className={cn(
+                      "rounded-full px-2.5 py-0.5 text-[10px] font-extrabold uppercase tracking-wider",
+                      userQueueInfo.isCurrent
+                        ? "bg-rose-500 text-white"
+                        : userQueueInfo.isNextUp
+                        ? "bg-amber-500 text-black"
+                        : userQueueInfo.isCompleted
+                        ? "bg-emerald-500/20 text-emerald-300 border border-emerald-500/40"
+                        : "bg-sky-500/20 text-sky-300 border border-sky-500/40"
+                    )}>
+                      {userQueueInfo.isCurrent
+                        ? "🎤 You Are On Stage Now!"
+                        : userQueueInfo.isNextUp
+                        ? "⚡ You Are Next Up (Backstage Alert)"
+                        : userQueueInfo.isCompleted
+                        ? "✓ Performance Completed"
+                        : `Your Position: #${userQueueInfo.order} in Lineup`}
+                    </span>
+
+                    <span className="font-mono text-xs font-bold text-[var(--fg)]">
+                      {userQueueInfo.aheadCount > 0
+                        ? `${userQueueInfo.aheadCount} performer${userQueueInfo.aheadCount === 1 ? "" : "s"} ahead of you`
+                        : userQueueInfo.isCurrent
+                        ? "Active Performance"
+                        : "Ready"}
+                    </span>
+                  </div>
+
+                  <p className="mt-1 text-xs text-[var(--fg-muted)]">
+                    {userQueueInfo.isCurrent
+                      ? "The judging panel is actively scoring your live performance. Perform with full energy!"
+                      : userQueueInfo.isNextUp
+                      ? "Please report backstage immediately with your music/props. You are about to take the stage!"
+                      : userQueueInfo.isCompleted
+                      ? "Your performance was successfully conducted and reviewed by the judges. Thank you!"
+                      : `You are queued as contestant #${userQueueInfo.order} of ${userQueueInfo.totalParticipants}. Please stay prepared near the backstage area.`}
+                  </p>
+                </div>
+              </div>
+
+              <button
+                type="button"
+                onClick={() => setShowLineupModal(true)}
+                className="inline-flex cursor-pointer items-center justify-center gap-1.5 rounded-full border border-[var(--border)] bg-[var(--surface-2)] px-4 py-2 text-xs font-semibold text-[var(--fg)] hover:text-white transition-all shrink-0"
+              >
+                <span>View Full Lineup ({userQueueInfo.totalParticipants})</span>
+              </button>
+            </div>
+          </motion.div>
+        )}
+
         {/* Live Competition Announcement Banner */}
-        {lifecycle.isLive && !isResultsPublished && (
+        {lifecycle.isLive && !isResultsPublished && !stageData?.has_active_performer && (
           <motion.div
             initial={{ opacity: 0, y: -10 }}
             animate={{ opacity: 1, y: 0 }}
@@ -1773,6 +1985,139 @@ export default function CompetitionDetail({
         </div>
       </div>
       )}
+
+      {/* ── Serial Performance Lineup Modal ── */}
+      <AnimatePresence>
+        {showLineupModal && (
+          <motion.div
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            exit={{ opacity: 0 }}
+            className="fixed inset-0 z-50 flex items-center justify-center bg-black/80 p-4 backdrop-blur-md"
+            onClick={() => setShowLineupModal(false)}
+          >
+            <motion.div
+              initial={{ scale: 0.95, opacity: 0 }}
+              animate={{ scale: 1, opacity: 1 }}
+              exit={{ scale: 0.95, opacity: 0 }}
+              onClick={(e) => e.stopPropagation()}
+              className="relative max-h-[85vh] w-full max-w-2xl overflow-hidden rounded-3xl border border-[var(--border)] bg-[var(--surface)] p-6 shadow-2xl flex flex-col"
+            >
+              <div className="flex items-center justify-between border-b border-[var(--border)] pb-4">
+                <div className="flex items-center gap-2.5">
+                  <div className="grid size-9 place-items-center rounded-xl bg-[var(--brand)]/20 text-[var(--brand)]">
+                    <Users className="size-5" />
+                  </div>
+                  <div>
+                    <h3 className="font-display font-bold text-base text-white">
+                      Performance Lineup &amp; Sequence
+                    </h3>
+                    <p className="text-xs text-[var(--fg-muted)]">
+                      Serial registration order for {comp.title || comp.name || "Competition"}
+                    </p>
+                  </div>
+                </div>
+                <button
+                  type="button"
+                  onClick={() => setShowLineupModal(false)}
+                  className="grid size-8 cursor-pointer place-items-center rounded-full text-[var(--fg-muted)] hover:bg-[var(--surface-2)] hover:text-white transition-colors"
+                >
+                  <X className="size-4" />
+                </button>
+              </div>
+
+              <div className="mt-4 flex-1 overflow-y-auto pr-1">
+                {stageData?.lineup && stageData.lineup.length > 0 ? (
+                  <div className="divide-y divide-[var(--border)]/60">
+                    {stageData.lineup.map((p: any, idx: number) => {
+                      const isMe = user?.email && (p.user_email || "").toLowerCase() === user.email.toLowerCase();
+                      const isOnStage = p.stage_status === "ON_STAGE" || p.is_current_performer;
+                      const isDone = p.stage_status === "COMPLETED";
+
+                      return (
+                        <div
+                          key={p.registration_id || idx}
+                          className={cn(
+                            "flex items-center justify-between gap-3 py-3 px-3 rounded-xl transition-colors",
+                            isMe ? "bg-[var(--brand)]/10 border border-[var(--brand)]/30" : "",
+                            isOnStage ? "bg-rose-500/10 border border-rose-500/30" : ""
+                          )}
+                        >
+                          <div className="flex items-center gap-3 min-w-0">
+                            <span className="font-mono text-xs font-bold text-[var(--fg-muted)] w-6 text-center">
+                              #{p.order || idx + 1}
+                            </span>
+                            <div className="relative shrink-0">
+                              {p.avatar || p.user_photo ? (
+                                <img
+                                  src={imageFor(p.avatar || p.user_photo, 1)}
+                                  alt={p.participant_name}
+                                  className="size-8 rounded-full object-cover border border-[var(--border)]"
+                                />
+                              ) : (
+                                <div className="flex size-8 items-center justify-center rounded-full bg-[var(--surface-3)] text-xs font-bold text-[var(--fg-muted)]">
+                                  {((p.participant_name || p.user_name || "P")[0] || "P").toUpperCase()}
+                                </div>
+                              )}
+                              {(p.is_verified || p.verified_badge) && (
+                                <span className="absolute -bottom-1 -right-1">
+                                  <VerifiedBadge size="xs" />
+                                </span>
+                              )}
+                            </div>
+                            <div className="min-w-0">
+                              <div className="flex items-center gap-1.5">
+                                <p className="font-semibold text-xs text-white truncate">
+                                  {p.participant_name || p.user_name}
+                                  {isMe && <span className="text-[10px] text-[var(--brand)] ml-1 font-bold">(You)</span>}
+                                </p>
+                                {(p.is_verified || p.verified_badge) && <VerifiedBadge size="xs" />}
+                              </div>
+                              <span className="block font-mono text-[10.5px] text-[var(--fg-subtle)] truncate">
+                                {p.registration_reference}
+                              </span>
+                            </div>
+                          </div>
+
+                          <div>
+                            {isOnStage ? (
+                              <span className="inline-flex items-center gap-1 rounded-full bg-rose-500/20 border border-rose-500/40 px-2.5 py-0.5 text-[10px] font-extrabold text-rose-300 animate-pulse whitespace-nowrap">
+                                <Radio className="size-2.5" /> On Stage
+                              </span>
+                            ) : isDone ? (
+                              <span className="inline-flex items-center gap-1 text-[10.5px] font-semibold text-emerald-400 whitespace-nowrap">
+                                <CheckCircle2 className="size-3" /> Completed
+                              </span>
+                            ) : (
+                              <span className="text-[10.5px] text-[var(--fg-subtle)] font-medium whitespace-nowrap">
+                                In Lineup
+                              </span>
+                            )}
+                          </div>
+                        </div>
+                      );
+                    })}
+                  </div>
+                ) : (
+                  <div className="py-12 text-center text-xs text-[var(--fg-muted)]">
+                    No participants registered yet for this competition.
+                  </div>
+                )}
+              </div>
+
+              <div className="mt-4 border-t border-[var(--border)] pt-3 text-right">
+                <button
+                  type="button"
+                  onClick={() => setShowLineupModal(false)}
+                  className="cursor-pointer rounded-xl bg-[var(--surface-2)] px-4 py-2 text-xs font-semibold text-white hover:bg-[var(--surface-3)] transition-colors"
+                >
+                  Close
+                </button>
+              </div>
+            </motion.div>
+          </motion.div>
+        )}
+      </AnimatePresence>
     </section>
   );
 }

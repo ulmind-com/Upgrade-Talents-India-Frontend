@@ -24,6 +24,7 @@ import { useAuth } from "@/components/motion/Providers";
 import { Badge, Button, Spotlights } from "@/components/ui/Primitives";
 import { cn, imageFor, formatEventDate } from "@/lib/utils";
 import { getCompetitionLifecycle } from "@/lib/competition-lifecycle";
+import VerifiedBadge from "@/components/ui/VerifiedBadge";
 
 const EASE = [0.16, 1, 0.3, 1] as const;
 
@@ -57,6 +58,9 @@ export default function JudgeDashboardPage() {
   const [activeTab, setActiveTab] = useState<"evaluate" | "scoreboard">("evaluate");
   const [scoreboardData, setScoreboardData] = useState<JudgeScoreboardResponse | null>(null);
   const [scoreboardLoading, setScoreboardLoading] = useState(false);
+
+  // Live Stage State for Active On-Stage Performer
+  const [stageCard, setStageCard] = useState<any | null>(null);
 
   // Scoring Drawer / Selected Contestant
   const [activeContestant, setActiveContestant] = useState<JudgeContestant | null>(null);
@@ -266,6 +270,62 @@ export default function JudgeDashboardPage() {
       setScoreboardLoading(false);
     }
   }, [contestants, selectedComp]);
+
+  // Load real-time stage card for active on-stage performer
+  const loadStagePerformer = useCallback(async (compId: string) => {
+    try {
+      const data = await judgeCompetitionsApi.currentPerformer(compId);
+      setStageCard(data);
+    } catch {
+      // Ignored
+    }
+  }, []);
+
+  // Poll real-time live stage performer every 6 seconds
+  useEffect(() => {
+    if (!selectedComp) return;
+    loadStagePerformer(selectedComp._id);
+    const interval = setInterval(() => {
+      loadStagePerformer(selectedComp._id);
+    }, 6000);
+    return () => clearInterval(interval);
+  }, [selectedComp, loadStagePerformer]);
+
+  const handleScoreLivePerformer = (performer: any) => {
+    if (!performer) return;
+    const pEmail = (performer.user_email || "").toLowerCase().trim();
+    const pSubId = String(performer.submission_id || "").trim();
+
+    const found = contestants.find(
+      (c) =>
+        (pSubId && c._id === pSubId) ||
+        (pEmail && (c.user_email || "").toLowerCase().trim() === pEmail)
+    );
+
+    if (found) {
+      setActiveContestant(found);
+    } else {
+      const liveC: JudgeContestant = {
+        _id: pSubId || `stage_${pEmail}`,
+        competition_id: selectedComp?._id || "",
+        user_email: pEmail,
+        user_name: performer.user_name || pEmail,
+        profile_photo: performer.user_photo || performer.avatar || "",
+        status: "Submitted",
+        submission_url: performer.submission_url || "",
+        parsed_files: performer.files ? Object.entries(performer.files).map(([k, v]) => ({ label: k, url: String(v) })) : [],
+        registration_reference: performer.registration_reference || "",
+        registration_number: performer.registration_reference || "",
+        is_scored: Boolean(stageCard?.my_scoring_status?.is_scored),
+        has_scored: Boolean(stageCard?.my_scoring_status?.is_scored),
+        total_score: stageCard?.my_scoring_status?.total_score,
+        my_score: stageCard?.my_scoring_status?.total_score,
+        my_scores: stageCard?.my_scoring_status?.scores,
+        my_comments: stageCard?.my_scoring_status?.comments,
+      };
+      setActiveContestant(liveC);
+    }
+  };
 
   // Load contestants & scoreboard when selected competition changes
   useEffect(() => {
@@ -752,6 +812,71 @@ export default function JudgeDashboardPage() {
               )}
             </section>
 
+            {/* ── Real-time Active On-Stage Performer Hero Card ── */}
+            {stageCard?.has_active_performer && stageCard?.current_performer && (
+              <motion.div
+                initial={{ opacity: 0, y: -10 }}
+                animate={{ opacity: 1, y: 0 }}
+                className="mb-6 relative overflow-hidden rounded-3xl border-2 border-rose-500/50 bg-gradient-to-r from-rose-950/40 via-[var(--bg-elevated)] to-rose-950/20 p-5 shadow-2xl backdrop-blur-md"
+              >
+                <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+                  <div className="flex items-center gap-4">
+                    <div className="relative size-16 shrink-0 rounded-2xl overflow-hidden border-2 border-rose-500 shadow-md">
+                      <img
+                        src={imageFor(stageCard.current_performer.user_photo || stageCard.current_performer.avatar, 1)}
+                        alt={stageCard.current_performer.user_name}
+                        className="size-full object-cover"
+                      />
+                      {(stageCard.current_performer.is_verified || stageCard.current_performer.verified_badge) && (
+                        <span className="absolute bottom-1 right-1">
+                          <VerifiedBadge size="sm" />
+                        </span>
+                      )}
+                    </div>
+                    <div>
+                      <div className="flex flex-wrap items-center gap-2">
+                        <span className="inline-flex items-center gap-1.5 rounded-full bg-rose-500 px-3 py-1 text-[10.5px] font-extrabold uppercase tracking-wider text-white shadow-md animate-pulse">
+                          <Radio className="size-3" /> Live on Stage Now
+                        </span>
+                        <span className="rounded-full bg-rose-500/20 px-2.5 py-0.5 text-[11px] font-bold text-rose-300 font-mono">
+                          Order #{stageCard.current_performer.stage_order || 1}
+                        </span>
+                      </div>
+                      <h3 className="mt-1.5 text-lg font-extrabold text-[var(--fg)] flex items-center gap-1.5">
+                        {stageCard.current_performer.user_name || "Contestant"}
+                        {(stageCard.current_performer.is_verified || stageCard.current_performer.verified_badge) && (
+                          <VerifiedBadge size="sm" />
+                        )}
+                      </h3>
+                      <p className="text-xs text-[var(--fg-muted)]">
+                        {stageCard.current_performer.entry_title || "Stage Performance"} • {stageCard.current_performer.registration_reference || ""}
+                      </p>
+                    </div>
+                  </div>
+
+                  <div className="flex items-center gap-3 self-end sm:self-center">
+                    {stageCard?.my_scoring_status?.is_scored ? (
+                      <div className="flex items-center gap-2 rounded-2xl border border-emerald-500/40 bg-emerald-500/15 px-4 py-2.5 text-xs font-bold text-emerald-300">
+                        <CheckCircle2 className="size-4 text-emerald-400" />
+                        <span>Score Submitted ({stageCard.my_scoring_status.total_score} pts)</span>
+                      </div>
+                    ) : (
+                      <Button
+                        size="md"
+                        variant="accent"
+                        onClick={() => handleScoreLivePerformer(stageCard.current_performer)}
+                        className="bg-rose-600 hover:bg-rose-500 text-white font-extrabold text-xs shadow-lg shadow-rose-600/30 gap-2 cursor-pointer"
+                      >
+                        <Gavel className="size-4" />
+                        <span>Evaluate On-Stage Performance</span>
+                        <ChevronRight className="size-4" />
+                      </Button>
+                    )}
+                  </div>
+                </div>
+              </motion.div>
+            )}
+
             {/* ── Scoring Layout: Contestant List + Scoring Drawer ── */}
             {activeTab === "evaluate" && (
             <div className="grid grid-cols-1 gap-8 lg:grid-cols-12">
@@ -922,12 +1047,24 @@ export default function JudgeDashboardPage() {
                                     <span className="rounded bg-[var(--bg)] border border-[var(--border)] px-1.5 py-0.2 font-mono text-[10px] font-bold text-[var(--fg-muted)]">
                                       #{index + 1}
                                     </span>
-                                    <h3 className="text-sm font-bold text-[var(--fg)] group-hover:text-[var(--accent)] transition-colors truncate">
-                                      {c.user_name || "Contestant Entry"}
+                                    <h3 className="text-sm font-bold text-[var(--fg)] group-hover:text-[var(--accent)] transition-colors truncate flex items-center gap-1">
+                                      <span>{c.user_name || "Contestant Entry"}</span>
+                                      {Boolean((c as any).is_verified || (c as any).verified_badge || (c as any).verified_tick) && (
+                                        <VerifiedBadge size="xs" />
+                                      )}
                                     </h3>
                                     {(c.registration_reference || c.registration_number || c.reg_no) && (
                                       <span className="rounded bg-cyan-500/10 border border-cyan-500/20 px-1.5 py-0.5 font-mono text-[10px] font-bold text-cyan-400">
                                         {c.registration_reference || c.registration_number || c.reg_no}
+                                      </span>
+                                    )}
+                                    {Boolean(
+                                      (stageCard?.current_performer?.user_email && (c.user_email || "").toLowerCase().trim() === stageCard.current_performer.user_email.toLowerCase().trim()) ||
+                                      (c as any).is_current_performer ||
+                                      (c as any).on_stage
+                                    ) && (
+                                      <span className="rounded-full bg-rose-500/20 border border-rose-500/40 px-2 py-0.5 text-[9.5px] font-extrabold text-rose-300 animate-pulse flex items-center gap-1">
+                                        <Radio className="size-2.5" /> ON STAGE
                                       </span>
                                     )}
                                   </div>

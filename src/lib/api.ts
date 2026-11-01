@@ -376,6 +376,10 @@ export const publicApi = {
     apiFetch<{ ranking_mode?: string; leaderboard?: any[] }>(`/api/v1/competitions/${id}/leaderboard`, { cache: "no-store" }).catch(() =>
       apiFetch<{ ranking_mode?: string; leaderboard?: any[] }>(`/api/public/competitions/${id}/leaderboard`, { cache: "no-store" })
     ),
+  liveStage: (compId: string) =>
+    apiFetch<any>(`/api/v1/competitions/${compId}/live-stage`, { cache: "no-store" }).catch(() =>
+      apiFetch<any>(`/api/public/competitions/${compId}/live-stage`, { cache: "no-store" })
+    ),
   verifyCertificate: (token: string) =>
     apiFetch<any>(`/api/public/certificates/verify/${encodeURIComponent(token)}`, { revalidate: 30 }),
 };
@@ -943,6 +947,18 @@ export const judgeCompetitionsApi = {
   /** Final score submission */
   submitScore: (subId: string, scores: Record<string, number>, comments?: string) =>
     apiFetch<{ message: string; total_score?: number; is_locked?: boolean }>(`/api/judge/submissions/${subId}/scores`, {
+      method: "POST",
+      body: { scores, comments },
+      auth: true,
+    }),
+
+  /** Real-time active stage performer card */
+  currentPerformer: (compId: string) =>
+    apiFetch<any>(`/api/judge/${compId}/current-performer`, { auth: true, cache: "no-store" }),
+
+  /** 1-click live stage performance score submission */
+  scoreStagePerformer: (compId: string, scores: Record<string, number>, comments?: string) =>
+    apiFetch<any>(`/api/judge/${compId}/live-stage/score`, {
       method: "POST",
       body: { scores, comments },
       auth: true,
