@@ -2,7 +2,7 @@
 
 import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { useEffect, useState, useMemo, useCallback } from "react";
+import { useEffect, useState, useMemo, useCallback, useRef } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import {
   Gavel, ShieldCheck, CheckCircle2, AlertCircle, Clock, Search,
@@ -57,8 +57,7 @@ export default function JudgeDashboardPage() {
 
   // View Mode: Evaluation vs Live Scoreboard (1st, 2nd, 3rd)
   const [activeTab, setActiveTab] = useState<"evaluate" | "scoreboard">("evaluate");
-  const [scoreboardData, setScoreboardData] = useState<JudgeScoreboardResponse | null>(null);
-  const [scoreboardLoading, setScoreboardLoading] = useState(false);
+  const scoreboardLoading = false;
 
   // Live Stage State for Active On-Stage Performer
   const [stageCard, setStageCard] = useState<any | null>(null);
@@ -222,72 +221,53 @@ export default function JudgeDashboardPage() {
     }
   }, []);
 
-  // Load scoreboard (1st, 2nd, 3rd standings) calculated directly from live contestant scores & leaderboard
-  const loadScoreboard = useCallback(async (compId: string) => {
-    setScoreboardLoading(true);
-    try {
-      // 1. Fetch public leaderboard for aggregated score data if available
-      let lbRows: any[] = [];
-      try {
-        const lb = await publicApi.leaderboard(compId);
-        if (Array.isArray(lb?.leaderboard)) {
-          lbRows = lb.leaderboard;
-        }
-      } catch {
-        // Fallback to local state
+  // Live scoreboard (1st, 2nd, 3rd standings) calculated directly from live contestant scores
+  const scoreboardData = useMemo<JudgeScoreboardResponse | null>(() => {
+    if (!selectedComp) return null;
+
+    const scoredList: JudgeContestant[] = [];
+    const pendingList: JudgeContestant[] = [];
+
+    for (const c of contestants) {
+      const sc = c.my_score ?? c.total_score;
+      const isSc = Boolean(c.is_scored || c.has_scored || (sc != null && sc > 0));
+      if (isSc && sc != null) {
+        scoredList.push({ ...c, total_score: sc, my_score: sc });
+      } else {
+        pendingList.push(c);
       }
+    }
 
-      // 2. Separate scored and pending contestants
-      const scoredList: JudgeContestant[] = [];
-      const pendingList: JudgeContestant[] = [];
+    scoredList.sort((a, b) => (b.my_score ?? b.total_score ?? 0) - (a.my_score ?? a.total_score ?? 0));
+    pendingList.sort((a, b) => (a.user_name || "").localeCompare(b.user_name || ""));
 
-      for (const c of contestants) {
-        const sc = c.my_score ?? c.total_score;
-        const isSc = Boolean(c.is_scored || c.has_scored || (sc != null && sc > 0));
-        if (isSc && sc != null) {
-          scoredList.push({ ...c, total_score: sc, my_score: sc });
-        } else {
-          pendingList.push(c);
-        }
-      }
+    const standings: JudgeContestant[] = [];
+    scoredList.forEach((c, idx) => {
+      const prev = idx > 0 ? scoredList[idx - 1] : null;
+      const prevScore = prev ? (prev.my_score ?? prev.total_score) : null;
+      const currentScore = c.my_score ?? c.total_score;
+      const rank = prev && prevScore === currentScore ? (prev.rank ?? idx + 1) : idx + 1;
+      standings.push({ ...c, rank });
+    });
 
-      scoredList.sort((a, b) => (b.my_score ?? b.total_score ?? 0) - (a.my_score ?? a.total_score ?? 0));
-      pendingList.sort((a, b) => (a.user_name || "").localeCompare(b.user_name || ""));
+    pendingList.forEach((c) => {
+      standings.push({ ...c, rank: null });
+    });
 
-      const standings: JudgeContestant[] = [];
-      scoredList.forEach((c, idx) => {
-        const prev = idx > 0 ? scoredList[idx - 1] : null;
-        const prevScore = prev ? (prev.my_score ?? prev.total_score) : null;
-        const currentScore = c.my_score ?? c.total_score;
-        const rank = prev && prevScore === currentScore ? (prev.rank ?? idx + 1) : idx + 1;
-        standings.push({ ...c, rank });
-      });
-
-      pendingList.forEach((c) => {
-        standings.push({ ...c, rank: null });
-      });
-
-      const podium = {
+    return {
+      competition_id: selectedComp._id,
+      competition_title: selectedComp.title || "Competition",
+      total_contestants: contestants.length,
+      scored_count: scoredList.length,
+      pending_count: pendingList.length,
+      criteria: selectedComp.judging_criteria || [],
+      podium: {
         first: scoredList[0] || null,
         second: scoredList[1] || null,
         third: scoredList[2] || null,
-      };
-
-      setScoreboardData({
-        competition_id: compId,
-        competition_title: selectedComp?.title || "Competition",
-        total_contestants: contestants.length,
-        scored_count: scoredList.length,
-        pending_count: pendingList.length,
-        criteria: selectedComp?.judging_criteria || [],
-        podium,
-        standings,
-      });
-    } catch (err: any) {
-      console.error("Failed to compute live scoreboard:", err);
-    } finally {
-      setScoreboardLoading(false);
-    }
+      },
+      standings,
+    };
   }, [contestants, selectedComp]);
 
   // Load real-time stage card for active on-stage performer
@@ -300,18 +280,20 @@ export default function JudgeDashboardPage() {
     }
   }, []);
 
-  // Poll real-time live stage performer every 6 seconds
+  // Poll real-time live stage performer every 6 seconds without resetting active evaluation
   useEffect(() => {
-    if (!selectedComp) return;
+    if (!selectedComp?._id) return;
     loadStagePerformer(selectedComp._id);
     const interval = setInterval(() => {
       loadStagePerformer(selectedComp._id);
     }, 6000);
     return () => clearInterval(interval);
-  }, [selectedComp, loadStagePerformer]);
+  }, [selectedComp?._id, loadStagePerformer]);
 
   const handleScoreLivePerformer = (performer: any) => {
     if (!performer) return;
+    setActiveTab("evaluate");
+
     const pEmail = (performer.user_email || "").toLowerCase().trim();
     const pSubId = String(performer.submission_id || "").trim();
 
@@ -342,21 +324,26 @@ export default function JudgeDashboardPage() {
         my_scores: stageCard?.my_scoring_status?.scores,
         my_comments: stageCard?.my_scoring_status?.comments,
       };
+      setContestants((prev) => [liveC, ...prev]);
       setActiveContestant(liveC);
     }
   };
 
-  // Load contestants & scoreboard when selected competition changes
+  // Track current competition ID so contestants are only reloaded and activeContestant reset when compId actually changes
+  const prevCompIdRef = useRef<string | null>(null);
+
   useEffect(() => {
-    if (!selectedComp) return;
-    setActiveContestant(null);
-    loadContestantsForComp(selectedComp._id);
-    loadScoreboard(selectedComp._id);
-  }, [selectedComp, loadContestantsForComp, loadScoreboard]);
+    if (!selectedComp?._id) return;
+    if (prevCompIdRef.current !== selectedComp._id) {
+      prevCompIdRef.current = selectedComp._id;
+      setActiveContestant(null);
+      loadContestantsForComp(selectedComp._id);
+    }
+  }, [selectedComp?._id, loadContestantsForComp]);
 
   // Load draft scores when active contestant opens
   useEffect(() => {
-    if (!activeContestant || !selectedComp) return;
+    if (!activeContestant?._id || !selectedComp?._id) return;
     setScoreNotice(null);
 
     // Initialize scores based on criteria
@@ -406,7 +393,7 @@ export default function JudgeDashboardPage() {
         setScores(defaultScores);
         setComments("");
       });
-  }, [activeContestant, selectedComp]);
+  }, [activeContestant?._id, selectedComp?._id]);
 
   // Criteria fallback
   const criteriaList: JudgingCriterion[] = useMemo(() => {
@@ -505,7 +492,6 @@ export default function JudgeDashboardPage() {
       setTimeout(() => {
         if (selectedComp) {
           loadContestantsForComp(selectedComp._id);
-          loadScoreboard(selectedComp._id);
         }
       }, 1500);
     } catch (err: any) {
@@ -806,7 +792,7 @@ export default function JudgeDashboardPage() {
                 <button
                   onClick={() => {
                     setActiveTab("scoreboard");
-                    if (selectedComp) loadScoreboard(selectedComp._id);
+                    if (selectedComp) loadContestantsForComp(selectedComp._id);
                   }}
                   className={cn(
                     "flex items-center gap-2 rounded-xl px-4 py-2 text-xs sm:text-sm font-bold transition-all duration-200",
@@ -830,11 +816,11 @@ export default function JudgeDashboardPage() {
                 <Button
                   variant="outline"
                   size="sm"
-                  onClick={() => selectedComp && loadScoreboard(selectedComp._id)}
+                  onClick={() => selectedComp && loadContestantsForComp(selectedComp._id)}
                   className="gap-2 self-start sm:self-auto"
-                  disabled={scoreboardLoading}
+                  disabled={contestantsLoading}
                 >
-                  <RefreshCw className={cn("size-3.5", scoreboardLoading && "animate-spin")} />
+                  <RefreshCw className={cn("size-3.5", contestantsLoading && "animate-spin")} />
                   <span>Refresh Standings</span>
                 </Button>
               )}
