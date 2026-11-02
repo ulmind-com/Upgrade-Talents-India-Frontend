@@ -12,7 +12,7 @@ import {
   Medal, Download, Copy, Check, Camera, Edit3, Sparkles,
   ExternalLink, GraduationCap, ShieldCheck, MapPin, Phone,
   Mail, Flame, Star, Send, Layers, Package, Banknote,
-  ChevronLeft, ChevronRight, Share2, Bell, Settings, Eye, Briefcase, LogOut, Search,
+  ChevronLeft, ChevronRight, Share2, Bell, Settings, Eye, Briefcase, LogOut, Search, Radio,
 } from "lucide-react";
 import {
   bookingsApi, vipApi, profileApi, rewardsApi, certificatesApi, shopApi, publicApi,
@@ -781,11 +781,15 @@ export default function DashboardPage() {
                           <Badge tone={isCash ? "warning" : isPaid ? "success" : "warning"}>
                             {isCash ? "Cash on Venue" : isPaid ? "Confirmed" : "Payment Pending"}
                           </Badge>
-                          {c.rank && (
+                          {c.stage_status === "ON_STAGE" ? (
+                            <span className="inline-flex items-center gap-1 rounded-full bg-rose-500/20 border border-rose-500/40 px-2.5 py-0.5 font-mono text-[10.5px] font-extrabold text-rose-300 animate-pulse">
+                              <Radio className="size-3" /> Live on Stage
+                            </span>
+                          ) : c.rank ? (
                             <span className="inline-flex items-center gap-1 rounded-full bg-yellow-400/20 px-2.5 py-0.5 font-mono text-[11px] font-bold text-yellow-300">
                               <Medal className="size-3" /> Rank #{c.rank} {c.score != null ? `(${c.score} pts)` : ""}
                             </span>
-                          )}
+                          ) : null}
                         </div>
 
                         <h3 className="mt-4 font-display text-xl font-bold uppercase transition-colors group-hover:text-[var(--accent)]">

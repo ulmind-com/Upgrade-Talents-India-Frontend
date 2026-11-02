@@ -869,7 +869,7 @@ export default function CompetitionDetail({
         )}
 
         {/* ── Public Live Stage Performer Announcement Banner ── */}
-        {stageData?.has_active_performer && stageData?.current_performer && (
+        {stageData?.has_active_performer && stageData?.current_performer ? (
           <motion.div
             initial={{ opacity: 0, y: -10 }}
             animate={{ opacity: 1, y: 0 }}
@@ -930,7 +930,38 @@ export default function CompetitionDetail({
               </div>
             </div>
           </motion.div>
-        )}
+        ) : stageData?.lineup && stageData.lineup.length > 0 && lifecycle.isLive ? (
+          <motion.div
+            initial={{ opacity: 0, y: -10 }}
+            animate={{ opacity: 1, y: 0 }}
+            className="mb-8 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4 rounded-2xl border-2 border-rose-500/30 bg-gradient-to-r from-rose-500/10 via-[var(--surface)] to-[var(--surface)] p-5 shadow-lg"
+          >
+            <div className="flex items-center gap-3.5">
+              <div className="relative grid size-11 shrink-0 place-items-center rounded-2xl border border-rose-500/40 bg-rose-500/20 text-rose-400">
+                <Radio className="size-6 animate-pulse" />
+              </div>
+              <div>
+                <div className="flex items-center gap-2">
+                  <p className="font-display font-bold text-rose-200 text-base">Stage is Live • Intermission</p>
+                  <span className="rounded-full bg-rose-500/20 px-2.5 py-0.5 text-[10px] font-bold uppercase tracking-wider text-rose-300">
+                    Preparing Next Performer
+                  </span>
+                </div>
+                <p className="mt-0.5 text-xs text-[var(--fg-muted)]">
+                  Admin is preparing the next contestant for the stage. Stay tuned or check the queue order below.
+                </p>
+              </div>
+            </div>
+            <button
+              type="button"
+              onClick={() => setShowLineupModal(true)}
+              className="inline-flex cursor-pointer items-center justify-center gap-1.5 rounded-full border border-rose-500/40 bg-rose-500/20 px-4 py-2 text-xs font-bold text-rose-200 hover:bg-rose-500/30 transition-all shadow-md active:scale-95 shrink-0"
+            >
+              <Users className="size-3.5" />
+              <span>Performance Lineup ({stageData.total_participants || stageData.lineup?.length || 0})</span>
+            </button>
+          </motion.div>
+        ) : null}
 
         {/* ── Registered Contestant Personalized Queue & Backstage Status Card ── */}
         {userQueueInfo && (
