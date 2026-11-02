@@ -95,9 +95,8 @@ type Opts = {
   revalidate?: number;
 };
 
-/* Long enough for a cold start, short enough that nobody stares at a
-   skeleton forever. */
-const READ_TIMEOUT_MS = 12_000;
+/* Long enough for cloud cold starts, short enough to avoid indefinite hanging. */
+const READ_TIMEOUT_MS = 35_000;
 
 export async function apiFetch<T = any>(path: string, opts: Opts = {}): Promise<T> {
   const { method = "GET", body, auth, regAuth, form, query, cache, revalidate } = opts;

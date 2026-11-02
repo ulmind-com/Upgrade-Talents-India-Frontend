@@ -49,6 +49,7 @@ export default function JudgeDashboardPage() {
   const [loading, setLoading] = useState(true);
   const [contestantsLoading, setContestantsLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [isAuthError, setIsAuthError] = useState(false);
 
   // Filter & Search
   const [search, setSearch] = useState("");
@@ -90,20 +91,38 @@ export default function JudgeDashboardPage() {
   }, [router]);
 
   // Load assigned competitions
-  const loadCompetitions = async () => {
+  const loadCompetitions = async (retries = 2) => {
     setLoading(true);
     setError(null);
+    setIsAuthError(false);
     try {
       const comps = await judgeCompetitionsApi.listAssigned();
-      setCompetitions(Array.isArray(comps) ? comps : []);
-      if (comps && comps.length > 0 && !selectedComp) {
-        setSelectedComp(comps[0]);
+      const list = Array.isArray(comps) ? comps : [];
+      setCompetitions(list);
+      if (list.length > 0 && !selectedComp) {
+        setSelectedComp(list[0]);
       }
     } catch (err: any) {
+      console.warn("Judge portal loadCompetitions warning:", err);
+      const isTimeout =
+        err?.status === 0 ||
+        err?.status === 408 ||
+        String(err?.message || "").toLowerCase().includes("too long") ||
+        String(err?.message || "").toLowerCase().includes("timeout") ||
+        String(err?.message || "").toLowerCase().includes("network");
+
+      if (retries > 0 && isTimeout) {
+        // Auto-retry once or twice in case backend is spinning up on cold start
+        setTimeout(() => loadCompetitions(retries - 1), 2000);
+        return;
+      }
+
       if (err?.status === 401 || err?.status === 403) {
-        setError("Access restricted. Please log in with your verified Judge account.");
+        setError(err?.message || "Access restricted. Please log in with your verified Judge account.");
+        setIsAuthError(true);
       } else {
         setError(err?.message || "Failed to load assigned competitions.");
+        setIsAuthError(false);
       }
     } finally {
       setLoading(false);
@@ -664,22 +683,31 @@ export default function JudgeDashboardPage() {
             <p className="text-sm text-[var(--fg-muted)]">Loading your assigned competitions…</p>
           </div>
         ) : error ? (
-          <div className="mx-auto max-w-lg rounded-2xl border border-[var(--error)]/30 bg-[color-mix(in_srgb,var(--error)_8%,transparent)] p-8 text-center">
-            <AlertCircle className="mx-auto size-10 text-[var(--error)]" />
-            <h2 className="mt-4 text-lg font-bold text-[var(--fg)]">Authentication Required</h2>
+          <div className="mx-auto max-w-lg rounded-2xl border border-[var(--error)]/30 bg-[color-mix(in_srgb,var(--error)_8%,transparent)] p-8 text-center shadow-lg">
+            <AlertCircle className="mx-auto size-12 text-[var(--error)]" />
+            <h2 className="mt-4 text-xl font-bold text-[var(--fg)]">
+              {isAuthError ? "Authentication Required" : "Connection Issue / Server Busy"}
+            </h2>
             <p className="mt-2 text-sm text-[var(--fg-muted)]">{error}</p>
-            <Button onClick={() => router.push("/judge/login")} className="mt-6" size="md">
-              Sign In to Judge Portal
-            </Button>
+            <div className="mt-6 flex flex-wrap items-center justify-center gap-3">
+              <Button onClick={() => loadCompetitions(1)} className="gap-2" size="md">
+                <RefreshCw className="size-4" /> Try Again / Reload
+              </Button>
+              {isAuthError && (
+                <Button onClick={() => router.push("/judge/login")} variant="outline" size="md">
+                  Sign In to Judge Portal
+                </Button>
+              )}
+            </div>
           </div>
         ) : competitions.length === 0 ? (
           <div className="mx-auto max-w-lg rounded-2xl border border-[var(--border)] bg-[var(--bg-elevated)] p-12 text-center">
             <Trophy className="mx-auto size-12 text-[var(--fg-subtle)]" />
             <h2 className="mt-4 text-lg font-bold text-[var(--fg)]">No Competitions Assigned Yet</h2>
             <p className="mt-2 text-sm text-[var(--fg-muted)]">
-              Your registered email has not been assigned to any live competitions yet. Please contact the Event Coordinators or Administration to receive judging assignments.
+              Your registered judge email {user?.email ? <strong>({user.email})</strong> : null} has not been assigned to any active competitions yet. Please contact Event Administration to link your assignments.
             </p>
-            <Button onClick={loadCompetitions} variant="outline" size="sm" className="mt-6 gap-2">
+            <Button onClick={() => loadCompetitions(1)} variant="outline" size="sm" className="mt-6 gap-2">
               <RefreshCw className="size-4" /> Refresh Assignments
             </Button>
           </div>
