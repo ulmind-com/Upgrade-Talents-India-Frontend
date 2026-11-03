@@ -11,6 +11,7 @@ import { AuthShell, Field, FormAlert, Input, DateInput } from "@/components/ui/F
 import { OtpVerify } from "@/components/ui/OtpVerify";
 import { Button } from "@/components/ui/Primitives";
 import { cn, imageFor } from "@/lib/utils";
+import { GoogleLoadingOverlay } from "@/components/ui/GoogleLoadingOverlay";
 
 const STEPS = [
   { n: 1, label: "Email", Icon: Mail },
@@ -25,6 +26,8 @@ export default function RegisterPage() {
   const [step, setStep] = useState(1);
   const [loading, setLoading] = useState(false);
   const [googleLoading, setGoogleLoading] = useState(false);
+  const [googleUser, setGoogleUser] = useState<{ name?: string | null; email?: string | null; photo?: string | null } | null>(null);
+  const [authProcessing, setAuthProcessing] = useState(false);
   const [formError, setFormError] = useState<string | null>(null);
   const [notice, setNotice] = useState<string | null>(null);
   const [errors, setErrors] = useState<Record<string, string>>({});
@@ -68,7 +71,12 @@ export default function RegisterPage() {
     setGoogleLoading(true);
     try {
       const { signInWithGoogle } = await import("@/lib/firebase");
-      const { idToken } = await signInWithGoogle();
+      const { idToken, name, email, photo } = await signInWithGoogle();
+
+      // Show Ultra Pro Lottie loading overlay once Google account is selected
+      setGoogleUser({ name, email, photo });
+      setAuthProcessing(true);
+
       const res = await authApi.googleLogin(idToken, referral.trim() || undefined);
       tokenStore.set(res.access_token);
       await refresh();
@@ -86,6 +94,7 @@ export default function RegisterPage() {
         router.push("/dashboard");
       }
     } catch (err: any) {
+      setAuthProcessing(false);
       if (err?.code === "auth/popup-closed-by-user" || err?.code === "auth/cancelled-popup-request") return;
       setFormError(err?.message || "Google sign-up failed. Please try again.");
     } finally {
@@ -410,6 +419,14 @@ export default function RegisterPage() {
           </motion.form>
         )}
       </AnimatePresence>
+
+      {/* ── Ultra Pro Lottie Loading Overlay ── */}
+      <GoogleLoadingOverlay
+        open={authProcessing}
+        user={googleUser}
+        title="Please wait..."
+        subtitle="Creating your account & preparing your dashboard…"
+      />
     </AuthShell>
   );
 }

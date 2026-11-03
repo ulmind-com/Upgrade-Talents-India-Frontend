@@ -10,6 +10,7 @@ import { useAuth } from "@/components/motion/Providers";
 import { AuthShell, Field, FormAlert, Input } from "@/components/ui/Form";
 import { Button } from "@/components/ui/Primitives";
 import { imageFor } from "@/lib/utils";
+import { GoogleLoadingOverlay } from "@/components/ui/GoogleLoadingOverlay";
 
 const EASE = [0.16, 1, 0.3, 1] as const;
 // Form is "pushed" into place with a spring, its fields cascade in after.
@@ -48,6 +49,8 @@ function LoginForm() {
   const [formError, setFormError] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
   const [googleLoading, setGoogleLoading] = useState(false);
+  const [googleUser, setGoogleUser] = useState<{ name?: string | null; email?: string | null; photo?: string | null } | null>(null);
+  const [authProcessing, setAuthProcessing] = useState(false);
 
   useEffect(() => {
     if (!authLoading) {
@@ -124,7 +127,12 @@ function LoginForm() {
     setGoogleLoading(true);
     try {
       const { signInWithGoogle } = await import("@/lib/firebase");
-      const { idToken } = await signInWithGoogle();
+      const { idToken, name, email, photo } = await signInWithGoogle();
+
+      // Show Ultra Pro Lottie loading overlay once Google account is selected
+      setGoogleUser({ name, email, photo });
+      setAuthProcessing(true);
+
       const res = await authApi.googleLogin(idToken);
       tokenStore.set(res.access_token);
       const me = await authApi.me().catch(() => null);
@@ -152,6 +160,7 @@ function LoginForm() {
         router.push(next);
       }
     } catch (err: any) {
+      setAuthProcessing(false);
       // Don't show error if user just closed the popup
       if (err?.code === "auth/popup-closed-by-user" || err?.code === "auth/cancelled-popup-request") return;
       setFormError(err?.message || "Google sign-in failed. Please try again.");
@@ -316,6 +325,14 @@ function LoginForm() {
           </Link>
         </motion.p>
       </motion.form>
+
+      {/* ── Ultra Pro Lottie Loading Overlay ── */}
+      <GoogleLoadingOverlay
+        open={authProcessing}
+        user={googleUser}
+        title="Please wait..."
+        subtitle="Verifying your Google account and preparing your dashboard…"
+      />
     </AuthShell>
   );
 }
