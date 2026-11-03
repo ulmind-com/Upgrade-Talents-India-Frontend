@@ -195,7 +195,7 @@ export default function RegisterPage() {
       }
     >
       {/* Progress */}
-      <ol className="mb-9 flex items-center gap-2" aria-label="Registration progress">
+      <ol className="mb-6 sm:mb-9 flex items-center gap-2" aria-label="Registration progress">
         {STEPS.map((s, i) => {
           const done = step > s.n;
           const active = step === s.n;
@@ -204,14 +204,14 @@ export default function RegisterPage() {
               <span
                 aria-current={active ? "step" : undefined}
                 className={cn(
-                  "grid size-9 shrink-0 place-items-center rounded-full border text-[12px] font-bold transition-colors duration-400",
+                  "grid size-8 sm:size-9 shrink-0 place-items-center rounded-full border text-[11px] sm:text-[12px] font-bold transition-colors duration-400",
                   done && "border-transparent bg-[var(--success)] text-white",
                   active && "border-transparent text-[var(--on-accent)]",
                   !done && !active && "border-[var(--border)] text-[var(--fg-subtle)]"
                 )}
                 style={active ? { background: "var(--grad-brand)" } : undefined}
               >
-                {done ? <Check className="size-4" aria-hidden /> : <s.Icon className="size-4" aria-hidden />}
+                {done ? <Check className="size-3.5 sm:size-4" aria-hidden /> : <s.Icon className="size-3.5 sm:size-4" aria-hidden />}
               </span>
               <span className={cn("hidden text-[11px] font-semibold uppercase tracking-[0.14em] sm:block", active ? "text-[var(--fg)]" : "text-[var(--fg-subtle)]")}>
                 {s.label}
@@ -222,7 +222,7 @@ export default function RegisterPage() {
         })}
       </ol>
 
-      <div aria-live="polite" className="mb-5 empty:hidden">
+      <div aria-live="polite" className="mb-4 sm:mb-5 empty:hidden">
         {formError && <FormAlert tone="error">{formError}</FormAlert>}
         {!formError && notice && <FormAlert tone="success">{notice}</FormAlert>}
       </div>
@@ -233,7 +233,7 @@ export default function RegisterPage() {
             key="s1" onSubmit={submitStep1} noValidate
             initial={{ opacity: 0, x: 24 }} animate={{ opacity: 1, x: 0 }} exit={{ opacity: 0, x: -24 }}
             transition={{ duration: 0.4, ease: [0.16, 1, 0.3, 1] }}
-            className="flex flex-col gap-5"
+            className="flex flex-col gap-3.5 sm:gap-5"
           >
             <Field label="Email address" hint="We'll send a verification code here." error={errors.email} required>
               {({ id, describedBy, invalid }) => (
@@ -248,12 +248,12 @@ export default function RegisterPage() {
               )}
             </Field>
 
-            <Button type="submit" size="lg" loading={loading} className="mt-2 w-full">
+            <Button type="submit" size="lg" loading={loading} className="mt-1 sm:mt-2 w-full">
               Send verification code <ArrowRight className="size-4" aria-hidden />
             </Button>
 
             {/* Divider */}
-            <div className="flex items-center gap-4">
+            <div className="flex items-center gap-4 py-0.5 sm:py-1">
               <span className="h-px flex-1 bg-[var(--border)]" />
               <span className="text-[11px] font-semibold uppercase tracking-[0.2em] text-[var(--fg-subtle)]">or</span>
               <span className="h-px flex-1 bg-[var(--border)]" />
@@ -264,7 +264,7 @@ export default function RegisterPage() {
               type="button"
               onClick={handleGoogleSignIn}
               disabled={googleLoading || loading}
-              className="group relative flex h-12 w-full cursor-pointer items-center justify-center gap-3 rounded-full border border-[var(--border-strong)] bg-[var(--bg-elevated)] text-sm font-semibold text-[var(--fg)] transition-all duration-300 hover:-translate-y-0.5 hover:border-transparent hover:shadow-[0_8px_30px_-8px_rgba(66,133,244,0.3)] disabled:pointer-events-none disabled:opacity-50"
+              className="group relative flex h-11 sm:h-12 w-full cursor-pointer items-center justify-center gap-3 rounded-full border border-[var(--border-strong)] bg-[var(--bg-elevated)] text-sm font-semibold text-[var(--fg)] transition-all duration-300 hover:-translate-y-0.5 hover:border-transparent hover:shadow-[0_8px_30px_-8px_rgba(66,133,244,0.3)] disabled:pointer-events-none disabled:opacity-50"
             >
               <span className="absolute inset-0 -z-10 rounded-full opacity-0 transition-opacity duration-400 group-hover:opacity-100" style={{ background: "linear-gradient(115deg, rgba(66,133,244,0.12), rgba(234,67,53,0.08), rgba(251,188,5,0.08), rgba(52,168,83,0.08))" }} />
               {googleLoading ? (
@@ -323,7 +323,7 @@ export default function RegisterPage() {
             key="s3" onSubmit={submitStep3} noValidate
             initial={{ opacity: 0, x: 24 }} animate={{ opacity: 1, x: 0 }} exit={{ opacity: 0, x: -24 }}
             transition={{ duration: 0.4, ease: [0.16, 1, 0.3, 1] }}
-            className="flex flex-col gap-5"
+            className="flex flex-col gap-3.5 sm:gap-5"
           >
             <Field label="Full name" error={errors.name} required>
               {({ id, describedBy, invalid }) => (
@@ -332,7 +332,7 @@ export default function RegisterPage() {
               )}
             </Field>
 
-            <div className="grid gap-5 sm:grid-cols-2">
+            <div className="grid gap-3.5 sm:gap-5 sm:grid-cols-2">
               <Field label="Phone number" error={errors.phone} required>
                 {({ id, describedBy, invalid }) => (
                   <Input id={id} type="tel" inputMode="tel" autoComplete="tel" value={phone}
@@ -366,7 +366,7 @@ export default function RegisterPage() {
               )}
             </Field>
 
-            <div className="grid gap-5 sm:grid-cols-2">
+            <div className="grid gap-3.5 sm:gap-5 sm:grid-cols-2">
               <Field label="Password" error={errors.password} required>
                 {({ id, describedBy, invalid }) => (
                   <div className="relative">

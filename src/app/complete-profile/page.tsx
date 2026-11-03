@@ -151,7 +151,7 @@ export default function CompleteProfilePage() {
         </motion.div>
       }
     >
-      <form onSubmit={handleSubmit} noValidate className="flex flex-col gap-5">
+      <form onSubmit={handleSubmit} noValidate className="flex flex-col gap-3.5 sm:gap-5">
         {formError && <FormAlert tone="error">{formError}</FormAlert>}
 
         {/* User Identity Preview Banner */}

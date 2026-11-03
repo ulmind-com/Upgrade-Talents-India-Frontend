@@ -191,7 +191,7 @@ function LoginForm() {
         </motion.div>
       }
     >
-      <motion.form onSubmit={submit} noValidate variants={formV} initial="hidden" animate="show" className="flex flex-col gap-5">
+      <motion.form onSubmit={submit} noValidate variants={formV} initial="hidden" animate="show" className="flex flex-col gap-3.5 sm:gap-5">
         {formError && <motion.div variants={itemV}><FormAlert tone="error">{formError}</FormAlert></motion.div>}
 
         <motion.div variants={itemV}>
@@ -213,7 +213,7 @@ function LoginForm() {
         </motion.div>
 
         <motion.div variants={itemV}>
-          <div className="flex flex-col gap-2">
+          <div className="flex flex-col gap-1.5 sm:gap-2">
             <div className="flex items-center justify-between">
               <label htmlFor="login-password" className="text-[13px] font-semibold text-[var(--fg)]">
                 Password <span className="text-[var(--accent)]" aria-hidden>*</span>
@@ -266,13 +266,13 @@ function LoginForm() {
         </motion.div>
 
         <motion.div variants={itemV}>
-          <Button type="submit" size="lg" loading={loading} className="mt-2 w-full">
+          <Button type="submit" size="lg" loading={loading} className="mt-1 sm:mt-2 w-full">
             Sign in <ArrowRight className="size-4" aria-hidden />
           </Button>
         </motion.div>
 
         {/* ── Divider ── */}
-        <motion.div variants={itemV} className="flex items-center gap-4">
+        <motion.div variants={itemV} className="flex items-center gap-4 py-0.5 sm:py-1">
           <span className="h-px flex-1 bg-[var(--border)]" />
           <span className="text-[11px] font-semibold uppercase tracking-[0.2em] text-[var(--fg-subtle)]">or</span>
           <span className="h-px flex-1 bg-[var(--border)]" />
@@ -284,7 +284,7 @@ function LoginForm() {
             type="button"
             onClick={handleGoogleSignIn}
             disabled={googleLoading || loading}
-            className="group relative flex h-12 w-full cursor-pointer items-center justify-center gap-3 rounded-full border border-[var(--border-strong)] bg-[var(--bg-elevated)] text-sm font-semibold text-[var(--fg)] transition-all duration-300 hover:-translate-y-0.5 hover:border-transparent hover:shadow-[0_8px_30px_-8px_rgba(66,133,244,0.3)] disabled:pointer-events-none disabled:opacity-50"
+            className="group relative flex h-11 sm:h-12 w-full cursor-pointer items-center justify-center gap-3 rounded-full border border-[var(--border-strong)] bg-[var(--bg-elevated)] text-sm font-semibold text-[var(--fg)] transition-all duration-300 hover:-translate-y-0.5 hover:border-transparent hover:shadow-[0_8px_30px_-8px_rgba(66,133,244,0.3)] disabled:pointer-events-none disabled:opacity-50"
           >
             <span className="absolute inset-0 -z-10 rounded-full opacity-0 transition-opacity duration-400 group-hover:opacity-100" style={{ background: "linear-gradient(115deg, rgba(66,133,244,0.12), rgba(234,67,53,0.08), rgba(251,188,5,0.08), rgba(52,168,83,0.08))" }} />
             {googleLoading ? (
@@ -297,7 +297,7 @@ function LoginForm() {
         </motion.div>
 
         {/* ── Role Links ── */}
-        <motion.div variants={itemV} className="flex items-center justify-center gap-5">
+        <motion.div variants={itemV} className="flex items-center justify-center gap-5 pt-0.5 sm:pt-1">
           <Link href="/judge/login" className="inline-flex items-center gap-1.5 text-[12px] font-semibold text-[var(--fg-subtle)] transition-colors hover:text-[var(--accent)]">
             <Gavel className="size-3.5" aria-hidden />
             Judge Panel

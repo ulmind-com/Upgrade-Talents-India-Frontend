@@ -138,7 +138,7 @@ export default function ForgotPasswordPage() {
             initial="hidden"
             animate="show"
             exit="exit"
-            className="flex flex-col gap-5"
+            className="flex flex-col gap-3.5 sm:gap-5"
           >
             {formError && <FormAlert tone="error">{formError}</FormAlert>}
 
@@ -186,7 +186,7 @@ export default function ForgotPasswordPage() {
             initial="hidden"
             animate="show"
             exit="exit"
-            className="flex flex-col gap-5"
+            className="flex flex-col gap-3.5 sm:gap-5"
           >
             {formError && <FormAlert tone="error">{formError}</FormAlert>}
             {notice && <FormAlert tone="success">{notice}</FormAlert>}
