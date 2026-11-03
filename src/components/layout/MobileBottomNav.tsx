@@ -2,32 +2,31 @@
 
 import { useMemo, useState, useEffect, useRef } from "react";
 import { usePathname, useRouter } from "next/navigation";
-import { Home, ShoppingBag, ShoppingCart, Search, User } from "lucide-react";
+import { Home, Ticket, Trophy, Search, User } from "lucide-react";
 
-import { useCart } from "@/components/shop/CartProvider";
 import { useAuth } from "@/components/motion/Providers";
 import { cn } from "@/lib/utils";
 
 /**
- * Liquid Glass bottom navigation — ported identically from Royal Wool
- * with color-mix(), layered inset highlights/shadows, glass reflection,
- * active liquid capsule, drag physics, and circular search button.
- *
- * 4-item frosted pill (Home / Shop / Cart / Profile) + separate circular Search button.
- * Active item has its own elevated liquid glass capsule that slides smoothly.
+ * Liquid Glass bottom navigation for Upgrade Talents India
+ * Features:
+ * - 4 core platform tabs: Home (/), Events (/events), Competitions (/competitions), Profile (/dashboard)
+ * - Elevated circular Search button (/search)
+ * - Liquid glass refraction and optical layered highlights
+ * - Fluid drag gesture with haptic feedback (10ms)
+ * - iOS-style liquid stretch active capsule
  */
 
 const NAV_ITEMS = [
   { id: "home", label: "Home", path: "/" },
-  { id: "shop", label: "Shop", path: "/shop" },
-  { id: "cart", label: "Cart", isCart: true as const },
+  { id: "events", label: "Events", path: "/events" },
+  { id: "competitions", label: "Competitions", path: "/competitions" },
   { id: "profile", label: "Profile", path: "/dashboard" },
 ];
 
 export function MobileBottomNav() {
   const router = useRouter();
   const pathname = usePathname() || "/";
-  const { count: cartCount, open: isCartOpen, setOpen: setCartOpen } = useCart();
   const { user } = useAuth();
   const isAuthenticated = Boolean(user);
   const [mounted, setMounted] = useState(false);
@@ -36,15 +35,12 @@ export function MobileBottomNav() {
     setMounted(true);
   }, []);
 
-  const totalCartCount = mounted ? cartCount : 0;
   const isUserAuthenticated = mounted ? isAuthenticated : false;
   const currentUser = mounted ? user : null;
 
-  const toggleCart = () => setCartOpen(!isCartOpen);
-  const closeCart = () => setCartOpen(false);
-
   const activeId = useMemo(() => {
-    if (isCartOpen || pathname === "/cart" || pathname === "/checkout") return "cart";
+    if (pathname.startsWith("/events")) return "events";
+    if (pathname.startsWith("/competitions") || pathname.startsWith("/leaderboard")) return "competitions";
     if (
       pathname.startsWith("/dashboard") ||
       pathname.startsWith("/login") ||
@@ -55,16 +51,9 @@ export function MobileBottomNav() {
       return "profile";
     }
     if (pathname.startsWith("/search")) return "search";
-    if (
-      pathname.startsWith("/shop") ||
-      pathname.startsWith("/merchandise") ||
-      pathname.startsWith("/product")
-    ) {
-      return "shop";
-    }
     if (pathname === "/" || pathname === "") return "home";
     return null;
-  }, [pathname, isCartOpen]);
+  }, [pathname]);
 
   const activeIndex = NAV_ITEMS.findIndex((i) => i.id === activeId);
   const isSearchActive = activeId === "search";
@@ -145,15 +134,10 @@ export function MobileBottomNav() {
     justDragged.current = true;
     triggerHaptic();
     const item = NAV_ITEMS[idx];
-    if (item?.isCart) {
-      toggleCart();
-    } else {
-      closeCart();
-      if (item?.id === "profile") {
-        router.push(isUserAuthenticated ? "/dashboard" : "/login");
-      } else if (item?.path) {
-        router.push(item.path);
-      }
+    if (item?.id === "profile") {
+      router.push(isUserAuthenticated ? "/dashboard" : "/login");
+    } else if (item?.path) {
+      router.push(item.path);
     }
     if (idx === activeIndex) setDragX(null); // no route change → snap back now
   };
@@ -201,7 +185,7 @@ export function MobileBottomNav() {
                   : `translateX(${activeIndex * 100}%)`,
             }}
           >
-            {/* keyed inner glass — restarts the liquid stretch on each switch */}
+            {/* Keyed inner glass — restarts the liquid stretch on each switch */}
             <span key={activeIndex} className="lg-bottom-active-glass" />
           </span>
         )}
@@ -220,15 +204,10 @@ export function MobileBottomNav() {
                   return; // this "click" is the tail of a drag — ignore it
                 }
                 triggerHaptic();
-                if (item.isCart) {
-                  toggleCart();
-                } else {
-                  closeCart();
-                  if (item.id === "profile") {
-                    router.push(isUserAuthenticated ? "/dashboard" : "/login");
-                  } else if (item.path) {
-                    router.push(item.path);
-                  }
+                if (item.id === "profile") {
+                  router.push(isUserAuthenticated ? "/dashboard" : "/login");
+                } else if (item.path) {
+                  router.push(item.path);
                 }
               }}
               aria-label={item.label}
@@ -236,15 +215,8 @@ export function MobileBottomNav() {
             >
               <span className={cn("lg-bottom-icon", isActive && "active")}>
                 {item.id === "home" && <Home />}
-                {item.id === "shop" && <ShoppingBag />}
-                {item.id === "cart" && (
-                  <span className="relative grid place-items-center">
-                    <ShoppingCart />
-                    {totalCartCount > 0 && (
-                      <span className="lg-bottom-badge">{totalCartCount}</span>
-                    )}
-                  </span>
-                )}
+                {item.id === "events" && <Ticket />}
+                {item.id === "competitions" && <Trophy />}
                 {item.id === "profile" &&
                   (isUserAuthenticated ? (
                     userAvatar ? (
@@ -284,7 +256,6 @@ export function MobileBottomNav() {
         className={cn("lg-bottom-search", isSearchActive && "active")}
         onClick={() => {
           triggerHaptic();
-          closeCart();
           router.push("/search");
         }}
         aria-label="Search"

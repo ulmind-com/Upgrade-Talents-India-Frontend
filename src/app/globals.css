@@ -863,11 +863,23 @@ input[type="date"]::-webkit-calendar-picker-indicator:hover {
 }
 
 .lg-bottom-label {
-  font-size: 11px;
+  font-size: 10.5px;
   line-height: 1;
+  letter-spacing: -0.02em;
+  white-space: nowrap;
+  max-width: 100%;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  padding: 0 1px;
   transition:
     color 160ms,
     transform 160ms;
+}
+
+@media (min-width: 390px) {
+  .lg-bottom-label {
+    font-size: 11px;
+  }
 }
 
 /* ACTIVE */
