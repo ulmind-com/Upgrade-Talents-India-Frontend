@@ -19,8 +19,8 @@ import { cn } from "@/lib/utils";
 
 const NAV_ITEMS = [
   { id: "home", label: "Home", path: "/" },
-  { id: "events", label: "Events", path: "/events" },
   { id: "competitions", label: "Competitions", path: "/competitions" },
+  { id: "events", label: "Events", path: "/events" },
   { id: "profile", label: "Profile", path: "/dashboard" },
 ];
 
@@ -215,8 +215,8 @@ export function MobileBottomNav() {
             >
               <span className={cn("lg-bottom-icon", isActive && "active")}>
                 {item.id === "home" && <Home />}
-                {item.id === "events" && <Ticket />}
                 {item.id === "competitions" && <Trophy />}
+                {item.id === "events" && <Ticket />}
                 {item.id === "profile" &&
                   (isUserAuthenticated ? (
                     userAvatar ? (

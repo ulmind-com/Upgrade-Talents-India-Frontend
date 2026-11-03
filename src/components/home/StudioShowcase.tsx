@@ -207,7 +207,7 @@ export default function StudioShowcase({ events = [] }: { events?: EventItem[] }
         {/* CTA */}
         <motion.div
           style={{ opacity: chromeOpacity }}
-          className="absolute inset-x-0 bottom-[clamp(1.25rem,5vh,3.5rem)] z-20 flex justify-center px-4"
+          className="absolute inset-x-0 bottom-28 md:bottom-[clamp(1.25rem,5vh,3.5rem)] z-20 flex justify-center px-4"
         >
           <Link
             href="/events"

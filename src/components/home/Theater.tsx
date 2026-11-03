@@ -598,7 +598,7 @@ function FeaturedShowStage({ shows }: { shows: FeaturedStageItem[] }) {
           phones so they never sit on top of the show details. */}
       {shows.length > 1 && (
         <>
-          <div className="absolute inset-x-0 bottom-6 z-20 flex justify-center gap-3 md:hidden">
+          <div className="absolute inset-x-0 bottom-24 z-20 flex justify-center gap-3 md:hidden">
             {[
               { d: -1, Icon: ChevronLeft, label: "Previous show" },
               { d: 1, Icon: ChevronRight, label: "Next show" },

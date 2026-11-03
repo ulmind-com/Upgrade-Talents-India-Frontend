@@ -660,7 +660,7 @@ input[type="date"]::-webkit-calendar-picker-indicator:hover {
   align-items: center;
   gap: 14px;
 
-  z-index: 85;
+  z-index: 99990;
   pointer-events: none;
   padding-bottom: env(safe-area-inset-bottom, 0px);
 }
