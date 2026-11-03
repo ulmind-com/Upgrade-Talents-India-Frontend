@@ -643,3 +643,394 @@ input[type="date"]::-webkit-calendar-picker-indicator:hover {
     print-color-adjust: exact !important;
   }
 }
+
+/* ═══════════════════════════════════════════
+   LIQUID GLASS BOTTOM NAVIGATION (PORTED FROM ROYAL WOOL)
+   ═══════════════════════════════════════════ */
+
+/* ── WRAPPER ── */
+
+.lg-bottom-wrapper {
+  position: fixed;
+  left: 50%;
+  bottom: 18px;
+  transform: translateX(-50%);
+
+  display: flex;
+  align-items: center;
+  gap: 14px;
+
+  z-index: 85;
+  pointer-events: none;
+  padding-bottom: env(safe-area-inset-bottom, 0px);
+}
+
+@media (min-width: 768px) {
+  .lg-bottom-wrapper {
+    display: none !important;
+  }
+}
+
+/* ── MAIN GLASS PILL ── */
+
+.lg-bottom-nav {
+  --c-glass: #bbbbbc;
+  --c-light: #ffffff;
+  --c-dark: #000000;
+  --glass-reflex-dark: 1;
+  --glass-reflex-light: 1;
+  --saturation: 150%;
+
+  position: relative;
+  width: 460px;
+  height: 86px;
+  max-width: calc(100vw - 110px);
+
+  display: flex;
+  align-items: center;
+  padding: 5px;
+  border-radius: 999px;
+
+  background-color: color-mix(in srgb, var(--c-glass) 12%, transparent);
+
+  backdrop-filter: blur(8px) saturate(var(--saturation));
+  -webkit-backdrop-filter: blur(8px) saturate(var(--saturation));
+
+  border: none;
+  pointer-events: auto;
+  touch-action: none;
+
+  box-shadow:
+    inset 0 0 0 1px color-mix(in srgb, var(--c-light) calc(var(--glass-reflex-light) * 10%), transparent),
+    inset 1.8px 3px 0 -2px color-mix(in srgb, var(--c-light) calc(var(--glass-reflex-light) * 90%), transparent),
+    inset -2px -2px 0 -2px color-mix(in srgb, var(--c-light) calc(var(--glass-reflex-light) * 80%), transparent),
+    inset -3px -8px 1px -6px color-mix(in srgb, var(--c-light) calc(var(--glass-reflex-light) * 60%), transparent),
+    inset -0.3px -1px 4px color-mix(in srgb, var(--c-dark) calc(var(--glass-reflex-dark) * 12%), transparent),
+    inset -1.5px 2.5px 0 -2px color-mix(in srgb, var(--c-dark) calc(var(--glass-reflex-dark) * 20%), transparent),
+    inset 0 3px 4px -2px color-mix(in srgb, var(--c-dark) calc(var(--glass-reflex-dark) * 20%), transparent),
+    inset 2px -6.5px 1px -4px color-mix(in srgb, var(--c-dark) calc(var(--glass-reflex-dark) * 10%), transparent),
+    0 1px 5px color-mix(in srgb, var(--c-dark) calc(var(--glass-reflex-dark) * 10%), transparent),
+    0 6px 16px color-mix(in srgb, var(--c-dark) calc(var(--glass-reflex-dark) * 8%), transparent);
+
+  overflow: visible;
+}
+
+/* ── ACTIVE GLASS CAPSULE ── */
+
+.lg-bottom-active-capsule {
+  position: absolute;
+  top: 4px;
+  left: 4px;
+
+  width: calc((100% - 8px) / 4);
+  height: calc(100% - 8px);
+
+  border-radius: 999px;
+  pointer-events: none;
+  z-index: 0;
+
+  transition: transform 540ms cubic-bezier(0.34, 1.42, 0.5, 1);
+  will-change: transform;
+}
+
+.lg-bottom-active-capsule.dragging {
+  transition: none;
+}
+.lg-bottom-active-capsule.dragging .lg-bottom-active-glass {
+  animation: none;
+  transform: scaleX(1.1);
+  transition: transform 140ms ease;
+}
+
+.lg-bottom-active-glass {
+  position: absolute;
+  inset: 0;
+  border-radius: inherit;
+  pointer-events: none;
+
+  background-color: color-mix(in srgb, var(--c-glass, #bbbbbc) 36%, transparent);
+
+  backdrop-filter: blur(8px) saturate(var(--saturation, 150%));
+  -webkit-backdrop-filter: blur(8px) saturate(var(--saturation, 150%));
+
+  box-shadow:
+    inset 0 0 0 1px color-mix(in srgb, var(--c-light, #fff) calc(var(--glass-reflex-light, 1) * 10%), transparent),
+    inset 2px 1px 0 -1px color-mix(in srgb, var(--c-light, #fff) calc(var(--glass-reflex-light, 1) * 90%), transparent),
+    inset -1.5px -1px 0 -1px color-mix(in srgb, var(--c-light, #fff) calc(var(--glass-reflex-light, 1) * 80%), transparent),
+    inset -2px -6px 1px -5px color-mix(in srgb, var(--c-light, #fff) calc(var(--glass-reflex-light, 1) * 60%), transparent),
+    inset -1px 2px 3px -1px color-mix(in srgb, var(--c-dark, #000) calc(var(--glass-reflex-dark, 1) * 20%), transparent),
+    inset 0 -4px 1px -2px color-mix(in srgb, var(--c-dark, #000) calc(var(--glass-reflex-dark, 1) * 10%), transparent),
+    0 3px 6px color-mix(in srgb, var(--c-dark, #000) calc(var(--glass-reflex-dark, 1) * 8%), transparent);
+
+  transform-origin: center;
+  animation: lgLiquidStretch 560ms cubic-bezier(0.5, 0, 0.15, 1);
+  will-change: transform;
+}
+
+/* EXTRA GLASS REFLECTION */
+.lg-bottom-active-glass::before {
+  content: "";
+  position: absolute;
+  inset: 1px;
+  border-radius: inherit;
+  pointer-events: none;
+
+  background: linear-gradient(
+    145deg,
+    color-mix(in srgb, var(--c-light, #fff) 48%, transparent) 0%,
+    color-mix(in srgb, var(--c-light, #fff) 16%, transparent) 22%,
+    transparent 48%,
+    transparent 70%,
+    color-mix(in srgb, var(--c-dark, #000) 6%, transparent) 100%
+  );
+
+  opacity: .85;
+  mix-blend-mode: screen;
+}
+
+/* LOWER DARK REFRACTION */
+.lg-bottom-active-glass::after {
+  content: "";
+  position: absolute;
+  left: 8%;
+  right: 8%;
+  bottom: 3px;
+  height: 18px;
+  border-radius: 999px;
+
+  background: linear-gradient(
+    to bottom,
+    transparent,
+    color-mix(in srgb, var(--c-dark, #000) 8%, transparent)
+  );
+
+  filter: blur(5px);
+  pointer-events: none;
+}
+
+@keyframes lgLiquidStretch {
+  0%   { transform: scale(1, 1); }
+  38%  { transform: scale(1.22, 0.86); }
+  68%  { transform: scale(0.95, 1.05); }
+  85%  { transform: scale(1.02, 0.99); }
+  100% { transform: scale(1, 1); }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .lg-bottom-active-glass { animation: none; }
+  .lg-bottom-active-capsule { transition-duration: 200ms; }
+}
+
+/* ── NAV ITEM ── */
+
+.lg-bottom-item {
+  position: relative;
+  z-index: 2;
+  flex: 1;
+  height: 100%;
+  border: none;
+  outline: none;
+  background: transparent;
+
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 3px;
+  cursor: pointer;
+
+  color: var(--fg, #f5f7ff);
+  font-size: 15px;
+  font-weight: 500;
+  -webkit-tap-highlight-color: transparent;
+}
+
+.lg-bottom-icon {
+  position: relative;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.lg-bottom-icon svg {
+  width: 27px;
+  height: 27px;
+  stroke: currentColor;
+  stroke-width: 2px;
+  transition:
+    transform 200ms cubic-bezier(.5,0,0,1),
+    color 160ms;
+}
+
+.lg-bottom-label {
+  font-size: 11px;
+  line-height: 1;
+  transition:
+    color 160ms,
+    transform 160ms;
+}
+
+/* ACTIVE */
+
+.lg-bottom-item.active {
+  color: var(--accent, #ff8a3d);
+  font-weight: 600;
+}
+
+.lg-bottom-icon.active svg {
+  transform: scale(1);
+}
+
+.lg-bottom-item:hover .lg-bottom-icon svg {
+  transform: scale(1.12);
+}
+
+/* ── CART BADGE ── */
+
+.lg-bottom-badge {
+  position: absolute;
+  top: -6px;
+  right: -9px;
+  z-index: 30;
+  display: grid;
+  place-items: center;
+  min-width: 18px;
+  height: 18px;
+  padding: 0 4px;
+  border-radius: 999px;
+  background: var(--accent, #ff8a3d);
+  color: #fff;
+  font-size: 10px;
+  font-weight: 800;
+  line-height: 1;
+  box-shadow: 0 2px 6px rgba(255, 106, 43, 0.45);
+  border: 2px solid white;
+}
+
+/* ── USER AVATAR ── */
+
+.lg-bottom-avatar {
+  width: 26px;
+  height: 26px;
+  border-radius: 50%;
+  object-fit: cover;
+  border: 1.5px solid rgba(255, 255, 255, 0.2);
+  transition: all 0.3s ease;
+}
+
+.lg-bottom-avatar.active {
+  border-color: var(--accent, #ff8a3d);
+  border-width: 2px;
+  transform: scale(1.08) translateY(-2px);
+  box-shadow: 0 0 0 2px rgba(255, 255, 255, 0.9);
+}
+
+.lg-bottom-initials {
+  display: grid;
+  place-items: center;
+  width: 26px;
+  height: 26px;
+  border-radius: 50%;
+  border: 1.5px solid rgba(255, 255, 255, 0.2);
+  font-size: 10px;
+  font-weight: 800;
+  text-transform: uppercase;
+  background: rgba(255, 255, 255, 0.1);
+  color: currentColor;
+  transition: all 0.3s ease;
+}
+
+.lg-bottom-initials.active {
+  background: var(--accent, #ff8a3d);
+  color: white;
+  border-color: white;
+  transform: scale(1.08) translateY(-2px);
+}
+
+/* ── SEARCH BUTTON ── */
+
+.lg-bottom-search {
+  position: relative;
+  width: 86px;
+  height: 86px;
+  flex-shrink: 0;
+
+  border: none;
+  border-radius: 50%;
+
+  background-color: color-mix(in srgb, var(--c-glass, #bbbbbc) 16%, transparent);
+  backdrop-filter: blur(8px) saturate(var(--saturation, 150%));
+  -webkit-backdrop-filter: blur(8px) saturate(var(--saturation, 150%));
+
+  box-shadow:
+    inset 0 0 0 1px color-mix(in srgb, var(--c-light, #fff) calc(var(--glass-reflex-light, 1) * 10%), transparent),
+    inset 1.8px 3px 0 -2px color-mix(in srgb, var(--c-light, #fff) calc(var(--glass-reflex-light, 1) * 90%), transparent),
+    inset -2px -2px 0 -2px color-mix(in srgb, var(--c-light, #fff) calc(var(--glass-reflex-light, 1) * 80%), transparent),
+    inset -3px -8px 1px -6px color-mix(in srgb, var(--c-light, #fff) calc(var(--glass-reflex-light, 1) * 60%), transparent),
+    inset -0.3px -1px 4px color-mix(in srgb, var(--c-dark, #000) calc(var(--glass-reflex-dark, 1) * 12%), transparent),
+    inset -1.5px 2.5px 0 -2px color-mix(in srgb, var(--c-dark, #000) calc(var(--glass-reflex-dark, 1) * 20%), transparent),
+    inset 0 3px 4px -2px color-mix(in srgb, var(--c-dark, #000) calc(var(--glass-reflex-dark, 1) * 20%), transparent),
+    inset 2px -6.5px 1px -4px color-mix(in srgb, var(--c-dark, #000) calc(var(--glass-reflex-dark, 1) * 10%), transparent),
+    0 1px 5px color-mix(in srgb, var(--c-dark, #000) calc(var(--glass-reflex-dark, 1) * 10%), transparent),
+    0 6px 16px color-mix(in srgb, var(--c-dark, #000) calc(var(--glass-reflex-dark, 1) * 8%), transparent);
+
+  color: var(--fg, #f5f7ff);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  pointer-events: auto;
+  -webkit-tap-highlight-color: transparent;
+}
+
+.lg-bottom-search svg {
+  width: 31px;
+  height: 31px;
+  stroke: currentColor;
+  stroke-width: 2;
+  transition: transform 0.2s ease;
+}
+
+.lg-bottom-search.active {
+  color: var(--accent, #ff8a3d);
+}
+
+.lg-bottom-search:hover svg {
+  transform: scale(1.1);
+}
+
+.lg-bottom-search:active {
+  transform: scale(0.94);
+}
+
+/* ── RESPONSIVE ── */
+
+@media (max-width: 480px) {
+  .lg-bottom-wrapper {
+    gap: 10px;
+    width: 100%;
+    padding: 0 10px;
+  }
+
+  .lg-bottom-nav {
+    width: auto;
+    flex: 1;
+    height: 76px;
+  }
+
+  .lg-bottom-search {
+    width: 76px;
+    height: 76px;
+  }
+
+  .lg-bottom-icon svg {
+    width: 24px;
+    height: 24px;
+  }
+
+  .lg-bottom-search svg {
+    width: 26px;
+    height: 26px;
+  }
+}
+

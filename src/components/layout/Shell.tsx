@@ -4,6 +4,7 @@ import { usePathname, useRouter } from "next/navigation";
 import { useEffect } from "react";
 import Navbar from "./Navbar";
 import Footer from "./Footer";
+import { MobileBottomNav } from "./MobileBottomNav";
 import { ScrollProgress } from "@/components/motion/Reveal";
 import { NotificationPanel } from "@/components/notifications/NotificationPanel";
 import { useAuth } from "@/components/motion/Providers";
@@ -61,6 +62,7 @@ export default function Shell({
       {!isStaffRole && <NotificationPanel />}
       <main id="main" className="min-h-dvh">{children}</main>
       {!isStaffRole && <Footer brandName={brandName} tagline={tagline} contact={contact} links={links} />}
+      {!isStaffRole && <MobileBottomNav />}
     </>
   );
 }
