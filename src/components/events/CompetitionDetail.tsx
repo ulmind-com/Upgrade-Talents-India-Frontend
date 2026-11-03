@@ -8,7 +8,7 @@ import {
   Trophy, Calendar, Gavel, Upload, CheckCircle2, AlertCircle, ListChecks,
   ShieldCheck, LogIn, Loader2, Heart, Crown, FileUp, Link2, Film, Music, X,
   Radio, ArrowRight, Award, ExternalLink, Sparkles, MessageSquare, Play, Pause,
-  CreditCard, Banknote, Zap, Clock, Users, Mic
+  CreditCard, Banknote, Zap, Clock, Users, Mic, Youtube, HardDrive
 } from "lucide-react";
 import { Reveal, StaggerGroup, StaggerItem } from "@/components/motion/Reveal";
 import { SectionLabel, Badge } from "@/components/ui/Primitives";
@@ -68,6 +68,11 @@ type Comp = {
   audience_voting_enabled?: boolean;
   judge_scoring_enabled?: boolean;
   judging_criteria?: { name: string; max_score?: number; weight?: number; description?: string }[];
+  allow_file_upload?: boolean;
+  allow_video_link?: boolean;
+  allow_audio_upload?: boolean;
+  submission_formats?: string[];
+  submission_format_config?: any;
   dynamic_submission_fields?: Field[];
 };
 
@@ -104,7 +109,55 @@ export default function CompetitionDetail({
   const id = comp._id || comp.id || "";
   const { user, loading } = useAuth();
   const router = useRouter();
-  const fields = comp.dynamic_submission_fields || [];
+
+  // Resolve dynamic submission fields matching configured requirements
+  const fields = useMemo(() => {
+    if (Array.isArray(comp.dynamic_submission_fields) && comp.dynamic_submission_fields.length > 0) {
+      return comp.dynamic_submission_fields;
+    }
+    const list: Field[] = [];
+    if (comp.allow_video_link || (comp.submission_formats && comp.submission_formats.includes("VIDEO_LINK"))) {
+      list.push({
+        name: "Performance Link",
+        label: "YouTube / Drive Video Link",
+        type: "URL",
+        required: true,
+        allowed_formats: ["youtube", "drive", "url"],
+        description: "Submit public YouTube video or Google Drive link",
+      });
+    }
+    if (comp.allow_audio_upload || (comp.submission_formats && comp.submission_formats.includes("AUDIO"))) {
+      list.push({
+        name: "Audition Audio File",
+        label: "MP3 Audio Track",
+        type: "AUDIO",
+        required: true,
+        allowed_formats: ["mp3"],
+        max_size_mb: 20,
+        description: "Upload an MP3 audio file (.mp3 only)",
+      });
+    }
+    if (comp.allow_file_upload || (comp.submission_formats && comp.submission_formats.includes("FILE"))) {
+      list.push({
+        name: "Portfolio / Work Document",
+        label: "Portfolio Document / Photos",
+        type: "DOCUMENT",
+        required: true,
+        allowed_formats: ["pdf", "docx", "png", "jpg", "zip"],
+        max_size_mb: 25,
+        description: "Upload portfolio document or images",
+      });
+    }
+    if (list.length === 0) {
+      list.push({
+        name: "Performance Link",
+        label: "YouTube / Drive Video Link",
+        type: "URL",
+        required: true,
+      });
+    }
+    return list;
+  }, [comp]);
 
   const [step, setStep] = useState<"register" | "submit" | "done">("register");
   const [checkingEnrollment, setCheckingEnrollment] = useState(false);
@@ -642,59 +695,65 @@ export default function CompetitionDetail({
     const fieldNames: string[] = [];
 
     const YT_REGEX = /^(https?:\/\/)?(www\.|m\.|music\.)?(youtube\.com\/(watch\?v=|embed\/|shorts\/|v\/)|youtu\.be\/)([a-zA-Z0-9_-]{11})/i;
+    const DRIVE_REGEX = /^(https?:\/\/)?(drive\.google\.com|docs\.google\.com)/i;
 
     for (const f of fields) {
-      const mode = entryModes[f.name] || (f.type === "URL" || f.type === "PORTFOLIO_LINK" ? "link" : "file");
+      const fType = String(f.type || "URL").toUpperCase();
+      const rawName = f.name || f.label || "";
+      const isLinkField = fType === "URL" || fType === "VIDEO" || fType === "PORTFOLIO_LINK" || /drive|youtube|link|url/i.test(rawName);
+      const isAudioField = fType === "AUDIO" || (/audio|mp3|vocal|song|music/i.test(rawName) && !isLinkField);
+      const isDocField = (fType === "DOCUMENT" || fType === "IMAGE" || fType === "FILE") && !isLinkField && !isAudioField;
+      const isDualField = (/video/i.test(rawName) && /audio/i.test(rawName)) && !isDocField;
+
+      const mode = entryModes[f.name] || (isAudioField || isDocField ? "file" : "link");
       const file = files[f.name];
       const link = (links[f.name] || "").trim();
+      const fieldIdName = f.name;
+      const labelName = f.label || f.name;
 
-      const isAudio = /audio|sound|singing|voice|music|song/i.test(f.name) || f.type === "AUDIO";
-      const isVideo = /video|dance|film|visual|acting|performance/i.test(f.name) || f.type === "VIDEO";
-      const displayName = f.name.replace(/video,\s*audio/gi, "Video/Audio");
-
-      if (mode === "link") {
+      if (isLinkField || (isDualField && mode === "link")) {
         if (!link) {
-          if (f.required) missing.push(displayName);
+          if (f.required !== false) missing.push(labelName);
         } else {
           if (!/^https?:\/\//i.test(link)) {
-            setMsg({ tone: "err", text: `Please enter a valid link starting with http:// or https:// for ${displayName}` });
+            setMsg({ tone: "err", text: `Please enter a valid link starting with http:// or https:// for ${labelName}` });
             return;
           }
-          if (isVideo || isAudio) {
-            if (!YT_REGEX.test(link)) {
-              setMsg({ tone: "err", text: `For video entries in ${displayName}, please provide a valid YouTube link (e.g. https://youtu.be/... or https://youtube.com/watch?v=...).` });
+          if (fType === "VIDEO" && !isDualField) {
+            if (!YT_REGEX.test(link) && !DRIVE_REGEX.test(link)) {
+              setMsg({ tone: "err", text: `For video entries in ${labelName}, please provide a valid YouTube link (e.g. https://youtu.be/... or https://youtube.com/watch?v=...) or Google Drive link.` });
               return;
             }
           }
-          const safeName = displayName.replace(/[^a-zA-Z0-9_-]/g, "_");
+          const safeName = fieldIdName.replace(/[^a-zA-Z0-9_-]/g, "_");
           const linkFile = new File([link], `${safeName}_link.txt`, { type: "text/plain" });
           payloadFiles.push(linkFile);
-          fieldNames.push(displayName);
+          fieldNames.push(fieldIdName);
         }
       } else {
         if (!file) {
-          if (f.required) missing.push(displayName);
+          if (f.required !== false) missing.push(labelName);
         } else {
           const lowerName = file.name.toLowerCase();
           const isDirectVideo = lowerName.endsWith(".mp4") || lowerName.endsWith(".mov") || lowerName.endsWith(".avi") || lowerName.endsWith(".mkv") || lowerName.endsWith(".webm") || file.type.startsWith("video/");
           if (isDirectVideo) {
-            setMsg({ tone: "err", text: `Direct video file uploads are not supported for ${displayName}. Please switch to the Link tab and provide a YouTube link instead.` });
+            setMsg({ tone: "err", text: `Direct video file uploads are not supported for ${labelName}. Please switch to the Link option and provide a YouTube or Google Drive link instead.` });
             return;
           }
-          if (isAudio || isVideo) {
+          if (isAudioField || (isDualField && mode === "file")) {
             if (!lowerName.endsWith(".mp3")) {
-              setMsg({ tone: "err", text: `Only MP3 audio files (.mp3) are permitted for audio submissions in ${displayName}. For video performances, please switch to the Link tab.` });
+              setMsg({ tone: "err", text: `Only MP3 audio files (.mp3) are permitted for ${labelName}. For video performances, please provide a YouTube or Google Drive link.` });
               return;
             }
           }
           payloadFiles.push(file);
-          fieldNames.push(displayName);
+          fieldNames.push(fieldIdName);
         }
       }
     }
 
     if (missing.length) {
-      setMsg({ tone: "err", text: `Please provide a file or link for: ${missing.join(", ")}` });
+      setMsg({ tone: "err", text: `Please provide all required entries: ${missing.join(", ")}` });
       return;
     }
 
@@ -1776,91 +1835,168 @@ export default function CompetitionDetail({
                   )}
                 </div>
                 <div className="flex items-center justify-between">
-                  <p className="text-[13px] font-semibold">Upload your entry</p>
-                  <span className="text-[11px] text-[var(--fg-subtle)]">Audio upload or Link</span>
+                  <p className="text-[13px] font-semibold">Submit your entry</p>
+                  <span className="text-[11px] text-[var(--fg-subtle)]">
+                    {fields.length === 1 ? "Required entry" : `${fields.length} required items`}
+                  </span>
                 </div>
                 <div className="mt-3 flex flex-col gap-3.5">
                   {fields.map((f) => {
-                    const displayName = f.name.replace(/video,\s*audio/gi, "Video/Audio");
-                    const isAudio = /audio|sound|singing|voice|music|song/i.test(f.name) || f.type === "AUDIO";
-                    const isVideo = /video|dance|film|visual|acting|performance/i.test(f.name) || f.type === "VIDEO";
-                    const isAudioOrVideo = isAudio || isVideo;
-                    const acceptTypes = isAudioOrVideo ? ".mp3,audio/mpeg,audio/mp3" : "image/*,.pdf";
+                    const fType = String(f.type || "URL").toUpperCase();
+                    const rawName = f.name || f.label || "";
+                    const displayName = f.label || rawName.replace(/video,\s*audio/gi, "Video/Audio");
 
-                    // Default video fields to "link" to match AudioValidator enforcement
-                    const mode = entryModes[f.name] || (isVideo || f.type === "URL" || f.type === "PORTFOLIO_LINK" ? "link" : "file");
+                    const isLinkField = fType === "URL" || fType === "VIDEO" || fType === "PORTFOLIO_LINK" || /drive|youtube|link|url/i.test(rawName);
+                    const isAudioField = fType === "AUDIO" || (/audio|mp3|vocal|song|music/i.test(rawName) && !isLinkField);
+                    const isDocField = (fType === "DOCUMENT" || fType === "IMAGE" || fType === "FILE") && !isLinkField && !isAudioField;
+                    const isDualField = (/video/i.test(rawName) && /audio/i.test(rawName)) && !isDocField;
+
+                    const mode = entryModes[f.name] || (isAudioField || isDocField ? "file" : "link");
                     const selectedFile = files[f.name];
-                    const enteredLink = links[f.name] || "";
+                    const enteredLink = (links[f.name] || "").trim();
+
+                    const isYoutube = /^(https?:\/\/)?(www\.|m\.|music\.)?(youtube\.com|youtu\.be)/i.test(enteredLink);
+                    const isDrive = /^(https?:\/\/)?(drive\.google\.com|docs\.google\.com)/i.test(enteredLink);
+                    const isValidUrl = /^https?:\/\//i.test(enteredLink);
 
                     return (
-                      <div key={f.name} className="flex flex-col gap-2 rounded-2xl border border-[var(--border)] bg-[var(--surface-2)]/50 p-3">
+                      <div key={f.name} className="flex flex-col gap-2.5 rounded-2xl border border-[var(--border)] bg-[var(--surface-2)]/50 p-3.5 transition-all">
+                        {/* Field Header */}
                         <div className="flex items-center justify-between gap-2">
-                          <span className="text-[12px] font-semibold text-[var(--fg)]">
-                            {displayName}{f.required && <span className="text-[var(--accent)]"> *</span>}
+                          <span className="text-[12.5px] font-semibold text-[var(--fg)] flex items-center gap-1.5">
+                            {isLinkField ? (
+                              <Link2 className="size-3.5 text-sky-400" />
+                            ) : isAudioField ? (
+                              <Music className="size-3.5 text-violet-400" />
+                            ) : (
+                              <FileUp className="size-3.5 text-amber-400" />
+                            )}
+                            {displayName}
+                            {f.required !== false && <span className="text-[var(--accent)] font-bold">*</span>}
                           </span>
-                          <div className="flex items-center rounded-lg border border-[var(--border)] bg-[var(--surface)] p-0.5 text-[11px]">
-                            <button
-                              type="button"
-                              onClick={() => setEntryModes((s) => ({ ...s, [f.name]: "file" }))}
-                              className={`flex items-center gap-1 rounded-md px-2 py-0.5 transition-colors ${
-                                mode === "file"
-                                  ? "bg-[var(--accent)] font-semibold text-[var(--on-accent)]"
-                                  : "text-[var(--fg-muted)] hover:text-[var(--fg)]"
-                              }`}
-                            >
-                              <Upload className="size-3" /> {isAudioOrVideo ? "Audio (MP3)" : "File"}
-                            </button>
-                            <button
-                              type="button"
-                              onClick={() => setEntryModes((s) => ({ ...s, [f.name]: "link" }))}
-                              className={`flex items-center gap-1 rounded-md px-2 py-0.5 transition-colors ${
-                                mode === "link"
-                                  ? "bg-[var(--accent)] font-semibold text-[var(--on-accent)]"
-                                  : "text-[var(--fg-muted)] hover:text-[var(--fg)]"
-                              }`}
-                            >
-                              <Link2 className="size-3" /> {isAudioOrVideo ? "YouTube Link" : "Link"}
-                            </button>
-                          </div>
+
+                          {isDualField ? (
+                            <div className="flex items-center rounded-lg border border-[var(--border)] bg-[var(--surface)] p-0.5 text-[11px]">
+                              <button
+                                type="button"
+                                onClick={() => setEntryModes((s) => ({ ...s, [f.name]: "link" }))}
+                                className={`flex items-center gap-1 rounded-md px-2 py-0.5 transition-colors ${
+                                  mode === "link"
+                                    ? "bg-[var(--accent)] font-semibold text-[var(--on-accent)]"
+                                    : "text-[var(--fg-muted)] hover:text-[var(--fg)]"
+                                }`}
+                              >
+                                <Link2 className="size-3" /> Link
+                              </button>
+                              <button
+                                type="button"
+                                onClick={() => setEntryModes((s) => ({ ...s, [f.name]: "file" }))}
+                                className={`flex items-center gap-1 rounded-md px-2 py-0.5 transition-colors ${
+                                  mode === "file"
+                                    ? "bg-[var(--accent)] font-semibold text-[var(--on-accent)]"
+                                    : "text-[var(--fg-muted)] hover:text-[var(--fg)]"
+                                }`}
+                              >
+                                <Music className="size-3" /> Audio (MP3)
+                              </button>
+                            </div>
+                          ) : (
+                            <span className={cn(
+                              "rounded-full px-2 py-0.5 text-[10px] font-semibold",
+                              isLinkField
+                                ? "bg-sky-500/15 text-sky-300"
+                                : isAudioField
+                                ? "bg-violet-500/15 text-violet-300"
+                                : "bg-amber-500/15 text-amber-300"
+                            )}>
+                              {isLinkField ? "Drive / YouTube Link" : isAudioField ? "MP3 Audio Only" : "File Upload"}
+                            </span>
+                          )}
                         </div>
 
-                        {mode === "file" ? (
-                          <div>
-                            {selectedFile ? (
-                              <div className="flex items-center justify-between rounded-xl border border-[var(--border-strong)] bg-[var(--surface)] px-3 py-2 text-[12px]">
-                                <div className="flex min-w-0 flex-1 items-center gap-2 mr-2">
-                                  {selectedFile.name.toLowerCase().endsWith(".mp3") ? (
-                                    <Music className="size-4 shrink-0 text-[var(--accent)]" />
-                                  ) : (
-                                    <FileUp className="size-4 shrink-0 text-[var(--accent)]" />
-                                  )}
-                                  <div className="min-w-0 truncate">
-                                    <p className="truncate font-medium">{selectedFile.name}</p>
-                                    <p className="text-[10px] text-[var(--fg-subtle)]">
-                                      {(selectedFile.size / (1024 * 1024)).toFixed(2)} MB · {selectedFile.type || "audio/mp3"}
-                                    </p>
-                                  </div>
-                                </div>
+                        {f.description && (
+                          <p className="text-[11px] text-[var(--fg-muted)] leading-relaxed">{f.description}</p>
+                        )}
+
+                        {/* Field Input: Link Mode */}
+                        {(isLinkField || (isDualField && mode === "link")) ? (
+                          <div className="flex flex-col gap-1.5">
+                            <div className="relative">
+                              <Link2 className="pointer-events-none absolute left-3 top-1/2 size-3.5 -translate-y-1/2 text-[var(--fg-subtle)]" />
+                              <input
+                                type="url"
+                                value={enteredLink}
+                                onChange={(e) => setLinks((s) => ({ ...s, [f.name]: e.target.value }))}
+                                placeholder="Paste Google Drive link or YouTube URL…"
+                                className="w-full rounded-xl border border-[var(--border)] bg-[var(--surface)] py-2 pl-9 pr-9 text-[12px] text-[var(--fg)] placeholder:text-[var(--fg-subtle)] focus:border-[var(--accent)] focus:outline-none transition-colors"
+                              />
+                              {enteredLink && (
                                 <button
                                   type="button"
-                                  onClick={() => setFiles((s) => ({ ...s, [f.name]: null }))}
-                                  aria-label="Remove file"
-                                  className="grid size-6 place-items-center rounded-md text-[var(--fg-muted)] hover:bg-[var(--surface-2)] hover:text-[var(--danger)]"
+                                  onClick={() => setLinks((s) => ({ ...s, [f.name]: "" }))}
+                                  className="absolute right-2 top-1/2 -translate-y-1/2 grid size-6 place-items-center rounded-md text-[var(--fg-muted)] hover:bg-[var(--surface-2)] hover:text-[var(--danger)]"
+                                  title="Clear link"
                                 >
-                                  <X className="size-3.5" />
+                                  <X className="size-3" />
                                 </button>
+                              )}
+                            </div>
+
+                            <div className="flex items-center justify-between text-[11px] px-1">
+                              {isDrive ? (
+                                <span className="inline-flex items-center gap-1 font-semibold text-sky-400">
+                                  <HardDrive className="size-3" /> Google Drive Link Detected
+                                </span>
+                              ) : isYoutube ? (
+                                <span className="inline-flex items-center gap-1 font-semibold text-rose-400">
+                                  <Youtube className="size-3" /> YouTube Video Detected
+                                </span>
+                              ) : isValidUrl ? (
+                                <span className="inline-flex items-center gap-1 font-semibold text-emerald-400">
+                                  <CheckCircle2 className="size-3" /> Web Link Verified
+                                </span>
+                              ) : (
+                                <span className="text-[10.5px] text-[var(--fg-subtle)]">
+                                  Supports public Google Drive or YouTube links
+                                </span>
+                              )}
+                            </div>
+                          </div>
+                        ) : isAudioField || (isDualField && mode === "file") ? (
+                          /* Field Input: Dedicated Audio MP3 Uploader */
+                          <div>
+                            {selectedFile ? (
+                              <div className="rounded-xl border border-violet-500/30 bg-[var(--surface)] p-2.5 text-[12px]">
+                                <div className="flex items-center justify-between">
+                                  <div className="flex min-w-0 items-center gap-2 mr-2">
+                                    <div className="grid size-7 place-items-center rounded bg-violet-500/20 text-violet-400 shrink-0">
+                                      <Music className="size-3.5" />
+                                    </div>
+                                    <div className="min-w-0 truncate">
+                                      <p className="truncate font-medium text-[var(--fg)]">{selectedFile.name}</p>
+                                      <p className="text-[10px] text-[var(--fg-subtle)]">
+                                        {(selectedFile.size / (1024 * 1024)).toFixed(2)} MB · MP3 Audio
+                                      </p>
+                                    </div>
+                                  </div>
+                                  <button
+                                    type="button"
+                                    onClick={() => setFiles((s) => ({ ...s, [f.name]: null }))}
+                                    aria-label="Remove audio file"
+                                    className="grid size-6 place-items-center rounded-md text-[var(--fg-muted)] hover:bg-[var(--surface-2)] hover:text-[var(--danger)]"
+                                  >
+                                    <X className="size-3.5" />
+                                  </button>
+                                </div>
+                                <audio controls src={URL.createObjectURL(selectedFile)} className="w-full mt-2 h-7" />
                               </div>
                             ) : (
-                              <label className="group flex cursor-pointer items-center justify-center gap-2 rounded-xl border border-dashed border-[var(--border-strong)] bg-[var(--surface)] px-3.5 py-3 text-[12px] text-[var(--fg-muted)] transition-colors hover:border-[var(--accent)] hover:text-[var(--fg)]">
-                                {isAudioOrVideo ? (
-                                  <Music className="size-4 shrink-0 text-[var(--fg-subtle)] group-hover:text-[var(--accent)]" />
-                                ) : (
-                                  <FileUp className="size-4 shrink-0 text-[var(--fg-subtle)] group-hover:text-[var(--accent)]" />
-                                )}
-                                <span className="truncate">{isAudioOrVideo ? "Choose MP3 audio file (.mp3)…" : "Choose file…"}</span>
+                              <label className="group flex cursor-pointer items-center justify-center gap-2 rounded-xl border border-dashed border-violet-500/30 bg-[var(--surface)] px-3.5 py-3 text-[12px] text-[var(--fg-muted)] transition-colors hover:border-violet-400 hover:text-[var(--fg)]">
+                                <Music className="size-4 shrink-0 text-violet-400" />
+                                <span className="truncate">Choose MP3 audio file (.mp3 only)…</span>
                                 <input
                                   type="file"
-                                  accept={acceptTypes}
+                                  accept=".mp3,audio/mpeg,audio/mp3"
                                   className="hidden"
                                   onChange={(e) => {
                                     const fl = e.target.files?.[0] || null;
@@ -1869,28 +2005,49 @@ export default function CompetitionDetail({
                                 />
                               </label>
                             )}
-                            <p className="mt-1 text-[10.5px] text-[var(--fg-subtle)]">
-                              {isAudioOrVideo
-                                ? "Accepts MP3 audio files only (.mp3). For videos, use the YouTube Link tab."
-                                : "Accepts image (JPG/PNG) or PDF"}
+                            <p className="mt-1 text-[10px] text-[var(--fg-subtle)] px-1">
+                              Strictly MP3 audio files only. Direct video uploads are not supported.
                             </p>
                           </div>
                         ) : (
+                          /* Field Input: Dedicated Document / Image Uploader */
                           <div>
-                            <div className="relative">
-                              <Link2 className="pointer-events-none absolute left-3 top-1/2 size-3.5 -translate-y-1/2 text-[var(--fg-subtle)]" />
-                              <input
-                                type="url"
-                                value={enteredLink}
-                                onChange={(e) => setLinks((s) => ({ ...s, [f.name]: e.target.value }))}
-                                placeholder={isAudioOrVideo ? "https://youtu.be/... or https://youtube.com/watch?v=..." : "https://..."}
-                                className="w-full rounded-xl border border-[var(--border)] bg-[var(--surface)] py-2 pl-9 pr-3 text-[12px] text-[var(--fg)] placeholder:text-[var(--fg-subtle)] focus:border-[var(--accent)] focus:outline-none"
-                              />
-                            </div>
-                            <p className="mt-1 text-[10.5px] text-[var(--fg-subtle)]">
-                              {isAudioOrVideo
-                                ? "YouTube video link only (e.g. https://youtu.be/... or https://youtube.com/watch?v=...)"
-                                : "Paste portfolio or web link"}
+                            {selectedFile ? (
+                              <div className="flex items-center justify-between rounded-xl border border-amber-500/30 bg-[var(--surface)] px-3 py-2 text-[12px]">
+                                <div className="flex min-w-0 flex-1 items-center gap-2 mr-2">
+                                  <FileUp className="size-4 text-amber-400 shrink-0" />
+                                  <div className="min-w-0 truncate">
+                                    <p className="truncate font-medium">{selectedFile.name}</p>
+                                    <p className="text-[10px] text-[var(--fg-subtle)]">
+                                      {(selectedFile.size / (1024 * 1024)).toFixed(2)} MB
+                                    </p>
+                                  </div>
+                                </div>
+                                <button
+                                  type="button"
+                                  onClick={() => setFiles((s) => ({ ...s, [f.name]: null }))}
+                                  className="grid size-6 place-items-center rounded-md text-[var(--fg-muted)] hover:bg-[var(--surface-2)] hover:text-[var(--danger)]"
+                                >
+                                  <X className="size-3.5" />
+                                </button>
+                              </div>
+                            ) : (
+                              <label className="group flex cursor-pointer items-center justify-center gap-2 rounded-xl border border-dashed border-amber-500/30 bg-[var(--surface)] px-3.5 py-3 text-[12px] text-[var(--fg-muted)] transition-colors hover:border-amber-400 hover:text-[var(--fg)]">
+                                <FileUp className="size-4 text-amber-400 shrink-0" />
+                                <span>Choose document or photos (PDF, PNG, JPG, ZIP)…</span>
+                                <input
+                                  type="file"
+                                  accept="image/*,.pdf,.docx,.zip"
+                                  className="hidden"
+                                  onChange={(e) => {
+                                    const fl = e.target.files?.[0] || null;
+                                    setFiles((s) => ({ ...s, [f.name]: fl }));
+                                  }}
+                                />
+                              </label>
+                            )}
+                            <p className="mt-1 text-[10px] text-[var(--fg-subtle)] px-1">
+                              Accepts PDF documents, images (JPG/PNG), or ZIP archives.
                             </p>
                           </div>
                         )}
