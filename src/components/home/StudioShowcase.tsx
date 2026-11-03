@@ -223,9 +223,50 @@ export default function StudioShowcase({ events = [] }: { events?: EventItem[] }
           <motion.svg
             viewBox="0 0 100 100"
             style={{ scale: wipeScale, rotate: wipeSpin }}
-            className="h-[100vmax] w-[100vmax] will-change-transform"
+            className="h-[100vmax] w-[100vmax] will-change-transform overflow-visible"
           >
+            <defs>
+              <clipPath id="sparkle-shape-clip">
+                <path d={SPARKLE_PATH} />
+              </clipPath>
+              <linearGradient id="sparkle-border-glow" x1="0%" y1="0%" x2="100%" y2="100%">
+                <stop offset="0%" stopColor="#fca34d" stopOpacity="0.85" />
+                <stop offset="50%" stopColor="#8b5cf6" stopOpacity="0.75" />
+                <stop offset="100%" stopColor="#ec4899" stopOpacity="0.85" />
+              </linearGradient>
+            </defs>
+
+            {/* Base backing */}
             <path d={SPARKLE_PATH} fill="var(--bg)" />
+
+            {/* Image mapped and clipped precisely to the 4-point X sparkle shape */}
+            <g clipPath="url(#sparkle-shape-clip)">
+              <image
+                href="/images/ticket-dancer.jpg"
+                x="0"
+                y="0"
+                width="100"
+                height="100"
+                preserveAspectRatio="xMidYMid slice"
+              />
+              <rect
+                x="0"
+                y="0"
+                width="100"
+                height="100"
+                fill="rgba(11, 18, 38, 0.28)"
+              />
+            </g>
+
+            {/* Glowing border preserving the iconic X-shape silhouette */}
+            <path
+              d={SPARKLE_PATH}
+              fill="none"
+              stroke="url(#sparkle-border-glow)"
+              strokeWidth="0.8"
+              strokeLinecap="round"
+              strokeLinejoin="round"
+            />
           </motion.svg>
           <motion.div
             style={{ opacity: wipeTextOpacity }}
