@@ -26,6 +26,10 @@ const MARQUEE_WORDS = [
 const SPARKLE_PATH =
   "M50 0 C53.5 26 74 46.5 100 50 C74 53.5 53.5 74 50 100 C46.5 74 26 53.5 0 50 C26 46.5 46.5 26 50 0 Z";
 
+/* Four-point sparkle normalized to 0–1 for objectBoundingBox CSS clip-path */
+const SPARKLE_BOX_PATH =
+  "M 0.5 0 C 0.535 0.26 0.74 0.465 1 0.5 C 0.74 0.535 0.535 0.74 0.5 1 C 0.465 0.74 0.26 0.535 0 0.5 C 0.26 0.465 0.465 0.26 0.5 0 Z";
+
 type Slot = { id: string; src: string; title: string; venue?: string; date?: string; href: string };
 
 function buildSlots(events: EventItem[]): Slot[] {
@@ -47,12 +51,20 @@ export default function StudioShowcase({ events = [] }: { events?: EventItem[] }
   const reduce = useReducedMotion();
   const trackRef = useRef<HTMLDivElement>(null);
   const stageRef = useRef<HTMLDivElement>(null);
+  const videoRef = useRef<HTMLVideoElement>(null);
 
   const [slots] = useState(() => buildSlots(events));
   const [card, setCard] = useState({ w: 280, r: 400 });
   const [spin, setSpin] = useState(0);
   const [isMobile, setIsMobile] = useState(false);
   const [trackVh, setTrackVh] = useState(380);
+
+  /* Ensure video auto-plays reliably */
+  useEffect(() => {
+    const v = videoRef.current;
+    if (!v) return;
+    v.play().catch(() => {});
+  }, []);
 
   /* Card size follows the stage width so the cylinder never self-overlaps and scales properly on mobile/tablet/desktop. */
   useEffect(() => {
@@ -98,10 +110,15 @@ export default function StudioShowcase({ events = [] }: { events?: EventItem[] }
   const marqueeX = useTransform(p, [0, 1], ["14%", "-64%"]);
   const chromeOpacity = useTransform(p, [0, 0.80, 0.90], [1, 1, 0]);
 
-  /* Sparkle wipe */
-  const wipeScale = useTransform(p, [0.82, 0.90, 0.96, 1], [0, 1.2, 4.2, 13]);
-  const wipeSpin = useTransform(p, [0.82, 1], [-25, 10]);
-  const wipeTextOpacity = useTransform(p, [0.88, 0.96], [0, 1]);
+  /* Sparkle wipe: starts small in center stage, gradually grows as user scrolls, playing live dance video */
+  const wipeScale = useTransform(
+    p,
+    [0.22, 0.42, 0.62, 0.80, 0.92, 1],
+    [0, 0.32, 0.68, 1.15, 3.4, 13]
+  );
+  const wipeOpacity = useTransform(p, [0.20, 0.28], [0, 1]);
+  const wipeSpin = useTransform(p, [0.22, 1], [-18, 12]);
+  const wipeTextOpacity = useTransform(p, [0.86, 0.95], [0, 1]);
 
   useMotionValueEvent(rotation, "change", (v) => setSpin(v));
 
@@ -218,56 +235,75 @@ export default function StudioShowcase({ events = [] }: { events?: EventItem[] }
           </Link>
         </motion.div>
 
+        {/* Hidden SVG defining objectBoundingBox clipPath for GPU-clipped video */}
+        <svg width="0" height="0" className="absolute pointer-events-none" aria-hidden="true">
+          <defs>
+            <clipPath id="sparkle-box-clip" clipPathUnits="objectBoundingBox">
+              <path d={SPARKLE_BOX_PATH} />
+            </clipPath>
+          </defs>
+        </svg>
+
         {/* Sparkle wipe into the next section */}
         <div className="pointer-events-none absolute inset-0 z-30 grid place-items-center overflow-hidden" aria-hidden>
-          <motion.svg
-            viewBox="0 0 100 100"
-            style={{ scale: wipeScale, rotate: wipeSpin }}
-            className="h-[100vmax] w-[100vmax] will-change-transform overflow-visible"
+          <motion.div
+            style={{
+              scale: wipeScale,
+              rotate: wipeSpin,
+              opacity: wipeOpacity,
+            }}
+            className="relative h-[100vmax] w-[100vmax] will-change-transform grid place-items-center"
           >
-            <defs>
-              <clipPath id="sparkle-shape-clip">
-                <path d={SPARKLE_PATH} />
-              </clipPath>
-              <linearGradient id="sparkle-border-glow" x1="0%" y1="0%" x2="100%" y2="100%">
-                <stop offset="0%" stopColor="#fca34d" stopOpacity="0.85" />
-                <stop offset="50%" stopColor="#8b5cf6" stopOpacity="0.75" />
-                <stop offset="100%" stopColor="#ec4899" stopOpacity="0.85" />
-              </linearGradient>
-            </defs>
+            {/* Dark background silhouette */}
+            <svg viewBox="0 0 100 100" className="absolute inset-0 size-full">
+              <path d={SPARKLE_PATH} fill="var(--bg)" />
+            </svg>
 
-            {/* Base backing */}
-            <path d={SPARKLE_PATH} fill="var(--bg)" />
+            {/* Video container clipped to 4-point X shape */}
+            <div
+              className="absolute inset-0 size-full overflow-hidden"
+              style={{
+                clipPath: "url(#sparkle-box-clip)",
+                WebkitClipPath: "url(#sparkle-box-clip)",
+              }}
+            >
+              <video
+                ref={videoRef}
+                autoPlay
+                loop
+                muted
+                playsInline
+                preload="auto"
+                poster="/images/ticket-dancer.jpg"
+                onLoadedData={(e) => (e.target as HTMLVideoElement).play().catch(() => {})}
+                className="size-full object-cover object-center scale-105"
+              >
+                <source src="/assets/dance1.mp4" type="video/mp4" />
+                <source src="/assets/dance2.mp4" type="video/mp4" />
+              </video>
+              {/* Subtle tint overlay for text contrast and stage harmony */}
+              <div className="absolute inset-0 bg-[#0b1124]/20" />
+            </div>
 
-            {/* Image mapped and clipped precisely to the 4-point X sparkle shape */}
-            <g clipPath="url(#sparkle-shape-clip)">
-              <image
-                href="/images/ticket-dancer.jpg"
-                x="0"
-                y="0"
-                width="100"
-                height="100"
-                preserveAspectRatio="xMidYMid slice"
+            {/* Glowing neon border preserving the iconic X-shape curvature */}
+            <svg viewBox="0 0 100 100" className="pointer-events-none absolute inset-0 size-full overflow-visible">
+              <defs>
+                <linearGradient id="sparkle-border-glow" x1="0%" y1="0%" x2="100%" y2="100%">
+                  <stop offset="0%" stopColor="#fca34d" stopOpacity="0.9" />
+                  <stop offset="50%" stopColor="#8b5cf6" stopOpacity="0.8" />
+                  <stop offset="100%" stopColor="#ec4899" stopOpacity="0.9" />
+                </linearGradient>
+              </defs>
+              <path
+                d={SPARKLE_PATH}
+                fill="none"
+                stroke="url(#sparkle-border-glow)"
+                strokeWidth="0.75"
+                strokeLinecap="round"
+                strokeLinejoin="round"
               />
-              <rect
-                x="0"
-                y="0"
-                width="100"
-                height="100"
-                fill="rgba(11, 18, 38, 0.28)"
-              />
-            </g>
-
-            {/* Glowing border preserving the iconic X-shape silhouette */}
-            <path
-              d={SPARKLE_PATH}
-              fill="none"
-              stroke="url(#sparkle-border-glow)"
-              strokeWidth="0.8"
-              strokeLinecap="round"
-              strokeLinejoin="round"
-            />
-          </motion.svg>
+            </svg>
+          </motion.div>
           <motion.div
             style={{ opacity: wipeTextOpacity }}
             className="absolute flex flex-col items-center px-6 text-center"
