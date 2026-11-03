@@ -488,7 +488,7 @@ export default function Navbar({ brandName = "UPGRADE TALENTS INDIA", logo }: { 
       <AnimatePresence>
         {open && (
           <motion.div
-            className="fixed inset-0 z-[95] xl:hidden"
+            className="fixed inset-0 z-[99995] xl:hidden"
             initial={{ opacity: 0 }}
             animate={{ opacity: 1 }}
             exit={{ opacity: 0 }}
@@ -496,7 +496,7 @@ export default function Navbar({ brandName = "UPGRADE TALENTS INDIA", logo }: { 
           >
             <div className="absolute inset-0 bg-[var(--scrim)] backdrop-blur-2xl" onClick={() => setOpen(false)} />
             <motion.div
-              className="absolute inset-y-0 right-0 flex w-full max-w-sm flex-col gap-8 overflow-y-auto border-l border-[var(--border)] bg-[var(--bg-elevated)] px-7 pb-[max(2rem,env(safe-area-inset-bottom))] pt-[max(1.5rem,env(safe-area-inset-top))]"
+              className="absolute inset-y-0 right-0 flex w-full max-w-sm flex-col gap-8 overflow-y-auto border-l border-[var(--border)] bg-[var(--bg-elevated)] px-7 pb-[max(5rem,calc(env(safe-area-inset-bottom)+2rem))] pt-[max(1.5rem,env(safe-area-inset-top))]"
               initial={{ x: "100%" }}
               animate={{ x: 0 }}
               exit={{ x: "100%" }}
@@ -568,9 +568,6 @@ export default function Navbar({ brandName = "UPGRADE TALENTS INDIA", logo }: { 
                     </div>
                     <Button href="/dashboard" variant="outline" size="lg" className="w-full">
                       <LayoutDashboard className="size-4" aria-hidden /> Dashboard
-                    </Button>
-                    <Button onClick={handleSignOut} variant="ghost" size="lg" className="w-full">
-                      <LogOut className="size-4" aria-hidden /> Log out
                     </Button>
                   </>
                 ) : (

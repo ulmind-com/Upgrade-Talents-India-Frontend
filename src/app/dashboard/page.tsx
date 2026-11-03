@@ -372,7 +372,7 @@ export default function DashboardPage() {
   ];
 
   return (
-    <section className="relative min-h-dvh overflow-hidden pb-16 pt-24 md:pt-32 noise">
+    <section className="relative min-h-dvh overflow-x-hidden pb-36 pt-20 sm:pt-24 md:pt-32 md:pb-24 noise">
       <Spotlights variant="b" />
 
       <div className="container-x relative max-w-[1560px]">
@@ -1184,14 +1184,6 @@ export default function DashboardPage() {
                     >
                       <Settings className="size-4" />
                     </button>
-                    <button
-                      onClick={logout}
-                      title="Log Out"
-                      aria-label="Log out"
-                      className="grid size-8 place-items-center rounded-xl border border-red-500/20 bg-[var(--surface)] text-red-400 hover:bg-red-500/10 transition-colors cursor-pointer"
-                    >
-                      <LogOut className="size-4" />
-                    </button>
                   </div>
                 </div>
               </div>
@@ -1760,6 +1752,30 @@ export default function DashboardPage() {
                   </div>
                 </div>
 
+              </div>
+
+              {/* ── ACCOUNT ACTIONS & SIGN OUT (Placed cleanly at the very bottom) ── */}
+              <div className="rounded-[28px] border border-red-500/20 bg-gradient-to-r from-red-500/[0.04] to-transparent p-5 sm:p-6 shadow-md flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+                <div className="flex items-center gap-3.5">
+                  <div className="grid size-11 shrink-0 place-items-center rounded-2xl border border-red-500/30 bg-red-500/10 text-red-400">
+                    <LogOut className="size-5" />
+                  </div>
+                  <div>
+                    <h4 className="text-sm font-bold text-[var(--fg)]">Sign Out of Account</h4>
+                    <p className="text-xs text-[var(--fg-muted)]">
+                      Signed in as <span className="font-mono text-[var(--fg)] font-semibold">{user?.email || "Account"}</span>
+                    </p>
+                  </div>
+                </div>
+
+                <button
+                  type="button"
+                  onClick={logout}
+                  className="inline-flex items-center justify-center gap-2 rounded-xl border border-red-500/30 bg-red-500/10 px-5 py-2.5 text-xs font-bold text-red-400 hover:bg-red-500/20 hover:text-red-300 active:scale-95 transition-all cursor-pointer shadow-sm self-start sm:self-auto"
+                >
+                  <LogOut className="size-4" />
+                  Log Out
+                </button>
               </div>
 
             </div>
