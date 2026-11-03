@@ -1255,8 +1255,8 @@ export default function CompetitionDetail({
             </StaggerItem>
           ) : (
             <StaggerItem>
-              <span className="inline-flex items-center gap-1.5 rounded-full border border-[var(--border)] bg-[var(--surface)] px-3.5 py-1.5 text-[12px] font-semibold">
-                <Calendar className="size-3.5 text-[var(--fg-subtle)]" aria-hidden /> Open entry
+              <span className="inline-flex items-center gap-1.5 rounded-full border border-emerald-500/30 bg-emerald-500/10 px-3.5 py-1.5 text-[12px] font-semibold text-emerald-300">
+                <Clock className="size-3.5 text-emerald-400" aria-hidden /> Open entry (No deadline)
               </span>
             </StaggerItem>
           )}
@@ -1538,7 +1538,9 @@ export default function CompetitionDetail({
                       </div>
                       <h4 className="font-display font-bold text-[15px] text-rose-200">Competition is LIVE NOW</h4>
                       <p className="mt-1 text-[12px] text-[var(--fg-muted)] leading-relaxed">
-                        The competition commenced on {comp.start_date ? formatEventDate(comp.start_date) : "event day"}. Registrations are closed. Contestant auditions and judging are actively underway!
+                        {comp.registration_deadline
+                          ? `The registration window closed on ${formatEventDate(comp.registration_deadline)}.`
+                          : "Registrations are closed."} Contestant auditions and judging are actively underway!
                       </p>
                       <a
                         href="#contestants-section"

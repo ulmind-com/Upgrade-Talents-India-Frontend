@@ -219,10 +219,9 @@ export function getCompetitionLifecycle(comp: CompetitionLifecycleInput): Compet
       (comp.registration_start_date
         ? `Registration opens on ${formatEventDate(comp.registration_start_date)}.`
         : "Registration opens soon.");
-  } else if (startMs && now >= startMs) {
-    isRegClosed = true;
-    regMessage = "Competition has commenced. Registration is closed.";
   } else {
+    // When no registration deadline is specified, registration remains open indefinitely
+    // (offline / ongoing friendly). If a deadline is set, it is in the future.
     isRegClosed = false;
     isRegUpcoming = false;
     regMessage = regDeadlineMs
@@ -250,7 +249,9 @@ export function getCompetitionLifecycle(comp: CompetitionLifecycleInput): Compet
     badgeTone = "rose";
     isLivePulsing = true;
     phase = "LIVE";
-    phaseMessage = "Competition is live! Live scoring and performances active.";
+    phaseMessage = isRegistrationOpen
+      ? (regDeadlineMs ? `Live now — registration closes ${formatEventDate(comp.registration_deadline)}.` : "Live now — open registration.")
+      : "Competition is live! Live scoring and performances active.";
   } else if (isRegistrationOpen) {
     badgeText = "Registration Open";
     badgeTone = "success";

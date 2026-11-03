@@ -188,7 +188,7 @@ export default function CompetitionHero({ comp }: CompetitionHeroProps) {
               </div>
             )}
 
-            {comp.registration_deadline && (
+            {comp.registration_deadline ? (
               <div className="flex items-center gap-2">
                 <Clock className={cn("size-4", lifecycle.isRegClosed ? "text-amber-400" : "text-emerald-400")} />
                 <span>
@@ -199,7 +199,14 @@ export default function CompetitionHero({ comp }: CompetitionHeroProps) {
                   )}
                 </span>
               </div>
-            )}
+            ) : lifecycle.isRegistrationOpen ? (
+              <div className="flex items-center gap-2">
+                <Clock className="size-4 text-emerald-400" />
+                <span>
+                  <strong className="font-semibold text-emerald-300">Open Registration</strong> (No Deadline)
+                </span>
+              </div>
+            ) : null}
 
             <div className="flex items-center gap-2">
               <Ticket className="size-4 text-emerald-400" />

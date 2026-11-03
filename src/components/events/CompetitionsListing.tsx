@@ -120,10 +120,14 @@ export default function CompetitionsListing({ items }: { items: Comp[] }) {
                     <div className="mt-auto flex items-center justify-between pt-5">
                       <span className="inline-flex items-center gap-1.5 text-[12px] text-[var(--fg-subtle)]">
                         <Calendar className="size-3.5" aria-hidden />{" "}
-                        {lifecycle.isLive
+                        {lifecycle.isLive && lifecycle.canRegister
+                          ? "Live right now • Open reg"
+                          : lifecycle.isLive
                           ? "Live right now"
                           : lifecycle.isRegistrationOpen && c.registration_deadline
                           ? `Closes ${formatEventDate(c.registration_deadline)}`
+                          : lifecycle.isRegistrationOpen && !c.registration_deadline
+                          ? (c.start_date ? `Starts ${formatEventDate(c.start_date)} • Open reg` : "Open registration")
                           : lifecycle.isRegClosed && c.start_date
                           ? `Starts ${formatEventDate(c.start_date)}`
                           : lifecycle.isRegUpcoming && c.registration_start_date
