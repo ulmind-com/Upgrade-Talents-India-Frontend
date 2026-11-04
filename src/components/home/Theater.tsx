@@ -6,10 +6,12 @@ import { AnimatePresence, motion, useReducedMotion, useScroll, useTransform } fr
 import {
   ChevronDown, ChevronLeft, ChevronRight, Instagram, Mic2, Ticket,
   CalendarDays, Users, Clock, Hourglass, Trophy, ShoppingBag, GraduationCap,
+  ArrowUpRight, Sparkles,
 } from "lucide-react";
 import type { BannerItem, EventItem, FeaturedTileItem, LiveEventItem } from "@/lib/api";
-import { formatEventDate, imageFor, truncate } from "@/lib/utils";
+import { formatEventDate, imageFor, isUsableImageUrl, truncate } from "@/lib/utils";
 import { getCompetitionLifecycle } from "@/lib/competition-lifecycle";
+import { SectionLabel } from "@/components/ui/Primitives";
 
 const EASE = [0.16, 1, 0.3, 1] as const;
 
@@ -638,7 +640,74 @@ function FeaturedShowStage({ shows }: { shows: FeaturedStageItem[] }) {
   );
 }
 
-/* ═══════════ PHOTO STRIP ═══════════ */
+/* ═══════════ PHOTO STRIP / STAGE MOMENTS SHOWCASE ═══════════ */
+
+const CURATED_STAGE_MOMENTS = [
+  {
+    id: "stage-1",
+    title: "Nrityashastra Arena",
+    category: "Classical & Semi-Classical",
+    tag: "Season 2026",
+    src: "https://images.unsplash.com/photo-1547153760-18fc86324498?auto=format&fit=crop&w=1200&q=85",
+    href: "/competitions",
+  },
+  {
+    id: "stage-2",
+    title: "Street Dance Showdown",
+    category: "Hip-Hop & Krump",
+    tag: "Live Battle",
+    src: "https://images.unsplash.com/photo-1535525153412-5a42439a210d?auto=format&fit=crop&w=1200&q=85",
+    href: "/competitions",
+  },
+  {
+    id: "stage-3",
+    title: "Spotlight Solo Battle",
+    category: "Freestyle All-Styles",
+    tag: "Arena Spotlight",
+    src: "https://images.unsplash.com/photo-1518834107812-67b0b7c58434?auto=format&fit=crop&w=1200&q=85",
+    href: "/competitions",
+  },
+  {
+    id: "stage-4",
+    title: "Grand Championship Stage",
+    category: "Live Trophy Round",
+    tag: "Finals",
+    src: "https://images.unsplash.com/photo-1545959570-a94084071b5d?auto=format&fit=crop&w=1200&q=85",
+    href: "/competitions",
+  },
+  {
+    id: "stage-5",
+    title: "Choreography Masterclass",
+    category: "Artist Workshop",
+    tag: "Live Training",
+    src: "https://images.unsplash.com/photo-1514525253161-7a46d19cd819?auto=format&fit=crop&w=1200&q=85",
+    href: "/events",
+  },
+  {
+    id: "stage-6",
+    title: "Electrifying Stage Arena",
+    category: "National Tour 2026",
+    tag: "Main Stage",
+    src: "https://images.unsplash.com/photo-1540039155733-5bb30b53aa14?auto=format&fit=crop&w=1200&q=85",
+    href: "/events",
+  },
+  {
+    id: "stage-7",
+    title: "Rhythm & Sync Showcase",
+    category: "Crew Showdown",
+    tag: "Group Dance",
+    src: "https://images.unsplash.com/photo-1508700115892-45ecd05ae2ad?auto=format&fit=crop&w=1200&q=85",
+    href: "/competitions",
+  },
+  {
+    id: "stage-8",
+    title: "Live Audience Spectacle",
+    category: "Live Energy",
+    tag: "Electric Crowd",
+    src: "https://images.unsplash.com/photo-1492684223066-81342ee5ff30?auto=format&fit=crop&w=1200&q=85",
+    href: "/competitions",
+  },
+];
 
 export function PhotoStrip({
   events = [],
@@ -649,55 +718,120 @@ export function PhotoStrip({
   banners?: BannerItem[];
   handle?: string;
 }) {
-  const reduce = useReducedMotion();
-  const ref = useRef<HTMLElement>(null);
-  const { scrollYProgress } = useScroll({ target: ref, offset: ["start end", "end start"] });
-  const x = useTransform(scrollYProgress, [0, 1], ["-4%", "4%"]);
+  // Extract genuine event stage photos
+  const eventShots = events
+    .filter((e) => isUsableImageUrl(e.image_url))
+    .map((e) => ({
+      id: e._id,
+      src: e.image_url,
+      title: e.title || "Live Stage Performance",
+      category: (e as any).category || e.venue || "Stage Event",
+      tag: "Live Stage",
+      href: `/events/${e._id}`,
+    }));
 
-  const shots = [
-    ...events.map((e) => ({ id: e._id, src: e.image_url, title: e.title, href: `/events/${e._id}` })),
-    ...banners.map((b) => ({ id: b._id, src: b.image_url, title: b.title, href: "/gallery" })),
-  ];
-  const tiles = Array.from({ length: 9 }, (_, i) => shots[i % Math.max(shots.length, 1)] ?? {
-    id: `ph-${i}`, src: null, title: "", href: "/gallery",
-  });
+  // Build the list of showcase moments: prioritizing real event shots, backed by curated high-res stage photos
+  const baseShots = eventShots.length >= 4
+    ? eventShots
+    : [...eventShots, ...CURATED_STAGE_MOMENTS.slice(eventShots.length)];
+
+  // Slice to 8 items for a balanced continuous marquee
+  const list = baseShots.slice(0, 8);
 
   return (
-    <section ref={ref} className="theater-bg relative overflow-hidden py-0">
-      <h2 className="sr-only">Moments from our stages</h2>
-      <motion.ul
-        style={reduce ? undefined : { x, willChange: "transform" }}
-        className="flex w-[108%] -translate-x-[4%]"
-      >
-        {tiles.map((s, i) => (
-          <li key={`${s.id}-${i}`} className="min-w-0 flex-1">
-            <Link
-              href={s.href}
-              aria-label={s.title ? `View ${s.title}` : "Open the gallery"}
-              className="group relative block aspect-square overflow-hidden"
-            >
-              <img
-                src={imageFor(s.src, i)}
-                alt=""
-                loading="lazy"
-                className="size-full object-cover transition-transform duration-[1.1s] ease-[cubic-bezier(0.16,1,0.3,1)] group-hover:scale-110"
-              />
-              <span
-                aria-hidden
-                className="absolute inset-0 bg-[rgba(11,6,23,0.45)] opacity-0 transition-opacity duration-400 group-hover:opacity-100"
-              />
-              <Instagram
-                className="absolute bottom-2 right-2 size-3.5 text-white/70 transition-all duration-400 group-hover:bottom-1/2 group-hover:right-1/2 group-hover:size-6 group-hover:translate-x-1/2 group-hover:translate-y-1/2 group-hover:text-white"
-                aria-hidden
-              />
-            </Link>
-          </li>
-        ))}
-      </motion.ul>
+    <section className="relative overflow-hidden py-14 sm:py-20 md:py-24 border-t border-[var(--border)]">
+      {/* Soft Ambient Glow */}
+      <div
+        className="pointer-events-none absolute left-1/2 top-1/2 -z-10 size-[620px] -translate-x-1/2 -translate-y-1/2 rounded-full opacity-20 blur-[130px]"
+        style={{ background: "var(--grad-brand)" }}
+        aria-hidden
+      />
 
-      <p className="container-x py-6 text-center font-hero text-[11px] uppercase tracking-[0.3em] text-white/55">
-        Follow @{handle}
-      </p>
+      {/* Section Header */}
+      <div className="container-x mb-8 sm:mb-12 text-center flex flex-col items-center">
+        <SectionLabel>Live Stage Moments</SectionLabel>
+        <h2 className="mt-3 font-display text-[clamp(1.85rem,4.5vw,3.2rem)] font-bold uppercase tracking-tight text-[var(--fg)]">
+          Moments in the Spotlight
+        </h2>
+        <p className="mt-2 max-w-xl text-[13.5px] sm:text-[15px] text-[var(--fg-muted)] leading-relaxed">
+          Raw passion, electrifying rhythm, and pure stage energy from our dancers and performers across India.
+        </p>
+      </div>
+
+      {/* Infinite Seamless Card Marquee Track */}
+      <div className="relative w-full overflow-hidden">
+        {/* Subtle Edge Blur Gradients */}
+        <div className="pointer-events-none absolute left-0 inset-y-0 w-12 sm:w-28 bg-gradient-to-r from-[var(--bg)] to-transparent z-10" />
+        <div className="pointer-events-none absolute right-0 inset-y-0 w-12 sm:w-28 bg-gradient-to-l from-[var(--bg)] to-transparent z-10" />
+
+        <div className="marquee-track marquee-track-slow flex items-center">
+          {[0, 1].map((dup) => (
+            <div key={dup} className="flex shrink-0 items-center gap-5 sm:gap-6 md:gap-7 pr-5 sm:pr-6 md:pr-7">
+              {list.map((s, i) => (
+                <Link
+                  key={`${dup}-${s.id}-${i}`}
+                  href={s.href}
+                  aria-label={`View ${s.title}`}
+                  className="group relative shrink-0 w-[240px] sm:w-[280px] md:w-[310px] aspect-[4/5] rounded-[22px] sm:rounded-[26px] overflow-hidden border border-white/10 bg-[var(--surface-2)] shadow-xl transition-all duration-500 hover:border-[var(--accent)] hover:shadow-2xl hover:shadow-[var(--accent)]/15 hover:scale-[1.02] cursor-pointer block"
+                >
+                  {/* Photo with smooth zoom on hover */}
+                  <img
+                    src={imageFor(s.src, i)}
+                    alt={s.title}
+                    loading="lazy"
+                    className="size-full object-cover transition-transform duration-700 ease-[cubic-bezier(0.16,1,0.3,1)] group-hover:scale-108"
+                  />
+
+                  {/* Dark Vignette / Cinematic Scrim */}
+                  <div
+                    aria-hidden
+                    className="absolute inset-0 bg-gradient-to-t from-black/92 via-black/35 to-black/15 transition-opacity duration-300"
+                  />
+
+                  {/* Top Bar Badges */}
+                  <div className="absolute top-3.5 inset-x-3.5 flex items-center justify-between pointer-events-none z-10">
+                    <span className="rounded-full bg-black/60 backdrop-blur-md border border-white/15 px-2.5 py-1 text-[10px] font-mono font-semibold text-white/95 flex items-center gap-1.5 shadow-sm">
+                      <span className="size-1.5 rounded-full bg-emerald-400 animate-pulse" />
+                      {s.tag || "Live Stage"}
+                    </span>
+                    <span className="grid size-8 place-items-center rounded-full bg-black/60 backdrop-blur-md border border-white/15 text-white/90 group-hover:text-pink-400 group-hover:border-pink-500/50 group-hover:scale-110 transition-all shadow-sm">
+                      <Instagram className="size-4" />
+                    </span>
+                  </div>
+
+                  {/* Bottom Caption & Details */}
+                  <div className="absolute bottom-0 inset-x-0 p-4 sm:p-5 z-10 flex flex-col gap-1 text-left">
+                    <span className="font-mono text-[10px] font-bold uppercase tracking-wider text-cyan-300 truncate block">
+                      {s.category}
+                    </span>
+                    <h3 className="font-display text-sm sm:text-base font-bold text-white tracking-tight leading-snug truncate block group-hover:text-[var(--accent)] transition-colors">
+                      {s.title}
+                    </h3>
+                    <div className="mt-1 flex items-center gap-1 text-[11px] font-semibold text-white/75 group-hover:text-white transition-colors">
+                      <span>Explore stage</span>
+                      <ArrowUpRight className="size-3.5 group-hover:translate-x-0.5 group-hover:-translate-y-0.5 transition-transform" />
+                    </div>
+                  </div>
+                </Link>
+              ))}
+            </div>
+          ))}
+        </div>
+      </div>
+
+      {/* Bottom Follow Callout Button */}
+      <div className="mt-8 sm:mt-12 flex justify-center container-x">
+        <a
+          href={`https://instagram.com/${handle}`}
+          target="_blank"
+          rel="noopener noreferrer"
+          className="group inline-flex items-center gap-2.5 rounded-full border border-pink-500/30 bg-gradient-to-r from-purple-500/10 via-pink-500/10 to-amber-500/10 px-5 sm:px-6 py-2.5 text-xs sm:text-sm font-semibold text-white shadow-lg transition-all duration-300 hover:border-pink-500/60 hover:bg-gradient-to-r hover:from-purple-500/20 hover:via-pink-500/20 hover:to-amber-500/20 hover:scale-105 active:scale-95 cursor-pointer"
+        >
+          <Instagram className="size-4 text-pink-400 group-hover:rotate-6 transition-transform" />
+          <span>Follow @{handle} on Instagram</span>
+          <ArrowUpRight className="size-3.5 text-white/60 group-hover:text-white transition-colors" />
+        </a>
+      </div>
     </section>
   );
 }

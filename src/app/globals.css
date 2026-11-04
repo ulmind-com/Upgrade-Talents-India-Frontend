@@ -271,7 +271,13 @@ p { text-wrap: pretty; overflow-wrap: anywhere; }
 .marquee-track {
   display: flex;
   width: max-content;
-  animation: marquee 32s linear infinite;
+  animation: marquee 35s linear infinite;
+}
+.marquee-track:hover {
+  animation-play-state: paused;
+}
+.marquee-track-slow {
+  animation-duration: 48s;
 }
 @keyframes marquee { to { transform: translateX(-50%); } }
 
