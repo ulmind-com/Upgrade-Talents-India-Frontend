@@ -1470,12 +1470,23 @@ export default function CompetitionDetail({
 
                 return (
                   <div key={pid + i} className="flex items-center gap-3 border-t border-[var(--border)] px-4 py-3 first:border-t-0">
-                    <span
-                      className="grid size-7 shrink-0 place-items-center rounded-full text-[11.5px] font-bold tabular-nums"
-                      style={top ? { background: "var(--grad-brand)", color: "var(--on-accent)" } : { background: "var(--surface-2)", color: "var(--fg-muted)" }}
-                    >
-                      {r.rank ?? i + 1}
-                    </span>
+                    {(r.rank ?? i + 1) === 1 ? (
+                      <span className="grid size-7 shrink-0 place-items-center rounded-full bg-gradient-to-br from-amber-300 via-amber-500 to-yellow-600 text-slate-950 font-black text-[11px] shadow-[0_0_8px_rgba(245,158,11,0.5)] ring-1 ring-amber-400/40">
+                        1
+                      </span>
+                    ) : (r.rank ?? i + 1) === 2 ? (
+                      <span className="grid size-7 shrink-0 place-items-center rounded-full bg-gradient-to-br from-slate-100 via-slate-300 to-slate-400 text-slate-900 font-bold text-[11px] shadow-[0_0_6px_rgba(203,213,225,0.4)] ring-1 ring-slate-300/40">
+                        2
+                      </span>
+                    ) : (r.rank ?? i + 1) === 3 ? (
+                      <span className="grid size-7 shrink-0 place-items-center rounded-full bg-gradient-to-br from-amber-600 via-orange-700 to-amber-900 text-amber-50 font-bold text-[11px] shadow-[0_0_6px_rgba(180,83,9,0.35)] ring-1 ring-amber-700/40">
+                        3
+                      </span>
+                    ) : (
+                      <span className="grid size-7 shrink-0 place-items-center rounded-full bg-[var(--surface-2)] text-[var(--fg-muted)] font-semibold text-[11px]">
+                        {r.rank ?? i + 1}
+                      </span>
+                    )}
                     <img src={imageFor(r.profile_photo, i)} alt="" className="size-9 shrink-0 rounded-full object-cover" />
                     <div className="min-w-0 flex-1">
                       <div className="flex items-center gap-1.5 flex-wrap">

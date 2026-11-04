@@ -41,10 +41,83 @@ const DEMO: Row[] = [
 const handle = (r: Row) => "@" + ((r.email || r.participant_id || r.name || "player").split("@")[0].replace(/\s+/g, "_").toLowerCase());
 const nf = (n?: number) => new Intl.NumberFormat("en-IN").format(Math.round(Number(n ?? 0)));
 
-const MEDAL = [
-  { ring: "var(--accent)", glow: "0 0 50px -12px color-mix(in srgb, var(--accent) 60%, transparent)", Icon: Crown, label: "1st" },
-  { ring: "var(--primary)", glow: "0 0 40px -16px color-mix(in srgb, var(--primary) 55%, transparent)", Icon: Medal, label: "2nd" },
-  { ring: "var(--cyan)", glow: "0 0 40px -16px color-mix(in srgb, var(--cyan) 50%, transparent)", Icon: Medal, label: "3rd" },
+const TIERS = [
+  // 1st Place - GOLD CHAMPION
+  {
+    place: 0,
+    rank: 1,
+    title: "Grand Champion",
+    label: "Champion",
+    tierName: "Gold Champion",
+    badgeLabel: "1",
+    TagIcon: Crown,
+    cardWrapper:
+      "border-2 border-amber-400 dark:border-amber-400/90 shadow-[0_16px_50px_-10px_rgba(245,158,11,0.35),0_0_30px_rgba(245,158,11,0.22)] bg-gradient-to-b from-amber-500/[0.14] via-amber-400/[0.04] to-[var(--surface)] dark:from-amber-500/25 dark:via-amber-950/25 dark:to-[var(--surface)] sm:-translate-y-6 sm:scale-[1.03] z-10",
+    badgeBg:
+      "bg-gradient-to-br from-amber-300 via-amber-500 to-yellow-600 text-slate-950 shadow-[0_0_22px_rgba(245,158,11,0.7)] ring-4 ring-amber-400/40",
+    ribbonClass:
+      "bg-gradient-to-r from-amber-500 via-yellow-400 to-amber-500 text-slate-950 shadow-md font-black ring-1 ring-amber-300",
+    avatarSize: 96,
+    avatarRing: "from-amber-300 via-yellow-400 to-amber-600",
+    avatarOuterRing: "ring-4 ring-amber-400/35",
+    avatarGlow: "shadow-[0_0_28px_rgba(245,158,11,0.45)]",
+    scoreText:
+      "text-transparent bg-clip-text bg-gradient-to-r from-amber-500 via-yellow-500 to-amber-600 dark:from-amber-300 dark:via-yellow-300 dark:to-amber-500",
+    statBorder: "border-amber-400/35 bg-amber-500/10 dark:bg-amber-500/15 text-amber-950 dark:text-amber-200",
+    cornerIconColor: "text-amber-500 drop-shadow-[0_0_8px_rgba(245,158,11,0.6)]",
+    pedestalBorder: "border-t border-amber-400/30",
+    pedestalText: "text-amber-600 dark:text-amber-400",
+  },
+  // 2nd Place - SILVER 1ST RUNNER-UP
+  {
+    place: 1,
+    rank: 2,
+    title: "1st Runner-Up",
+    label: "1st Runner-Up",
+    tierName: "Silver Runner-Up",
+    badgeLabel: "2",
+    TagIcon: Medal,
+    cardWrapper:
+      "border-2 border-slate-300 dark:border-slate-500/70 shadow-[0_10px_35px_-8px_rgba(148,163,184,0.32),0_0_20px_rgba(203,213,225,0.18)] bg-gradient-to-b from-slate-200/30 via-slate-100/5 to-[var(--surface)] dark:from-slate-400/15 dark:via-slate-800/20 dark:to-[var(--surface)] sm:-translate-y-1.5",
+    badgeBg:
+      "bg-gradient-to-br from-slate-100 via-slate-300 to-slate-400 text-slate-900 shadow-[0_0_18px_rgba(203,213,225,0.6)] ring-4 ring-slate-300/35",
+    ribbonClass:
+      "bg-slate-200/95 dark:bg-slate-700/90 text-slate-800 dark:text-slate-100 font-bold border border-slate-300 dark:border-slate-500 shadow-sm",
+    avatarSize: 82,
+    avatarRing: "from-slate-200 via-slate-400 to-slate-200",
+    avatarOuterRing: "ring-4 ring-slate-300/30",
+    avatarGlow: "shadow-[0_0_20px_rgba(148,163,184,0.35)]",
+    scoreText: "text-slate-800 dark:text-slate-100",
+    statBorder: "border-slate-300/50 bg-slate-100/70 dark:bg-slate-800/40 text-slate-800 dark:text-slate-200",
+    cornerIconColor: "text-slate-400 drop-shadow-[0_0_8px_rgba(148,163,184,0.4)]",
+    pedestalBorder: "border-t border-slate-300/30 dark:border-slate-600/30",
+    pedestalText: "text-slate-600 dark:text-slate-400",
+  },
+  // 3rd Place - BRONZE 2ND RUNNER-UP
+  {
+    place: 2,
+    rank: 3,
+    title: "2nd Runner-Up",
+    label: "2nd Runner-Up",
+    tierName: "Bronze 2nd Runner-Up",
+    badgeLabel: "3",
+    TagIcon: Medal,
+    cardWrapper:
+      "border-2 border-amber-700/60 dark:border-amber-600/60 shadow-[0_10px_35px_-8px_rgba(180,83,9,0.28),0_0_20px_rgba(180,83,9,0.15)] bg-gradient-to-b from-amber-700/15 via-orange-950/5 to-[var(--surface)] dark:from-amber-700/20 dark:via-amber-950/25 dark:to-[var(--surface)] sm:translate-y-1",
+    badgeBg:
+      "bg-gradient-to-br from-amber-600 via-orange-700 to-amber-900 text-amber-50 shadow-[0_0_18px_rgba(180,83,9,0.5)] ring-4 ring-amber-700/35",
+    ribbonClass:
+      "bg-amber-100/90 dark:bg-amber-950/80 text-amber-900 dark:text-amber-200 font-bold border border-amber-300/70 dark:border-amber-700 shadow-sm",
+    avatarSize: 82,
+    avatarRing: "from-amber-600 via-amber-700 to-amber-900",
+    avatarOuterRing: "ring-4 ring-amber-700/30",
+    avatarGlow: "shadow-[0_0_20px_rgba(180,83,9,0.35)]",
+    scoreText: "text-amber-800 dark:text-amber-300",
+    statBorder: "border-amber-700/35 bg-amber-700/10 dark:bg-amber-900/30 text-amber-950 dark:text-amber-200",
+    cornerIconColor: "text-amber-700 drop-shadow-[0_0_8px_rgba(180,83,9,0.4)]",
+    pedestalBorder: "border-t border-amber-700/30 dark:border-amber-800/30",
+    pedestalText: "text-amber-700 dark:text-amber-400",
+  },
 ];
 
 function Avatar({ row, size = 72, ring }: { row: Row; size?: number; ring?: string }) {
@@ -64,44 +137,89 @@ function Avatar({ row, size = 72, ring }: { row: Row; size?: number; ring?: stri
 }
 
 function PodiumCard({ row, place }: { row: Row; place: 0 | 1 | 2 }) {
-  const m = MEDAL[place];
-  const lift = place === 0 ? "md:-translate-y-5" : "";
+  const tier = TIERS[place] || TIERS[0];
+  const TagIcon = tier.TagIcon;
+
   return (
     <div
-      className={`relative flex flex-col items-center rounded-[var(--radius-lg)] border bg-[var(--surface)] px-5 pb-6 pt-10 text-center transition-transform duration-500 hover:-translate-y-1 ${lift}`}
-      style={{
-        borderColor: place === 0 ? m.ring : "var(--border)",
-        boxShadow: m.glow,
-        background: place === 0 ? "var(--grad-surface), var(--surface)" : "var(--surface)",
-      }}
+      className={`relative flex flex-col items-center rounded-3xl ${tier.cardWrapper} px-5 pb-6 pt-9 text-center transition-all duration-500 hover:-translate-y-1.5`}
     >
+      {/* Top Floating Rank Disc */}
       <span
-        className="absolute -top-4 grid size-9 place-items-center rounded-full text-[13px] font-bold text-[var(--on-accent)] shadow-lg"
-        style={{ background: place === 0 ? "var(--grad-brand)" : m.ring }}
+        className={`absolute -top-5 grid size-10 place-items-center rounded-full text-[14px] font-black ${tier.badgeBg}`}
       >
-        {(row.rank ?? place + 1)}
+        {row.rank ?? tier.rank}
       </span>
-      <m.Icon className="absolute right-4 top-4 size-5" style={{ color: m.ring }} aria-hidden />
 
-      <Avatar row={row} size={place === 0 ? 92 : 76} ring={m.ring} />
-      <p className="mt-4 line-clamp-1 font-display text-[clamp(1.05rem,2.4vw,1.4rem)] font-bold leading-tight flex items-center justify-center gap-1.5">
+      {/* Top right corner medal/crown */}
+      <TagIcon className={`absolute right-4 top-4 size-5 ${tier.cornerIconColor}`} aria-hidden />
+
+      {/* Tier Ribbon Pill */}
+      <div className="mb-2.5">
+        <span className={`inline-flex items-center gap-1 rounded-full px-3 py-0.5 text-[10.5px] uppercase tracking-wider ${tier.ribbonClass}`}>
+          <TagIcon className="size-3 fill-current" />
+          <span>{tier.label}</span>
+        </span>
+      </div>
+
+      {/* Avatar with customized metallic frame & floating crown/medal */}
+      <div className="relative mt-1">
+        {place === 0 && (
+          <Crown
+            className="absolute -top-4 left-1/2 -translate-x-1/2 size-7 text-amber-400 drop-shadow-[0_0_10px_rgba(245,158,11,0.85)] z-10 animate-bounce"
+            style={{ animationDuration: "3s" }}
+          />
+        )}
+        <div
+          className={`grid place-items-center rounded-full p-[3px] bg-gradient-to-tr ${tier.avatarRing} ${tier.avatarOuterRing} ${tier.avatarGlow}`}
+          style={{ width: tier.avatarSize, height: tier.avatarSize }}
+        >
+          <img
+            src={imageFor(row.profile_photo, row.rank ?? place + 1)}
+            alt={row.name || "Contestant"}
+            className="size-full rounded-full object-cover bg-[var(--surface-2)]"
+          />
+        </div>
+        {place > 0 && (
+          <div className="absolute -bottom-1 -right-1 grid size-6 place-items-center rounded-full bg-[var(--surface)] shadow-md border border-[var(--border)]">
+            <TagIcon className={`size-3.5 ${tier.cornerIconColor}`} />
+          </div>
+        )}
+      </div>
+
+      {/* Name & verification */}
+      <p className="mt-3.5 line-clamp-1 font-display text-[clamp(1.1rem,2.4vw,1.35rem)] font-bold leading-tight flex items-center justify-center gap-1.5">
         <span>{row.name || "—"}</span>
         {(row.is_verified || row.verified_badge) && <VerifiedBadge size="sm" />}
       </p>
-      <p className="text-[12.5px] text-[var(--fg-subtle)]">{handle(row)}</p>
+      <p className="text-[12px] text-[var(--fg-subtle)] truncate max-w-full">{handle(row)}</p>
 
-      <p className="mt-3 font-display text-[clamp(1.6rem,4vw,2.4rem)] font-bold leading-none text-gradient">{nf(row.points ?? row.final_score ?? row.audience_votes)}</p>
-      <p className="text-[10.5px] font-semibold uppercase tracking-[0.18em] text-[var(--fg-subtle)]">Points</p>
+      {/* Points with tier-specific styling */}
+      <div className="mt-3">
+        <p className={`font-display text-[clamp(1.75rem,4vw,2.4rem)] font-black leading-none ${tier.scoreText}`}>
+          {nf(row.points ?? row.final_score ?? row.audience_votes)}
+        </p>
+        <p className="mt-1 text-[10px] font-bold uppercase tracking-[0.2em] text-[var(--fg-subtle)]">
+          Total Points
+        </p>
+      </div>
 
-      <div className="mt-5 grid w-full grid-cols-2 gap-2">
-        <div className="rounded-xl border border-[var(--border)] bg-[var(--surface-2)] py-2">
+      {/* Stat pills (Votes & Judge) */}
+      <div className="mt-4 grid w-full grid-cols-2 gap-2">
+        <div className={`rounded-xl border ${tier.statBorder} py-2`}>
           <p className="font-display text-[15px] font-bold tabular-nums">{nf(row.audience_votes)}</p>
           <p className="text-[9.5px] font-semibold uppercase tracking-wider text-[var(--fg-subtle)]">Votes</p>
         </div>
-        <div className="rounded-xl border border-[var(--border)] bg-[var(--surface-2)] py-2">
+        <div className={`rounded-xl border ${tier.statBorder} py-2`}>
           <p className="font-display text-[15px] font-bold tabular-nums">{nf(row.judge_score)}</p>
           <p className="text-[9.5px] font-semibold uppercase tracking-wider text-[var(--fg-subtle)]">Judge</p>
         </div>
+      </div>
+
+      {/* Podium Pedestal Footer Bar */}
+      <div className={`mt-4 w-full pt-2.5 ${tier.pedestalBorder} flex items-center justify-between text-[10px] font-bold tracking-wider uppercase ${tier.pedestalText}`}>
+        <span>Rank {row.rank ?? tier.rank}</span>
+        <span>{tier.tierName}</span>
       </div>
     </div>
   );
@@ -283,7 +401,6 @@ export default function LeaderboardView({
   });
 
   const podium = data.slice(0, 3);
-  const podiumOrder = [podium[1], podium[0], podium[2]].filter(Boolean) as Row[]; // 2 · 1 · 3
   const filtered = useMemo(
     () => data.filter((r) => !q || (r.name || "").toLowerCase().includes(q.toLowerCase()) || handle(r).includes(q.toLowerCase())),
     [data, q]
@@ -368,11 +485,40 @@ export default function LeaderboardView({
           </StaggerGroup>
 
           {/* Podium */}
-          <StaggerGroup className="mt-10 grid grid-cols-1 items-end gap-5 sm:grid-cols-3">
-            {podiumOrder.map((r) => (
-              <StaggerItem key={r.rank}><PodiumCard row={r} place={((r.rank ?? 1) - 1) as 0 | 1 | 2} /></StaggerItem>
-            ))}
-          </StaggerGroup>
+          <div className="mt-12">
+            <div className="sm:hidden mb-4 text-center">
+              <span className="inline-flex items-center gap-1.5 rounded-full bg-[var(--surface-2)] border border-[var(--border)] px-3.5 py-1 text-[11.5px] font-bold text-[var(--fg-muted)] shadow-sm">
+                🏆 Top Standings • 1st, 2nd, 3rd
+              </span>
+            </div>
+
+            <StaggerGroup className="grid grid-cols-1 items-end gap-6 sm:grid-cols-3">
+              {podium[1] && (
+                <StaggerItem
+                  key={podium[1].participant_id || podium[1].email || "podium-2"}
+                  className="order-2 sm:order-1 w-full"
+                >
+                  <PodiumCard row={podium[1]} place={1} />
+                </StaggerItem>
+              )}
+              {podium[0] && (
+                <StaggerItem
+                  key={podium[0].participant_id || podium[0].email || "podium-1"}
+                  className="order-1 sm:order-2 w-full"
+                >
+                  <PodiumCard row={podium[0]} place={0} />
+                </StaggerItem>
+              )}
+              {podium[2] && (
+                <StaggerItem
+                  key={podium[2].participant_id || podium[2].email || "podium-3"}
+                  className="order-3 sm:order-3 w-full"
+                >
+                  <PodiumCard row={podium[2]} place={2} />
+                </StaggerItem>
+              )}
+            </StaggerGroup>
+          </div>
 
           {/* Table */}
           <Reveal className="mt-12">
@@ -401,7 +547,6 @@ export default function LeaderboardView({
                   </thead>
                   <tbody>
                     {filtered.map((r) => {
-                      const top = (r.rank ?? 99) <= 3;
                       return (
                         <motion.tr
                           key={(r.rank ?? 0) + (r.email || r.name || "")}
@@ -409,12 +554,23 @@ export default function LeaderboardView({
                           className="border-t border-[var(--border)] text-[14px]"
                         >
                           <td className="px-5 py-3.5">
-                            <span
-                              className="grid size-8 place-items-center rounded-full text-[12.5px] font-bold tabular-nums"
-                              style={top ? { background: "var(--grad-brand)", color: "var(--on-accent)" } : { background: "var(--surface-2)", color: "var(--fg-muted)" }}
-                            >
-                              {r.rank}
-                            </span>
+                            {r.rank === 1 ? (
+                              <span className="grid size-8 place-items-center rounded-full bg-gradient-to-br from-amber-300 via-amber-500 to-yellow-600 text-slate-950 font-black text-[12px] shadow-[0_0_10px_rgba(245,158,11,0.5)] ring-2 ring-amber-400/30">
+                                1
+                              </span>
+                            ) : r.rank === 2 ? (
+                              <span className="grid size-8 place-items-center rounded-full bg-gradient-to-br from-slate-100 via-slate-300 to-slate-400 text-slate-900 font-bold text-[12px] shadow-[0_0_8px_rgba(203,213,225,0.4)] ring-2 ring-slate-300/30">
+                                2
+                              </span>
+                            ) : r.rank === 3 ? (
+                              <span className="grid size-8 place-items-center rounded-full bg-gradient-to-br from-amber-600 via-orange-700 to-amber-900 text-amber-50 font-bold text-[12px] shadow-[0_0_8px_rgba(180,83,9,0.35)] ring-2 ring-amber-700/30">
+                                3
+                              </span>
+                            ) : (
+                              <span className="grid size-8 place-items-center rounded-full bg-[var(--surface-2)] text-[var(--fg-muted)] font-semibold text-[12px]">
+                                {r.rank}
+                              </span>
+                            )}
                           </td>
                           <td className="px-3 py-3.5">
                             <div className="flex items-center gap-3">

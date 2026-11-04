@@ -409,24 +409,27 @@ export default function CompetitionResults({
           <div className="mt-8 grid gap-4 md:grid-cols-3 md:gap-6">
             {/* Rank 2 (Silver) */}
             {top3[1] && (
-              <div className="order-2 md:order-1 flex flex-col items-center justify-between rounded-[var(--radius-xl)] border border-slate-400/30 bg-[var(--surface)] p-6 text-center shadow-lg">
+              <div className="order-2 md:order-1 flex flex-col items-center justify-between rounded-[var(--radius-xl)] border-2 border-slate-300 dark:border-slate-500/70 bg-gradient-to-b from-slate-200/30 via-slate-100/5 to-[var(--surface)] dark:from-slate-400/15 dark:via-slate-800/20 dark:to-[var(--surface)] p-6 text-center shadow-[0_10px_35px_-8px_rgba(148,163,184,0.32)]">
                 <div className="flex flex-col items-center">
-                  <span className="grid size-10 place-items-center rounded-full bg-slate-300 font-display text-sm font-bold text-slate-900 shadow-md">
+                  <span className="grid size-10 place-items-center rounded-full bg-gradient-to-br from-slate-100 via-slate-300 to-slate-400 font-display text-sm font-extrabold text-slate-900 shadow-[0_0_18px_rgba(203,213,225,0.6)] ring-4 ring-slate-300/35">
                     2
                   </span>
                   <div className="mt-3 relative">
                     <img
                       src={imageFor(top3[1].profile_photo, 2)}
                       alt=""
-                      className="size-20 rounded-full border-2 border-slate-300 object-cover"
+                      className="size-20 rounded-full border-3 border-slate-300 object-cover shadow-[0_0_18px_rgba(148,163,184,0.35)] ring-4 ring-slate-300/20"
                     />
-                    <Medal className="absolute -bottom-1 -right-1 size-6 text-slate-300 drop-shadow" />
+                    <Medal className="absolute -bottom-1 -right-1 size-6 text-slate-400 drop-shadow" />
                   </div>
-                  <h3 className="mt-4 line-clamp-1 font-display text-lg font-bold">{top3[1].name || "Contestant"}</h3>
+                  <span className="mt-3 inline-flex items-center gap-1 rounded-full bg-slate-200/90 dark:bg-slate-700/90 border border-slate-300 dark:border-slate-500 px-2.5 py-0.5 text-[10px] font-bold uppercase tracking-wider text-slate-800 dark:text-slate-100">
+                    🥈 1st Runner-Up
+                  </span>
+                  <h3 className="mt-2 line-clamp-1 font-display text-lg font-bold">{top3[1].name || "Contestant"}</h3>
                   <p className="text-xs text-[var(--fg-subtle)]">{handle(top3[1])}</p>
                 </div>
-                <div className="mt-6 w-full rounded-2xl border border-[var(--border)] bg-[var(--surface-2)] p-3">
-                  <p className="font-display text-2xl font-bold text-slate-200">
+                <div className="mt-6 w-full rounded-2xl border border-slate-300/50 bg-slate-100/70 dark:bg-slate-800/40 p-3">
+                  <p className="font-display text-2xl font-bold text-slate-800 dark:text-slate-100">
                     {nf(top3[1].final_score ?? top3[1].raw_audience_votes)}
                   </p>
                   <p className="text-[10px] font-semibold uppercase tracking-wider text-[var(--fg-subtle)]">Final Score</p>
@@ -440,27 +443,27 @@ export default function CompetitionResults({
 
             {/* Rank 1 (Gold) */}
             {top3[0] && (
-              <div className="order-1 md:order-2 flex flex-col items-center justify-between rounded-[var(--radius-xl)] border-2 border-[var(--accent)] bg-gradient-to-b from-[var(--accent)]/15 via-[var(--surface)] to-[var(--surface)] p-8 text-center shadow-2xl md:-translate-y-4">
+              <div className="order-1 md:order-2 flex flex-col items-center justify-between rounded-[var(--radius-xl)] border-2 border-amber-400 dark:border-amber-400/90 bg-gradient-to-b from-amber-500/[0.16] via-amber-400/[0.04] to-[var(--surface)] dark:from-amber-500/25 dark:via-amber-950/25 dark:to-[var(--surface)] p-8 text-center shadow-[0_16px_50px_-10px_rgba(245,158,11,0.35),0_0_25px_rgba(245,158,11,0.2)] md:-translate-y-5 z-10">
                 <div className="flex flex-col items-center">
-                  <span className="grid size-12 place-items-center rounded-full font-display text-base font-bold text-[var(--on-accent)] shadow-xl" style={{ background: "var(--grad-brand)" }}>
+                  <span className="grid size-12 place-items-center rounded-full font-display text-base font-black bg-gradient-to-br from-amber-300 via-amber-500 to-yellow-600 text-slate-950 shadow-[0_0_22px_rgba(245,158,11,0.7)] ring-4 ring-amber-400/40">
                     1
                   </span>
                   <div className="mt-3 relative">
                     <img
                       src={imageFor(top3[0].profile_photo, 1)}
                       alt=""
-                      className="size-24 rounded-full border-4 border-[var(--accent)] object-cover shadow-xl"
+                      className="size-24 rounded-full border-4 border-amber-400 object-cover shadow-[0_0_28px_rgba(245,158,11,0.45)] ring-4 ring-amber-400/35"
                     />
-                    <Crown className="absolute -top-3 left-1/2 -translate-x-1/2 size-7 text-[var(--accent)] drop-shadow" />
+                    <Crown className="absolute -top-3.5 left-1/2 -translate-x-1/2 size-7 text-amber-400 drop-shadow-[0_0_10px_rgba(245,158,11,0.85)] animate-bounce" style={{ animationDuration: "3s" }} />
                   </div>
-                  <span className="mt-3 inline-flex items-center gap-1 rounded-full px-2.5 py-0.5 text-[10px] font-bold uppercase tracking-wider text-[var(--on-accent)]" style={{ background: "var(--grad-brand)" }}>
-                    Champion
+                  <span className="mt-3 inline-flex items-center gap-1.5 rounded-full bg-gradient-to-r from-amber-500 via-yellow-400 to-amber-500 px-3 py-1 text-[11px] font-black uppercase tracking-wider text-slate-950 shadow-md ring-1 ring-amber-300">
+                    <Crown className="size-3.5 fill-current" /> Grand Champion
                   </span>
                   <h3 className="mt-2 line-clamp-1 font-display text-xl font-bold">{top3[0].name || "Winner"}</h3>
                   <p className="text-xs text-[var(--fg-subtle)]">{handle(top3[0])}</p>
                 </div>
-                <div className="mt-6 w-full rounded-2xl border border-[var(--border)] bg-[var(--surface-2)] p-4">
-                  <p className="font-display text-3xl font-bold text-[var(--accent)]">
+                <div className="mt-6 w-full rounded-2xl border border-amber-400/35 bg-amber-500/10 dark:bg-amber-500/15 p-4">
+                  <p className="font-display text-3xl font-black text-transparent bg-clip-text bg-gradient-to-r from-amber-500 via-yellow-500 to-amber-600 dark:from-amber-300 dark:via-yellow-300 dark:to-amber-500">
                     {nf(top3[0].final_score ?? top3[0].raw_audience_votes)}
                   </p>
                   <p className="text-[10px] font-semibold uppercase tracking-wider text-[var(--fg-subtle)]">Final Score</p>
@@ -474,24 +477,27 @@ export default function CompetitionResults({
 
             {/* Rank 3 (Bronze) */}
             {top3[2] && (
-              <div className="order-3 flex flex-col items-center justify-between rounded-[var(--radius-xl)] border border-amber-600/30 bg-[var(--surface)] p-6 text-center shadow-lg">
+              <div className="order-3 flex flex-col items-center justify-between rounded-[var(--radius-xl)] border-2 border-amber-700/60 dark:border-amber-600/60 bg-gradient-to-b from-amber-700/15 via-orange-950/5 to-[var(--surface)] dark:from-amber-700/20 dark:via-amber-950/25 dark:to-[var(--surface)] p-6 text-center shadow-[0_10px_35px_-8px_rgba(180,83,9,0.28)]">
                 <div className="flex flex-col items-center">
-                  <span className="grid size-10 place-items-center rounded-full bg-amber-700 font-display text-sm font-bold text-amber-100 shadow-md">
+                  <span className="grid size-10 place-items-center rounded-full bg-gradient-to-br from-amber-600 via-orange-700 to-amber-900 font-display text-sm font-extrabold text-amber-50 shadow-[0_0_18px_rgba(180,83,9,0.5)] ring-4 ring-amber-700/35">
                     3
                   </span>
                   <div className="mt-3 relative">
                     <img
                       src={imageFor(top3[2].profile_photo, 3)}
                       alt=""
-                      className="size-20 rounded-full border-2 border-amber-700 object-cover"
+                      className="size-20 rounded-full border-3 border-amber-700 object-cover shadow-[0_0_18px_rgba(180,83,9,0.35)] ring-4 ring-amber-700/20"
                     />
-                    <Medal className="absolute -bottom-1 -right-1 size-6 text-amber-500 drop-shadow" />
+                    <Medal className="absolute -bottom-1 -right-1 size-6 text-amber-600 drop-shadow" />
                   </div>
-                  <h3 className="mt-4 line-clamp-1 font-display text-lg font-bold">{top3[2].name || "Contestant"}</h3>
+                  <span className="mt-3 inline-flex items-center gap-1 rounded-full bg-amber-100/90 dark:bg-amber-950/80 border border-amber-300/70 dark:border-amber-700 px-2.5 py-0.5 text-[10px] font-bold uppercase tracking-wider text-amber-900 dark:text-amber-200">
+                    🥉 2nd Runner-Up
+                  </span>
+                  <h3 className="mt-2 line-clamp-1 font-display text-lg font-bold">{top3[2].name || "Contestant"}</h3>
                   <p className="text-xs text-[var(--fg-subtle)]">{handle(top3[2])}</p>
                 </div>
-                <div className="mt-6 w-full rounded-2xl border border-[var(--border)] bg-[var(--surface-2)] p-3">
-                  <p className="font-display text-2xl font-bold text-amber-500">
+                <div className="mt-6 w-full rounded-2xl border border-amber-700/35 bg-amber-700/10 dark:bg-amber-900/30 p-3">
+                  <p className="font-display text-2xl font-bold text-amber-800 dark:text-amber-300">
                     {nf(top3[2].final_score ?? top3[2].raw_audience_votes)}
                   </p>
                   <p className="text-[10px] font-semibold uppercase tracking-wider text-[var(--fg-subtle)]">Final Score</p>
