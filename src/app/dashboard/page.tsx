@@ -1814,8 +1814,9 @@ export default function DashboardPage() {
         stats={{
           totalReferrals: referralData?.total_referrals,
           coinsEarned: referralData?.total_referrer_rewards_earned,
-          referrerBonus: referralData?.referrer_coins_per_invite || 100,
-          welcomeBonus: referralData?.welcome_coins_per_invite || 50,
+          referrerBonus: referralData?.referrer_coins_per_invite || 120,
+          welcomeBonus: referralData?.welcome_coins_per_invite || 60,
+          coinValuation: referralData?.coin_value_inr || 0.5,
         }}
       />
     </section>
