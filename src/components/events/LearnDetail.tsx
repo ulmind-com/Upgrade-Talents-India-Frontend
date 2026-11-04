@@ -13,6 +13,7 @@ import { Badge, Button, SectionLabel } from "@/components/ui/Primitives";
 import { Reveal } from "@/components/motion/Reveal";
 import { formatEventDate, formatINR, imageFor } from "@/lib/utils";
 import CoinRedeem from "@/components/account/CoinRedeem";
+import FormattedDescription from "@/components/ui/FormattedDescription";
 
 declare global {
   interface Window { Razorpay?: any }
@@ -195,9 +196,11 @@ export default function LearnDetail({ item, kind }: { item: CourseItem; kind: "c
               )}
             </ul>
 
-            <p className="mt-7 whitespace-pre-line text-[15px] leading-relaxed text-[var(--fg-muted)]">
-              {item.description}
-            </p>
+            {item.description && (
+              <div className="mt-7">
+                <FormattedDescription content={item.description} />
+              </div>
+            )}
 
             {item.instructor_info && (
               <div className="mt-10 rounded-[var(--radius-lg)] border border-[var(--border)] bg-[var(--surface)] p-6">

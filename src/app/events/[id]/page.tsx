@@ -9,6 +9,7 @@ import { Badge, Button, SectionLabel, Spotlights } from "@/components/ui/Primiti
 import { getEventById, getRelatedEvents } from "@/lib/events";
 import { formatEventDate, formatINR, isEventExpired, isDeadlinePassed } from "@/lib/utils";
 import Countdown from "@/components/events/Countdown";
+import FormattedDescription from "@/components/ui/FormattedDescription";
 
 export const dynamic = "force-dynamic";
 export const revalidate = 0;
@@ -69,7 +70,9 @@ export default async function EventDetailPage({ params }: { params: Promise<{ id
                 text="About this event"
                 className="mt-8 font-display text-[clamp(1.8rem,4.5vw,3rem)] font-bold uppercase"
               />
-              <p className="mt-6 whitespace-pre-line text-[15px] leading-[1.85] text-[var(--fg-muted)]">{ev.description}</p>
+              <div className="mt-6">
+                <FormattedDescription content={ev.description} />
+              </div>
             </Reveal>
 
             <StaggerGroup className="mt-12 grid gap-4 sm:grid-cols-2">

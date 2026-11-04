@@ -13,6 +13,7 @@ import {
 import { Reveal, StaggerGroup, StaggerItem } from "@/components/motion/Reveal";
 import { SectionLabel, Badge } from "@/components/ui/Primitives";
 import { useAuth } from "@/components/motion/Providers";
+import FormattedDescription from "@/components/ui/FormattedDescription";
 import { competeApi, profileApi, publicApi, certificatesApi } from "@/lib/api";
 import { imageFor, formatEventDate, cn } from "@/lib/utils";
 import { getCompetitionLifecycle } from "@/lib/competition-lifecycle";
@@ -861,9 +862,9 @@ export default function CompetitionDetail({
       return (
         <Reveal className="mt-8">
           <SectionLabel>Rules & Guidelines</SectionLabel>
-          <p className="mt-3 max-w-2xl whitespace-pre-line text-[14px] leading-relaxed text-[var(--fg-muted)]">
-            {r}
-          </p>
+          <div className="mt-4">
+            <FormattedDescription content={r} />
+          </div>
         </Reveal>
       );
     }
@@ -1348,7 +1349,9 @@ export default function CompetitionDetail({
         {comp.description && (
           <Reveal className="mt-8">
             <SectionLabel>About</SectionLabel>
-            <p className="mt-3 max-w-2xl text-[15px] leading-relaxed text-[var(--fg-muted)]">{comp.description}</p>
+            <div className="mt-4">
+              <FormattedDescription content={comp.description} />
+            </div>
           </Reveal>
         )}
 

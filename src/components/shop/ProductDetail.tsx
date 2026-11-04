@@ -10,6 +10,7 @@ import { measureShot, type Shot } from "@/lib/shot";
 import { useTheme } from "@/components/motion/Providers";
 import { formatINR } from "@/lib/utils";
 import { availableOf, type Product } from "@/components/shop/ShopListing";
+import FormattedDescription from "@/components/ui/FormattedDescription";
 
 type Variant = { variant_id?: string; size?: string; color?: string; price_override?: number; stock_quantity?: number; reserved_quantity?: number };
 type P = Product & { variants?: Variant[]; shipping_fee?: number };
@@ -204,7 +205,9 @@ export default function ProductDetail({ product, related }: { product: P; relate
             </div>
 
             {product.description && (
-              <p className="mt-5 max-w-prose text-[14.5px] leading-relaxed text-[var(--fg-muted)]">{product.description}</p>
+              <div className="mt-5 max-w-prose">
+                <FormattedDescription content={product.description} cardStyle={false} />
+              </div>
             )}
 
             {/* ── fit toggle ── */}

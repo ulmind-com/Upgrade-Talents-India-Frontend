@@ -1,7 +1,7 @@
 "use client";
 
 import { motion, useScroll, useTransform } from "framer-motion";
-import { useRef } from "react";
+import { useRef, useMemo } from "react";
 import Link from "next/link";
 import {
   Trophy, Calendar, Clock, Users, ArrowDown, ChevronRight,
@@ -55,6 +55,13 @@ export default function CompetitionHero({ comp }: CompetitionHeroProps) {
   const lifecycle = getCompetitionLifecycle(comp);
 
   const title = comp.title || comp.name || "Talent Competition";
+  const heroSubtitle = useMemo(() => {
+    if (!comp.description) return "";
+    return comp.description
+      .replace(/[━─—_\-=*#✨🏆💎💰🔥\n]+/g, " ")
+      .replace(/\s+/g, " ")
+      .trim();
+  }, [comp.description]);
   const category = comp.category || comp.type || "Official Contest";
   const fee = comp.participation_fee ?? comp.fee ?? 0;
   const isResultsPublished = lifecycle.isResultsOut;
@@ -155,14 +162,14 @@ export default function CompetitionHero({ comp }: CompetitionHeroProps) {
           </motion.h1>
 
           {/* ── Subtitle / Excerpt ── */}
-          {comp.description && (
+          {heroSubtitle && (
             <motion.p
               initial={{ opacity: 0, y: 16 }}
               animate={{ opacity: 1, y: 0 }}
               transition={{ duration: 0.7, delay: 0.1, ease: [0.16, 1, 0.3, 1] }}
               className="mt-3 max-w-2xl text-xs sm:text-sm text-neutral-300/90 line-clamp-2 leading-relaxed"
             >
-              {comp.description}
+              {heroSubtitle}
             </motion.p>
           )}
 
