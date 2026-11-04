@@ -130,8 +130,14 @@ export default function RegisterPage() {
 
       const res = await authApi.googleLogin(idToken, referral.trim() || undefined);
       tokenStore.set(res.access_token);
+      if (res.role) tokenStore.setRole(res.role);
       await refresh();
-      if (
+      const role = (res.role || "").toUpperCase();
+      if (role === "JUDGE") {
+        router.push("/judge");
+      } else if (role === "VOLUNTEER") {
+        router.push("/volunteer");
+      } else if (
         res.requires_profile_completion ||
         !res.is_profile_completed ||
         !res.profile_completed ||
@@ -295,82 +301,6 @@ export default function RegisterPage() {
             transition={{ duration: 0.4, ease: [0.16, 1, 0.3, 1] }}
             className="flex flex-col gap-3.5 sm:gap-5"
           >
-            {/* VIP Referral Welcome Banner */}
-            {referralInfo?.valid && (
-              <motion.div
-                initial={{ opacity: 0, y: -10, scale: 0.98 }}
-                animate={{ opacity: 1, y: 0, scale: 1 }}
-                className="relative overflow-hidden rounded-2xl border border-amber-500/40 bg-gradient-to-r from-amber-500/15 via-[#1a1712] to-emerald-500/10 p-4 shadow-lg shadow-amber-500/5"
-              >
-                <div className="flex items-start gap-3">
-                  <div className="grid size-10 shrink-0 place-items-center rounded-xl bg-gradient-to-br from-amber-400 to-amber-600 text-black shadow-md shadow-amber-500/20">
-                    <Sparkles className="size-5" />
-                  </div>
-                  <div className="min-w-0 flex-1">
-                    <div className="flex items-center gap-1.5 flex-wrap">
-                      <span className="font-mono text-[10px] font-black uppercase tracking-wider text-amber-400">
-                        VIP Talent Invitation
-                      </span>
-                      <span className="inline-flex items-center gap-1 rounded-full bg-emerald-500/20 px-2 py-0.5 text-[10px] font-bold text-emerald-400">
-                        <CheckCircle2 className="size-3" /> Code Applied: {referral}
-                      </span>
-                    </div>
-                    <p className="mt-1 text-xs text-white leading-relaxed">
-                      You were invited by <strong className="text-amber-300 font-semibold">{referralInfo.inviter_name || "a talent creator"}</strong>! Complete sign-up to receive <strong className="text-emerald-400 font-bold">+{referralInfo.welcome_coins || 50} Free Coins</strong> (₹{referralInfo.welcome_coins_value_inr || 25} discount power) immediately in your wallet.
-                    </p>
-                  </div>
-                </div>
-              </motion.div>
-            )}
-
-            <Field label="Email address" hint="We'll send a verification code here." error={errors.email} required>
-              {({ id, describedBy, invalid }) => (
-                <Input id={id} type="email" inputMode="email" autoComplete="email" value={email}
-                  onChange={(e) => setEmail(e.target.value)} aria-describedby={describedBy} invalid={invalid} placeholder="you@example.com" />
-              )}
-            </Field>
-
-            <Field
-              label="Referral code"
-              hint={
-                referralInfo?.valid
-                  ? `✓ Verified invite from ${referralInfo.inviter_name || "member"} (+${referralInfo.welcome_coins} free coins on signup)`
-                  : "Optional — if a friend invited you."
-              }
-            >
-              {({ id }) => (
-                <div className="relative">
-                  <Input
-                    id={id}
-                    type="text"
-                    value={referral}
-                    onChange={(e) => setReferral(e.target.value.toUpperCase())}
-                    placeholder="e.g. UTI2026"
-                    className={referralInfo?.valid ? "border-amber-500/50 pr-10 text-amber-300 font-mono tracking-wider font-bold" : ""}
-                  />
-                  {referralInfo?.valid && (
-                    <span className="absolute right-3 top-1/2 -translate-y-1/2 text-emerald-400" title="Verified Referral Code">
-                      <CheckCircle2 className="size-4" />
-                    </span>
-                  )}
-                  {referralInfo?.loading && (
-                    <span className="absolute right-3 top-1/2 -translate-y-1/2 size-4 border-2 border-gray-400 border-t-amber-400 rounded-full animate-spin" />
-                  )}
-                </div>
-              )}
-            </Field>
-
-            <Button type="submit" size="lg" loading={loading} className="mt-1 sm:mt-2 w-full">
-              Send verification code <ArrowRight className="size-4" aria-hidden />
-            </Button>
-
-            {/* Divider */}
-            <div className="flex items-center gap-4 py-0.5 sm:py-1">
-              <span className="h-px flex-1 bg-[var(--border)]" />
-              <span className="text-[11px] font-semibold uppercase tracking-[0.2em] text-[var(--fg-subtle)]">or</span>
-              <span className="h-px flex-1 bg-[var(--border)]" />
-            </div>
-
             {/* Google Sign-Up Button */}
             <button
               type="button"
@@ -389,8 +319,56 @@ export default function RegisterPage() {
                   <path fill="#EA4335" d="M12 5.38c1.62 0 3.06.56 4.21 1.64l3.15-3.15C17.45 2.09 14.97 1 12 1 7.7 1 3.99 3.47 2.18 7.06l3.66 2.84c.87-2.6 3.3-4.52 6.16-4.52z" />
                 </svg>
               )}
-              <span className="tracking-[0.04em]">Sign up with Google</span>
+              <span className="tracking-[0.02em]">Continue with Google</span>
             </button>
+
+            {/* Divider */}
+            <div className="flex items-center gap-4 py-0.5 sm:py-1">
+              <span className="h-px flex-1 bg-[var(--border)]" />
+              <span className="text-[11px] font-semibold uppercase tracking-[0.2em] text-[var(--fg-subtle)]">or with email</span>
+              <span className="h-px flex-1 bg-[var(--border)]" />
+            </div>
+
+            <Field label="Email address" hint="We'll send a verification code here." error={errors.email} required>
+              {({ id, describedBy, invalid }) => (
+                <Input id={id} type="email" inputMode="email" autoComplete="email" value={email}
+                  onChange={(e) => setEmail(e.target.value)} aria-describedby={describedBy} invalid={invalid} placeholder="you@example.com" />
+              )}
+            </Field>
+
+            <Field
+              label="Referral code"
+              hint={
+                referralInfo?.valid
+                  ? `✓ Invite applied from ${referralInfo.inviter_name || "a member"} • +${referralInfo.welcome_coins || 60} free coins on signup`
+                  : "Optional — if a friend invited you."
+              }
+            >
+              {({ id }) => (
+                <div className="relative">
+                  <Input
+                    id={id}
+                    type="text"
+                    value={referral}
+                    onChange={(e) => setReferral(e.target.value.toUpperCase())}
+                    placeholder="e.g. EVNT6F3HFS"
+                    className={referralInfo?.valid ? "border-emerald-500/50 pr-10 text-emerald-400 font-mono tracking-wider font-semibold" : ""}
+                  />
+                  {referralInfo?.valid && (
+                    <span className="absolute right-3 top-1/2 -translate-y-1/2 text-emerald-400" title="Verified Referral Code">
+                      <CheckCircle2 className="size-4" />
+                    </span>
+                  )}
+                  {referralInfo?.loading && (
+                    <span className="absolute right-3 top-1/2 -translate-y-1/2 size-4 border-2 border-gray-400 border-t-amber-400 rounded-full animate-spin" />
+                  )}
+                </div>
+              )}
+            </Field>
+
+            <Button type="submit" size="lg" loading={loading} className="mt-1 sm:mt-2 w-full">
+              Send verification code <ArrowRight className="size-4" aria-hidden />
+            </Button>
 
             <p className="text-center text-[13px] text-[var(--fg-muted)]">
               Already registered?{" "}
