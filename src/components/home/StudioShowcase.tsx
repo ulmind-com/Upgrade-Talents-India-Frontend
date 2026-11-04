@@ -75,7 +75,7 @@ export default function StudioShowcase({ events = [] }: { events?: EventItem[] }
       const mobile = width < 640;
       const tablet = width >= 640 && width < 1024;
       setIsMobile(mobile);
-      setTrackVh(mobile ? 260 : tablet ? 320 : 380);
+      setTrackVh(mobile ? 160 : tablet ? 240 : 320);
 
       let w = 300;
       let r = 420;
@@ -110,15 +110,15 @@ export default function StudioShowcase({ events = [] }: { events?: EventItem[] }
   const marqueeX = useTransform(p, [0, 1], ["14%", "-64%"]);
   const chromeOpacity = useTransform(p, [0, 0.80, 0.90], [1, 1, 0]);
 
-  /* Sparkle wipe: starts small in center stage, gradually grows as user scrolls, playing live dance video */
+  /* Sparkle wipe: smoothly wipes stage into next section as cards complete rotation */
   const wipeScale = useTransform(
     p,
-    [0.22, 0.42, 0.62, 0.80, 0.92, 1],
-    [0, 0.32, 0.68, 1.15, 3.4, 13]
+    [0.80, 0.88, 0.94, 1],
+    [0, 1.2, 4.2, 13]
   );
-  const wipeOpacity = useTransform(p, [0.20, 0.28], [0, 1]);
-  const wipeSpin = useTransform(p, [0.22, 1], [-18, 12]);
-  const wipeTextOpacity = useTransform(p, [0.86, 0.95], [0, 1]);
+  const wipeOpacity = useTransform(p, [0.80, 0.84], [0, 1]);
+  const wipeSpin = useTransform(p, [0.80, 1], [-25, 10]);
+  const wipeTextOpacity = useTransform(p, [0.88, 0.96], [0, 1]);
 
   useMotionValueEvent(rotation, "change", (v) => setSpin(v));
 
