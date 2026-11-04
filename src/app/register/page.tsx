@@ -4,7 +4,29 @@ import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useRef, useState, useEffect } from "react";
 import { motion, AnimatePresence } from "framer-motion";
-import { ArrowRight, ArrowLeft, Eye, EyeOff, Upload, Check, Mail, KeyRound, UserRound, Sparkles, Coins, Gift, CheckCircle2 } from "lucide-react";
+import {
+  ArrowRight,
+  ArrowLeft,
+  Eye,
+  EyeOff,
+  Upload,
+  Check,
+  Mail,
+  KeyRound,
+  UserRound,
+  Sparkles,
+  Coins,
+  Gift,
+  CheckCircle2,
+  User,
+  Phone,
+  MapPin,
+  Calendar,
+  Users,
+  Camera,
+  Lock,
+  ShieldCheck,
+} from "lucide-react";
 import { authApi, tokenStore, rewardsApi } from "@/lib/api";
 import { useAuth } from "@/components/motion/Providers";
 import { AuthShell, Field, FormAlert, Input, DateInput } from "@/components/ui/Form";
@@ -115,7 +137,19 @@ export default function RegisterPage() {
   const [confirm, setConfirm] = useState("");
   const [showPw, setShowPw] = useState(false);
   const [photo, setPhoto] = useState<File | null>(null);
+  const [photoPreview, setPhotoPreview] = useState<string | null>(null);
   const photoRef = useRef<HTMLInputElement>(null);
+
+  const handlePhotoSelect = (file: File | null) => {
+    setPhoto(file);
+    if (!file) {
+      setPhotoPreview(null);
+      return;
+    }
+    const reader = new FileReader();
+    reader.onload = () => setPhotoPreview(reader.result as string);
+    reader.readAsDataURL(file);
+  };
 
   const handleGoogleSignIn = async () => {
     setFormError(null);
@@ -251,8 +285,12 @@ export default function RegisterPage() {
   return (
     <AuthShell
       eyebrow={`Step 0${step} of 03`}
-      title="Join the stage"
-      subtitle="Create your account to book tickets, enter competitions and collect certificates."
+      title={step === 3 ? "Artist Profile" : "Join the stage"}
+      subtitle={
+        step === 3
+          ? "Set up your verified artist details & password to claim your stage pass."
+          : "Create your account to book tickets, enter competitions and collect certificates."
+      }
       aside={
         <div className="relative aspect-[4/5] overflow-hidden rounded-[var(--radius-2xl)] border border-[var(--border)]">
           <img src={imageFor(null, 3)} alt="" className="size-full object-cover" />
@@ -413,90 +451,240 @@ export default function RegisterPage() {
             key="s3" onSubmit={submitStep3} noValidate
             initial={{ opacity: 0, x: 24 }} animate={{ opacity: 1, x: 0 }} exit={{ opacity: 0, x: -24 }}
             transition={{ duration: 0.4, ease: [0.16, 1, 0.3, 1] }}
-            className="flex flex-col gap-3.5 sm:gap-5"
+            className="flex flex-col gap-4 sm:gap-5 w-full max-w-full"
           >
-            <Field label="Full name" error={errors.name} required>
-              {({ id, describedBy, invalid }) => (
-                <Input id={id} autoComplete="name" value={name} onChange={(e) => setName(e.target.value)}
-                  aria-describedby={describedBy} invalid={invalid} placeholder="Your full name" />
-              )}
-            </Field>
-
-            <div className="grid gap-3.5 sm:gap-5 sm:grid-cols-2">
-              <Field label="Phone number" error={errors.phone} required>
-                {({ id, describedBy, invalid }) => (
-                  <Input id={id} type="tel" inputMode="tel" autoComplete="tel" value={phone}
-                    onChange={(e) => setPhone(e.target.value)} aria-describedby={describedBy} invalid={invalid} placeholder="9876543210" />
-                )}
-              </Field>
-              <Field label="Parent / Guardian phone" error={errors.parentPhone} required>
-                {({ id, describedBy, invalid }) => (
-                  <Input id={id} type="tel" inputMode="tel" value={parentPhone}
-                    onChange={(e) => setParentPhone(e.target.value)} aria-describedby={describedBy} invalid={invalid} placeholder="9876543211" />
-                )}
-              </Field>
+            {/* Top Interactive Artist Avatar Frame */}
+            <div className="flex flex-col items-center justify-center text-center pt-1 pb-1">
+              <div
+                className="relative group cursor-pointer"
+                onClick={() => photoRef.current?.click()}
+                title="Tap to select profile photo"
+              >
+                <div className="relative size-22 sm:size-26 rounded-full p-1 border-2 border-[var(--accent)] bg-[var(--surface-2)] shadow-xl transition-all duration-300 group-hover:scale-105 group-hover:border-[var(--accent-hover)]">
+                  <div className="size-full overflow-hidden rounded-full grid place-items-center bg-[var(--surface)]">
+                    {photoPreview ? (
+                      <img src={photoPreview} alt="Preview" className="size-full object-cover" />
+                    ) : (
+                      <User className="size-9 sm:size-11 text-[var(--fg-muted)]" />
+                    )}
+                  </div>
+                </div>
+                <button
+                  type="button"
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    photoRef.current?.click();
+                  }}
+                  aria-label="Upload photo"
+                  className="absolute bottom-0 right-0 grid size-8 sm:size-8.5 place-items-center rounded-full text-white shadow-lg transition-transform hover:scale-110 active:scale-95 cursor-pointer"
+                  style={{ background: "var(--grad-brand)" }}
+                >
+                  <Camera className="size-3.5" />
+                </button>
+              </div>
+              <input
+                ref={photoRef}
+                type="file"
+                accept="image/*"
+                className="hidden"
+                onChange={(e) => handlePhotoSelect(e.target.files?.[0] || null)}
+              />
+              <p className="mt-2 text-xs font-semibold text-[var(--fg)] truncate max-w-[280px]">
+                {photo ? photo.name : "Tap to set artist avatar"}
+              </p>
+              <span className="text-[10.5px] text-[var(--fg-subtle)]">
+                {photo ? "Photo selected • tap to change" : "Optional — lets judges identify you"}
+              </span>
             </div>
 
-            <Field label="Date of birth" error={errors.dob} required>
-              {({ id, describedBy, invalid }) => (
-                <DateInput
-                  id={id}
-                  value={dob}
-                  onChange={(e) => setDob(e.target.value)}
-                  aria-describedby={describedBy}
-                  invalid={invalid}
-                />
-              )}
-            </Field>
+            {/* ── CARD 1: PERSONAL INFORMATION ── */}
+            <div className="rounded-2xl border border-[var(--border)] bg-[var(--surface)]/70 p-3.5 sm:p-4.5 shadow-sm space-y-3.5">
+              <div className="flex items-center gap-2 pb-1 border-b border-[var(--border)]/70">
+                <span className="grid size-6 place-items-center rounded-lg bg-[var(--accent)]/15 text-[var(--accent)]">
+                  <User className="size-3.5" />
+                </span>
+                <span className="text-xs font-bold uppercase tracking-wider text-[var(--fg)] font-mono">
+                  Personal Information
+                </span>
+              </div>
 
-            <Field label="Address" error={errors.address} required>
-              {({ id, describedBy, invalid }) => (
-                <Input id={id} autoComplete="street-address" value={address}
-                  onChange={(e) => setAddress(e.target.value)} aria-describedby={describedBy} invalid={invalid} placeholder="City, state, pincode" />
-              )}
-            </Field>
-
-            <div className="grid gap-3.5 sm:gap-5 sm:grid-cols-2">
-              <Field label="Password" error={errors.password} required>
+              {/* Full Name */}
+              <Field label="Full Name" error={errors.name} required>
                 {({ id, describedBy, invalid }) => (
                   <div className="relative">
-                    <Input id={id} type={showPw ? "text" : "password"} autoComplete="new-password" value={password}
-                      onChange={(e) => setPassword(e.target.value)} aria-describedby={describedBy} invalid={invalid}
-                      placeholder="••••••••" className="pr-14" />
-                    <button type="button" onClick={() => setShowPw((s) => !s)}
-                      aria-label={showPw ? "Hide password" : "Show password"}
-                      className="absolute right-1.5 top-1.5 grid size-9 cursor-pointer place-items-center rounded-lg text-[var(--fg-subtle)] hover:text-[var(--fg)]">
-                      {showPw ? <EyeOff className="size-4" aria-hidden /> : <Eye className="size-4" aria-hidden />}
-                    </button>
+                    <Input
+                      id={id}
+                      autoComplete="name"
+                      value={name}
+                      onChange={(e) => setName(e.target.value)}
+                      aria-describedby={describedBy}
+                      invalid={invalid}
+                      placeholder="e.g. Rahul Sharma"
+                      className="pl-11"
+                    />
+                    <User className="absolute left-3.5 top-3.5 size-4 text-[var(--fg-subtle)]" aria-hidden />
                   </div>
                 )}
               </Field>
-              <Field label="Confirm password" error={errors.confirm} required>
+
+              {/* Date of Birth */}
+              <Field label="Date of Birth" error={errors.dob} hint="Used to verify age bracket for competition rules" required>
                 {({ id, describedBy, invalid }) => (
-                  <Input id={id} type={showPw ? "text" : "password"} autoComplete="new-password" value={confirm}
-                    onChange={(e) => setConfirm(e.target.value)} aria-describedby={describedBy} invalid={invalid} placeholder="••••••••" />
+                  <DateInput
+                    id={id}
+                    value={dob}
+                    onChange={(e) => setDob(e.target.value)}
+                    aria-describedby={describedBy}
+                    invalid={invalid}
+                  />
                 )}
               </Field>
             </div>
 
-            {/* Profile Photo */}
-            <Field label="Profile photo" hint="Optional — you can add or change this anytime in your profile.">
-              {({ id }) => (
-                <>
-                  <input ref={photoRef} id={id} type="file" accept="image/*" className="sr-only"
-                    onChange={(e) => setPhoto(e.target.files?.[0] || null)} />
-                  <button type="button" onClick={() => photoRef.current?.click()}
-                    className="flex min-h-[48px] w-full cursor-pointer items-center gap-3 rounded-xl border border-dashed border-[var(--border-strong)] px-4 text-left text-[13px] transition-colors hover:border-[var(--accent)]">
-                    <Upload className="size-4 shrink-0 text-[var(--accent)]" aria-hidden />
-                    <span className="truncate text-[var(--fg-muted)]">{photo?.name || "Choose a photo"}</span>
-                  </button>
-                </>
-              )}
-            </Field>
+            {/* ── CARD 2: CONTACT & RESIDENCE ── */}
+            <div className="rounded-2xl border border-[var(--border)] bg-[var(--surface)]/70 p-3.5 sm:p-4.5 shadow-sm space-y-3.5">
+              <div className="flex items-center gap-2 pb-1 border-b border-[var(--border)]/70">
+                <span className="grid size-6 place-items-center rounded-lg bg-emerald-500/15 text-emerald-400">
+                  <Phone className="size-3.5" />
+                </span>
+                <span className="text-xs font-bold uppercase tracking-wider text-[var(--fg)] font-mono">
+                  Contact &amp; Guardian Details
+                </span>
+              </div>
 
-            <Button type="submit" size="lg" loading={loading} className="mt-2 w-full">
-              Complete registration <ArrowRight className="size-4" aria-hidden />
+              <div className="grid gap-3.5 sm:grid-cols-2">
+                <Field label="Mobile Number" error={errors.phone} required>
+                  {({ id, describedBy, invalid }) => (
+                    <div className="relative">
+                      <Input
+                        id={id}
+                        type="tel"
+                        inputMode="tel"
+                        autoComplete="tel"
+                        value={phone}
+                        onChange={(e) => setPhone(e.target.value)}
+                        aria-describedby={describedBy}
+                        invalid={invalid}
+                        placeholder="9876543210"
+                        className="pl-11"
+                      />
+                      <Phone className="absolute left-3.5 top-3.5 size-4 text-[var(--fg-subtle)]" aria-hidden />
+                    </div>
+                  )}
+                </Field>
+
+                <Field label="Parent / Guardian Phone" error={errors.parentPhone} hint="Emergency contact" required>
+                  {({ id, describedBy, invalid }) => (
+                    <div className="relative">
+                      <Input
+                        id={id}
+                        type="tel"
+                        inputMode="tel"
+                        value={parentPhone}
+                        onChange={(e) => setParentPhone(e.target.value)}
+                        aria-describedby={describedBy}
+                        invalid={invalid}
+                        placeholder="9876543211"
+                        className="pl-11"
+                      />
+                      <Users className="absolute left-3.5 top-3.5 size-4 text-[var(--fg-subtle)]" aria-hidden />
+                    </div>
+                  )}
+                </Field>
+              </div>
+
+              <Field label="Residential Address" error={errors.address} hint="City, State, and Pincode for certificates and prizes" required>
+                {({ id, describedBy, invalid }) => (
+                  <div className="relative">
+                    <Input
+                      id={id}
+                      autoComplete="street-address"
+                      value={address}
+                      onChange={(e) => setAddress(e.target.value)}
+                      aria-describedby={describedBy}
+                      invalid={invalid}
+                      placeholder="e.g. Kolkata, West Bengal 700001"
+                      className="pl-11"
+                    />
+                    <MapPin className="absolute left-3.5 top-3.5 size-4 text-[var(--fg-subtle)]" aria-hidden />
+                  </div>
+                )}
+              </Field>
+            </div>
+
+            {/* ── CARD 3: ACCOUNT SECURITY ── */}
+            <div className="rounded-2xl border border-[var(--border)] bg-[var(--surface)]/70 p-3.5 sm:p-4.5 shadow-sm space-y-3.5">
+              <div className="flex items-center gap-2 pb-1 border-b border-[var(--border)]/70">
+                <span className="grid size-6 place-items-center rounded-lg bg-amber-500/15 text-amber-400">
+                  <Lock className="size-3.5" />
+                </span>
+                <span className="text-xs font-bold uppercase tracking-wider text-[var(--fg)] font-mono">
+                  Account Password
+                </span>
+              </div>
+
+              <div className="grid gap-3.5 sm:grid-cols-2">
+                <Field label="Create Password" error={errors.password} required>
+                  {({ id, describedBy, invalid }) => (
+                    <div className="relative">
+                      <Input
+                        id={id}
+                        type={showPw ? "text" : "password"}
+                        autoComplete="new-password"
+                        value={password}
+                        onChange={(e) => setPassword(e.target.value)}
+                        aria-describedby={describedBy}
+                        invalid={invalid}
+                        placeholder="••••••••"
+                        className="pl-11 pr-12"
+                      />
+                      <Lock className="absolute left-3.5 top-3.5 size-4 text-[var(--fg-subtle)]" aria-hidden />
+                      <button
+                        type="button"
+                        onClick={() => setShowPw((s) => !s)}
+                        aria-label={showPw ? "Hide password" : "Show password"}
+                        className="absolute right-2 top-2.5 grid size-7 cursor-pointer place-items-center rounded-lg text-[var(--fg-subtle)] hover:text-[var(--fg)] hover:bg-[var(--surface-2)]"
+                      >
+                        {showPw ? <EyeOff className="size-4" aria-hidden /> : <Eye className="size-4" aria-hidden />}
+                      </button>
+                    </div>
+                  )}
+                </Field>
+
+                <Field label="Confirm Password" error={errors.confirm} required>
+                  {({ id, describedBy, invalid }) => (
+                    <div className="relative">
+                      <Input
+                        id={id}
+                        type={showPw ? "text" : "password"}
+                        autoComplete="new-password"
+                        value={confirm}
+                        onChange={(e) => setConfirm(e.target.value)}
+                        aria-describedby={describedBy}
+                        invalid={invalid}
+                        placeholder="••••••••"
+                        className="pl-11"
+                      />
+                      <Lock className="absolute left-3.5 top-3.5 size-4 text-[var(--fg-subtle)]" aria-hidden />
+                    </div>
+                  )}
+                </Field>
+              </div>
+            </div>
+
+            <Button
+              type="submit"
+              size="lg"
+              loading={loading}
+              className="mt-2 w-full h-12 sm:h-13 text-[14.5px] sm:text-[15px] font-bold shadow-xl shadow-[var(--accent)]/15 active:scale-[0.99] transition-transform cursor-pointer"
+            >
+              Complete Registration &amp; Enter Stage <ArrowRight className="size-4" aria-hidden />
             </Button>
+
+            <p className="flex items-center justify-center gap-1.5 text-center text-[11px] text-[var(--fg-subtle)]">
+              <ShieldCheck className="size-3.5 text-emerald-400" />
+              <span>256-bit Secure SSL • Official Talent Identity</span>
+            </p>
           </motion.form>
         )}
       </AnimatePresence>

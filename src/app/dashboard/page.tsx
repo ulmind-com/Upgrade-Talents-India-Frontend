@@ -13,7 +13,7 @@ import {
   ExternalLink, GraduationCap, ShieldCheck, MapPin, Phone,
   Mail, Flame, Star, Send, Layers, Package, Banknote,
   ChevronLeft, ChevronRight, Share2, Bell, Settings, Eye, Briefcase, LogOut, Search, Radio,
-  Gift, Users, MessageCircle, Zap, TrendingUp, CheckCircle,
+  Gift, Users, MessageCircle, Zap, TrendingUp, CheckCircle, KeyRound,
 } from "lucide-react";
 import {
   bookingsApi, vipApi, profileApi, rewardsApi, certificatesApi, shopApi, publicApi,
@@ -72,6 +72,7 @@ export default function DashboardPage() {
   const [calendarDate, setCalendarDate] = useState(() => new Date());
   const [copiedRef, setCopiedRef] = useState(false);
   const [copiedEmail, setCopiedEmail] = useState(false);
+  const [copiedPhone, setCopiedPhone] = useState(false);
 
   const handleCopyReferral = useCallback(() => {
     setShareModalOpen(true);
@@ -84,6 +85,14 @@ export default function DashboardPage() {
       setTimeout(() => setCopiedEmail(false), 2000);
     }
   }, [user?.email]);
+
+  const handleCopyPhone = useCallback(() => {
+    if (user?.phone_number) {
+      navigator.clipboard.writeText(String(user.phone_number));
+      setCopiedPhone(true);
+      setTimeout(() => setCopiedPhone(false), 2000);
+    }
+  }, [user?.phone_number]);
 
   const calendarMonthYear = useMemo(() => {
     return calendarDate.toLocaleString("default", { month: "long", year: "numeric" });
@@ -1167,30 +1176,447 @@ export default function DashboardPage() {
                 </div>
               )}
 
-              {/* ── PROFILE HEADER (matching reference: Title on left, Date & Controls on right) ── */}
-              <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4 pb-1">
-                <div>
-                  <h2 className="font-display text-2xl sm:text-3xl font-bold tracking-tight text-[var(--fg)]">
-                    Profile
-                  </h2>
-                </div>
-                <div className="flex items-center gap-3 text-xs text-[var(--fg-muted)]">
-                  <span className="font-mono">
-                    {new Date().toLocaleDateString("en-US", { month: "long", day: "numeric", year: "numeric" })},{" "}
-                    {new Date().toLocaleTimeString("en-US", { hour: "numeric", minute: "2-digit" })}
-                  </span>
-                  <div className="flex items-center gap-1.5 pl-3 border-l border-[var(--border)]">
+              {/* ══════════════════════════════════════════════════════════════
+                  MOBILE NATIVE APP PROFILE VIEW (Phone viewports)
+                 ══════════════════════════════════════════════════════════════ */}
+              <div className="block md:hidden space-y-4 pb-4">
+                {/* 1. Elite Hero Identity Card */}
+                <div className="relative overflow-hidden rounded-[26px] border border-[var(--border)] bg-gradient-to-b from-[var(--surface-2)]/90 via-[var(--surface)] to-[var(--surface-2)]/80 p-5 shadow-2xl backdrop-blur-md">
+                  <div
+                    className="absolute -top-12 -right-12 size-36 rounded-full pointer-events-none opacity-20 blur-2xl"
+                    style={{ background: "var(--grad-brand)" }}
+                    aria-hidden
+                  />
+
+                  {/* Top Bar with Status and Settings button */}
+                  <div className="flex items-center justify-between mb-2">
+                    <div className="flex items-center gap-1.5">
+                      <span className="relative flex size-2">
+                        <span className="absolute inline-flex h-full w-full animate-ping rounded-full bg-emerald-400 opacity-75" />
+                        <span className="relative inline-flex size-2 rounded-full bg-emerald-500" />
+                      </span>
+                      <span className="font-mono text-[10px] font-bold uppercase tracking-widest text-emerald-400">
+                        Active Artist Pass
+                      </span>
+                    </div>
                     <button
                       onClick={() => setEditOpen(true)}
-                      title="Edit Profile Settings"
-                      aria-label="Settings"
-                      className="grid size-8 place-items-center rounded-xl border border-[var(--border)] bg-[var(--surface)] text-[var(--fg-subtle)] hover:text-[var(--fg)] hover:border-[var(--accent)] transition-colors cursor-pointer"
+                      aria-label="Edit Profile"
+                      className="grid size-8 place-items-center rounded-xl border border-[var(--border)] bg-[var(--surface)] text-[var(--fg-subtle)] active:scale-95 transition-transform cursor-pointer"
                     >
                       <Settings className="size-4" />
                     </button>
                   </div>
+
+                  {/* Centered Avatar and Name */}
+                  <div className="flex flex-col items-center text-center mt-1">
+                    <div className="relative">
+                      <div className="size-22 rounded-full p-1 border-2 border-[var(--accent)] bg-[var(--surface)] shadow-xl">
+                        <div className="size-full overflow-hidden rounded-full grid place-items-center bg-[var(--bg)]">
+                          {user?.profile_photo ? (
+                            <img src={user.profile_photo} alt={user?.name || "Profile"} className="size-full object-cover" />
+                          ) : (
+                            <User className="size-11 text-[var(--fg-muted)]" />
+                          )}
+                        </div>
+                      </div>
+                      <button
+                        onClick={() => setEditOpen(true)}
+                        aria-label="Change photo"
+                        className="absolute bottom-0 right-0 grid size-7 place-items-center rounded-full text-white shadow-lg active:scale-90 transition-transform cursor-pointer"
+                        style={{ background: "var(--grad-brand)" }}
+                      >
+                        <Camera className="size-3.5" />
+                      </button>
+                    </div>
+
+                    <div className="mt-3 flex items-center justify-center gap-1.5 flex-wrap">
+                      <h3 className="font-display text-xl font-bold text-[var(--fg)] tracking-tight">
+                        {user?.name || "Contestant"}
+                      </h3>
+                      {(user?.is_verified || user?.verified_badge || user?.verified_tick) ? (
+                        <VerifiedBadge size="sm" />
+                      ) : null}
+                    </div>
+
+                    <p className="mt-0.5 text-xs font-semibold text-cyan-400">
+                      Performing Artist <span className="text-[var(--fg-subtle)] font-normal">• State Stage</span>
+                    </p>
+
+                    {/* Government ID Verified pill */}
+                    <div className="mt-2 flex items-center gap-2">
+                      {(user?.is_verified || user?.verified_badge || user?.verified_tick) ? (
+                        <span className="rounded-full bg-sky-500/15 border border-sky-500/40 px-3 py-0.5 text-[10px] font-bold text-sky-300 font-mono flex items-center gap-1.5 shadow-sm">
+                          <VerifiedBadge size="xs" />
+                          Aadhaar Verified
+                        </span>
+                      ) : (
+                        <span className="rounded-full bg-emerald-500/15 border border-emerald-500/30 px-3 py-0.5 text-[10px] font-bold text-emerald-400 font-mono flex items-center gap-1.5">
+                          <ShieldCheck className="size-3 text-emerald-400" />
+                          Stage Identity Verified
+                        </span>
+                      )}
+                    </div>
+
+                    {/* Referral Invite Chip */}
+                    {user?.referral_code && (
+                      <div
+                        onClick={() => setShareModalOpen(true)}
+                        className="mt-3.5 w-full flex items-center justify-between gap-2 rounded-2xl border border-amber-500/35 bg-gradient-to-r from-amber-500/15 via-amber-500/10 to-transparent p-2.5 px-3.5 cursor-pointer active:scale-[0.99] transition-transform shadow-sm"
+                      >
+                        <div className="flex items-center gap-2 min-w-0">
+                          <span className="grid size-7 shrink-0 place-items-center rounded-xl bg-amber-500/20 text-amber-400">
+                            <Sparkles className="size-3.5" />
+                          </span>
+                          <div className="text-left min-w-0">
+                            <span className="block text-[9.5px] font-mono uppercase tracking-wider text-amber-300/80">Invite Code</span>
+                            <span className="font-mono text-xs font-bold text-amber-300 tracking-wider truncate block">
+                              {user.referral_code}
+                            </span>
+                          </div>
+                        </div>
+                        <span className="rounded-full bg-amber-500 px-2.5 py-1 text-[10px] font-bold text-black font-sans shrink-0 shadow-sm">
+                          +100 Coins &rarr;
+                        </span>
+                      </div>
+                    )}
+                  </div>
                 </div>
+
+                {/* 2. Four Quick App Stats */}
+                <div className="grid grid-cols-4 gap-2">
+                  <button
+                    type="button"
+                    onClick={() => setTab("tickets")}
+                    className="flex flex-col items-center justify-center rounded-2xl border border-[var(--border)] bg-[var(--surface)] p-2.5 text-center shadow-sm active:scale-95 transition-all cursor-pointer hover:border-[var(--accent)]"
+                  >
+                    <Ticket className="size-4 text-cyan-400 mb-1" />
+                    <span className="font-display text-base font-bold text-[var(--fg)] leading-none">{tickets.length}</span>
+                    <span className="mt-1 text-[10px] font-mono text-[var(--fg-subtle)] uppercase">Passes</span>
+                  </button>
+
+                  <button
+                    type="button"
+                    onClick={() => setTab("competitions")}
+                    className="flex flex-col items-center justify-center rounded-2xl border border-[var(--border)] bg-[var(--surface)] p-2.5 text-center shadow-sm active:scale-95 transition-all cursor-pointer hover:border-[var(--accent)]"
+                  >
+                    <Trophy className="size-4 text-amber-400 mb-1" />
+                    <span className="font-display text-base font-bold text-[var(--fg)] leading-none">{competitions.length}</span>
+                    <span className="mt-1 text-[10px] font-mono text-[var(--fg-subtle)] uppercase">Contests</span>
+                  </button>
+
+                  <button
+                    type="button"
+                    onClick={() => setTab("certificates")}
+                    className="flex flex-col items-center justify-center rounded-2xl border border-[var(--border)] bg-[var(--surface)] p-2.5 text-center shadow-sm active:scale-95 transition-all cursor-pointer hover:border-[var(--accent)]"
+                  >
+                    <Award className="size-4 text-emerald-400 mb-1" />
+                    <span className="font-display text-base font-bold text-[var(--fg)] leading-none">{certificates.length}</span>
+                    <span className="mt-1 text-[10px] font-mono text-[var(--fg-subtle)] uppercase">Certs</span>
+                  </button>
+
+                  <button
+                    type="button"
+                    onClick={() => setTab("rewards")}
+                    className="flex flex-col items-center justify-center rounded-2xl border border-amber-500/30 bg-amber-500/10 p-2.5 text-center shadow-sm active:scale-95 transition-all cursor-pointer hover:border-amber-400"
+                  >
+                    <Coins className="size-4 text-amber-400 mb-1" />
+                    <span className="font-display text-base font-bold text-amber-300 font-mono leading-none">{coinsData.total_coins}</span>
+                    <span className="mt-1 text-[10px] font-mono text-amber-400/90 uppercase">Coins</span>
+                  </button>
+                </div>
+
+                {/* 3. Primary Mobile Actions */}
+                <div className="grid grid-cols-2 gap-2.5">
+                  <button
+                    type="button"
+                    onClick={() => setEditOpen(true)}
+                    className="flex items-center justify-center gap-2 rounded-2xl py-3 px-4 text-xs font-bold text-white shadow-md active:scale-98 transition-transform cursor-pointer"
+                    style={{ background: "var(--grad-brand)" }}
+                  >
+                    <Edit3 className="size-3.5" /> Edit Profile
+                  </button>
+
+                  <button
+                    type="button"
+                    onClick={() => setShareModalOpen(true)}
+                    className="flex items-center justify-center gap-2 rounded-2xl border border-amber-500/40 bg-amber-500/10 py-3 px-4 text-xs font-bold text-amber-300 shadow-sm active:scale-98 transition-transform cursor-pointer hover:bg-amber-500/20"
+                  >
+                    <Share2 className="size-3.5" /> Invite &amp; Earn
+                  </button>
+                </div>
+
+                {/* 4. Grouped Section: Contact & Residence Details */}
+                <div className="rounded-2xl border border-[var(--border)] bg-[var(--surface)] overflow-hidden shadow-sm">
+                  <div className="flex items-center justify-between p-3.5 px-4 bg-[var(--surface-2)]/60 border-b border-[var(--border)]">
+                    <span className="font-mono text-xs font-bold uppercase tracking-wider text-[var(--fg)] flex items-center gap-2">
+                      <User className="size-3.5 text-[var(--accent)]" /> Contact &amp; Details
+                    </span>
+                    <button
+                      type="button"
+                      onClick={() => setEditOpen(true)}
+                      className="text-[11px] font-bold text-[var(--accent)] hover:underline cursor-pointer"
+                    >
+                      Update
+                    </button>
+                  </div>
+
+                  <div className="divide-y divide-[var(--border)]/70 text-xs">
+                    {/* Mobile Number */}
+                    <div className="flex items-center justify-between p-3.5 px-4">
+                      <div className="flex items-center gap-3 min-w-0">
+                        <span className="grid size-8 shrink-0 place-items-center rounded-xl bg-emerald-500/15 text-emerald-400">
+                          <Phone className="size-4" />
+                        </span>
+                        <div className="min-w-0">
+                          <span className="block text-[10px] font-mono text-[var(--fg-subtle)] uppercase">Mobile Number</span>
+                          <span className="font-mono font-bold text-[var(--fg)] text-xs truncate block">
+                            {user?.phone_number ? `+91 ${user.phone_number}` : "Not linked"}
+                          </span>
+                        </div>
+                      </div>
+                      {user?.phone_number && (
+                        <button
+                          type="button"
+                          onClick={handleCopyPhone}
+                          title="Copy phone"
+                          className="p-1.5 text-[var(--fg-subtle)] hover:text-emerald-400 transition-colors cursor-pointer"
+                        >
+                          {copiedPhone ? <Check className="size-3.5 text-emerald-400" /> : <Copy className="size-3.5" />}
+                        </button>
+                      )}
+                    </div>
+
+                    {/* Email Address */}
+                    <div className="flex items-center justify-between p-3.5 px-4">
+                      <div className="flex items-center gap-3 min-w-0">
+                        <span className="grid size-8 shrink-0 place-items-center rounded-xl bg-sky-500/15 text-sky-400">
+                          <Mail className="size-4" />
+                        </span>
+                        <div className="min-w-0 pr-2">
+                          <span className="block text-[10px] font-mono text-[var(--fg-subtle)] uppercase">Email Address</span>
+                          <span className="font-mono text-[var(--fg)] text-xs truncate block">
+                            {user?.email || "—"}
+                          </span>
+                        </div>
+                      </div>
+                      {user?.email && (
+                        <button
+                          type="button"
+                          onClick={handleCopyEmail}
+                          title="Copy email"
+                          className="p-1.5 text-[var(--fg-subtle)] hover:text-sky-400 transition-colors cursor-pointer shrink-0"
+                        >
+                          {copiedEmail ? <Check className="size-3.5 text-emerald-400" /> : <Copy className="size-3.5" />}
+                        </button>
+                      )}
+                    </div>
+
+                    {/* Parent Phone */}
+                    <div className="flex items-center justify-between p-3.5 px-4">
+                      <div className="flex items-center gap-3 min-w-0">
+                        <span className="grid size-8 shrink-0 place-items-center rounded-xl bg-purple-500/15 text-purple-400">
+                          <Users className="size-4" />
+                        </span>
+                        <div className="min-w-0">
+                          <span className="block text-[10px] font-mono text-[var(--fg-subtle)] uppercase">Parent / Guardian</span>
+                          <span className="font-mono font-bold text-[var(--fg)] text-xs truncate block">
+                            {user?.parent_phone_number ? `+91 ${user.parent_phone_number}` : "Not linked"}
+                          </span>
+                        </div>
+                      </div>
+                      <span className="rounded-md bg-purple-500/10 px-2 py-0.5 text-[9.5px] font-mono font-semibold text-purple-300 shrink-0">
+                        Emergency
+                      </span>
+                    </div>
+
+                    {/* Date of Birth */}
+                    <div className="flex items-center gap-3 p-3.5 px-4">
+                      <span className="grid size-8 shrink-0 place-items-center rounded-xl bg-rose-500/15 text-rose-400">
+                        <Calendar className="size-4" />
+                      </span>
+                      <div className="min-w-0">
+                        <span className="block text-[10px] font-mono text-[var(--fg-subtle)] uppercase">Date of Birth</span>
+                        <span className="font-mono text-[var(--fg)] text-xs truncate block">
+                          {user?.date_of_birth ? formatEventDate(user.date_of_birth) : "Not set"}
+                        </span>
+                      </div>
+                    </div>
+
+                    {/* Residential Address */}
+                    <div className="flex items-start gap-3 p-3.5 px-4">
+                      <span className="grid size-8 shrink-0 place-items-center rounded-xl bg-amber-500/15 text-amber-400 mt-0.5">
+                        <MapPin className="size-4" />
+                      </span>
+                      <div className="min-w-0">
+                        <span className="block text-[10px] font-mono text-[var(--fg-subtle)] uppercase">Residential Address</span>
+                        <span className="text-[var(--fg)] text-xs leading-relaxed block">
+                          {user?.address || "Address not provided"}
+                        </span>
+                      </div>
+                    </div>
+                  </div>
+                </div>
+
+                {/* 5. Grouped Section: Talent Credentials & Milestones */}
+                <div className="rounded-2xl border border-[var(--border)] bg-[var(--surface)] overflow-hidden shadow-sm">
+                  <div className="p-3.5 px-4 bg-[var(--surface-2)]/60 border-b border-[var(--border)]">
+                    <span className="font-mono text-xs font-bold uppercase tracking-wider text-[var(--fg)] flex items-center gap-2">
+                      <ShieldCheck className="size-3.5 text-emerald-400" /> Talent Credentials
+                    </span>
+                  </div>
+
+                  <div className="grid grid-cols-2 divide-x divide-y divide-[var(--border)]/70 text-xs">
+                    <div className="p-3 px-3.5">
+                      <span className="block text-[10px] font-mono text-[var(--fg-subtle)] uppercase">Art Discipline</span>
+                      <span className="font-bold text-[var(--fg)] text-xs mt-0.5 block truncate">Dance &amp; Performing</span>
+                    </div>
+                    <div className="p-3 px-3.5 border-t-0">
+                      <span className="block text-[10px] font-mono text-[var(--fg-subtle)] uppercase">Talent Track</span>
+                      <span className="font-bold text-cyan-400 text-xs mt-0.5 block truncate">Contestant</span>
+                    </div>
+                    <div className="p-3 px-3.5">
+                      <span className="block text-[10px] font-mono text-[var(--fg-subtle)] uppercase">Govt ID Status</span>
+                      <span className="font-bold text-emerald-400 text-xs mt-0.5 flex items-center gap-1 truncate">
+                        <CheckCircle2 className="size-3 shrink-0" /> Verified Pass
+                      </span>
+                    </div>
+                    <div className="p-3 px-3.5">
+                      <span className="block text-[10px] font-mono text-[var(--fg-subtle)] uppercase">Member Since</span>
+                      <span className="font-mono font-bold text-[var(--fg)] text-xs mt-0.5 block truncate">
+                        {user?.created_at ? formatEventDate(user.created_at) : "Active"}
+                      </span>
+                    </div>
+                  </div>
+                </div>
+
+                {/* 6. Upcoming Stages Mobile Preview */}
+                {displayUpcomingCompetitions.length > 0 && (
+                  <div className="rounded-2xl border border-[var(--border)] bg-[var(--surface)] p-4 shadow-sm space-y-3">
+                    <div className="flex items-center justify-between pb-1">
+                      <span className="font-mono text-xs font-bold uppercase tracking-wider text-[var(--fg)] flex items-center gap-1.5">
+                        <Trophy className="size-3.5 text-amber-400" /> Upcoming Stage
+                      </span>
+                      <Link
+                        href="/competitions"
+                        className="text-[10px] font-bold text-[var(--accent)] hover:underline"
+                      >
+                        View All ({displayUpcomingCompetitions.length}) &rarr;
+                      </Link>
+                    </div>
+
+                    <div className="space-y-2">
+                      {displayUpcomingCompetitions.slice(0, 2).map((comp, idx) => {
+                        const compLink = comp.id?.startsWith("comp-") ? "/competitions" : `/competitions/${comp.id}`;
+                        const img = imageFor(comp.image_url, idx);
+                        const compDate = formatCompDate(comp.date);
+                        return (
+                          <Link
+                            key={comp.id || idx}
+                            href={compLink}
+                            className="flex items-center gap-3 rounded-xl border border-[var(--border)] bg-[var(--surface-2)]/60 p-2.5 active:scale-[0.99] transition-transform"
+                          >
+                            <img src={img} alt="" className="size-12 shrink-0 rounded-lg object-cover border border-[var(--border)]" />
+                            <div className="min-w-0 flex-1">
+                              <h5 className="font-bold text-xs text-[var(--fg)] truncate">{comp.title}</h5>
+                              <p className="mt-0.5 text-[10.5px] font-mono text-[var(--fg-muted)] flex items-center gap-1 truncate">
+                                <Calendar className="size-3 text-[var(--accent)] shrink-0" />
+                                {compDate}
+                              </p>
+                            </div>
+                            <span className="grid size-6 place-items-center rounded-full bg-[var(--surface)] border border-[var(--border)] text-[var(--fg-subtle)] shrink-0">
+                              <ArrowUpRight className="size-3" />
+                            </span>
+                          </Link>
+                        );
+                      })}
+                    </div>
+                  </div>
+                )}
+
+                {/* 7. Grouped Section: Account Actions & Security */}
+                <div className="rounded-2xl border border-[var(--border)] bg-[var(--surface)] overflow-hidden shadow-sm divide-y divide-[var(--border)]/70 text-xs">
+                  {/* Digital QR Pass */}
+                  <button
+                    type="button"
+                    onClick={() => setShareModalOpen(true)}
+                    className="w-full flex items-center justify-between p-3.5 px-4 hover:bg-[var(--surface-2)] active:bg-[var(--surface-2)] transition-colors cursor-pointer text-left"
+                  >
+                    <div className="flex items-center gap-3">
+                      <span className="grid size-8 place-items-center rounded-xl bg-cyan-400/15 text-cyan-400">
+                        <QrCode className="size-4" />
+                      </span>
+                      <div>
+                        <span className="font-bold text-[var(--fg)] text-xs block">My Digital QR Pass</span>
+                        <span className="text-[10.5px] text-[var(--fg-subtle)] block">Scan for in-person venue entry &amp; referral</span>
+                      </div>
+                    </div>
+                    <ChevronRight className="size-4 text-[var(--fg-subtle)]" />
+                  </button>
+
+                  {/* Reset Password */}
+                  <Link
+                    href="/forgot-password"
+                    className="flex items-center justify-between p-3.5 px-4 hover:bg-[var(--surface-2)] active:bg-[var(--surface-2)] transition-colors text-left"
+                  >
+                    <div className="flex items-center gap-3">
+                      <span className="grid size-8 place-items-center rounded-xl bg-amber-400/15 text-amber-400">
+                        <KeyRound className="size-4" />
+                      </span>
+                      <div>
+                        <span className="font-bold text-[var(--fg)] text-xs block">Change Password</span>
+                        <span className="text-[10.5px] text-[var(--fg-subtle)] block">Update account access security</span>
+                      </div>
+                    </div>
+                    <ChevronRight className="size-4 text-[var(--fg-subtle)]" />
+                  </Link>
+
+                  {/* Sign Out */}
+                  <button
+                    type="button"
+                    onClick={logout}
+                    className="w-full flex items-center justify-between p-3.5 px-4 hover:bg-red-500/5 active:bg-red-500/10 transition-colors cursor-pointer text-left group"
+                  >
+                    <div className="flex items-center gap-3">
+                      <span className="grid size-8 place-items-center rounded-xl bg-red-500/15 text-red-400">
+                        <LogOut className="size-4" />
+                      </span>
+                      <span className="font-bold text-red-400 text-xs">Sign Out of Dashboard</span>
+                    </div>
+                    <ChevronRight className="size-4 text-red-400/60 group-hover:translate-x-0.5 transition-transform" />
+                  </button>
+                </div>
+
               </div>
+
+              {/* ══════════════════════════════════════════════════════════════
+                  DESKTOP BENTO PROFILE SUITE (Tablet & Desktop viewports)
+                 ══════════════════════════════════════════════════════════════ */}
+              <div className="hidden md:flex md:flex-col md:gap-6">
+                {/* ── PROFILE HEADER (matching reference: Title on left, Date & Controls on right) ── */}
+                <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4 pb-1">
+                  <div>
+                    <h2 className="font-display text-2xl sm:text-3xl font-bold tracking-tight text-[var(--fg)]">
+                      Profile
+                    </h2>
+                  </div>
+                  <div className="flex items-center gap-3 text-xs text-[var(--fg-muted)]">
+                    <span className="font-mono">
+                      {new Date().toLocaleDateString("en-US", { month: "long", day: "numeric", year: "numeric" })},{" "}
+                      {new Date().toLocaleTimeString("en-US", { hour: "numeric", minute: "2-digit" })}
+                    </span>
+                    <div className="flex items-center gap-1.5 pl-3 border-l border-[var(--border)]">
+                      <button
+                        onClick={() => setEditOpen(true)}
+                        title="Edit Profile Settings"
+                        aria-label="Settings"
+                        className="grid size-8 place-items-center rounded-xl border border-[var(--border)] bg-[var(--surface)] text-[var(--fg-subtle)] hover:text-[var(--fg)] hover:border-[var(--accent)] transition-colors cursor-pointer"
+                      >
+                        <Settings className="size-4" />
+                      </button>
+                    </div>
+                  </div>
+                </div>
 
               {/* ── TOP SECTION: 3 Bento Widgets (Identity Card + Calendar + Upcoming Competitions) ── */}
               <div className="grid gap-6 lg:grid-cols-12">
@@ -1785,6 +2211,7 @@ export default function DashboardPage() {
                   Log Out
                 </button>
               </div>
+            </div>
 
             </div>
           </Reveal>

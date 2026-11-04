@@ -54,15 +54,20 @@ export default function Shell({
   }
 
   const isStaffRole = isJudge || isVolunteer;
+  const isAuthPage =
+    pathname.startsWith("/login") ||
+    pathname.startsWith("/register") ||
+    pathname.startsWith("/complete-profile") ||
+    pathname.startsWith("/forgot-password");
 
   return (
     <>
       <ScrollProgress />
       <Navbar brandName={brandName} logo={logo} />
-      {!isStaffRole && <NotificationPanel />}
+      {!isStaffRole && !isAuthPage && <NotificationPanel />}
       <main id="main" className="min-h-dvh">{children}</main>
-      {!isStaffRole && <Footer brandName={brandName} tagline={tagline} contact={contact} links={links} />}
-      {!isStaffRole && <MobileBottomNav />}
+      {!isStaffRole && !isAuthPage && <Footer brandName={brandName} tagline={tagline} contact={contact} links={links} />}
+      {!isStaffRole && !isAuthPage && <MobileBottomNav />}
     </>
   );
 }

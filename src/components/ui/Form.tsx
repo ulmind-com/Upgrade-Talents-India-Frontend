@@ -169,26 +169,26 @@ export function AuthShell({
   const logoSrc = isLight ? "/logo-dark-mode.png" : "/logo-white-mode.png";
 
   return (
-    <section className="relative min-h-dvh overflow-x-hidden pb-40 pt-20 sm:pt-24 md:pt-36 md:pb-24 noise">
+    <section className="relative min-h-dvh overflow-x-hidden pt-26 sm:pt-28 md:pt-36 pb-16 sm:pb-24 noise">
       <div
         aria-hidden
-        className="spotlight float-y"
+        className="spotlight float-y pointer-events-none"
         style={{ background: "var(--spot-1)", width: "min(60vw,640px)", height: "min(60vw,640px)", top: "-18%", left: "-10%" }}
       />
       <div
         aria-hidden
-        className="spotlight float-y"
+        className="spotlight float-y pointer-events-none"
         style={{ background: "var(--spot-2)", width: "min(50vw,520px)", height: "min(50vw,520px)", bottom: "-20%", right: "-8%", animationDelay: "1.8s" }}
       />
-      <div className="container-x relative grid items-center gap-8 sm:gap-10 lg:gap-14 lg:grid-cols-2">
-        <div className="mx-auto w-full max-w-lg">
-          <Link href="/" className="inline-block mb-3 sm:mb-6 transition-opacity hover:opacity-85" aria-label="Upgrade Talents India home">
+      <div className="container-x relative grid items-center gap-6 sm:gap-10 lg:gap-14 lg:grid-cols-2">
+        <div className="mx-auto w-full max-w-lg px-0.5 sm:px-0">
+          <Link href="/" className="hidden sm:inline-block mb-3 sm:mb-6 transition-opacity hover:opacity-85" aria-label="Upgrade Talents India home">
             <img src={logoSrc} alt="Upgrade Talents India" className="h-7 sm:h-9 w-auto object-contain" />
           </Link>
           <span className="block font-mono text-[10px] sm:text-[11px] uppercase tracking-[0.25em] sm:tracking-[0.3em] text-[var(--accent)]">{eyebrow}</span>
-          <h1 className="mt-2 sm:mt-4 font-display text-[clamp(1.85rem,5.5vw,3.6rem)] font-bold uppercase leading-[0.95]">{title}</h1>
-          {subtitle && <p className="mt-1.5 sm:mt-3 text-[13.5px] sm:text-[15px] text-[var(--fg-muted)] leading-relaxed">{subtitle}</p>}
-          <div className="mt-5 sm:mt-8 md:mt-10">{children}</div>
+          <h1 className="mt-1.5 sm:mt-3 font-display text-[clamp(1.75rem,5.5vw,3.6rem)] font-bold uppercase leading-[0.98]">{title}</h1>
+          {subtitle && <p className="mt-1.5 sm:mt-2.5 text-[13px] sm:text-[15px] text-[var(--fg-muted)] leading-relaxed">{subtitle}</p>}
+          <div className="mt-4 sm:mt-8 md:mt-10">{children}</div>
         </div>
         <div className="hidden lg:block">{aside}</div>
       </div>
