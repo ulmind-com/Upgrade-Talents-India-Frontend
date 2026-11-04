@@ -50,11 +50,12 @@ export default function ShareReferralModal({
   const [canNativeShare, setCanNativeShare] = useState(false);
 
   // Compute absolute share link dynamically based on browser origin if relative
-  const actualLink =
+  const rawComputedLink =
     referralLink ||
     (typeof window !== "undefined"
       ? `${window.location.origin}/register?ref=${referralCode}`
       : `https://upgradetalentsindia.in/register?ref=${referralCode}`);
+  const actualLink = rawComputedLink.replace(/https?:\/\/(?:www\.)?eventora\.com/gi, "https://upgradetalentsindia.in");
 
   const referrerCoins = stats?.referrerBonus ?? 100;
   const welcomeCoins = stats?.welcomeBonus ?? 50;

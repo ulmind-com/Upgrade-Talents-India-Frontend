@@ -1809,7 +1809,7 @@ export default function DashboardPage() {
         isOpen={shareModalOpen}
         onClose={() => setShareModalOpen(false)}
         referralCode={referralData?.referral_code || user?.referral_code}
-        referralLink={referralData?.referral_link}
+        referralLink={referralData?.referral_link ? referralData.referral_link.replace(/https?:\/\/(?:www\.)?eventora\.com/gi, "https://upgradetalentsindia.in") : undefined}
         userName={user?.name}
         stats={{
           totalReferrals: referralData?.total_referrals,
@@ -1928,9 +1928,10 @@ function RewardsTab({
   const [historyFilter, setHistoryFilter] = useState<"all" | "rewarded" | "pending">("all");
 
   const refCode = referralData?.referral_code || user?.referral_code || "UTI-TALENT";
-  const refLink =
+  const rawRefLink =
     referralData?.referral_link ||
     (typeof window !== "undefined" ? `${window.location.origin}/register?ref=${refCode}` : `https://upgradetalentsindia.in/register?ref=${refCode}`);
+  const refLink = rawRefLink.replace(/https?:\/\/(?:www\.)?eventora\.com/gi, "https://upgradetalentsindia.in");
 
   const referrerCoins = referralData?.referrer_coins_per_invite ?? 100;
   const welcomeCoins = referralData?.welcome_coins_per_invite ?? 50;
