@@ -56,8 +56,12 @@ export default function StudioShowcase({ events = [] }: { events?: EventItem[] }
   const [slots] = useState(() => buildSlots(events));
   const [card, setCard] = useState({ w: 280, r: 400 });
   const [spin, setSpin] = useState(0);
-  const [isMobile, setIsMobile] = useState(false);
-  const [trackVh, setTrackVh] = useState(380);
+  const [isMobile, setIsMobile] = useState(
+    typeof window !== "undefined" ? window.innerWidth < 640 : false
+  );
+  const [trackVh, setTrackVh] = useState(
+    typeof window !== "undefined" && window.innerWidth < 640 ? 120 : 380
+  );
 
   /* Ensure video auto-plays reliably */
   useEffect(() => {
@@ -75,7 +79,7 @@ export default function StudioShowcase({ events = [] }: { events?: EventItem[] }
       const mobile = width < 640;
       const tablet = width >= 640 && width < 1024;
       setIsMobile(mobile);
-      setTrackVh(mobile ? 260 : tablet ? 320 : 380);
+      setTrackVh(mobile ? 120 : tablet ? 300 : 380);
 
       let w = 300;
       let r = 420;
@@ -105,10 +109,18 @@ export default function StudioShowcase({ events = [] }: { events?: EventItem[] }
 
   /* Phases across the pin. Keep cards & chrome visible through rotation to eliminate empty black voids. */
   const stageScale = useTransform(p, [0, 0.80, 0.94], [1, 1, 1.15]);
-  const stageOpacity = useTransform(p, [0, 0.84, 0.94], [1, 1, 0]);
-  const rotation = useTransform(p, [0, 0.80], [0, -360]);
+  const stageOpacity = useTransform(
+    p,
+    [0, isMobile ? 0.95 : 0.84, 1],
+    [1, 1, isMobile ? 0.8 : 0]
+  );
+  const rotation = useTransform(p, [0, isMobile ? 0.92 : 0.80], [0, -360]);
   const marqueeX = useTransform(p, [0, 1], ["14%", "-64%"]);
-  const chromeOpacity = useTransform(p, [0, 0.80, 0.90], [1, 1, 0]);
+  const chromeOpacity = useTransform(
+    p,
+    [0, isMobile ? 0.92 : 0.80, 1],
+    [1, 1, isMobile ? 0.8 : 0]
+  );
 
   /* Sparkle wipe: starts small in center stage, gradually grows as user scrolls, playing live dance video */
   const wipeScale = useTransform(
@@ -224,7 +236,7 @@ export default function StudioShowcase({ events = [] }: { events?: EventItem[] }
         {/* CTA */}
         <motion.div
           style={{ opacity: chromeOpacity }}
-          className="absolute inset-x-0 bottom-28 md:bottom-[clamp(1.25rem,5vh,3.5rem)] z-20 flex justify-center px-4"
+          className="absolute inset-x-0 bottom-16 sm:bottom-20 md:bottom-[clamp(1.25rem,5vh,3.5rem)] z-20 flex justify-center px-4"
         >
           <Link
             href="/events"

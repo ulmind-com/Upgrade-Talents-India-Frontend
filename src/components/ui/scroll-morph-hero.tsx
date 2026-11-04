@@ -129,7 +129,9 @@ export default function IntroAnimation({
 } = {}) {
   const [introPhase, setIntroPhase] = useState<AnimationPhase>("circle");
   const [containerSize, setContainerSize] = useState({ width: 0, height: 0 });
-  const [trackVh, setTrackVh] = useState(300);
+  const [trackVh, setTrackVh] = useState(
+    typeof window !== "undefined" && window.innerWidth < 768 ? 120 : 300
+  );
   const containerRef = useRef<HTMLDivElement>(null);
   const trackRef = useRef<HTMLDivElement>(null);
 
@@ -148,7 +150,7 @@ export default function IntroAnimation({
         const w = entry.contentRect.width;
         const h = entry.contentRect.height;
         setContainerSize({ width: w, height: h });
-        setTrackVh(w < 768 ? 220 : 300);
+        setTrackVh(w < 768 ? 120 : 300);
       }
     };
 
@@ -158,7 +160,7 @@ export default function IntroAnimation({
     const initialW = containerRef.current.offsetWidth;
     const initialH = containerRef.current.offsetHeight;
     setContainerSize({ width: initialW, height: initialH });
-    setTrackVh(initialW < 768 ? 220 : 300);
+    setTrackVh(initialW < 768 ? 120 : 300);
 
     return () => observer.disconnect();
   }, []);
@@ -246,7 +248,7 @@ export default function IntroAnimation({
     <div ref={trackRef} className="relative" style={{ height: `${trackVh}vh` }}>
       <div
         ref={containerRef}
-        className="sticky top-0 h-screen w-full overflow-hidden bg-[var(--bg-elevated)]"
+        className="sticky top-0 h-dvh w-full overflow-hidden bg-[var(--bg-elevated)]"
       >
       <div
         className="flex h-full w-full flex-col items-center justify-center"
@@ -283,7 +285,7 @@ export default function IntroAnimation({
         {/* Arc-active content (fades in seamlessly) */}
         <motion.div
           style={{ opacity: contentOpacity, y: contentY }}
-          className="pointer-events-none absolute top-[7%] sm:top-[10%] z-10 flex flex-col items-center justify-center px-4 text-center"
+          className="pointer-events-none absolute top-[52%] sm:top-[10%] z-10 flex flex-col items-center justify-center px-4 text-center"
         >
           <h2 className="mb-2 sm:mb-4 font-display text-2xl sm:text-3xl md:text-5xl font-bold uppercase tracking-tight text-[var(--fg)]">
             {title}
@@ -330,10 +332,10 @@ export default function IntroAnimation({
               let arcScale: number;
 
               if (isMobile) {
-                arcRadius = containerSize.width * 0.95;
-                arcApexY = containerSize.height * 0.02;
+                arcRadius = containerSize.width * 0.90;
+                arcApexY = containerSize.height * 0.14;
                 arcCenterY = arcApexY + arcRadius;
-                spreadAngle = 95;
+                spreadAngle = 98;
                 arcScale = 1.35;
               } else {
                 const baseRadius = Math.min(containerSize.width, containerSize.height * 1.5);
