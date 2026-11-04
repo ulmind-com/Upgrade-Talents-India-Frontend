@@ -13,6 +13,7 @@ import {
   ExternalLink, GraduationCap, ShieldCheck, MapPin, Phone,
   Mail, Flame, Star, Send, Layers, Package, Banknote,
   ChevronLeft, ChevronRight, Share2, Bell, Settings, Eye, Briefcase, LogOut, Search, Radio,
+  Gift, Users, MessageCircle, Zap, TrendingUp, CheckCircle,
 } from "lucide-react";
 import {
   bookingsApi, vipApi, profileApi, rewardsApi, certificatesApi, shopApi, publicApi,
@@ -20,6 +21,7 @@ import {
 } from "@/lib/api";
 import { useAuth, usePageScrollLock } from "@/components/motion/Providers";
 import CoinLedger from "@/components/account/CoinLedger";
+import ShareReferralModal from "@/components/account/ShareReferralModal";
 import { Badge, Button, SectionLabel, Spotlights } from "@/components/ui/Primitives";
 import { Reveal, SplitHeading } from "@/components/motion/Reveal";
 import { cn, formatEventDate, formatINR, isEventExpired, imageFor, FALLBACK_IMAGES } from "@/lib/utils";
@@ -62,8 +64,9 @@ export default function DashboardPage() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
-  // Edit Profile Modal
+  // Edit Profile Modal & Share Referral Modal
   const [editOpen, setEditOpen] = useState(false);
+  const [shareModalOpen, setShareModalOpen] = useState(false);
 
   // Profile Suite Calendar & Quick Actions
   const [calendarDate, setCalendarDate] = useState(() => new Date());
@@ -71,12 +74,8 @@ export default function DashboardPage() {
   const [copiedEmail, setCopiedEmail] = useState(false);
 
   const handleCopyReferral = useCallback(() => {
-    if (user?.referral_code) {
-      navigator.clipboard.writeText(user.referral_code);
-      setCopiedRef(true);
-      setTimeout(() => setCopiedRef(false), 2000);
-    }
-  }, [user?.referral_code]);
+    setShareModalOpen(true);
+  }, []);
 
   const handleCopyEmail = useCallback(() => {
     if (user?.email) {
@@ -920,7 +919,12 @@ export default function DashboardPage() {
             4. REWARDS & COINS TAB
            ════════════════════════════════════════════════════════════════ */}
         {!loading && tab === "rewards" && (
-          <RewardsTab coinsData={coinsData} referralData={referralData} user={user} />
+          <RewardsTab
+            coinsData={coinsData}
+            referralData={referralData}
+            user={user}
+            onOpenShare={() => setShareModalOpen(true)}
+          />
         )}
 
         {/* ════════════════════════════════════════════════════════════════
@@ -1291,19 +1295,22 @@ export default function DashboardPage() {
                     <div className="flex items-center gap-2">
                       {user?.referral_code && (
                         <button
-                          onClick={handleCopyReferral}
-                          title="Click to copy unique talent referral code"
-                          className="inline-flex items-center gap-1.5 rounded-xl border border-[var(--border)] bg-[var(--surface-2)] px-3 py-1.5 text-xs font-mono font-bold text-[var(--fg)] hover:border-[var(--accent)] hover:text-[var(--accent)] transition-colors cursor-pointer shadow-sm"
+                          onClick={() => setShareModalOpen(true)}
+                          title="Invite friends & earn 100 UTI Coins"
+                          className="inline-flex items-center gap-1.5 rounded-xl border border-amber-500/40 bg-gradient-to-r from-amber-500/15 to-transparent px-3.5 py-1.5 text-xs font-mono font-bold text-amber-300 hover:border-amber-400 hover:bg-amber-500/25 transition-all cursor-pointer shadow-sm group"
                         >
-                          {copiedRef ? <Check className="size-3.5 text-emerald-400" /> : <Copy className="size-3.5 text-[var(--accent)]" />}
-                          <span>{user.referral_code}</span>
+                          <Sparkles className="size-3.5 text-amber-400 group-hover:rotate-12 transition-transform" />
+                          <span>Code: {user.referral_code}</span>
+                          <span className="hidden sm:inline-block ml-1 rounded-full bg-amber-500/20 px-1.5 py-0.5 text-[9px] font-sans font-semibold text-amber-300">
+                            +100 Coins
+                          </span>
                         </button>
                       )}
                       <button
-                        onClick={handleCopyReferral}
-                        title="Share profile referral"
+                        onClick={() => setShareModalOpen(true)}
+                        title="Share profile invite & QR Code"
                         aria-label="Share profile referral"
-                        className="grid size-8 place-items-center rounded-xl border border-[var(--border)] bg-[var(--surface-2)] text-[var(--fg-subtle)] hover:text-[var(--accent)] hover:border-[var(--accent)] transition-colors cursor-pointer shadow-sm"
+                        className="grid size-8 place-items-center rounded-xl border border-amber-500/30 bg-amber-500/10 text-amber-400 hover:text-white hover:bg-amber-500/30 transition-all cursor-pointer shadow-sm"
                       >
                         <Share2 className="size-4" />
                       </button>
@@ -1537,10 +1544,11 @@ export default function DashboardPage() {
                           <span className="block text-[10px] font-medium text-[var(--fg-subtle)] mb-1.5">Talent Code</span>
                           <button
                             type="button"
-                            onClick={handleCopyReferral}
-                            title="Click to copy Talent Code"
-                            className="w-full rounded-xl bg-[var(--surface-2)] border border-[var(--border)] hover:border-[var(--accent)] px-2 py-2 text-center text-[11px] font-mono font-bold text-[var(--accent)] shadow-sm cursor-pointer transition-colors"
+                            onClick={() => setShareModalOpen(true)}
+                            title="Click to share your Talent Referral Code & earn coins"
+                            className="w-full rounded-xl bg-amber-500/10 border border-amber-500/30 hover:border-amber-400 hover:bg-amber-500/20 px-2 py-2 text-center text-[11px] font-mono font-bold text-amber-400 shadow-sm cursor-pointer transition-all flex items-center justify-center gap-1.5"
                           >
+                            <Sparkles className="size-3 text-amber-400" />
                             {user?.referral_code || "UTI-ARTIST"}
                           </button>
                         </div>
@@ -1795,6 +1803,21 @@ export default function DashboardPage() {
           loadAll();
         }}
       />
+
+      {/* ── Share Referral Modal ── */}
+      <ShareReferralModal
+        isOpen={shareModalOpen}
+        onClose={() => setShareModalOpen(false)}
+        referralCode={referralData?.referral_code || user?.referral_code}
+        referralLink={referralData?.referral_link}
+        userName={user?.name}
+        stats={{
+          totalReferrals: referralData?.total_referrals,
+          coinsEarned: referralData?.total_referrer_rewards_earned,
+          referrerBonus: referralData?.referrer_coins_per_invite || 100,
+          welcomeBonus: referralData?.welcome_coins_per_invite || 50,
+        }}
+      />
     </section>
   );
 }
@@ -1886,15 +1909,80 @@ function CertificateCard({ cert, index }: { cert: any; index: number }) {
 }
 
 /* ═══════════════════════════════════════════════════════════════════
-   REWARDS & COINS TAB COMPONENT
+   REWARDS & COINS TAB COMPONENT — ULTRA PRO FINTECH REWARDS HUB
    ═══════════════════════════════════════════════════════════════════ */
 
-function RewardsTab({ coinsData, referralData, user }: { coinsData: any; referralData: any; user: any }) {
+function RewardsTab({
+  coinsData,
+  referralData,
+  user,
+  onOpenShare
+}: {
+  coinsData: any;
+  referralData: any;
+  user: any;
+  onOpenShare?: () => void;
+}) {
   const [copiedCode, setCopiedCode] = useState(false);
   const [copiedLink, setCopiedLink] = useState(false);
+  const [historyFilter, setHistoryFilter] = useState<"all" | "rewarded" | "pending">("all");
 
-  const refCode = referralData?.referral_code || user?.referral_code || "EVNT-PRO";
-  const refLink = referralData?.referral_link || (typeof window !== "undefined" ? `${window.location.origin}/register?ref=${refCode}` : "");
+  const refCode = referralData?.referral_code || user?.referral_code || "UTI-TALENT";
+  const refLink =
+    referralData?.referral_link ||
+    (typeof window !== "undefined" ? `${window.location.origin}/register?ref=${refCode}` : `https://upgradetalentsindia.in/register?ref=${refCode}`);
+
+  const referrerCoins = referralData?.referrer_coins_per_invite ?? 100;
+  const welcomeCoins = referralData?.welcome_coins_per_invite ?? 50;
+  const coinValuation = referralData?.coin_value_inr ?? 0.5;
+
+  const totalCoins = Number(coinsData?.total_coins || 0);
+  const totalEarned = Number(coinsData?.total_earned_coins ?? referralData?.total_referrer_rewards_earned ?? totalCoins);
+  const totalRedeemed = Number(coinsData?.total_redeemed_coins || 0);
+  const totalReferrals = Number(referralData?.total_referrals || 0);
+  const qualifiedReferrals = Number(referralData?.qualified_referrals || 0);
+  const pendingReferrals = Number(referralData?.pending_referrals || (totalReferrals - qualifiedReferrals > 0 ? totalReferrals - qualifiedReferrals : 0));
+
+  // Ambassador Tier Calculation
+  const tierInfo = useMemo(() => {
+    if (qualifiedReferrals >= 25) {
+      return {
+        name: "Diamond Legend",
+        badge: "💎 Level 4",
+        color: "from-cyan-400 via-sky-300 to-indigo-400",
+        nextText: "Maximum VIP tier achieved!",
+        progress: 100,
+        perk: "VIP Pass privileges + 50% max fee deductions + Mentor Spotlight"
+      };
+    } else if (qualifiedReferrals >= 10) {
+      return {
+        name: "Gold Ambassador",
+        badge: "🥇 Level 3",
+        color: "from-amber-400 via-yellow-300 to-amber-500",
+        nextText: `${25 - qualifiedReferrals} more friends to reach Diamond Legend`,
+        progress: Math.min(100, Math.round(((qualifiedReferrals - 10) / 15) * 100)),
+        perk: "Access to VIP Lounges at events + priority workshop reservations"
+      };
+    } else if (qualifiedReferrals >= 5) {
+      return {
+        name: "Silver Promoter",
+        badge: "🥈 Level 2",
+        color: "from-slate-200 via-gray-300 to-slate-400",
+        nextText: `${10 - qualifiedReferrals} more friends to reach Gold Ambassador`,
+        progress: Math.min(100, Math.round(((qualifiedReferrals - 5) / 5) * 100)),
+        perk: "Extra 5% discount bonus on competition entry fees"
+      };
+    } else {
+      return {
+        name: "Bronze Pioneer",
+        badge: "🥉 Level 1",
+        color: "from-amber-600 via-orange-400 to-amber-700",
+        nextText: `${5 - qualifiedReferrals} more friends to reach Silver Promoter`,
+        progress: Math.min(100, Math.round((qualifiedReferrals / 5) * 100)),
+        perk: `Earn +${referrerCoins} coins (₹${referrerCoins * coinValuation}) on every friend who joins`
+      };
+    }
+  }, [qualifiedReferrals, referrerCoins, coinValuation]);
 
   function copyCode() {
     navigator.clipboard.writeText(refCode);
@@ -1908,94 +1996,473 @@ function RewardsTab({ coinsData, referralData, user }: { coinsData: any; referra
     setTimeout(() => setCopiedLink(false), 2000);
   }
 
+  const shareText = `Hey! 🌟 Join me on Upgrade Talents India to participate in premier cultural events, masterclasses, and competitions! Sign up with my invite link to get ${welcomeCoins} FREE Coins (₹${welcomeCoins * coinValuation} discount power) instantly:\n\n${refLink}\n\nInvite Code: ${refCode}`;
+
+  const openWhatsApp = () => {
+    window.open(`https://api.whatsapp.com/send?text=${encodeURIComponent(shareText)}`, "_blank", "noopener,noreferrer");
+  };
+
+  const rawHistory: any[] = Array.isArray(referralData?.referral_history) ? referralData.referral_history : [];
+
+  const filteredHistory = useMemo(() => {
+    if (historyFilter === "all") return rawHistory;
+    if (historyFilter === "rewarded") return rawHistory.filter((r) => r.status === "REWARDED" || r.status === "QUALIFIED");
+    if (historyFilter === "pending") return rawHistory.filter((r) => r.status !== "REWARDED" && r.status !== "QUALIFIED");
+    return rawHistory;
+  }, [rawHistory, historyFilter]);
+
   return (
-    <div className="mt-10 flex flex-col gap-8">
-      {/* Coin Balance & Breakdown Cards */}
-      <div className="grid gap-6 md:grid-cols-3">
-        {/* Available Balance */}
-        <div className="relative overflow-hidden rounded-[var(--radius-xl)] border border-amber-500/30 bg-gradient-to-br from-amber-500/15 via-[var(--surface)] to-[var(--surface)] p-6 shadow-xl">
-          <span className="font-mono text-[11px] font-bold uppercase tracking-wider text-amber-400">Available Coin Balance</span>
-          <div className="mt-3 flex items-baseline gap-2">
-            <span className="font-display text-4xl font-black text-amber-300 tabular-nums">
-              {coinsData.total_coins}
-            </span>
-            <span className="font-bold text-amber-400">UTI Coins</span>
+    <div className="mt-8 flex flex-col gap-8 text-white">
+      {/* ── 1. Hero FinTech Vault Showcase ── */}
+      <div className="relative overflow-hidden rounded-[2.5rem] border border-amber-500/30 bg-gradient-to-br from-[#1c1917] via-[#0e1118] to-[#07090e] p-6 sm:p-10 shadow-[0_30px_90px_-20px_rgba(245,158,11,0.2)]">
+        {/* Ambient Radial Lights */}
+        <div className="pointer-events-none absolute -right-16 -top-16 size-80 rounded-full bg-amber-500/20 blur-3xl" />
+        <div className="pointer-events-none absolute -left-16 -bottom-16 size-80 rounded-full bg-emerald-500/15 blur-3xl" />
+
+        <div className="relative z-10 flex flex-col lg:flex-row lg:items-center lg:justify-between gap-8">
+          {/* Balance & Value Statement */}
+          <div className="max-w-xl">
+            <div className="flex items-center gap-2 flex-wrap">
+              <span className="inline-flex items-center gap-1.5 rounded-full border border-amber-500/40 bg-amber-500/15 px-3 py-1 text-[11px] font-bold uppercase tracking-wider text-amber-300">
+                <Sparkles className="size-3 text-amber-400 animate-pulse" />
+                Authoritative Talent Wallet
+              </span>
+              <span className="rounded-full bg-white/10 px-2.5 py-0.5 font-mono text-[11px] text-gray-300">
+                1 Coin = ₹{coinValuation.toFixed(2)}
+              </span>
+            </div>
+
+            <h2 className="mt-4 font-display text-3xl sm:text-4xl lg:text-5xl font-black uppercase tracking-tight">
+              UTI Reward Vault
+            </h2>
+
+            <div className="mt-4 flex items-baseline gap-3 flex-wrap">
+              <span className="font-display text-5xl sm:text-6xl font-black text-amber-300 tabular-nums drop-shadow-md">
+                {totalCoins.toLocaleString()}
+              </span>
+              <span className="font-display text-2xl font-bold uppercase text-amber-400/90 tracking-wide">
+                UTI Coins
+              </span>
+              <span className="inline-flex items-center gap-1 rounded-xl border border-emerald-500/30 bg-emerald-500/15 px-3 py-1 font-mono text-sm font-bold text-emerald-400">
+                ≈ ₹{(totalCoins * coinValuation).toFixed(2)} Discount Power
+              </span>
+            </div>
+
+            <p className="mt-3 text-sm text-gray-300 leading-relaxed">
+              Burn your UTI coins for instant fee reductions on Masterclasses, Workshop enrollments, and competition entries. Every friend you invite brings you{" "}
+              <strong className="text-amber-300 font-bold">+{referrerCoins} Coins</strong>!
+            </p>
+
+            {/* Quick Actions CTA */}
+            <div className="mt-6 flex items-center gap-3 flex-wrap">
+              <button
+                type="button"
+                onClick={onOpenShare}
+                className="inline-flex items-center gap-2 rounded-2xl bg-gradient-to-r from-amber-400 via-amber-500 to-amber-600 px-6 py-3.5 text-sm font-black uppercase tracking-wider text-black shadow-lg shadow-amber-500/25 hover:from-amber-300 hover:to-amber-500 transition-all cursor-pointer active:scale-95"
+              >
+                <Sparkles className="size-4" />
+                Invite &amp; Earn +{referrerCoins} Coins
+              </button>
+
+              <button
+                type="button"
+                onClick={openWhatsApp}
+                className="inline-flex items-center gap-2 rounded-2xl border border-emerald-500/30 bg-emerald-500/15 px-5 py-3.5 text-sm font-bold text-emerald-400 hover:bg-emerald-500/25 transition-all cursor-pointer"
+              >
+                <MessageCircle className="size-4" />
+                Quick WhatsApp
+              </button>
+            </div>
           </div>
-          <p className="mt-2 text-xs text-[var(--fg-muted)]">
-            Active balance available for course/workshop discounts &amp; fee checkouts.
+
+          {/* Ambassador Tier Status Card */}
+          <div className="w-full lg:w-80 rounded-3xl border border-white/10 bg-white/[0.04] p-5 sm:p-6 backdrop-blur-md">
+            <div className="flex items-center justify-between">
+              <span className="text-[11px] font-mono uppercase tracking-wider text-gray-400">Ambassador Status</span>
+              <span className="rounded-full bg-white/10 px-2.5 py-0.5 text-[10px] font-bold uppercase text-amber-300">
+                {tierInfo.badge}
+              </span>
+            </div>
+
+            <div className="mt-3">
+              <h3 className={`font-display text-2xl font-black uppercase bg-gradient-to-r ${tierInfo.color} bg-clip-text text-transparent`}>
+                {tierInfo.name}
+              </h3>
+              <p className="mt-1 text-xs text-gray-300">{tierInfo.perk}</p>
+            </div>
+
+            {/* Progress Bar */}
+            <div className="mt-4">
+              <div className="flex items-center justify-between text-[11px] font-mono text-gray-400 mb-1.5">
+                <span>Tier Milestone</span>
+                <span className="font-bold text-amber-300">{qualifiedReferrals} Qualified</span>
+              </div>
+              <div className="h-2 w-full rounded-full bg-white/10 overflow-hidden">
+                <div
+                  className="h-full rounded-full bg-gradient-to-r from-amber-500 to-amber-300 transition-all duration-700"
+                  style={{ width: `${Math.max(8, tierInfo.progress)}%` }}
+                />
+              </div>
+              <p className="mt-2 text-[10.5px] text-gray-400 italic text-right">{tierInfo.nextText}</p>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      {/* ── 2. Four Key FinTech Metrics ── */}
+      <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
+        {/* Available Balance */}
+        <div className="relative overflow-hidden rounded-3xl border border-amber-500/30 bg-gradient-to-b from-amber-500/10 to-transparent p-5 sm:p-6">
+          <div className="flex items-center justify-between text-amber-400">
+            <span className="font-mono text-xs uppercase font-bold tracking-wider">Available Coins</span>
+            <Coins className="size-5" />
+          </div>
+          <div className="mt-3 font-display text-3xl sm:text-4xl font-black text-amber-300 tabular-nums">
+            {totalCoins}
+          </div>
+          <p className="mt-1 text-xs text-amber-200/70">
+            ₹{(totalCoins * coinValuation).toFixed(2)} available for checkout discounts
           </p>
         </div>
 
         {/* Total Earned Coins */}
-        <div className="relative overflow-hidden rounded-[var(--radius-xl)] border border-emerald-500/30 bg-gradient-to-br from-emerald-500/10 via-[var(--surface)] to-[var(--surface)] p-6">
-          <span className="font-mono text-[11px] font-bold uppercase tracking-wider text-emerald-400">Total Coins Earned</span>
-          <div className="mt-3 flex items-baseline gap-2">
-            <span className="font-display text-4xl font-black text-emerald-300 tabular-nums">
-              {coinsData.total_earned_coins ?? referralData?.rewards_earned ?? coinsData.total_coins}
-            </span>
-            <span className="font-bold text-emerald-500/80">Earned</span>
+        <div className="relative overflow-hidden rounded-3xl border border-emerald-500/30 bg-gradient-to-b from-emerald-500/10 to-transparent p-5 sm:p-6">
+          <div className="flex items-center justify-between text-emerald-400">
+            <span className="font-mono text-xs uppercase font-bold tracking-wider">Lifetime Earned</span>
+            <TrendingUp className="size-5" />
           </div>
-          <p className="mt-2 text-xs text-[var(--fg-muted)]">
-            Referrals: <span className="font-bold text-white">{referralData?.total_referrals ?? 0}</span> friends joined
+          <div className="mt-3 font-display text-3xl sm:text-4xl font-black text-emerald-300 tabular-nums">
+            {totalEarned}
+          </div>
+          <p className="mt-1 text-xs text-emerald-200/70">
+            All-time rewards from invites &amp; events
           </p>
         </div>
 
-        {/* Total Spent / Redeemed Coins */}
-        <div className="relative overflow-hidden rounded-[var(--radius-xl)] border border-rose-500/30 bg-gradient-to-br from-rose-500/10 via-[var(--surface)] to-[var(--surface)] p-6">
-          <span className="font-mono text-[11px] font-bold uppercase tracking-wider text-rose-400">Total Coins Spent / Redeemed</span>
-          <div className="mt-3 flex items-baseline gap-2">
-            <span className="font-display text-4xl font-black text-rose-300 tabular-nums">
-              {coinsData.total_redeemed_coins ?? 0}
-            </span>
-            <span className="font-bold text-rose-500/80">Redeemed</span>
+        {/* Friends Joined */}
+        <div className="relative overflow-hidden rounded-3xl border border-sky-500/30 bg-gradient-to-b from-sky-500/10 to-transparent p-5 sm:p-6">
+          <div className="flex items-center justify-between text-sky-400">
+            <span className="font-mono text-xs uppercase font-bold tracking-wider">Friends Invited</span>
+            <Users className="size-5" />
           </div>
-          <p className="mt-2 text-xs text-[var(--fg-muted)]">
-            Used as discounts on courses, workshops, and purchases.
+          <div className="mt-3 font-display text-3xl sm:text-4xl font-black text-sky-300 tabular-nums">
+            {totalReferrals}
+          </div>
+          <p className="mt-1 text-xs text-sky-200/70">
+            {qualifiedReferrals} verified • {pendingReferrals} pending
+          </p>
+        </div>
+
+        {/* Total Redeemed */}
+        <div className="relative overflow-hidden rounded-3xl border border-rose-500/30 bg-gradient-to-b from-rose-500/10 to-transparent p-5 sm:p-6">
+          <div className="flex items-center justify-between text-rose-400">
+            <span className="font-mono text-xs uppercase font-bold tracking-wider">Coins Redeemed</span>
+            <Zap className="size-5" />
+          </div>
+          <div className="mt-3 font-display text-3xl sm:text-4xl font-black text-rose-300 tabular-nums">
+            {totalRedeemed}
+          </div>
+          <p className="mt-1 text-xs text-rose-200/70">
+            Saved ₹{(totalRedeemed * coinValuation).toFixed(2)} on courses &amp; entries
           </p>
         </div>
       </div>
 
-      {/* Share & Invite Friends Card */}
-      <div className="rounded-[var(--radius-xl)] border border-[var(--border)] bg-[var(--surface)] p-8 shadow-xl">
-        <h3 className="font-display text-2xl font-bold uppercase">Invite Friends & Earn Free Coins</h3>
-        <p className="mt-1 text-sm text-[var(--fg-muted)]">
-          Give your friends 50 coins on signup, and you get 50 bonus coins whenever they join an event or competition!
-        </p>
+      {/* ── 3. High-Conversion Share & Invite Station ── */}
+      <div className="rounded-[2.5rem] border border-white/10 bg-[#0e1118]/80 p-6 sm:p-8 shadow-xl">
+        <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
+          <div>
+            <span className="text-[11px] font-mono uppercase tracking-widest text-amber-400 font-bold block mb-1">
+              VIRAL REWARD PROGRAM
+            </span>
+            <h3 className="font-display text-2xl sm:text-3xl font-black uppercase">
+              Your Personal Referral Station
+            </h3>
+            <p className="mt-1 text-xs sm:text-sm text-gray-300 max-w-xl">
+              Give your friends <span className="text-emerald-400 font-bold">+{welcomeCoins} Coins (₹{welcomeCoins * coinValuation})</span> on signup. When they join, you receive{" "}
+              <span className="text-amber-300 font-bold">+{referrerCoins} Coins (₹{referrerCoins * coinValuation})</span> straight into your wallet!
+            </p>
+          </div>
 
+          <button
+            type="button"
+            onClick={onOpenShare}
+            className="inline-flex shrink-0 items-center gap-2 rounded-2xl border border-amber-500/40 bg-amber-500/15 px-5 py-3 text-xs font-bold text-amber-300 hover:bg-amber-500/25 transition-all cursor-pointer"
+          >
+            <QrCode className="size-4" /> Open Full Share Studio
+          </button>
+        </div>
+
+        {/* Copy Boxes */}
         <div className="mt-6 grid gap-4 md:grid-cols-2">
-          {/* Referral Code Box */}
-          <div className="flex items-center justify-between rounded-2xl border border-[var(--border)] bg-[var(--bg)] p-4">
-            <div>
-              <p className="font-mono text-[10px] uppercase text-[var(--fg-subtle)]">Your Referral Code</p>
-              <p className="font-mono text-lg font-black tracking-widest text-[var(--accent)]">{refCode}</p>
+          {/* Code Box */}
+          <div className="flex items-center justify-between gap-3 rounded-2xl border border-white/10 bg-white/[0.04] p-4">
+            <div className="min-w-0">
+              <span className="font-mono text-[10px] uppercase text-gray-400 block">Your Talent Referral Code</span>
+              <span className="font-mono text-xl font-black tracking-widest text-amber-400 truncate block mt-0.5">
+                {refCode}
+              </span>
             </div>
             <button
+              type="button"
               onClick={copyCode}
-              className="inline-flex items-center gap-1.5 rounded-full bg-[var(--surface-2)] px-4 py-2 text-xs font-bold text-white hover:bg-[var(--accent)] hover:text-black transition-colors"
+              className="inline-flex shrink-0 items-center gap-1.5 rounded-xl border border-amber-500/30 bg-amber-500/15 px-4 py-2 text-xs font-bold text-amber-300 hover:bg-amber-500/25 transition-all cursor-pointer active:scale-95"
             >
-              {copiedCode ? <Check className="size-3.5 text-green-400" /> : <Copy className="size-3.5" />}
-              {copiedCode ? "Copied!" : "Copy Code"}
+              {copiedCode ? <Check className="size-3.5 text-emerald-400" /> : <Copy className="size-3.5" />}
+              <span>{copiedCode ? "Copied!" : "Copy Code"}</span>
             </button>
           </div>
 
-          {/* Referral Link Box */}
-          <div className="flex items-center justify-between rounded-2xl border border-[var(--border)] bg-[var(--bg)] p-4">
-            <div className="min-w-0 pr-3">
-              <p className="font-mono text-[10px] uppercase text-[var(--fg-subtle)]">Your Invite Link</p>
-              <p className="truncate font-mono text-xs text-[var(--fg-muted)]">{refLink}</p>
+          {/* Link Box */}
+          <div className="flex items-center justify-between gap-3 rounded-2xl border border-white/10 bg-white/[0.04] p-4">
+            <div className="min-w-0 flex-1 pr-2">
+              <span className="font-mono text-[10px] uppercase text-gray-400 block">Your Profile Invite Link</span>
+              <span className="font-mono text-xs text-gray-300 truncate block mt-0.5">
+                {refLink}
+              </span>
             </div>
             <button
+              type="button"
               onClick={copyLink}
-              className="inline-flex shrink-0 items-center gap-1.5 rounded-full py-2 px-4 text-xs font-bold text-black"
-              style={{ background: "var(--grad-brand)" }}
+              className="inline-flex shrink-0 items-center gap-1.5 rounded-xl bg-gradient-to-r from-amber-500 to-amber-600 px-4 py-2 text-xs font-bold text-black hover:from-amber-400 hover:to-amber-500 transition-all cursor-pointer active:scale-95 shadow-md shadow-amber-500/20"
             >
               {copiedLink ? <Check className="size-3.5" /> : <Send className="size-3.5" />}
-              {copiedLink ? "Copied!" : "Share Link"}
+              <span>{copiedLink ? "Link Copied!" : "Copy Link"}</span>
+            </button>
+          </div>
+        </div>
+
+        {/* 1-Click Social Triggers */}
+        <div className="mt-5 pt-4 border-t border-white/10 flex items-center justify-between gap-3 flex-wrap">
+          <span className="text-xs text-gray-400 font-medium">Quick share with your network:</span>
+          <div className="flex items-center gap-2 flex-wrap">
+            <button
+              type="button"
+              onClick={openWhatsApp}
+              className="inline-flex items-center gap-1.5 rounded-xl border border-emerald-500/30 bg-emerald-500/10 px-3 py-1.5 text-xs font-semibold text-emerald-400 hover:bg-emerald-500/20 transition-all cursor-pointer"
+            >
+              <MessageCircle className="size-3.5" /> WhatsApp
+            </button>
+            <button
+              type="button"
+              onClick={() => {
+                window.open(`https://t.me/share/url?url=${encodeURIComponent(refLink)}&text=${encodeURIComponent(shareText)}`, "_blank");
+              }}
+              className="inline-flex items-center gap-1.5 rounded-xl border border-sky-500/30 bg-sky-500/10 px-3 py-1.5 text-xs font-semibold text-sky-400 hover:bg-sky-500/20 transition-all cursor-pointer"
+            >
+              <Send className="size-3.5" /> Telegram
+            </button>
+            <button
+              type="button"
+              onClick={onOpenShare}
+              className="inline-flex items-center gap-1.5 rounded-xl border border-amber-500/30 bg-amber-500/10 px-3 py-1.5 text-xs font-semibold text-amber-300 hover:bg-amber-500/20 transition-all cursor-pointer"
+            >
+              <QrCode className="size-3.5" /> In-Person QR
             </button>
           </div>
         </div>
       </div>
 
+      {/* ── 4. How It Works 3-Step Infographic ── */}
+      <div className="grid gap-4 md:grid-cols-3">
+        <div className="rounded-3xl border border-white/10 bg-[#0e1118]/60 p-6 flex flex-col justify-between">
+          <div>
+            <div className="grid size-10 place-items-center rounded-2xl bg-amber-500/15 text-amber-400 font-mono font-black text-sm mb-4">
+              01
+            </div>
+            <h4 className="font-display text-lg font-bold uppercase text-white">Share Your Link</h4>
+            <p className="mt-1.5 text-xs text-gray-300 leading-relaxed">
+              Send your personal invite link or show your QR code to fellow artists, students, or creators.
+            </p>
+          </div>
+          <div className="mt-4 pt-3 border-t border-white/5 text-[11px] font-mono text-amber-300/80">
+            1-Click link &amp; code copy
+          </div>
+        </div>
+
+        <div className="rounded-3xl border border-white/10 bg-[#0e1118]/60 p-6 flex flex-col justify-between">
+          <div>
+            <div className="grid size-10 place-items-center rounded-2xl bg-sky-500/15 text-sky-400 font-mono font-black text-sm mb-4">
+              02
+            </div>
+            <h4 className="font-display text-lg font-bold uppercase text-white">Friend Registers</h4>
+            <p className="mt-1.5 text-xs text-gray-300 leading-relaxed">
+              Your friend completes signup with your invite. They receive an instant welcome bonus of {welcomeCoins} Coins!
+            </p>
+          </div>
+          <div className="mt-4 pt-3 border-t border-white/5 text-[11px] font-mono text-sky-300/80">
+            Friend gets ₹{welcomeCoins * coinValuation} free power
+          </div>
+        </div>
+
+        <div className="rounded-3xl border border-white/10 bg-[#0e1118]/60 p-6 flex flex-col justify-between">
+          <div>
+            <div className="grid size-10 place-items-center rounded-2xl bg-emerald-500/15 text-emerald-400 font-mono font-black text-sm mb-4">
+              03
+            </div>
+            <h4 className="font-display text-lg font-bold uppercase text-white">You Get Rewarded</h4>
+            <p className="mt-1.5 text-xs text-gray-300 leading-relaxed">
+              The moment their account is verified, +{referrerCoins} UTI Coins are credited into your wallet with zero delay!
+            </p>
+          </div>
+          <div className="mt-4 pt-3 border-t border-white/5 text-[11px] font-mono text-emerald-300/80">
+            You earn ₹{referrerCoins * coinValuation} per friend
+          </div>
+        </div>
+      </div>
+
+      {/* ── 5. Friends Invited & Referral History Table ── */}
+      <div className="rounded-[2.5rem] border border-white/10 bg-[#0e1118]/90 p-6 sm:p-8 shadow-xl">
+        <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4 border-b border-white/10 pb-5">
+          <div>
+            <h3 className="font-display text-xl sm:text-2xl font-bold uppercase">
+              Referral Activity &amp; Friends Joined
+            </h3>
+            <p className="text-xs text-gray-400 mt-0.5">
+              Track the live status of all friends who joined through your personal link.
+            </p>
+          </div>
+
+          {/* Filter Pills */}
+          <div className="inline-flex rounded-xl bg-white/5 p-1 border border-white/10 text-xs">
+            <button
+              type="button"
+              onClick={() => setHistoryFilter("all")}
+              className={`rounded-lg px-3 py-1 font-semibold transition-all cursor-pointer ${
+                historyFilter === "all" ? "bg-amber-500 text-black shadow-sm" : "text-gray-400 hover:text-white"
+              }`}
+            >
+              All ({rawHistory.length})
+            </button>
+            <button
+              type="button"
+              onClick={() => setHistoryFilter("rewarded")}
+              className={`rounded-lg px-3 py-1 font-semibold transition-all cursor-pointer ${
+                historyFilter === "rewarded" ? "bg-amber-500 text-black shadow-sm" : "text-gray-400 hover:text-white"
+              }`}
+            >
+              Rewarded
+            </button>
+            <button
+              type="button"
+              onClick={() => setHistoryFilter("pending")}
+              className={`rounded-lg px-3 py-1 font-semibold transition-all cursor-pointer ${
+                historyFilter === "pending" ? "bg-amber-500 text-black shadow-sm" : "text-gray-400 hover:text-white"
+              }`}
+            >
+              Pending
+            </button>
+          </div>
+        </div>
+
+        {filteredHistory.length > 0 ? (
+          <div className="mt-5 overflow-x-auto">
+            <table className="w-full text-left text-xs">
+              <thead>
+                <tr className="border-b border-white/10 text-[10px] font-mono uppercase tracking-wider text-gray-400">
+                  <th className="pb-3 font-semibold">Friend Account</th>
+                  <th className="pb-3 font-semibold">Attributed Date</th>
+                  <th className="pb-3 font-semibold">Status</th>
+                  <th className="pb-3 font-semibold text-right">Coins Earned</th>
+                </tr>
+              </thead>
+              <tbody className="divide-y divide-white/5">
+                {filteredHistory.map((item, idx) => {
+                  const isRewarded = item.status === "REWARDED" || item.status === "QUALIFIED";
+                  const dateStr = item.qualified_at || item.attributed_at;
+                  const formattedDate = dateStr
+                    ? new Date(dateStr).toLocaleDateString("en-IN", { day: "numeric", month: "short", year: "numeric" })
+                    : "Recently";
+
+                  return (
+                    <tr key={item.referral_id || idx} className="hover:bg-white/[0.02] transition-colors">
+                      <td className="py-3.5 font-mono font-medium text-gray-200">
+                        {item.referred_email_masked || "Creator Member"}
+                      </td>
+                      <td className="py-3.5 text-gray-400 font-mono">{formattedDate}</td>
+                      <td className="py-3.5">
+                        {isRewarded ? (
+                          <span className="inline-flex items-center gap-1 rounded-full border border-emerald-500/30 bg-emerald-500/15 px-2.5 py-0.5 text-[10px] font-bold text-emerald-400">
+                            <CheckCircle className="size-3" /> Rewarded
+                          </span>
+                        ) : (
+                          <span className="inline-flex items-center gap-1 rounded-full border border-amber-500/30 bg-amber-500/15 px-2.5 py-0.5 text-[10px] font-bold text-amber-300">
+                            <Clock className="size-3" /> Awaiting Verification
+                          </span>
+                        )}
+                      </td>
+                      <td className="py-3.5 text-right font-mono font-bold text-emerald-400">
+                        {isRewarded ? `+${item.coins_earned || referrerCoins} Coins` : "0 (Pending)"}
+                      </td>
+                    </tr>
+                  );
+                })}
+              </tbody>
+            </table>
+          </div>
+        ) : (
+          <div className="mt-8 flex flex-col items-center justify-center rounded-3xl border border-dashed border-white/10 p-8 text-center">
+            <div className="grid size-12 place-items-center rounded-2xl bg-amber-500/10 text-amber-400 mb-3">
+              <Gift className="size-6" />
+            </div>
+            <h4 className="font-display text-lg font-bold uppercase">No referrals recorded yet</h4>
+            <p className="mt-1 text-xs text-gray-400 max-w-sm">
+              Share your link with your first friend to earn +{referrerCoins} UTI Coins and start climbing the Ambassador ranks!
+            </p>
+            <button
+              type="button"
+              onClick={onOpenShare}
+              className="mt-4 inline-flex items-center gap-2 rounded-xl bg-amber-500 px-4 py-2 text-xs font-bold text-black hover:bg-amber-400 transition-colors cursor-pointer"
+            >
+              <Sparkles className="size-3.5" /> Invite First Friend Now
+            </button>
+          </div>
+        )}
+      </div>
+
+      {/* ── 6. Where You Can Spend Your Coins ── */}
+      <div className="rounded-[2.5rem] border border-white/10 bg-[#0e1118]/60 p-6 sm:p-8">
+        <h3 className="font-display text-xl font-bold uppercase">Where Can You Use UTI Coins?</h3>
+        <p className="mt-1 text-xs text-gray-400">
+          Redeem your accumulated coin balance as authoritative discount vouchers during checkout:
+        </p>
+
+        <div className="mt-5 grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
+          <div className="rounded-2xl border border-white/10 bg-white/[0.03] p-4">
+            <GraduationCap className="size-5 text-amber-400 mb-2" />
+            <h5 className="font-bold text-sm text-white">Courses &amp; Masterclasses</h5>
+            <p className="mt-1 text-xs text-gray-400">
+              Get up to 50% discount automatically applied using your coins.
+            </p>
+          </div>
+
+          <div className="rounded-2xl border border-white/10 bg-white/[0.03] p-4">
+            <Award className="size-5 text-emerald-400 mb-2" />
+            <h5 className="font-bold text-sm text-white">Hands-on Workshops</h5>
+            <p className="mt-1 text-xs text-gray-400">
+              Save on interactive learning sessions with premier artists.
+            </p>
+          </div>
+
+          <div className="rounded-2xl border border-white/10 bg-white/[0.03] p-4">
+            <Trophy className="size-5 text-sky-400 mb-2" />
+            <h5 className="font-bold text-sm text-white">Competition Entries</h5>
+            <p className="mt-1 text-xs text-gray-400">
+              Participate in state &amp; national talent stages with reduced entry fees.
+            </p>
+          </div>
+
+          <div className="rounded-2xl border border-white/10 bg-white/[0.03] p-4">
+            <Package className="size-5 text-purple-400 mb-2" />
+            <h5 className="font-bold text-sm text-white">Official Merchandise</h5>
+            <p className="mt-1 text-xs text-gray-400">
+              Exclusive swag, artist kits, and branded stage apparel discounts.
+            </p>
+          </div>
+        </div>
+      </div>
+
+      {/* ── 7. Immutable Coin Ledger & Expiring Lots ── */}
       <CoinLedger fallback={coinsData.history} />
     </div>
   );

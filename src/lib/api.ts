@@ -609,6 +609,21 @@ export const rewardsApi = {
     apiFetch<any>("/api/rewards/transactions", { auth: true, cache: "no-store", query: { limit: 50, ...p } }),
   /** Un-expired coin lots, so the wallet can warn before coins lapse. */
   lots: () => apiFetch<any>("/api/rewards/lots", { auth: true, cache: "no-store" }),
+  /** Public referral code check and preview for registration landing */
+  validateReferral: (code: string) =>
+    apiFetch<{
+      valid: boolean;
+      referral_code?: string;
+      inviter_name?: string;
+      inviter_full_name?: string;
+      inviter_photo?: string | null;
+      welcome_coins?: number;
+      referrer_coins?: number;
+      welcome_coins_value_inr?: number;
+      coin_value_rate?: number;
+      message?: string;
+      reason?: string;
+    }>("/api/rewards/referral/validate", { query: { code } }),
   calculateDiscount: (body: { item_id: string; item_type: "course" | "workshop"; coins_to_use?: number }) =>
     apiFetch<any>("/api/rewards/calculate-discount", { method: "POST", auth: true, body }),
   reserveDiscount: (body: { item_id: string; item_type: "course" | "workshop"; coins_to_reserve: number; order_reference: string }) =>

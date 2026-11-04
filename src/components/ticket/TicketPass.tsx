@@ -317,11 +317,11 @@ export function TicketPass({ ticket, qrData, defaultVariant }: TicketPassProps) 
     try {
       const dataUrl = await renderTicketPng(3);
 
-      const old = document.getElementById("eventora-ticket-print-iframe");
+      const old = document.getElementById("uti-ticket-print-iframe");
       if (old) old.remove();
 
       const iframe = document.createElement("iframe");
-      iframe.id = "eventora-ticket-print-iframe";
+      iframe.id = "uti-ticket-print-iframe";
       iframe.setAttribute("aria-hidden", "true");
       iframe.style.cssText =
         "position:fixed;right:0;bottom:0;width:0;height:0;border:0;visibility:hidden;";
@@ -351,7 +351,7 @@ export function TicketPass({ ticket, qrData, defaultVariant }: TicketPassProps) 
           page-break-inside: avoid; break-inside: avoid;
           page-break-after: avoid; break-after: avoid;
         }
-      </style></head><body><img id="eventora-ticket-img" src="${dataUrl}" alt="Ticket ${ticket.ticket_ref}" /></body></html>`);
+      </style></head><body><img id="uti-ticket-img" src="${dataUrl}" alt="Ticket ${ticket.ticket_ref}" /></body></html>`);
       doc.close();
 
       const fire = () => {
@@ -361,7 +361,7 @@ export function TicketPass({ ticket, qrData, defaultVariant }: TicketPassProps) 
         setTimeout(() => iframe.remove(), 3000);
       };
 
-      const img = doc.getElementById("eventora-ticket-img") as HTMLImageElement | null;
+      const img = doc.getElementById("uti-ticket-img") as HTMLImageElement | null;
       if (img && !img.complete) {
         img.onload = () => setTimeout(fire, 120);
         img.onerror = () => fire();

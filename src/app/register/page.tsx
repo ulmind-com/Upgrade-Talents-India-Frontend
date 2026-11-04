@@ -4,8 +4,8 @@ import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useRef, useState, useEffect } from "react";
 import { motion, AnimatePresence } from "framer-motion";
-import { ArrowRight, ArrowLeft, Eye, EyeOff, Upload, Check, Mail, KeyRound, UserRound } from "lucide-react";
-import { authApi, tokenStore } from "@/lib/api";
+import { ArrowRight, ArrowLeft, Eye, EyeOff, Upload, Check, Mail, KeyRound, UserRound, Sparkles, Coins, Gift, CheckCircle2 } from "lucide-react";
+import { authApi, tokenStore, rewardsApi } from "@/lib/api";
 import { useAuth } from "@/components/motion/Providers";
 import { AuthShell, Field, FormAlert, Input, DateInput } from "@/components/ui/Form";
 import { OtpVerify } from "@/components/ui/OtpVerify";
@@ -41,6 +41,17 @@ export default function RegisterPage() {
   // step 1
   const [email, setEmail] = useState("");
   const [referral, setReferral] = useState("");
+  const [referralInfo, setReferralInfo] = useState<{
+    valid?: boolean;
+    inviter_name?: string;
+    inviter_full_name?: string;
+    inviter_photo?: string | null;
+    welcome_coins?: number;
+    welcome_coins_value_inr?: number;
+    message?: string;
+    loading?: boolean;
+  } | null>(null);
+
   // Auto-detect referral code from URL query ?ref=XYZ
   useEffect(() => {
     if (typeof window !== "undefined") {
@@ -51,6 +62,46 @@ export default function RegisterPage() {
       }
     }
   }, []);
+
+  // Validate referral code with backend
+  useEffect(() => {
+    const code = referral.trim().toUpperCase();
+    if (!code || code.length < 3) {
+      setReferralInfo(null);
+      return;
+    }
+
+    let isMounted = true;
+    const timer = setTimeout(async () => {
+      try {
+        setReferralInfo((prev) => ({ ...prev, loading: true }));
+        const res = await rewardsApi.validateReferral(code);
+        if (isMounted) {
+          if (res && res.valid) {
+            setReferralInfo({
+              valid: true,
+              inviter_name: res.inviter_name,
+              inviter_full_name: res.inviter_full_name,
+              inviter_photo: res.inviter_photo,
+              welcome_coins: res.welcome_coins || 50,
+              welcome_coins_value_inr: res.welcome_coins_value_inr || 25,
+              message: res.message,
+              loading: false
+            });
+          } else {
+            setReferralInfo({ valid: false, loading: false });
+          }
+        }
+      } catch (e) {
+        if (isMounted) setReferralInfo({ valid: false, loading: false });
+      }
+    }, 400);
+
+    return () => {
+      isMounted = false;
+      clearTimeout(timer);
+    };
+  }, [referral]);
 
   // step 2
   const [otp, setOtp] = useState("");
@@ -244,6 +295,34 @@ export default function RegisterPage() {
             transition={{ duration: 0.4, ease: [0.16, 1, 0.3, 1] }}
             className="flex flex-col gap-3.5 sm:gap-5"
           >
+            {/* VIP Referral Welcome Banner */}
+            {referralInfo?.valid && (
+              <motion.div
+                initial={{ opacity: 0, y: -10, scale: 0.98 }}
+                animate={{ opacity: 1, y: 0, scale: 1 }}
+                className="relative overflow-hidden rounded-2xl border border-amber-500/40 bg-gradient-to-r from-amber-500/15 via-[#1a1712] to-emerald-500/10 p-4 shadow-lg shadow-amber-500/5"
+              >
+                <div className="flex items-start gap-3">
+                  <div className="grid size-10 shrink-0 place-items-center rounded-xl bg-gradient-to-br from-amber-400 to-amber-600 text-black shadow-md shadow-amber-500/20">
+                    <Sparkles className="size-5" />
+                  </div>
+                  <div className="min-w-0 flex-1">
+                    <div className="flex items-center gap-1.5 flex-wrap">
+                      <span className="font-mono text-[10px] font-black uppercase tracking-wider text-amber-400">
+                        VIP Talent Invitation
+                      </span>
+                      <span className="inline-flex items-center gap-1 rounded-full bg-emerald-500/20 px-2 py-0.5 text-[10px] font-bold text-emerald-400">
+                        <CheckCircle2 className="size-3" /> Code Applied: {referral}
+                      </span>
+                    </div>
+                    <p className="mt-1 text-xs text-white leading-relaxed">
+                      You were invited by <strong className="text-amber-300 font-semibold">{referralInfo.inviter_name || "a talent creator"}</strong>! Complete sign-up to receive <strong className="text-emerald-400 font-bold">+{referralInfo.welcome_coins || 50} Free Coins</strong> (₹{referralInfo.welcome_coins_value_inr || 25} discount power) immediately in your wallet.
+                    </p>
+                  </div>
+                </div>
+              </motion.div>
+            )}
+
             <Field label="Email address" hint="We'll send a verification code here." error={errors.email} required>
               {({ id, describedBy, invalid }) => (
                 <Input id={id} type="email" inputMode="email" autoComplete="email" value={email}
@@ -251,9 +330,33 @@ export default function RegisterPage() {
               )}
             </Field>
 
-            <Field label="Referral code" hint="Optional — if a friend invited you.">
+            <Field
+              label="Referral code"
+              hint={
+                referralInfo?.valid
+                  ? `✓ Verified invite from ${referralInfo.inviter_name || "member"} (+${referralInfo.welcome_coins} free coins on signup)`
+                  : "Optional — if a friend invited you."
+              }
+            >
               {({ id }) => (
-                <Input id={id} type="text" value={referral} onChange={(e) => setReferral(e.target.value)} placeholder="e.g. UTI2026" />
+                <div className="relative">
+                  <Input
+                    id={id}
+                    type="text"
+                    value={referral}
+                    onChange={(e) => setReferral(e.target.value.toUpperCase())}
+                    placeholder="e.g. UTI2026"
+                    className={referralInfo?.valid ? "border-amber-500/50 pr-10 text-amber-300 font-mono tracking-wider font-bold" : ""}
+                  />
+                  {referralInfo?.valid && (
+                    <span className="absolute right-3 top-1/2 -translate-y-1/2 text-emerald-400" title="Verified Referral Code">
+                      <CheckCircle2 className="size-4" />
+                    </span>
+                  )}
+                  {referralInfo?.loading && (
+                    <span className="absolute right-3 top-1/2 -translate-y-1/2 size-4 border-2 border-gray-400 border-t-amber-400 rounded-full animate-spin" />
+                  )}
+                </div>
               )}
             </Field>
 
