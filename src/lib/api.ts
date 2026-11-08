@@ -415,6 +415,63 @@ export const publicApi = {
     apiFetch<any>(`/api/v1/competitions/${compId}/live-stage`, { cache: "no-store" }).catch(() =>
       apiFetch<any>(`/api/public/competitions/${compId}/live-stage`, { cache: "no-store" })
     ),
+  rounds: (id: string) =>
+    apiFetch<{
+      competition_id?: string;
+      current_round?: number;
+      total_rounds?: number;
+      rounds?: Array<{
+        round_number: number;
+        name: string;
+        description?: string;
+        status: string;
+        advancing_count?: number;
+        is_final_round?: boolean;
+        qualified_contestants_count?: number;
+      }>;
+    }>(`/api/v1/competitions/${id}/rounds`, { cache: "no-store" }).catch(() =>
+      apiFetch<any>(`/api/public/competitions/${id}/rounds`, { cache: "no-store" })
+    ),
+  roundLeaderboard: (id: string, roundNumber: number, category?: string) =>
+    apiFetch<{
+      competition_id?: string;
+      round_number?: number;
+      round_name?: string;
+      round_status?: string;
+      is_final_round?: boolean;
+      advancing_count?: number;
+      current_active_round?: number;
+      total_rounds?: number;
+      rounds?: any[];
+      category?: string;
+      categories?: string[];
+      leaderboard?: any[];
+      category_leaderboards?: Record<string, any[]>;
+    }>(`/api/v1/competitions/${id}/rounds/${roundNumber}/leaderboard`, {
+      query: category ? { category } : undefined,
+      cache: "no-store",
+    }).catch(() =>
+      apiFetch<any>(`/api/public/competitions/${id}/rounds/${roundNumber}/leaderboard`, {
+        query: category ? { category } : undefined,
+        cache: "no-store",
+      })
+    ),
+  roundContestants: (id: string, roundNumber: number, category?: string) =>
+    apiFetch<{
+      competition_id?: string;
+      round_number?: number;
+      total_contestants?: number;
+      category?: string;
+      contestants?: any[];
+    }>(`/api/v1/competitions/${id}/rounds/${roundNumber}/contestants`, {
+      query: category ? { category } : undefined,
+      cache: "no-store",
+    }).catch(() =>
+      apiFetch<any>(`/api/public/competitions/${id}/rounds/${roundNumber}/contestants`, {
+        query: category ? { category } : undefined,
+        cache: "no-store",
+      })
+    ),
   verifyCertificate: (token: string) =>
     apiFetch<any>(`/api/public/certificates/verify/${encodeURIComponent(token)}`, { revalidate: 30 }),
 };

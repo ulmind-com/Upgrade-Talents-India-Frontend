@@ -3,7 +3,7 @@
 import { useEffect, useMemo, useState, useCallback } from "react";
 import { useSearchParams, useRouter, usePathname } from "next/navigation";
 import { motion } from "framer-motion";
-import { Crown, Medal, Trophy, Flame, Search, ChevronDown, Users, Sparkles, Vote, Gavel, ExternalLink } from "lucide-react";
+import { Crown, Medal, Trophy, Flame, Search, ChevronDown, Users, Sparkles, Vote, Gavel, ExternalLink, Layers } from "lucide-react";
 import { Reveal, StaggerGroup, StaggerItem } from "@/components/motion/Reveal";
 import { SectionLabel } from "@/components/ui/Primitives";
 import { publicApi, competeApi } from "@/lib/api";
@@ -24,6 +24,9 @@ type Row = {
   category?: string;
   is_verified?: boolean;
   verified_badge?: boolean;
+  is_advancing?: boolean;
+  round_status?: string;
+  is_present?: boolean;
 };
 
 type Comp = { _id?: string; id?: string; title?: string; name?: string };
@@ -280,12 +283,35 @@ export default function LeaderboardView({
   const [loading, setLoading] = useState(false);
   const [q, setQ] = useState("");
   const [preview, setPreview] = useState(false);
+  const [roundsData, setRoundsData] = useState<any | null>(null);
+  const [activeRoundNumber, setActiveRoundNumber] = useState<number | null>(null);
 
-  const pick = useCallback(async (id: string) => {
+  const pick = useCallback(async (id: string, targetRound?: number) => {
     if (!id) return;
     setLoading(true);
     try {
-      const d = await publicApi.leaderboard(id);
+      let rData = null;
+      try {
+        rData = await publicApi.rounds(id);
+        if (rData && Array.isArray(rData.rounds) && rData.rounds.length > 0) {
+          setRoundsData(rData);
+        } else {
+          setRoundsData(null);
+        }
+      } catch {
+        setRoundsData(null);
+      }
+
+      const activeR = targetRound ?? rData?.current_round ?? 1;
+      setActiveRoundNumber(activeR);
+
+      let d = null;
+      if (rData && Array.isArray(rData.rounds) && rData.rounds.length > 1) {
+        d = await publicApi.roundLeaderboard(id, activeR);
+      } else {
+        d = await publicApi.leaderboard(id);
+      }
+
       setRows(Array.isArray(d?.leaderboard) ? d.leaderboard : []);
       if (Array.isArray(d?.categories)) {
         setCategories(d.categories);
@@ -299,6 +325,26 @@ export default function LeaderboardView({
       setLoading(false);
     }
   }, []);
+
+  const handleSelectRound = async (roundNum: number) => {
+    if (!compId) return;
+    setActiveRoundNumber(roundNum);
+    setLoading(true);
+    try {
+      const d = await publicApi.roundLeaderboard(compId, roundNum);
+      setRows(Array.isArray(d?.leaderboard) ? d.leaderboard : []);
+      if (Array.isArray(d?.categories)) {
+        setCategories(d.categories);
+      }
+      if (d?.category_leaderboards && typeof d.category_leaderboards === "object") {
+        setCategoryLeaderboards(d.category_leaderboards);
+      }
+    } catch {
+      setRows([]);
+    } finally {
+      setLoading(false);
+    }
+  };
 
   // Sync competition list when competitions prop updates
   useEffect(() => {
@@ -563,6 +609,76 @@ export default function LeaderboardView({
         </div>
       </Reveal>
 
+      {/* Knockout Stages / Multi-Round Selector (Prelims → Semifinal → Final) */}
+      {roundsData && Array.isArray(roundsData.rounds) && roundsData.rounds.length > 1 && (
+        <Reveal className="mt-6">
+          <div className="flex flex-col gap-3 rounded-2xl border border-[var(--border)] bg-gradient-to-r from-[var(--surface-2)]/60 via-[var(--surface)] to-[var(--surface-2)]/60 p-4 shadow-md">
+            <div className="flex flex-wrap items-center justify-between gap-2">
+              <span className="text-[12px] font-black uppercase tracking-wider text-[var(--fg)] flex items-center gap-2">
+                <Layers className="size-4 text-[var(--brand)]" />
+                Competition Stages &amp; Knockout Rounds
+              </span>
+              <span className="text-xs text-[var(--fg-muted)]">
+                Stage {activeRoundNumber ?? roundsData.current_round ?? 1} of {roundsData.total_rounds ?? roundsData.rounds.length}
+              </span>
+            </div>
+
+            <div className="grid grid-cols-1 sm:grid-cols-3 gap-2.5">
+              {roundsData.rounds.map((rd: any) => {
+                const isSelected = (activeRoundNumber ?? roundsData.current_round ?? 1) === rd.round_number;
+                const isActive = rd.status === "ACTIVE";
+                const isCompleted = rd.status === "COMPLETED";
+
+                return (
+                  <button
+                    key={rd.round_number}
+                    type="button"
+                    onClick={() => handleSelectRound(rd.round_number)}
+                    className={cn(
+                      "cursor-pointer rounded-xl p-3 text-left transition-all border relative flex flex-col justify-between gap-2",
+                      isSelected
+                        ? "border-[var(--brand)] bg-[var(--brand)]/10 ring-2 ring-[var(--brand)]/40 shadow-lg"
+                        : "border-[var(--border)] bg-[var(--surface)] hover:border-[var(--border-strong)]"
+                    )}
+                  >
+                    <div className="flex items-center justify-between gap-1.5">
+                      <span className="text-xs font-black tracking-wide text-[var(--fg)]">
+                        {rd.name || `Round ${rd.round_number}`}
+                      </span>
+                      <span
+                        className={cn(
+                          "rounded-full px-2 py-0.5 text-[10px] font-extrabold uppercase",
+                          isActive
+                            ? "bg-emerald-500/20 text-emerald-400 border border-emerald-500/30"
+                            : isCompleted
+                            ? "bg-slate-500/20 text-slate-300 border border-slate-500/30"
+                            : "bg-amber-500/10 text-amber-300 border border-amber-500/20"
+                        )}
+                      >
+                        {isActive ? "Active Stage" : isCompleted ? "Completed" : "Upcoming"}
+                      </span>
+                    </div>
+                    {rd.description && (
+                      <p className="line-clamp-1 text-[11px] text-[var(--fg-muted)]">{rd.description}</p>
+                    )}
+                    {rd.advancing_count && !rd.is_final_round && (
+                      <span className="text-[10.5px] font-bold text-amber-400">
+                        Top {rd.advancing_count} advance to next stage
+                      </span>
+                    )}
+                    {rd.is_final_round && (
+                      <span className="text-[10.5px] font-bold text-yellow-400 flex items-center gap-1">
+                        👑 Grand Finale Championship
+                      </span>
+                    )}
+                  </button>
+                );
+              })}
+            </div>
+          </div>
+        </Reveal>
+      )}
+
       {/* Category Tabs (Junior, Sub-Junior, Senior) */}
       {availableCategories.length > 0 && (
         <Reveal className="mt-6">
@@ -765,7 +881,19 @@ export default function LeaderboardView({
                                   <span>{r.name || "—"}</span>
                                   {(r.is_verified || r.verified_badge) && <VerifiedBadge size="xs" />}
                                 </p>
-                                <p className="truncate text-[11.5px] text-[var(--fg-subtle)]">{handle(r)}</p>
+                                <div className="flex flex-wrap items-center gap-1.5 mt-0.5">
+                                  <p className="truncate text-[11.5px] text-[var(--fg-subtle)]">{handle(r)}</p>
+                                  {r.is_advancing && (
+                                    <span className="inline-flex items-center gap-1 rounded-full border border-emerald-500/40 bg-emerald-500/10 px-2 py-0.5 text-[9.5px] font-extrabold text-emerald-400">
+                                      <Sparkles className="size-2.5" /> Qualifies
+                                    </span>
+                                  )}
+                                  {r.round_status === "ELIMINATED" && (
+                                    <span className="inline-flex items-center rounded-full border border-rose-500/30 bg-rose-500/10 px-2 py-0.5 text-[9.5px] font-bold text-rose-400">
+                                      Eliminated
+                                    </span>
+                                  )}
+                                </div>
                               </div>
                             </div>
                           </td>
