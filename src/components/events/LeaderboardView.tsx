@@ -33,14 +33,14 @@ type Row = {
 type Comp = { _id?: string; id?: string; title?: string; name?: string };
 
 const DEMO: Row[] = [
-  { rank: 1, name: "Riya Sharma", email: "riya@upgradetalentsindia.in", audience_votes: 3045, judge_score: 92, final_score: 98.4 },
-  { rank: 2, name: "Arjun Mehta", email: "arjun@upgradetalentsindia.in", audience_votes: 2774, judge_score: 88, final_score: 94.1 },
-  { rank: 3, name: "Neha Kapoor", email: "neha@upgradetalentsindia.in", audience_votes: 1988, judge_score: 90, final_score: 91.7 },
-  { rank: 4, name: "Kabir Rao", email: "kabir@upgradetalentsindia.in", audience_votes: 1589, judge_score: 84, final_score: 86.0 },
-  { rank: 5, name: "Ananya Das", email: "ananya@upgradetalentsindia.in", audience_votes: 1021, judge_score: 82, final_score: 80.2 },
-  { rank: 6, name: "Dev Patel", email: "dev@upgradetalentsindia.in", audience_votes: 1000, judge_score: 79, final_score: 77.9 },
-  { rank: 7, name: "Simran Gill", email: "simran@upgradetalentsindia.in", audience_votes: 842, judge_score: 76, final_score: 72.4 },
-  { rank: 8, name: "Ved Nair", email: "ved@upgradetalentsindia.in", audience_votes: 640, judge_score: 71, final_score: 66.8 },
+  { rank: 1, name: "Riya Sharma", email: "riya@upgradetalentsindia.in", audience_votes: 3045, judge_score: 92, final_score: 98.4, category: "Junior" },
+  { rank: 2, name: "Arjun Mehta", email: "arjun@upgradetalentsindia.in", audience_votes: 2774, judge_score: 88, final_score: 94.1, category: "Senior" },
+  { rank: 3, name: "Neha Kapoor", email: "neha@upgradetalentsindia.in", audience_votes: 1988, judge_score: 90, final_score: 91.7, category: "Sub-Junior" },
+  { rank: 4, name: "Kabir Rao", email: "kabir@upgradetalentsindia.in", audience_votes: 1589, judge_score: 84, final_score: 86.0, category: "Junior" },
+  { rank: 5, name: "Ananya Das", email: "ananya@upgradetalentsindia.in", audience_votes: 1021, judge_score: 82, final_score: 80.2, category: "Senior" },
+  { rank: 6, name: "Dev Patel", email: "dev@upgradetalentsindia.in", audience_votes: 1000, judge_score: 79, final_score: 77.9, category: "Sub-Junior" },
+  { rank: 7, name: "Simran Gill", email: "simran@upgradetalentsindia.in", audience_votes: 842, judge_score: 76, final_score: 72.4, category: "Junior" },
+  { rank: 8, name: "Ved Nair", email: "ved@upgradetalentsindia.in", audience_votes: 640, judge_score: 71, final_score: 66.8, category: "Senior" },
 ];
 
 const handle = (r: Row) => "@" + ((r.email || r.participant_id || r.name || "player").split("@")[0].replace(/\s+/g, "_").toLowerCase());
@@ -159,15 +159,15 @@ function PodiumCard({ row, place }: { row: Row; place: 0 | 1 | 2 }) {
       {/* Top right corner medal/crown */}
       <TagIcon className={`absolute right-4 top-4 size-5 ${tier.cornerIconColor}`} aria-hidden />
 
-      {/* Prominent Mobile Header Banner (Ensures 1st, 2nd, 3rd are unmistakable on phones) */}
-      <div className={`mb-3 w-full rounded-xl py-1.5 px-3 flex items-center justify-center gap-1.5 font-black uppercase tracking-wider text-xs shadow-sm ${
+      {/* Prominent Header Banner (Ensures 1st, 2nd, 3rd are unmistakable on phones & desktops) */}
+      <div className={`mb-3.5 w-full rounded-xl py-2 px-3.5 flex items-center justify-center gap-2 font-black uppercase tracking-wider text-xs sm:text-sm shadow-sm ${
         place === 0
-          ? "bg-gradient-to-r from-amber-500 via-yellow-400 to-amber-500 text-slate-950 ring-1 ring-amber-300"
+          ? "bg-gradient-to-r from-amber-500 via-yellow-400 to-amber-500 text-slate-950 ring-2 ring-amber-300"
           : place === 1
           ? "bg-gradient-to-r from-slate-200 via-slate-300 to-slate-200 dark:from-slate-700 dark:via-slate-600 dark:to-slate-700 text-slate-900 dark:text-slate-100 ring-1 ring-slate-400/40"
           : "bg-gradient-to-r from-amber-700 via-orange-800 to-amber-900 text-amber-50 ring-1 ring-amber-600/40"
       }`}>
-        <TagIcon className="size-3.5 shrink-0 fill-current" />
+        <TagIcon className="size-4 shrink-0 fill-current" />
         <span>
           {place === 0 ? "🥇 1ST PLACE • CHAMPION" : place === 1 ? "🥈 2ND PLACE • RUNNER-UP" : "🥉 3RD PLACE • 2ND RUNNER-UP"}
         </span>
@@ -495,6 +495,12 @@ export default function LeaderboardView({
         const name = typeof c === "string" ? c : c?.name;
         if (name && typeof name === "string" && name.trim()) set.add(name.trim());
       }
+    }
+    // Default divisions to guarantee tabs are present if competition has no custom categories defined
+    if (set.size === 0) {
+      set.add("Junior");
+      set.add("Sub-Junior");
+      set.add("Senior");
     }
     return Array.from(set);
   }, [categories, categoryLeaderboards, rows, activeComp]);
@@ -924,8 +930,8 @@ export default function LeaderboardView({
 
           {/* Podium */}
           <div className="mt-12">
-            <div className="mb-5 text-center">
-              <span className="inline-flex items-center gap-2 rounded-full border border-amber-400/40 bg-gradient-to-r from-amber-500/15 via-yellow-500/10 to-amber-500/15 px-4 py-1.5 text-xs sm:text-sm font-extrabold text-amber-300 shadow-sm">
+            <div className="mb-6 text-center">
+              <span className="inline-flex items-center gap-2 rounded-full border border-amber-400/40 bg-gradient-to-r from-amber-500/15 via-yellow-500/10 to-amber-500/15 px-4 py-2 text-xs sm:text-sm font-extrabold text-amber-300 shadow-sm">
                 <Trophy className="size-4 text-amber-400" />
                 <span>
                   {activeCategory === "ALL" ? "Official Top 3 Podium" : `${activeCategory} Category • Official Top 3 Podium`}
@@ -933,58 +939,10 @@ export default function LeaderboardView({
               </span>
             </div>
 
-            {/* Mobile Olympic Stepped Pedestal (Shows 2nd, 1st, 3rd side-by-side with clear heights) */}
-            <div className="mb-8 block sm:hidden rounded-2xl border border-[var(--border)] bg-gradient-to-b from-[var(--surface-2)] to-[var(--surface)] p-4 shadow-md">
-              <div className="text-center mb-3">
-                <span className="text-xs font-bold text-amber-400/90 uppercase tracking-widest">
-                  Live Podium Standings
-                </span>
-              </div>
-              <div className="flex items-end justify-center gap-2">
-                {/* 2nd Place Pedestal (Silver) */}
-                {podium[1] && (
-                  <div className="flex-1 flex flex-col items-center">
-                    <div className="size-12 rounded-full border-2 border-slate-300 overflow-hidden mb-1.5 shadow-sm">
-                      <img src={imageFor(podium[1].profile_photo, 2)} alt="" className="size-full object-cover" />
-                    </div>
-                    <span className="text-xs font-bold text-slate-300 truncate max-w-[85px]">{podium[1].name}</span>
-                    <div className="w-full h-16 rounded-t-xl bg-gradient-to-b from-slate-400/35 via-slate-500/20 to-slate-700/30 border-t-2 border-x border-slate-300/60 flex flex-col items-center justify-center pt-1 shadow-inner">
-                      <span className="text-base font-black text-slate-200">2nd</span>
-                      <span className="text-[9.5px] font-bold text-slate-300 uppercase tracking-wide">Silver</span>
-                    </div>
-                  </div>
-                )}
-                {/* 1st Place Pedestal (Gold Champion - Tallest in Center) */}
-                {podium[0] && (
-                  <div className="flex-1 flex flex-col items-center -translate-y-2">
-                    <Crown className="size-5 text-amber-400 animate-bounce mb-0.5" />
-                    <div className="size-14 rounded-full border-3 border-amber-400 ring-2 ring-amber-400/40 overflow-hidden mb-1.5 shadow-md">
-                      <img src={imageFor(podium[0].profile_photo, 1)} alt="" className="size-full object-cover" />
-                    </div>
-                    <span className="text-xs font-black text-amber-300 truncate max-w-[95px]">{podium[0].name}</span>
-                    <div className="w-full h-24 rounded-t-xl bg-gradient-to-b from-amber-500/50 via-yellow-500/30 to-amber-600/30 border-t-3 border-x border-amber-400 flex flex-col items-center justify-center pt-1 shadow-[0_0_15px_rgba(245,158,11,0.25)]">
-                      <span className="text-xl font-black text-amber-300">1st</span>
-                      <span className="text-[10px] font-black text-amber-200 uppercase tracking-wider">Champion</span>
-                    </div>
-                  </div>
-                )}
-                {/* 3rd Place Pedestal (Bronze) */}
-                {podium[2] && (
-                  <div className="flex-1 flex flex-col items-center">
-                    <div className="size-12 rounded-full border-2 border-amber-700 overflow-hidden mb-1.5 shadow-sm">
-                      <img src={imageFor(podium[2].profile_photo, 3)} alt="" className="size-full object-cover" />
-                    </div>
-                    <span className="text-xs font-bold text-amber-500 truncate max-w-[85px]">{podium[2].name}</span>
-                    <div className="w-full h-12 rounded-t-xl bg-gradient-to-b from-amber-700/40 via-amber-800/20 to-orange-950/30 border-t-2 border-x border-amber-700/60 flex flex-col items-center justify-center pt-1 shadow-inner">
-                      <span className="text-sm font-black text-amber-400">3rd</span>
-                      <span className="text-[9.5px] font-bold text-amber-400/90 uppercase tracking-wide">Bronze</span>
-                    </div>
-                  </div>
-                )}
-              </div>
-            </div>
-
-            {/* Desktop & Mobile Podium Cards (1st Gold, 2nd Silver, 3rd Bronze) */}
+            {/* Responsive Podium Cards:
+                - On Mobile: 1st Place (Gold Champion 🥇) is clearly on TOP (order-1) with the crown and champion badge so 1st and 2nd are never confused!
+                - On Desktop (sm+): Classic 3-column Olympic layout (2nd Silver on left, 1st elevated Gold in center, 3rd Bronze on right)
+            */}
             <StaggerGroup className="grid grid-cols-1 items-end gap-6 sm:grid-cols-3">
               {podium[1] && (
                 <StaggerItem

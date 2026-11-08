@@ -46,6 +46,7 @@ type Comp = {
   prize?: string;
   rules?: string | RulesObj;
   category?: string;
+  categories?: any[];
   type?: string;
   status?: string;
   start_date?: string;
@@ -172,7 +173,30 @@ export default function CompetitionDetail({
     payment_method?: string;
     cash_payment?: boolean;
     cash_status?: string;
+    category?: string;
   } | null>(null);
+
+  const availableCategories = useMemo(() => {
+    if (Array.isArray(comp.categories) && comp.categories.length > 0) {
+      return comp.categories.map((c: any) => (typeof c === "string" ? { name: c } : c));
+    }
+    if (comp.category && typeof comp.category === "string" && comp.category.trim()) {
+      return [{ name: comp.category.trim() }];
+    }
+    return [
+      { name: "Sub-Junior", age_limit: "3-7 years", min_age: 3, max_age: 7, description: "Ages 3 to 7 years" },
+      { name: "Junior", age_limit: "8-14 years", min_age: 8, max_age: 14, description: "Ages 8 to 14 years" },
+      { name: "Senior", age_limit: "15-28 years", min_age: 15, max_age: 28, description: "Ages 15 to 28 years" },
+    ];
+  }, [comp.categories, comp.category]);
+
+  const [selectedCategory, setSelectedCategory] = useState<string>("");
+
+  useEffect(() => {
+    if (!selectedCategory && availableCategories.length > 0) {
+      setSelectedCategory(availableCategories[0]?.name || "Junior");
+    }
+  }, [availableCategories, selectedCategory]);
   const [paymentMode, setPaymentMode] = useState<"ONLINE" | "CASH">("ONLINE");
   const [rulesAccepted, setRulesAccepted] = useState(false);
   const [entryModes, setEntryModes] = useState<Record<string, "file" | "link">>({});
@@ -336,7 +360,11 @@ export default function CompetitionDetail({
               payment_method: reg.payment_method,
               cash_payment: isCash,
               cash_status: reg.cash_status,
+              category: (reg as any).category,
             });
+            if ((reg as any).category) {
+              setSelectedCategory((reg as any).category);
+            }
             if (reg.has_submitted || reg.submission_id) {
               setStep("done");
               setMsg({ tone: "ok", text: "You have submitted your entry for this competition!" });
@@ -562,16 +590,17 @@ export default function CompetitionDetail({
     setBusy(true);
     setMsg(null);
     try {
-      const el = await competeApi.eligibility(id);
+      const chosenCat = selectedCategory || availableCategories[0]?.name || "Junior";
+      const el = await competeApi.eligibility(id, chosenCat);
       if (!el.eligible) {
-        setMsg({ tone: "err", text: el.reason || "You are not eligible." });
+        setMsg({ tone: "err", text: el.reason || "You are not eligible for this category division." });
         return;
       }
 
       const fee = comp.participation_fee || comp.fee || 0;
       const chosenMode = fee > 0 ? paymentMode : "ONLINE";
 
-      const regRes = await competeApi.register(id, true, chosenMode);
+      const regRes = await competeApi.register(id, true, chosenMode, chosenCat);
 
       // If Cash on Spot, free registration, or confirmed without payment gateway
       if (
@@ -586,16 +615,17 @@ export default function CompetitionDetail({
           reference: regRes.reference,
           payment_method: regRes.payment_method || chosenMode,
           cash_payment: isCash,
+          category: regRes.category || chosenCat,
         }));
         setStep(fields.length ? "submit" : "done");
         loadLeaderboard();
         if (isCash) {
           setMsg({
             tone: "ok",
-            text: `Registration confirmed with Cash on Spot! Please deposit ₹${fee} cash at the venue registration counter on event day.`,
+            text: `Registration confirmed for ${chosenCat} with Cash on Spot! Please deposit ₹${fee} cash at the venue registration counter on event day.`,
           });
         } else {
-          setMsg({ tone: "ok", text: "You're registered!" });
+          setMsg({ tone: "ok", text: `You're registered in ${chosenCat} division!` });
         }
         return;
       }
@@ -648,7 +678,12 @@ export default function CompetitionDetail({
               razorpay_payment_id: resp.razorpay_payment_id,
               razorpay_signature: resp.razorpay_signature,
             });
-            setEnrollmentInfo((s) => ({ ...s, reference: regRes.reference }));
+            setEnrollmentInfo((s) => ({
+              ...s,
+              reference: regRes.reference,
+              payment_method: "ONLINE",
+              category: regRes.category || chosenCat,
+            }));
             setStep(fields.length ? "submit" : "done");
             setMsg({ tone: "ok", text: "Payment verified! You are registered. Please upload your entry below." });
             loadLeaderboard();
@@ -1205,6 +1240,15 @@ export default function CompetitionDetail({
                   </div>
                 )}
 
+                {(enrollmentInfo?.category || selectedCategory) && (
+                  <div className="rounded-xl border border-amber-500/35 bg-amber-500/10 px-3 py-1.5 text-xs text-amber-300">
+                    <span className="font-semibold flex items-center gap-1.5">
+                      <Trophy className="size-3.5 text-amber-400" />
+                      Division: {enrollmentInfo?.category || selectedCategory}
+                    </span>
+                  </div>
+                )}
+
                 {enrollmentInfo?.cash_payment && (
                   <div className="rounded-xl border border-amber-500/35 bg-amber-500/10 px-3 py-1.5 text-xs text-amber-300">
                     <span className="font-semibold flex items-center gap-1.5">
@@ -1675,6 +1719,45 @@ export default function CompetitionDetail({
                 </div>
               ) : (
                 <>
+                  {/* Category Division Selection */}
+                  {availableCategories.length > 0 && (
+                    <div className="mb-4">
+                      <p className="mb-2 text-[11px] font-semibold uppercase tracking-wider text-[var(--fg-subtle)] flex items-center gap-1.5">
+                        <Trophy className="size-3.5 text-amber-400" />
+                        Select Age Division / Category
+                      </p>
+                      <div className="grid grid-cols-1 gap-2 sm:grid-cols-3">
+                        {availableCategories.map((cat: any) => {
+                          const catName = cat.name || cat;
+                          const isSelected = selectedCategory === catName;
+                          return (
+                            <button
+                              key={catName}
+                              type="button"
+                              onClick={() => setSelectedCategory(catName)}
+                              className={cn(
+                                "flex flex-col items-start rounded-xl border p-2.5 text-left transition-all",
+                                isSelected
+                                  ? "border-amber-400 bg-amber-500/15 ring-1 ring-amber-400 shadow-sm"
+                                  : "border-[var(--border)] bg-[var(--surface-2)]/60 hover:border-[var(--border-strong)]"
+                              )}
+                            >
+                              <div className="flex w-full items-center justify-between">
+                                <span className={cn("text-xs font-bold", isSelected ? "text-amber-300" : "text-[var(--fg)]")}>
+                                  {catName}
+                                </span>
+                                {isSelected && <span className="size-2 rounded-full bg-amber-400" />}
+                              </div>
+                              <span className="mt-0.5 text-[10.5px] text-[var(--fg-muted)]">
+                                {cat.age_limit || (cat.min_age != null && cat.max_age != null ? `${cat.min_age}-${cat.max_age} yrs` : cat.description || "Open")}
+                              </span>
+                            </button>
+                          );
+                        })}
+                      </div>
+                    </div>
+                  )}
+
                   {!!(comp.participation_fee || comp.fee) && (
                     <div className="mb-4 space-y-3">
                       <div className="flex items-center justify-between rounded-xl border border-[var(--border)] bg-[var(--surface-2)] p-3">
