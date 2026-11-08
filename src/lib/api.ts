@@ -363,18 +363,54 @@ export const publicApi = {
     apiFetch<any>(`/api/activities/competitions/${id}`, { revalidate: 10 }).catch(() =>
       apiFetch<any>(`/api/v1/competitions/${id}`, { revalidate: 10 })
     ),
-  results: (id: string) =>
-    apiFetch<any>(`/api/v1/competitions/${id}/results`, { revalidate: 10 }),
+  results: (id: string, category?: string) =>
+    apiFetch<any>(`/api/v1/competitions/${id}/results`, {
+      query: category ? { category } : undefined,
+      cache: "no-store",
+    }),
   contestantFeedbacks: (compId: string, submissionId: string) =>
     apiFetch<any[]>(`/api/v1/competitions/${compId}/contestants/${submissionId}/feedbacks`, { revalidate: 10 }),
   liveVoting: () =>
     apiFetch<any[]>("/api/v1/users/me/home/live-voting", { auth: true, cache: "no-store" }).catch(() =>
       apiFetch<any[]>("/api/public/users/me/home/live-voting", { cache: "no-store" }).catch(() => [])
     ),
-  leaderboard: (id: string) =>
-    apiFetch<{ ranking_mode?: string; leaderboard?: any[] }>(`/api/v1/competitions/${id}/leaderboard`, { cache: "no-store" }).catch(() =>
-      apiFetch<{ ranking_mode?: string; leaderboard?: any[] }>(`/api/public/competitions/${id}/leaderboard`, { cache: "no-store" })
+  leaderboard: (id: string, category?: string) =>
+    apiFetch<{
+      ranking_mode?: string;
+      leaderboard?: any[];
+      categories?: string[];
+      category_leaderboards?: Record<string, any[]>;
+      category?: string;
+      is_published?: boolean;
+    }>(`/api/v1/competitions/${id}/leaderboard`, {
+      query: category ? { category } : undefined,
+      cache: "no-store",
+    }).catch(() =>
+      apiFetch<{
+        ranking_mode?: string;
+        leaderboard?: any[];
+        categories?: string[];
+        category_leaderboards?: Record<string, any[]>;
+        category?: string;
+        is_published?: boolean;
+      }>(`/api/public/competitions/${id}/leaderboard`, {
+        query: category ? { category } : undefined,
+        cache: "no-store",
+      })
     ),
+  finalParticipants: (compId: string, category?: string) =>
+    apiFetch<{
+      competition_id?: string;
+      competition_title?: string;
+      total_registered?: number;
+      present_count?: number;
+      category?: string;
+      final_participants?: any[];
+      final_present_list?: any[];
+    }>(`/api/public/competitions/${compId}/final-participants`, {
+      query: category ? { category } : undefined,
+      cache: "no-store",
+    }),
   liveStage: (compId: string) =>
     apiFetch<any>(`/api/v1/competitions/${compId}/live-stage`, { cache: "no-store" }).catch(() =>
       apiFetch<any>(`/api/public/competitions/${compId}/live-stage`, { cache: "no-store" })
@@ -890,6 +926,11 @@ export interface JudgeContestant {
   registration_number?: string;
   reg_no?: string;
   user_phone?: string;
+  category?: string;
+  is_present?: boolean;
+  attendance_status?: string;
+  attended_at?: string;
+  attended_by?: string;
   rank?: number | null;
   is_scored?: boolean;
   has_scored?: boolean;
@@ -924,8 +965,12 @@ export const judgeCompetitionsApi = {
     apiFetch<JudgeCompetition[]>("/api/judge/", { auth: true }),
 
   /** List scorable contestants/submissions for a competition */
-  listContestants: (compId: string) =>
-    apiFetch<JudgeContestant[]>(`/api/judge/${compId}/contestants`, { auth: true }),
+  listContestants: (compId: string, p: { category?: string; only_present?: boolean } = {}) =>
+    apiFetch<JudgeContestant[]>(`/api/judge/${compId}/contestants`, { auth: true, query: p }),
+
+  /** List only confirmed present participants from the final present list */
+  listFinalContestants: (compId: string, category?: string) =>
+    apiFetch<JudgeContestant[]>(`/api/judge/${compId}/final-contestants`, { auth: true, query: category ? { category } : undefined }),
 
   /** Verify live session PIN to unlock scoring */
   verifyPin: (compId: string, pin: string) =>

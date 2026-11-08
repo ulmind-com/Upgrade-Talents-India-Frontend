@@ -7,7 +7,7 @@ import { Crown, Medal, Trophy, Flame, Search, ChevronDown, Users, Sparkles, Vote
 import { Reveal, StaggerGroup, StaggerItem } from "@/components/motion/Reveal";
 import { SectionLabel } from "@/components/ui/Primitives";
 import { publicApi, competeApi } from "@/lib/api";
-import { imageFor } from "@/lib/utils";
+import { imageFor, cn } from "@/lib/utils";
 import Link from "next/link";
 import VerifiedBadge from "@/components/ui/VerifiedBadge";
 
@@ -21,6 +21,7 @@ type Row = {
   judge_score?: number;
   final_score?: number;
   points?: number;
+  category?: string;
   is_verified?: boolean;
   verified_badge?: boolean;
 };
@@ -243,10 +244,14 @@ export default function LeaderboardView({
   competitions,
   initialCompId,
   initialRows,
+  initialCategories,
+  initialCategoryLeaderboards,
 }: {
   competitions: Comp[];
   initialCompId?: string;
   initialRows: Row[];
+  initialCategories?: string[];
+  initialCategoryLeaderboards?: Record<string, Row[]>;
 }) {
   const searchParams = useSearchParams();
   const router = useRouter();
@@ -269,6 +274,9 @@ export default function LeaderboardView({
   const [compId, setCompId] = useState<string>(effectiveInitialId);
   const [compList, setCompList] = useState<Comp[]>(competitions || []);
   const [rows, setRows] = useState<Row[]>(initialRows || []);
+  const [activeCategory, setActiveCategory] = useState<string>("ALL");
+  const [categories, setCategories] = useState<string[]>(initialCategories || []);
+  const [categoryLeaderboards, setCategoryLeaderboards] = useState<Record<string, Row[]>>(initialCategoryLeaderboards || {});
   const [loading, setLoading] = useState(false);
   const [q, setQ] = useState("");
   const [preview, setPreview] = useState(false);
@@ -279,6 +287,12 @@ export default function LeaderboardView({
     try {
       const d = await publicApi.leaderboard(id);
       setRows(Array.isArray(d?.leaderboard) ? d.leaderboard : []);
+      if (Array.isArray(d?.categories)) {
+        setCategories(d.categories);
+      }
+      if (d?.category_leaderboards && typeof d.category_leaderboards === "object") {
+        setCategoryLeaderboards(d.category_leaderboards);
+      }
     } catch {
       setRows([]);
     } finally {
@@ -332,8 +346,10 @@ export default function LeaderboardView({
     if (initialCompId && initialCompId !== compId && !urlCompId) {
       setCompId(initialCompId);
       setRows(initialRows || []);
+      if (initialCategories) setCategories(initialCategories);
+      if (initialCategoryLeaderboards) setCategoryLeaderboards(initialCategoryLeaderboards);
     }
-  }, [initialCompId, initialRows, compId, urlCompId]);
+  }, [initialCompId, initialRows, initialCategories, initialCategoryLeaderboards, compId, urlCompId]);
 
   // Preview query check
   useEffect(() => {
@@ -353,6 +369,8 @@ export default function LeaderboardView({
           const payload = JSON.parse(ev.data);
           if (payload.type === "INITIAL_STATE" && Array.isArray(payload.leaderboard)) {
             setRows(payload.leaderboard);
+            if (Array.isArray(payload.categories)) setCategories(payload.categories);
+            if (payload.category_leaderboards) setCategoryLeaderboards(payload.category_leaderboards);
           } else if (
             payload.type === "LEADERBOARD_UPDATED" ||
             payload.type === "SCORE_SUBMITTED" ||
@@ -360,6 +378,8 @@ export default function LeaderboardView({
           ) {
             publicApi.leaderboard(compId).then((d) => {
               if (Array.isArray(d?.leaderboard)) setRows(d.leaderboard);
+              if (Array.isArray(d?.categories)) setCategories(d.categories);
+              if (d?.category_leaderboards) setCategoryLeaderboards(d.category_leaderboards);
             }).catch(() => {});
           }
         } catch {}
@@ -385,24 +405,112 @@ export default function LeaderboardView({
     return compList.find((c) => (c._id || c.id) === compId);
   }, [compList, compId]);
 
-  const data = (rows.length ? rows : preview ? DEMO : []).map((r: any, i) => {
-    const rawFinal = r.final_score ?? r.total_score ?? r.score ?? r.points;
-    const votes = Number(r.audience_votes ?? r.raw_audience_votes ?? 0);
-    const judge = Number(r.judge_score ?? r.raw_judge_score ?? 0);
-    const effectivePoints = (rawFinal != null && rawFinal > 0) ? rawFinal : (judge > 0 ? judge : votes);
-    return {
-      ...r,
-      rank: r.rank ?? i + 1,
-      audience_votes: votes,
-      judge_score: judge,
-      final_score: effectivePoints,
-      points: effectivePoints,
-    };
-  });
+  // Available categories derived dynamically from backend metadata or participant entries
+  const availableCategories = useMemo(() => {
+    const set = new Set<string>();
+    if (Array.isArray(categories)) {
+      for (const c of categories) {
+        if (c && typeof c === "string" && c.trim()) set.add(c.trim());
+      }
+    }
+    if (categoryLeaderboards && typeof categoryLeaderboards === "object") {
+      for (const k of Object.keys(categoryLeaderboards)) {
+        if (k && k.trim()) set.add(k.trim());
+      }
+    }
+    for (const r of rows) {
+      if (r.category && typeof r.category === "string" && r.category.trim()) {
+        set.add(r.category.trim());
+      }
+    }
+    const compCats = (activeComp as any)?.categories;
+    if (Array.isArray(compCats)) {
+      for (const c of compCats) {
+        const name = typeof c === "string" ? c : c?.name;
+        if (name && typeof name === "string" && name.trim()) set.add(name.trim());
+      }
+    }
+    return Array.from(set);
+  }, [categories, categoryLeaderboards, rows, activeComp]);
 
-  const podium = data.slice(0, 3);
+  const allNormalizedRows = useMemo(() => {
+    const rawList = rows.length ? rows : preview ? DEMO : [];
+    return rawList.map((r: any, i) => {
+      const rawFinal = r.final_score ?? r.total_score ?? r.score ?? r.points;
+      const votes = Number(r.audience_votes ?? r.raw_audience_votes ?? 0);
+      const judge = Number(r.judge_score ?? r.raw_judge_score ?? 0);
+      const effectivePoints = (rawFinal != null && rawFinal > 0) ? rawFinal : (judge > 0 ? judge : votes);
+      return {
+        ...r,
+        rank: r.rank ?? i + 1,
+        audience_votes: votes,
+        judge_score: judge,
+        final_score: effectivePoints,
+        points: effectivePoints,
+      };
+    });
+  }, [rows, preview]);
+
+  // Recalculates category-specific ranks: when a category tab is selected, rank 1, 2, 3 reflect the top 3 of that category!
+  const categoryRows = useMemo(() => {
+    if (activeCategory === "ALL") return allNormalizedRows;
+
+    const precalc = categoryLeaderboards[activeCategory];
+    if (Array.isArray(precalc) && precalc.length > 0) {
+      return precalc.map((r: any, i) => {
+        const rawFinal = r.final_score ?? r.total_score ?? r.score ?? r.points;
+        const votes = Number(r.audience_votes ?? r.raw_audience_votes ?? 0);
+        const judge = Number(r.judge_score ?? r.raw_judge_score ?? 0);
+        const effectivePoints = (rawFinal != null && rawFinal > 0) ? rawFinal : (judge > 0 ? judge : votes);
+        return {
+          ...r,
+          rank: r.rank ?? i + 1,
+          audience_votes: votes,
+          judge_score: judge,
+          final_score: effectivePoints,
+          points: effectivePoints,
+        };
+      });
+    }
+
+    const filteredList = allNormalizedRows.filter(
+      (r) => (r.category || "").trim().toLowerCase() === activeCategory.trim().toLowerCase()
+    );
+    filteredList.sort((a, b) => (b.points ?? 0) - (a.points ?? 0));
+    return filteredList.map((r, idx) => ({
+      ...r,
+      rank: idx + 1,
+    }));
+  }, [activeCategory, allNormalizedRows, categoryLeaderboards]);
+
+  // Dynamic counts per category for the tab indicators
+  const categoryCounts = useMemo(() => {
+    const counts: Record<string, number> = {};
+    for (const cat of availableCategories) {
+      const cClean = cat.trim().toLowerCase();
+      const precalc = categoryLeaderboards[cat];
+      if (Array.isArray(precalc)) {
+        counts[cat] = precalc.length;
+      } else {
+        counts[cat] = allNormalizedRows.filter(
+          (r) => (r.category || "").trim().toLowerCase() === cClean
+        ).length;
+      }
+    }
+    return counts;
+  }, [availableCategories, categoryLeaderboards, allNormalizedRows]);
+
+  const data = categoryRows;
+  const podium = useMemo(() => categoryRows.slice(0, 3), [categoryRows]);
+
   const filtered = useMemo(
-    () => data.filter((r) => !q || (r.name || "").toLowerCase().includes(q.toLowerCase()) || handle(r).includes(q.toLowerCase())),
+    () =>
+      data.filter(
+        (r) =>
+          !q ||
+          (r.name || "").toLowerCase().includes(q.toLowerCase()) ||
+          handle(r).includes(q.toLowerCase())
+      ),
     [data, q]
   );
 
@@ -455,6 +563,76 @@ export default function LeaderboardView({
         </div>
       </Reveal>
 
+      {/* Category Tabs (Junior, Sub-Junior, Senior) */}
+      {availableCategories.length > 0 && (
+        <Reveal className="mt-6">
+          <div className="flex flex-col gap-2.5 rounded-2xl border border-[var(--border)] bg-[var(--surface)] p-3.5 shadow-sm">
+            <div className="flex flex-wrap items-center justify-between gap-2">
+              <span className="text-[11.5px] font-bold uppercase tracking-wider text-[var(--fg-muted)] flex items-center gap-1.5">
+                <Sparkles className="size-3.5 text-amber-400" />
+                Select Competition Category
+              </span>
+              <span className="text-[11.5px] text-[var(--fg-subtle)] font-medium">
+                {activeCategory === "ALL"
+                  ? `Showing all ${allNormalizedRows.length} ranked contestants`
+                  : `${activeCategory} Category: Showing ${categoryRows.length} contestants • Top 3 Podium below`}
+              </span>
+            </div>
+
+            <div className="flex items-center gap-2 overflow-x-auto pb-1 pt-0.5 scrollbar-none">
+              <button
+                type="button"
+                onClick={() => setActiveCategory("ALL")}
+                className={cn(
+                  "cursor-pointer rounded-full px-4 py-2 text-xs font-bold transition-all flex items-center gap-2 whitespace-nowrap",
+                  activeCategory === "ALL"
+                    ? "bg-gradient-to-r from-amber-500 via-yellow-400 to-amber-500 text-slate-950 shadow-[0_0_20px_rgba(245,158,11,0.45)] ring-2 ring-amber-400/50 font-black"
+                    : "border border-[var(--border)] bg-[var(--surface-2)] text-[var(--fg-muted)] hover:text-white hover:border-[var(--border-strong)]"
+                )}
+              >
+                <span>All Categories</span>
+                <span
+                  className={cn(
+                    "rounded-full px-2 py-0.5 text-[10.5px] font-extrabold tabular-nums",
+                    activeCategory === "ALL" ? "bg-black/25 text-black" : "bg-[var(--surface)] text-[var(--fg-subtle)]"
+                  )}
+                >
+                  {allNormalizedRows.length}
+                </span>
+              </button>
+
+              {availableCategories.map((cat) => {
+                const count = categoryCounts[cat] ?? 0;
+                const isActive = activeCategory === cat;
+                return (
+                  <button
+                    key={cat}
+                    type="button"
+                    onClick={() => setActiveCategory(cat)}
+                    className={cn(
+                      "cursor-pointer rounded-full px-4 py-2 text-xs font-bold transition-all flex items-center gap-2 whitespace-nowrap",
+                      isActive
+                        ? "bg-gradient-to-r from-amber-500 via-yellow-400 to-amber-500 text-slate-950 shadow-[0_0_20px_rgba(245,158,11,0.45)] ring-2 ring-amber-400/50 font-black"
+                        : "border border-[var(--border)] bg-[var(--surface-2)] text-[var(--fg-muted)] hover:text-white hover:border-[var(--border-strong)]"
+                    )}
+                  >
+                    <span>{cat}</span>
+                    <span
+                      className={cn(
+                        "rounded-full px-2 py-0.5 text-[10.5px] font-extrabold tabular-nums",
+                        isActive ? "bg-black/25 text-black" : "bg-[var(--surface)] text-[var(--fg-subtle)]"
+                      )}
+                    >
+                      {count}
+                    </span>
+                  </button>
+                );
+              })}
+            </div>
+          </div>
+        </Reveal>
+      )}
+
       {data.length === 0 ? (
         <Reveal>
           <div className="mt-10 grid place-items-center rounded-[var(--radius-xl)] border border-dashed border-[var(--border-strong)] bg-[var(--surface)] px-6 py-20 text-center">
@@ -486,9 +664,12 @@ export default function LeaderboardView({
 
           {/* Podium */}
           <div className="mt-12">
-            <div className="sm:hidden mb-4 text-center">
-              <span className="inline-flex items-center gap-1.5 rounded-full bg-[var(--surface-2)] border border-[var(--border)] px-3.5 py-1 text-[11.5px] font-bold text-[var(--fg-muted)] shadow-sm">
-                🏆 Top Standings • 1st, 2nd, 3rd
+            <div className="mb-5 text-center">
+              <span className="inline-flex items-center gap-2 rounded-full border border-amber-400/40 bg-gradient-to-r from-amber-500/15 via-yellow-500/10 to-amber-500/15 px-4 py-1.5 text-xs font-extrabold text-amber-300 shadow-sm">
+                <Trophy className="size-3.5 text-amber-400" />
+                <span>
+                  {activeCategory === "ALL" ? "Official Top 3 Podium" : `${activeCategory} Category • Official Top 3 Podium`}
+                </span>
               </span>
             </div>
 
@@ -524,7 +705,10 @@ export default function LeaderboardView({
           <Reveal className="mt-12">
             <div className="overflow-hidden rounded-[var(--radius-xl)] border border-[var(--border)] bg-[var(--surface)]">
               <div className="flex items-center justify-between gap-4 border-b border-[var(--border)] p-4 md:p-5">
-                <p className="flex items-center gap-2 font-display text-lg font-bold"><Gavel className="size-4 text-[var(--accent)]" aria-hidden /> Full standings</p>
+                <p className="flex items-center gap-2 font-display text-lg font-bold">
+                  <Gavel className="size-4 text-[var(--accent)]" aria-hidden />
+                  {activeCategory === "ALL" ? "Full standings" : `${activeCategory} standings`}
+                </p>
                 <div className="relative w-full max-w-[240px]">
                   <Search className="pointer-events-none absolute left-3.5 top-1/2 size-4 -translate-y-1/2 text-[var(--fg-subtle)]" aria-hidden />
                   <input
@@ -540,6 +724,7 @@ export default function LeaderboardView({
                     <tr className="text-[10.5px] font-bold uppercase tracking-[0.12em] text-[var(--fg-subtle)]">
                       <th className="px-5 py-3 font-bold">Rank</th>
                       <th className="px-3 py-3 font-bold">Player</th>
+                      <th className="px-3 py-3 font-bold">Category</th>
                       <th className="px-3 py-3 text-right font-bold">Votes</th>
                       <th className="px-3 py-3 text-right font-bold">Judge</th>
                       <th className="px-5 py-3 text-right font-bold">Points</th>
@@ -583,6 +768,11 @@ export default function LeaderboardView({
                                 <p className="truncate text-[11.5px] text-[var(--fg-subtle)]">{handle(r)}</p>
                               </div>
                             </div>
+                          </td>
+                          <td className="px-3 py-3.5 whitespace-nowrap">
+                            <span className="inline-flex items-center rounded-full border border-violet-500/30 bg-violet-500/10 px-2.5 py-0.5 text-[11px] font-bold text-violet-300">
+                              {r.category || "General"}
+                            </span>
                           </td>
                           <td className="px-3 py-3.5 text-right tabular-nums text-[var(--fg-muted)]">{nf(r.audience_votes)}</td>
                           <td className="px-3 py-3.5 text-right tabular-nums text-[var(--fg-muted)]">{nf(r.judge_score)}</td>

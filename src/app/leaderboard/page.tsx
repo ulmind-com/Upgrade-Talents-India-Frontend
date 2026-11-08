@@ -59,6 +59,8 @@ export default async function LeaderboardPage({ searchParams }: Props) {
           competitions={comps || []}
           initialCompId={selectedId}
           initialRows={initial?.leaderboard || []}
+          initialCategories={initial?.categories}
+          initialCategoryLeaderboards={initial?.category_leaderboards}
         />
       </Suspense>
     </>

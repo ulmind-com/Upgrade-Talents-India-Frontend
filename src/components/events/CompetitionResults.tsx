@@ -30,6 +30,7 @@ type LeaderboardEntry = {
   normalized_judge_score?: number;
   ranking_mode?: string;
   submission_id?: string;
+  category?: string;
 };
 
 type ResultSnapshot = {
@@ -39,6 +40,9 @@ type ResultSnapshot = {
   ranking_mode?: string;
   is_approved?: boolean;
   is_published?: boolean;
+  category?: string;
+  categories?: string[];
+  category_leaderboards?: Record<string, LeaderboardEntry[]>;
   leaderboard?: LeaderboardEntry[];
 };
 
@@ -69,6 +73,7 @@ export default function CompetitionResults({
   const [snapshot, setSnapshot] = useState<ResultSnapshot | null>(initialSnapshot);
   const [loading, setLoading] = useState(!initialSnapshot);
   const [search, setSearch] = useState("");
+  const [activeCategory, setActiveCategory] = useState<string>("ALL");
   const [userSubmission, setUserSubmission] = useState<{
     submission_id?: string;
     registration_reference?: string;
@@ -180,9 +185,66 @@ export default function CompetitionResults({
     }
   }
 
-  const leaderboard = useMemo(() => {
+  const availableCategories = useMemo(() => {
+    const set = new Set<string>();
+    if (Array.isArray(snapshot?.categories)) {
+      for (const c of snapshot.categories) {
+        if (c && typeof c === "string" && c.trim()) set.add(c.trim());
+      }
+    }
+    if (snapshot?.category_leaderboards && typeof snapshot.category_leaderboards === "object") {
+      for (const k of Object.keys(snapshot.category_leaderboards)) {
+        if (k && k.trim()) set.add(k.trim());
+      }
+    }
+    if (Array.isArray(snapshot?.leaderboard)) {
+      for (const r of snapshot.leaderboard) {
+        if (r.category && typeof r.category === "string" && r.category.trim()) {
+          set.add(r.category.trim());
+        }
+      }
+    }
+    const compCats = comp?.categories;
+    if (Array.isArray(compCats)) {
+      for (const c of compCats) {
+        const name = typeof c === "string" ? c : c?.name;
+        if (name && typeof name === "string" && name.trim()) set.add(name.trim());
+      }
+    }
+    return Array.from(set);
+  }, [snapshot, comp]);
+
+  const rawLeaderboard = useMemo(() => {
     return Array.isArray(snapshot?.leaderboard) ? snapshot.leaderboard : [];
   }, [snapshot]);
+
+  const leaderboard = useMemo(() => {
+    if (activeCategory === "ALL") return rawLeaderboard;
+
+    const precalc = snapshot?.category_leaderboards?.[activeCategory];
+    if (Array.isArray(precalc) && precalc.length > 0) return precalc;
+
+    const filteredList = rawLeaderboard.filter(
+      (r) => (r.category || "").trim().toLowerCase() === activeCategory.trim().toLowerCase()
+    );
+    filteredList.sort((a, b) => (b.final_score ?? 0) - (a.final_score ?? 0));
+    return filteredList.map((r, idx) => ({ ...r, rank: idx + 1 }));
+  }, [rawLeaderboard, snapshot, activeCategory]);
+
+  const categoryCounts = useMemo(() => {
+    const counts: Record<string, number> = {};
+    for (const cat of availableCategories) {
+      const precalc = snapshot?.category_leaderboards?.[cat];
+      if (Array.isArray(precalc)) {
+        counts[cat] = precalc.length;
+      } else {
+        counts[cat] = rawLeaderboard.filter(
+          (r) => (r.category || "").trim().toLowerCase() === cat.trim().toLowerCase()
+        ).length;
+      }
+    }
+    return counts;
+  }, [availableCategories, snapshot, rawLeaderboard]);
 
   const filtered = useMemo(() => {
     if (!search.trim()) return leaderboard;
@@ -398,12 +460,80 @@ export default function CompetitionResults({
         </Reveal>
       )}
 
+      {/* ── Category Tabs (Junior, Sub-Junior, Senior) ── */}
+      {availableCategories.length > 0 && (
+        <Reveal className="mt-8">
+          <div className="flex flex-col gap-2.5 rounded-2xl border border-[var(--border)] bg-[var(--surface)] p-3.5 shadow-sm">
+            <div className="flex flex-wrap items-center justify-between gap-2">
+              <span className="text-[11.5px] font-bold uppercase tracking-wider text-[var(--fg-muted)] flex items-center gap-1.5">
+                <Sparkles className="size-3.5 text-amber-400" />
+                Select Result Category
+              </span>
+              <span className="text-[11.5px] text-[var(--fg-subtle)] font-medium">
+                {activeCategory === "ALL"
+                  ? `All Categories: ${rawLeaderboard.length} contestants`
+                  : `${activeCategory} Category: Showing ${leaderboard.length} contestants • Top 3 Podium below`}
+              </span>
+            </div>
+
+            <div className="flex items-center gap-2 overflow-x-auto pb-1 pt-0.5 scrollbar-none">
+              <button
+                type="button"
+                onClick={() => setActiveCategory("ALL")}
+                className={`cursor-pointer rounded-full px-4 py-2 text-xs font-bold transition-all flex items-center gap-2 whitespace-nowrap ${
+                  activeCategory === "ALL"
+                    ? "bg-gradient-to-r from-amber-500 via-yellow-400 to-amber-500 text-slate-950 shadow-[0_0_20px_rgba(245,158,11,0.45)] ring-2 ring-amber-400/50 font-black"
+                    : "border border-[var(--border)] bg-[var(--surface-2)] text-[var(--fg-muted)] hover:text-white"
+                }`}
+              >
+                <span>All Categories</span>
+                <span
+                  className={`rounded-full px-2 py-0.5 text-[10.5px] font-extrabold tabular-nums ${
+                    activeCategory === "ALL" ? "bg-black/25 text-black" : "bg-[var(--surface)] text-[var(--fg-subtle)]"
+                  }`}
+                >
+                  {rawLeaderboard.length}
+                </span>
+              </button>
+
+              {availableCategories.map((cat) => {
+                const count = categoryCounts[cat] ?? 0;
+                const isActive = activeCategory === cat;
+                return (
+                  <button
+                    key={cat}
+                    type="button"
+                    onClick={() => setActiveCategory(cat)}
+                    className={`cursor-pointer rounded-full px-4 py-2 text-xs font-bold transition-all flex items-center gap-2 whitespace-nowrap ${
+                      isActive
+                        ? "bg-gradient-to-r from-amber-500 via-yellow-400 to-amber-500 text-slate-950 shadow-[0_0_20px_rgba(245,158,11,0.45)] ring-2 ring-amber-400/50 font-black"
+                        : "border border-[var(--border)] bg-[var(--surface-2)] text-[var(--fg-muted)] hover:text-white"
+                    }`}
+                  >
+                    <span>{cat}</span>
+                    <span
+                      className={`rounded-full px-2 py-0.5 text-[10.5px] font-extrabold tabular-nums ${
+                        isActive ? "bg-black/25 text-black" : "bg-[var(--surface)] text-[var(--fg-subtle)]"
+                      }`}
+                    >
+                      {count}
+                    </span>
+                  </button>
+                );
+              })}
+            </div>
+          </div>
+        </Reveal>
+      )}
+
       {/* ── Top 3 Podium ── */}
       {top3.length > 0 && (
         <Reveal className="mt-12">
           <div className="text-center">
             <SectionLabel>Winners Podium</SectionLabel>
-            <h2 className="mt-2 font-display text-2xl font-bold">Top Contestants</h2>
+            <h2 className="mt-2 font-display text-2xl font-bold">
+              {activeCategory === "ALL" ? "Top Contestants" : `${activeCategory} Category • Top Contestants`}
+            </h2>
           </div>
 
           <div className="mt-8 grid gap-4 md:grid-cols-3 md:gap-6">
@@ -538,6 +668,7 @@ export default function CompetitionResults({
                 <tr>
                   <th className="py-3.5 pl-6 pr-3">Rank</th>
                   <th className="px-4 py-3.5">Contestant</th>
+                  <th className="px-3 py-3.5">Category</th>
                   <th className="px-4 py-3.5 text-right">Audience Votes</th>
                   <th className="px-4 py-3.5 text-right">Judge Score</th>
                   <th className="py-3.5 pl-4 pr-6 text-right font-bold text-[var(--accent)]">Final Score</th>
@@ -594,6 +725,11 @@ export default function CompetitionResults({
                             <p className="truncate text-[11px] text-[var(--fg-subtle)]">{handle(row)}</p>
                           </div>
                         </div>
+                      </td>
+                      <td className="px-3 py-3.5 whitespace-nowrap">
+                        <span className="inline-flex items-center rounded-full border border-violet-500/30 bg-violet-500/10 px-2.5 py-0.5 text-[10.5px] font-bold text-violet-300">
+                          {row.category || "General"}
+                        </span>
                       </td>
                       <td className="px-4 py-3.5 text-right font-mono text-[12px] text-[var(--fg-muted)]">
                         {nf(row.audience_votes ?? row.raw_audience_votes)}

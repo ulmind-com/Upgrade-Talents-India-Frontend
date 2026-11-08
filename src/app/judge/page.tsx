@@ -53,7 +53,8 @@ export default function JudgeDashboardPage() {
 
   // Filter & Search
   const [search, setSearch] = useState("");
-  const [filter, setFilter] = useState<"all" | "pending" | "scored">("all");
+  const [filter, setFilter] = useState<"all" | "pending" | "scored" | "present">("all");
+  const [selectedCategory, setSelectedCategory] = useState<string>("ALL");
 
   // View Mode: Evaluation vs Live Scoreboard (1st, 2nd, 3rd)
   const [activeTab, setActiveTab] = useState<"evaluate" | "scoreboard">("evaluate");
@@ -166,8 +167,15 @@ export default function JudgeDashboardPage() {
         const regRef = c.registration_reference || c.registration_number || c.reg_no || "";
         const userPhone = c.user_phone || c.phone || "";
 
+        const isPresent = Boolean(c.is_present || c.attendance_status === "PRESENT");
+        const attStat = c.attendance_status || (isPresent ? "PRESENT" : "ABSENT");
+
         return {
           ...c,
+          category: c.category || (info as any)?.category,
+          is_present: isPresent,
+          attendance_status: attStat,
+          attended_at: c.attended_at,
           user_name: finalName,
           profile_photo: c.profile_photo || info?.profile_photo || "",
           submission_url: primaryUrl,
@@ -191,6 +199,7 @@ export default function JudgeDashboardPage() {
             ? em.split("@")[0].replace(/[._-]/g, " ").replace(/\b\w/g, (l: string) => l.toUpperCase())
             : "Contestant";
           const rRef = r.registration_reference || r.registration_number || "";
+          const isPresent = Boolean(r.is_present || r.attendance_status === "PRESENT");
 
           enriched.push({
             _id: r.submission_id || `reg_${em}`,
@@ -198,6 +207,9 @@ export default function JudgeDashboardPage() {
             user_email: em,
             user_name: r.name || emailName,
             profile_photo: r.profile_photo || "",
+            category: r.category,
+            is_present: isPresent,
+            attendance_status: r.attendance_status || (isPresent ? "PRESENT" : "ABSENT"),
             status: r.submission_id ? "Submitted" : "Registered",
             submission_url: "",
             parsed_files: [],
@@ -538,6 +550,27 @@ export default function JudgeDashboardPage() {
     }
   };
 
+  const availableCategories = useMemo(() => {
+    const set = new Set<string>();
+    for (const c of contestants) {
+      if (c.category && typeof c.category === "string" && c.category.trim()) {
+        set.add(c.category.trim());
+      }
+    }
+    const compCats = (selectedComp as any)?.categories;
+    if (Array.isArray(compCats)) {
+      for (const cat of compCats) {
+        const name = typeof cat === "string" ? cat : cat?.name;
+        if (name && typeof name === "string" && name.trim()) set.add(name.trim());
+      }
+    }
+    return Array.from(set);
+  }, [contestants, selectedComp]);
+
+  const presentCount = useMemo(() => {
+    return contestants.filter((c) => Boolean(c.is_present || c.attendance_status === "PRESENT")).length;
+  }, [contestants]);
+
   // Filtered Contestants with Search across Name, Email, Title & Registration Reference
   const filteredContestants = useMemo(() => {
     const q = search.trim().toLowerCase();
@@ -551,15 +584,24 @@ export default function JudgeDashboardPage() {
         (c.registration_number || "").toLowerCase().includes(q) ||
         (c.reg_no || "").toLowerCase().includes(q);
 
+      if (!matchSearch) return false;
+
+      if (selectedCategory !== "ALL") {
+        if ((c.category || "").trim().toLowerCase() !== selectedCategory.trim().toLowerCase()) {
+          return false;
+        }
+      }
+
       const isScored = Boolean(
         c.is_scored || c.has_scored || c.status === "Scored" || c.is_locked
       );
 
-      if (filter === "pending") return matchSearch && !isScored;
-      if (filter === "scored") return matchSearch && isScored;
-      return matchSearch;
+      if (filter === "pending") return !isScored;
+      if (filter === "scored") return isScored;
+      if (filter === "present") return Boolean(c.is_present || c.attendance_status === "PRESENT");
+      return true;
     });
-  }, [contestants, search, filter]);
+  }, [contestants, search, filter, selectedCategory]);
 
   const totalCount = contestants.length;
   const scoredCount = useMemo(() => {
@@ -917,7 +959,7 @@ export default function JudgeDashboardPage() {
                     )}
                   </div>
 
-                  {/* Filter Pills: All, Pending, Scored */}
+                  {/* Filter Pills: All, Pending, Scored, Present */}
                   <div className="flex items-center gap-1 rounded-xl border border-[var(--border)] bg-[var(--bg)] p-1">
                     <button
                       onClick={() => setFilter("all")}
@@ -927,6 +969,17 @@ export default function JudgeDashboardPage() {
                       )}
                     >
                       All ({totalCount})
+                    </button>
+                    <button
+                      onClick={() => setFilter("present")}
+                      className={cn(
+                        "rounded-lg px-2.5 py-1 text-xs font-semibold transition-all flex items-center gap-1",
+                        filter === "present" ? "bg-emerald-600 text-white shadow-sm font-bold" : "text-emerald-400 hover:text-emerald-300"
+                      )}
+                      title="Show only confirmed present participants at the venue"
+                    >
+                      <span className="size-1.5 rounded-full bg-emerald-400" />
+                      Present ({presentCount})
                     </button>
                     <button
                       onClick={() => setFilter("pending")}
@@ -954,6 +1007,40 @@ export default function JudgeDashboardPage() {
                     </Button>
                   </div>
                 </div>
+
+                {/* Category Filter Pills (Junior, Sub-Junior, Senior) */}
+                {availableCategories.length > 0 && (
+                  <div className="flex items-center gap-1.5 overflow-x-auto pb-1 pt-0.5 scrollbar-none">
+                    <span className="text-[10.5px] font-bold uppercase tracking-wider text-[var(--fg-subtle)] mr-1 shrink-0">Category:</span>
+                    <button
+                      type="button"
+                      onClick={() => setSelectedCategory("ALL")}
+                      className={cn(
+                        "rounded-full px-3 py-1 text-xs font-bold transition-all whitespace-nowrap",
+                        selectedCategory === "ALL"
+                          ? "bg-[var(--accent)] text-white shadow-sm"
+                          : "border border-[var(--border)] bg-[var(--bg-elevated)] text-[var(--fg-muted)] hover:text-white"
+                      )}
+                    >
+                      All ({totalCount})
+                    </button>
+                    {availableCategories.map((cat) => (
+                      <button
+                        key={cat}
+                        type="button"
+                        onClick={() => setSelectedCategory(cat)}
+                        className={cn(
+                          "rounded-full px-3 py-1 text-xs font-bold transition-all whitespace-nowrap",
+                          selectedCategory === cat
+                            ? "bg-violet-600 text-white shadow-sm"
+                            : "border border-[var(--border)] bg-[var(--bg-elevated)] text-[var(--fg-muted)] hover:text-violet-300"
+                        )}
+                      >
+                        {cat}
+                      </button>
+                    ))}
+                  </div>
+                )}
 
                 {/* Stage Participation Queue Banner (1 of 20, 2 of 20...) */}
                 {filteredContestants.length > 0 && (
@@ -1070,6 +1157,21 @@ export default function JudgeDashboardPage() {
                                     {(c.registration_reference || c.registration_number || c.reg_no) && (
                                       <span className="rounded bg-cyan-500/10 border border-cyan-500/20 px-1.5 py-0.5 font-mono text-[10px] font-bold text-cyan-400">
                                         {c.registration_reference || c.registration_number || c.reg_no}
+                                      </span>
+                                    )}
+                                    {c.category && (
+                                      <span className="rounded-full bg-violet-500/15 border border-violet-500/30 px-2 py-0.5 text-[9.5px] font-bold text-violet-300">
+                                        {c.category}
+                                      </span>
+                                    )}
+                                    {c.is_present || c.attendance_status === "PRESENT" ? (
+                                      <span className="inline-flex items-center gap-1 rounded-full bg-emerald-500/15 border border-emerald-500/30 px-2 py-0.5 text-[9.5px] font-bold text-emerald-400">
+                                        <span className="size-1.5 rounded-full bg-emerald-400 animate-pulse" />
+                                        ✓ Present
+                                      </span>
+                                    ) : (
+                                      <span className="inline-flex items-center gap-1 rounded-full bg-zinc-800/80 border border-zinc-700 px-2 py-0.5 text-[9.5px] font-medium text-zinc-400">
+                                        Absent
                                       </span>
                                     )}
                                     {Boolean(
