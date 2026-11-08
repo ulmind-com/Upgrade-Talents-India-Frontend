@@ -552,8 +552,8 @@ export default function CompetitionResults({
                     />
                     <Medal className="absolute -bottom-1 -right-1 size-6 text-slate-400 drop-shadow" />
                   </div>
-                  <span className="mt-3 inline-flex items-center gap-1 rounded-full bg-slate-200/90 dark:bg-slate-700/90 border border-slate-300 dark:border-slate-500 px-2.5 py-0.5 text-[10px] font-bold uppercase tracking-wider text-slate-800 dark:text-slate-100">
-                    🥈 1st Runner-Up
+                  <span className="mt-3 inline-flex items-center gap-1 rounded-full bg-slate-200/90 dark:bg-slate-700/90 border border-slate-300 dark:border-slate-500 px-2.5 py-0.5 text-xs font-bold uppercase tracking-wider text-slate-800 dark:text-slate-100">
+                    🥈 2nd Place • Runner-Up
                   </span>
                   <h3 className="mt-2 line-clamp-1 font-display text-lg font-bold">{top3[1].name || "Contestant"}</h3>
                   <p className="text-xs text-[var(--fg-subtle)]">{handle(top3[1])}</p>
@@ -586,8 +586,8 @@ export default function CompetitionResults({
                     />
                     <Crown className="absolute -top-3.5 left-1/2 -translate-x-1/2 size-7 text-amber-400 drop-shadow-[0_0_10px_rgba(245,158,11,0.85)] animate-bounce" style={{ animationDuration: "3s" }} />
                   </div>
-                  <span className="mt-3 inline-flex items-center gap-1.5 rounded-full bg-gradient-to-r from-amber-500 via-yellow-400 to-amber-500 px-3 py-1 text-[11px] font-black uppercase tracking-wider text-slate-950 shadow-md ring-1 ring-amber-300">
-                    <Crown className="size-3.5 fill-current" /> Grand Champion
+                  <span className="mt-3 inline-flex items-center gap-1.5 rounded-full bg-gradient-to-r from-amber-500 via-yellow-400 to-amber-500 px-3 py-1 text-xs font-black uppercase tracking-wider text-slate-950 shadow-md ring-1 ring-amber-300">
+                    <Crown className="size-3.5 fill-current" /> 🥇 1st Place • Grand Champion
                   </span>
                   <h3 className="mt-2 line-clamp-1 font-display text-xl font-bold">{top3[0].name || "Winner"}</h3>
                   <p className="text-xs text-[var(--fg-subtle)]">{handle(top3[0])}</p>
@@ -620,8 +620,8 @@ export default function CompetitionResults({
                     />
                     <Medal className="absolute -bottom-1 -right-1 size-6 text-amber-600 drop-shadow" />
                   </div>
-                  <span className="mt-3 inline-flex items-center gap-1 rounded-full bg-amber-100/90 dark:bg-amber-950/80 border border-amber-300/70 dark:border-amber-700 px-2.5 py-0.5 text-[10px] font-bold uppercase tracking-wider text-amber-900 dark:text-amber-200">
-                    🥉 2nd Runner-Up
+                  <span className="mt-3 inline-flex items-center gap-1 rounded-full bg-amber-100/90 dark:bg-amber-950/80 border border-amber-300/70 dark:border-amber-700 px-2.5 py-0.5 text-xs font-bold uppercase tracking-wider text-amber-900 dark:text-amber-200">
+                    🥉 3rd Place • 2nd Runner-Up
                   </span>
                   <h3 className="mt-2 line-clamp-1 font-display text-lg font-bold">{top3[2].name || "Contestant"}</h3>
                   <p className="text-xs text-[var(--fg-subtle)]">{handle(top3[2])}</p>

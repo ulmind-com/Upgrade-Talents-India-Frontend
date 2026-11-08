@@ -8,7 +8,7 @@ import {
   Trophy, Calendar, Gavel, Upload, CheckCircle2, AlertCircle, ListChecks,
   ShieldCheck, LogIn, Loader2, Heart, Crown, FileUp, Link2, Film, Music, X,
   Radio, ArrowRight, Award, ExternalLink, Sparkles, MessageSquare, Play, Pause,
-  CreditCard, Banknote, Zap, Clock, Users, Mic, Youtube, HardDrive
+  CreditCard, Banknote, Zap, Clock, Users, Mic, Youtube, HardDrive, Lock
 } from "lucide-react";
 import { Reveal, StaggerGroup, StaggerItem } from "@/components/motion/Reveal";
 import { SectionLabel, Badge } from "@/components/ui/Primitives";
@@ -193,6 +193,7 @@ export default function CompetitionDetail({
       : [];
 
   const [rows, setRows] = useState<Row[]>(initialRowsList);
+  const [isScorePublic, setIsScorePublic] = useState<boolean>(true);
   const [voted, setVoted] = useState<Set<string>>(new Set());
   const [votingId, setVotingId] = useState<string | null>(null);
   const [userCert, setUserCert] = useState<any | null>(null);
@@ -281,7 +282,11 @@ export default function CompetitionDetail({
   const loadLeaderboard = useCallback(async () => {
     if (!id) return;
     try {
-      const data = await publicApi.leaderboard(id);
+      const data: any = await publicApi.leaderboard(id);
+      const pub = data?.score_visible_for_public !== undefined
+        ? Boolean(data.score_visible_for_public)
+        : (data?.is_published !== undefined ? Boolean(data.is_published) : Boolean((comp as any)?.score_visible_for_public ?? comp?.results_published ?? true));
+      setIsScorePublic(pub);
       if (Array.isArray(data?.leaderboard)) {
         const mapped: Row[] = data.leaderboard.map((r: any) => ({
           ...r,
@@ -1434,7 +1439,15 @@ export default function CompetitionDetail({
             )}
           </div>
 
-          {rows.length === 0 ? (
+          {!isScorePublic ? (
+            <div className="mt-4 flex flex-col items-center justify-center rounded-2xl border border-amber-500/30 bg-amber-500/10 p-6 text-center">
+              <Lock className="size-6 text-amber-400 mb-2" />
+              <p className="text-sm font-bold text-white">Scores are currently private</p>
+              <p className="mt-1 text-xs text-[var(--fg-muted)] max-w-sm">
+                Judges are evaluating live performances. Full scores and rankings will be revealed once the official results are published.
+              </p>
+            </div>
+          ) : rows.length === 0 ? (
             <div className="mt-4 flex flex-col items-center justify-center rounded-2xl border border-dashed border-[var(--border)] bg-[var(--surface-2)]/40 p-8 text-center backdrop-blur-sm">
               <div className="flex size-12 items-center justify-center rounded-2xl bg-[var(--surface-3)] text-[var(--fg-muted)] mb-3">
                 <Trophy className="size-6 text-[var(--accent)]" />

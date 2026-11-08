@@ -1135,32 +1135,32 @@ export default function JudgeDashboardPage() {
                               <div className="flex items-start justify-between gap-2">
                                 <div className="min-w-0">
                                   <div className="flex items-center gap-1.5 flex-wrap">
-                                    <span className="rounded bg-[var(--bg)] border border-[var(--border)] px-1.5 py-0.2 font-mono text-[10px] font-bold text-[var(--fg-muted)]">
+                                    <span className="rounded bg-[var(--bg)] border border-[var(--border)] px-2 py-0.5 font-mono text-xs font-bold text-[var(--fg-muted)]">
                                       #{index + 1}
                                     </span>
-                                    <h3 className="text-sm font-bold text-[var(--fg)] group-hover:text-[var(--accent)] transition-colors truncate flex items-center gap-1">
+                                    <h3 className="text-sm sm:text-base font-bold text-[var(--fg)] group-hover:text-[var(--accent)] transition-colors truncate flex items-center gap-1">
                                       <span>{c.user_name || "Contestant Entry"}</span>
                                       {Boolean((c as any).is_verified || (c as any).verified_badge || (c as any).verified_tick) && (
                                         <VerifiedBadge size="xs" />
                                       )}
                                     </h3>
                                     {(c.registration_reference || c.registration_number || c.reg_no) && (
-                                      <span className="rounded bg-cyan-500/10 border border-cyan-500/20 px-1.5 py-0.5 font-mono text-[10px] font-bold text-cyan-400">
+                                      <span className="rounded bg-cyan-500/10 border border-cyan-500/20 px-2 py-0.5 font-mono text-xs font-bold text-cyan-400">
                                         {c.registration_reference || c.registration_number || c.reg_no}
                                       </span>
                                     )}
                                     {c.category && (
-                                      <span className="rounded-full bg-violet-500/15 border border-violet-500/30 px-2 py-0.5 text-[9.5px] font-bold text-violet-300">
+                                      <span className="rounded-full bg-violet-500/15 border border-violet-500/30 px-2.5 py-0.5 text-xs font-bold text-violet-300">
                                         {c.category}
                                       </span>
                                     )}
                                     {c.is_present || c.attendance_status === "PRESENT" ? (
-                                      <span className="inline-flex items-center gap-1 rounded-full bg-emerald-500/15 border border-emerald-500/30 px-2 py-0.5 text-[9.5px] font-bold text-emerald-400">
-                                        <span className="size-1.5 rounded-full bg-emerald-400 animate-pulse" />
+                                      <span className="inline-flex items-center gap-1 rounded-full bg-emerald-500/15 border border-emerald-500/30 px-2.5 py-0.5 text-xs font-bold text-emerald-400">
+                                        <span className="size-2 rounded-full bg-emerald-400 animate-pulse" />
                                         ✓ Present (Entry #{index + 1})
                                       </span>
                                     ) : (
-                                      <span className="inline-flex items-center gap-1 rounded-full bg-zinc-800/80 border border-zinc-700 px-2 py-0.5 text-[9.5px] font-medium text-zinc-400">
+                                      <span className="inline-flex items-center gap-1 rounded-full bg-zinc-800/80 border border-zinc-700 px-2.5 py-0.5 text-xs font-medium text-zinc-400">
                                         Absent
                                       </span>
                                     )}
@@ -1169,16 +1169,16 @@ export default function JudgeDashboardPage() {
                                       (c as any).is_current_performer ||
                                       (c as any).on_stage
                                     ) && (
-                                      <span className="rounded-full bg-rose-500/20 border border-rose-500/40 px-2 py-0.5 text-[9.5px] font-extrabold text-rose-300 animate-pulse flex items-center gap-1">
-                                        <Radio className="size-2.5" /> ON STAGE
+                                      <span className="rounded-full bg-rose-500/20 border border-rose-500/40 px-2.5 py-0.5 text-xs font-extrabold text-rose-300 animate-pulse flex items-center gap-1">
+                                        <Radio className="size-3" /> ON STAGE
                                       </span>
                                     )}
                                   </div>
-                                  <p className="text-[11.5px] text-[var(--fg-subtle)] truncate">
+                                  <p className="text-xs text-[var(--fg-subtle)] truncate font-medium">
                                     {c.user_email}
                                   </p>
                                 </div>
-                                <Badge tone={isScored ? "success" : isSelected ? "brand" : "neutral"} className="shrink-0 text-[10.5px]">
+                                <Badge tone={isScored ? "success" : isSelected ? "brand" : "neutral"} className="shrink-0 text-xs">
                                   {isScored ? "Scored" : c.status || "Submitted"}
                                 </Badge>
                               </div>
@@ -1186,38 +1186,38 @@ export default function JudgeDashboardPage() {
                               {/* Performance type tag */}
                               <div className="mt-2 flex flex-wrap items-center gap-1.5">
                                 {hasVideo && (
-                                  <span className="inline-flex items-center gap-1 rounded-md bg-rose-500/15 px-2 py-0.5 text-[10px] font-semibold text-rose-400">
-                                    <Video className="size-2.5" /> YouTube Video
+                                  <span className="inline-flex items-center gap-1 rounded-md bg-rose-500/15 px-2.5 py-0.5 text-xs font-semibold text-rose-400">
+                                    <Video className="size-3" /> YouTube Video
                                   </span>
                                 )}
                                 {hasAudio && (
-                                  <span className="inline-flex items-center gap-1 rounded-md bg-amber-500/15 px-2 py-0.5 text-[10px] font-semibold text-amber-400">
-                                    <Music className="size-2.5" /> MP3 Audio
+                                  <span className="inline-flex items-center gap-1 rounded-md bg-amber-500/15 px-2.5 py-0.5 text-xs font-semibold text-amber-400">
+                                    <Music className="size-3" /> MP3 Audio
                                   </span>
                                 )}
                                 {c.parsed_files && c.parsed_files.length > 0 && !hasVideo && !hasAudio && (
-                                  <span className="inline-flex items-center gap-1 rounded-md bg-cyan-500/15 px-2 py-0.5 text-[10px] font-semibold text-cyan-400">
-                                    <FileText className="size-2.5" /> {c.parsed_files.length} {c.parsed_files.length === 1 ? "file" : "files"}
+                                  <span className="inline-flex items-center gap-1 rounded-md bg-cyan-500/15 px-2.5 py-0.5 text-xs font-semibold text-cyan-400">
+                                    <FileText className="size-3" /> {c.parsed_files.length} {c.parsed_files.length === 1 ? "file" : "files"}
                                   </span>
                                 )}
                               </div>
                             </div>
                           </div>
 
-                          <div className="mt-3 flex items-center justify-between border-t border-[var(--border)]/60 pt-3 text-[11px] text-[var(--fg-subtle)]">
+                          <div className="mt-3 flex items-center justify-between border-t border-[var(--border)]/60 pt-3 text-xs text-[var(--fg-subtle)]">
                             <span className="flex items-center gap-1.5">
-                              <Clock className="size-3" />
+                              <Clock className="size-3.5" />
                               {c.attended_at ? `Checked in: ${new Date(c.attended_at).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}` : c.submitted_at ? new Date(c.submitted_at).toLocaleDateString() : "Active Round"}
                             </span>
                             {isScored ? (
-                              <span className="inline-flex items-center gap-1.5 font-semibold text-emerald-400">
-                                <CheckCircle2 className="size-3.5 text-emerald-400" />
+                              <span className="inline-flex items-center gap-1.5 font-bold text-emerald-400 text-xs sm:text-sm">
+                                <CheckCircle2 className="size-4 text-emerald-400" />
                                 {c.my_score != null || c.total_score != null ? `${c.my_score ?? c.total_score} pts` : "Scored"}
-                                <span className="text-[10px] text-[var(--fg-subtle)] font-normal">View</span>
-                                <ChevronRight className="size-3 transition-transform group-hover:translate-x-0.5" />
+                                <span className="text-xs text-[var(--fg-subtle)] font-normal">View</span>
+                                <ChevronRight className="size-3.5 transition-transform group-hover:translate-x-0.5" />
                               </span>
                             ) : (
-                              <span className="inline-flex items-center gap-1 font-semibold text-[var(--accent)]">
+                              <span className="inline-flex items-center gap-1 font-bold text-[var(--accent)] text-xs sm:text-sm">
                                 Score <ChevronRight className="size-3 transition-transform group-hover:translate-x-0.5" />
                               </span>
                             )}

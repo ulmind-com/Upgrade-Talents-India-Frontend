@@ -382,6 +382,7 @@ export const publicApi = {
       category_leaderboards?: Record<string, any[]>;
       category?: string;
       is_published?: boolean;
+      score_visible_for_public?: boolean;
     }>(`/api/v1/competitions/${id}/leaderboard`, {
       query: category ? { category } : undefined,
       cache: "no-store",
@@ -393,6 +394,7 @@ export const publicApi = {
         category_leaderboards?: Record<string, any[]>;
         category?: string;
         is_published?: boolean;
+        score_visible_for_public?: boolean;
       }>(`/api/public/competitions/${id}/leaderboard`, {
         query: category ? { category } : undefined,
         cache: "no-store",
