@@ -992,6 +992,9 @@ export interface JudgeContestant {
   is_scored?: boolean;
   has_scored?: boolean;
   is_locked?: boolean;
+  is_current_performer?: boolean;
+  on_stage?: boolean;
+  stage_order?: number;
   total_score?: number;
   my_score?: number;
   my_scores?: Record<string, number>;

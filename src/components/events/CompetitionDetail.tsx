@@ -291,29 +291,15 @@ export default function CompetitionDetail({
           verified_badge: Boolean(r.is_verified || r.verified_badge || r.verified_tick),
         }));
 
-        // If current user is registered/participant and not yet indexed in rows, inject user
-        if (user?.email && (isParticipant || enrollmentInfo?.reference || step === "submit" || step === "done")) {
-          const userInList = mapped.some(
-            (r: any) =>
-              r.email?.toLowerCase() === user.email?.toLowerCase() ||
-              r.participant_id?.toLowerCase() === user.email?.toLowerCase()
-          );
-          if (!userInList) {
-            mapped.push({
-              participant_id: user.email,
-              name: user.name || "You",
-              email: user.email,
-              profile_photo: user.profile_photo || user.avatar || "",
-              audience_votes: 0,
-              final_score: 0,
-              rank: mapped.length + 1,
-              is_verified: Boolean(user.is_verified || user.verified_badge),
-              verified_badge: Boolean(user.is_verified || user.verified_badge),
-            });
-          }
-        }
+        // Filter out un-scored registrations from the public preview
+        const scoredList = mapped.filter((r: any) => {
+          const pts = r.final_score ?? r.points ?? 0;
+          const j = r.judge_score ?? 0;
+          const v = r.audience_votes ?? 0;
+          return pts > 0 || j > 0 || v > 0 || Boolean(r.is_scored || r.has_scored);
+        });
 
-        setRows(mapped);
+        setRows(scoredList);
       }
     } catch (e) {
       console.warn("Could not fetch live leaderboard:", e);
@@ -1453,9 +1439,9 @@ export default function CompetitionDetail({
               <div className="flex size-12 items-center justify-center rounded-2xl bg-[var(--surface-3)] text-[var(--fg-muted)] mb-3">
                 <Trophy className="size-6 text-[var(--accent)]" />
               </div>
-              <p className="text-sm font-semibold text-white">No contestants registered yet</p>
+              <p className="text-sm font-semibold text-white">Live standings pending</p>
               <p className="mt-1 text-xs text-[var(--fg-muted)] max-w-sm">
-                Be the first to register and compete on stage!
+                Official scores and rankings will appear here as contestants perform and judges score entries.
               </p>
             </div>
           ) : (

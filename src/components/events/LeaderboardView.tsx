@@ -481,14 +481,34 @@ export default function LeaderboardView({
 
   const allNormalizedRows = useMemo(() => {
     const rawList = rows.length ? rows : preview ? DEMO : [];
-    return rawList.map((r: any, i) => {
+
+    // Filter to only contestants who have actually been scored, voted, or evaluated
+    // Un-evaluated or un-scored registered contestants are not shown on public 1st/2nd/3rd standings
+    const scoredList = rawList.filter((r: any) => {
+      const rawFinal = r.final_score ?? r.total_score ?? r.score ?? r.points;
+      const votes = Number(r.audience_votes ?? r.raw_audience_votes ?? 0);
+      const judge = Number(r.judge_score ?? r.raw_judge_score ?? 0);
+      const effectivePoints = (rawFinal != null && rawFinal > 0) ? rawFinal : (judge > 0 ? judge : votes);
+      return effectivePoints > 0 || Boolean(r.is_scored || r.has_scored);
+    });
+
+    const targetList = scoredList.length > 0 ? scoredList : (preview ? DEMO : []);
+
+    // Sort descending by points
+    targetList.sort((a: any, b: any) => {
+      const aPts = (a.final_score ?? a.total_score ?? a.score ?? a.points ?? a.judge_score ?? a.audience_votes ?? 0);
+      const bPts = (b.final_score ?? b.total_score ?? b.score ?? b.points ?? b.judge_score ?? b.audience_votes ?? 0);
+      return Number(bPts) - Number(aPts);
+    });
+
+    return targetList.map((r: any, i) => {
       const rawFinal = r.final_score ?? r.total_score ?? r.score ?? r.points;
       const votes = Number(r.audience_votes ?? r.raw_audience_votes ?? 0);
       const judge = Number(r.judge_score ?? r.raw_judge_score ?? 0);
       const effectivePoints = (rawFinal != null && rawFinal > 0) ? rawFinal : (judge > 0 ? judge : votes);
       return {
         ...r,
-        rank: r.rank ?? i + 1,
+        rank: i + 1,
         audience_votes: votes,
         judge_score: judge,
         final_score: effectivePoints,
@@ -503,14 +523,21 @@ export default function LeaderboardView({
 
     const precalc = categoryLeaderboards[activeCategory];
     if (Array.isArray(precalc) && precalc.length > 0) {
-      return precalc.map((r: any, i) => {
+      const scoredPrecalc = precalc.filter((r: any) => {
+        const rawFinal = r.final_score ?? r.total_score ?? r.score ?? r.points;
+        const votes = Number(r.audience_votes ?? r.raw_audience_votes ?? 0);
+        const judge = Number(r.judge_score ?? r.raw_judge_score ?? 0);
+        return (rawFinal != null && rawFinal > 0) || votes > 0 || judge > 0 || Boolean(r.is_scored || r.has_scored);
+      });
+
+      return scoredPrecalc.map((r: any, i) => {
         const rawFinal = r.final_score ?? r.total_score ?? r.score ?? r.points;
         const votes = Number(r.audience_votes ?? r.raw_audience_votes ?? 0);
         const judge = Number(r.judge_score ?? r.raw_judge_score ?? 0);
         const effectivePoints = (rawFinal != null && rawFinal > 0) ? rawFinal : (judge > 0 ? judge : votes);
         return {
           ...r,
-          rank: r.rank ?? i + 1,
+          rank: i + 1,
           audience_votes: votes,
           judge_score: judge,
           final_score: effectivePoints,

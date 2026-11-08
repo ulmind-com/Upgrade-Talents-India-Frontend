@@ -53,7 +53,7 @@ export default function JudgeDashboardPage() {
 
   // Filter & Search
   const [search, setSearch] = useState("");
-  const [filter, setFilter] = useState<"all" | "pending" | "scored" | "present">("all");
+  const [filter, setFilter] = useState<"all" | "pending" | "scored" | "present">("present");
   const [selectedCategory, setSelectedCategory] = useState<string>("ALL");
 
   // View Mode: Evaluation vs Live Scoreboard (1st, 2nd, 3rd)
@@ -186,43 +186,7 @@ export default function JudgeDashboardPage() {
         };
       });
 
-      // Synchronize with public leaderboard participants so ALL enrolled competitors appear in judges panel
-      const existingEmails = new Set(
-        enriched.map((c) => (c.user_email || "").toLowerCase().trim()).filter(Boolean)
-      );
-
-      for (const r of lbRows) {
-        const em = (r.email || r.participant_id || "").toLowerCase().trim();
-        if (em && !existingEmails.has(em)) {
-          existingEmails.add(em);
-          const emailName = em
-            ? em.split("@")[0].replace(/[._-]/g, " ").replace(/\b\w/g, (l: string) => l.toUpperCase())
-            : "Contestant";
-          const rRef = r.registration_reference || r.registration_number || "";
-          const isPresent = Boolean(r.is_present || r.attendance_status === "PRESENT");
-
-          enriched.push({
-            _id: r.submission_id || `reg_${em}`,
-            competition_id: compId,
-            user_email: em,
-            user_name: r.name || emailName,
-            profile_photo: r.profile_photo || "",
-            category: r.category,
-            is_present: isPresent,
-            attendance_status: r.attendance_status || (isPresent ? "PRESENT" : "ABSENT"),
-            status: r.submission_id ? "Submitted" : "Registered",
-            submission_url: "",
-            parsed_files: [],
-            registration_reference: rRef,
-            registration_number: rRef,
-            is_scored: Boolean(r.judge_average && r.judge_average > 0),
-            has_scored: Boolean(r.judge_average && r.judge_average > 0),
-            total_score: r.judge_average,
-            my_score: r.judge_average,
-          });
-        }
-      }
-
+      // Contestant list sourced directly from official judge registration & attendance records
       setContestants(enriched);
     } catch (err: any) {
       if (err?.message?.includes("PIN")) {
@@ -571,10 +535,10 @@ export default function JudgeDashboardPage() {
     return contestants.filter((c) => Boolean(c.is_present || c.attendance_status === "PRESENT")).length;
   }, [contestants]);
 
-  // Filtered Contestants with Search across Name, Email, Title & Registration Reference
+  // Filtered & Sorted Contestants: Ordered by Venue Check-in Time (attended_at) & Category
   const filteredContestants = useMemo(() => {
     const q = search.trim().toLowerCase();
-    return contestants.filter((c) => {
+    const list = contestants.filter((c) => {
       const matchSearch =
         q === "" ||
         (c.user_name || "").toLowerCase().includes(q) ||
@@ -601,6 +565,32 @@ export default function JudgeDashboardPage() {
       if (filter === "present") return Boolean(c.is_present || c.attendance_status === "PRESENT");
       return true;
     });
+
+    // Sort strictly according to venue entry order:
+    // 1. Current on-stage performer is #1
+    // 2. Present contestants sorted by check-in timestamp (attended_at ascending)
+    // 3. Fallback to stage_order
+    list.sort((a, b) => {
+      if (a.is_current_performer && !b.is_current_performer) return -1;
+      if (!a.is_current_performer && b.is_current_performer) return 1;
+
+      const aPresent = Boolean(a.is_present || a.attendance_status === "PRESENT");
+      const bPresent = Boolean(b.is_present || b.attendance_status === "PRESENT");
+      if (aPresent && !bPresent) return -1;
+      if (!aPresent && bPresent) return 1;
+
+      if (aPresent && bPresent) {
+        const aTime = a.attended_at ? new Date(a.attended_at).getTime() : 0;
+        const bTime = b.attended_at ? new Date(b.attended_at).getTime() : 0;
+        if (aTime && bTime && aTime !== bTime) {
+          return aTime - bTime;
+        }
+      }
+
+      return (a.stage_order ?? 9999) - (b.stage_order ?? 9999);
+    });
+
+    return list;
   }, [contestants, search, filter, selectedCategory]);
 
   const totalCount = contestants.length;
@@ -1167,7 +1157,7 @@ export default function JudgeDashboardPage() {
                                     {c.is_present || c.attendance_status === "PRESENT" ? (
                                       <span className="inline-flex items-center gap-1 rounded-full bg-emerald-500/15 border border-emerald-500/30 px-2 py-0.5 text-[9.5px] font-bold text-emerald-400">
                                         <span className="size-1.5 rounded-full bg-emerald-400 animate-pulse" />
-                                        ✓ Present
+                                        ✓ Present (Entry #{index + 1})
                                       </span>
                                     ) : (
                                       <span className="inline-flex items-center gap-1 rounded-full bg-zinc-800/80 border border-zinc-700 px-2 py-0.5 text-[9.5px] font-medium text-zinc-400">
@@ -1217,7 +1207,7 @@ export default function JudgeDashboardPage() {
                           <div className="mt-3 flex items-center justify-between border-t border-[var(--border)]/60 pt-3 text-[11px] text-[var(--fg-subtle)]">
                             <span className="flex items-center gap-1.5">
                               <Clock className="size-3" />
-                              {c.submitted_at ? new Date(c.submitted_at).toLocaleDateString() : "Active Round"}
+                              {c.attended_at ? `Checked in: ${new Date(c.attended_at).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}` : c.submitted_at ? new Date(c.submitted_at).toLocaleDateString() : "Active Round"}
                             </span>
                             {isScored ? (
                               <span className="inline-flex items-center gap-1.5 font-semibold text-emerald-400">
