@@ -327,11 +327,11 @@ export default function JudgeDashboardPage() {
     const criteria = selectedComp.judging_criteria?.length
       ? selectedComp.judging_criteria
       : [
-          { name: "Technical Execution", max_score: 25 },
-          { name: "Creativity & Originality", max_score: 25 },
-          { name: "Presentation & Style", max_score: 25 },
-          { name: "Overall Impact", max_score: 25 },
-        ];
+        { name: "Technical Execution", max_score: 25 },
+        { name: "Creativity & Originality", max_score: 25 },
+        { name: "Presentation & Style", max_score: 25 },
+        { name: "Overall Impact", max_score: 25 },
+      ];
 
     criteria.forEach((c) => {
       defaultScores[c.name] = Math.round(c.max_score * 0.7);
@@ -437,23 +437,7 @@ export default function JudgeDashboardPage() {
         prev.map((c) =>
           c._id === activeContestant._id
             ? {
-                ...c,
-                is_scored: true,
-                has_scored: true,
-                is_locked: true,
-                status: "Scored",
-                my_score: finalScore,
-                total_score: finalScore,
-                my_scores: scores,
-                my_comments: comments,
-              }
-            : c
-        )
-      );
-      setActiveContestant((prev) =>
-        prev
-          ? {
-              ...prev,
+              ...c,
               is_scored: true,
               has_scored: true,
               is_locked: true,
@@ -463,6 +447,22 @@ export default function JudgeDashboardPage() {
               my_scores: scores,
               my_comments: comments,
             }
+            : c
+        )
+      );
+      setActiveContestant((prev) =>
+        prev
+          ? {
+            ...prev,
+            is_scored: true,
+            has_scored: true,
+            is_locked: true,
+            status: "Scored",
+            my_score: finalScore,
+            total_score: finalScore,
+            my_scores: scores,
+            my_comments: comments,
+          }
           : null
       );
       setTimeout(() => {
@@ -770,8 +770,8 @@ export default function JudgeDashboardPage() {
                         {compLifecycle.isLive
                           ? "Competition Live"
                           : selectedComp.start_date
-                          ? `Starts ${formatEventDate(selectedComp.start_date)}`
-                          : "Scoring Phase"}
+                            ? `Starts ${formatEventDate(selectedComp.start_date)}`
+                            : "Scoring Phase"}
                       </p>
                       <div className="flex items-center justify-end gap-1.5 text-xs font-bold text-[var(--fg)]">
                         {compLifecycle.isLive && (
@@ -790,8 +790,8 @@ export default function JudgeDashboardPage() {
                         selectedComp.judging_status === "CLOSED"
                           ? "bg-[var(--error)]"
                           : compLifecycle.isLive
-                          ? "animate-ping bg-rose-500"
-                          : "animate-pulse bg-[var(--success)]"
+                            ? "animate-ping bg-rose-500"
+                            : "animate-pulse bg-[var(--success)]"
                       )}
                     />
                   </div>
@@ -925,694 +925,694 @@ export default function JudgeDashboardPage() {
 
             {/* ── Scoring Layout: Contestant List + Scoring Drawer ── */}
             {activeTab === "evaluate" && (
-            <div className="grid grid-cols-1 gap-8 lg:grid-cols-12">
-              {/* Contestant List Column */}
-              <div className={cn("flex flex-col gap-4", activeContestant ? "lg:col-span-5" : "lg:col-span-12")}>
-                {/* Search & Filters */}
-                <div className="flex flex-col gap-3 rounded-2xl border border-[var(--border)] bg-[var(--bg-elevated)] p-4 sm:flex-row sm:items-center sm:justify-between">
-                  <div className="relative flex-1">
-                    <Search className="absolute left-3.5 top-1/2 size-4 -translate-y-1/2 text-[var(--fg-subtle)]" />
-                    <input
-                      type="text"
-                      value={search}
-                      onChange={(e) => setSearch(e.target.value)}
-                      placeholder="Search contestant by name, CRG ref, email or title…"
-                      className="h-10 w-full rounded-xl border border-[var(--border)] bg-[var(--bg)] pl-10 pr-8 text-xs text-[var(--fg)] placeholder:text-[var(--fg-subtle)] focus:border-[var(--accent)] focus:outline-none"
-                    />
-                    {search && (
-                      <button
-                        onClick={() => setSearch("")}
-                        className="absolute right-3 top-1/2 -translate-y-1/2 text-xs text-[var(--fg-subtle)] hover:text-[var(--fg)]"
-                      >
-                        ✕
-                      </button>
-                    )}
-                  </div>
-
-                  {/* Filter Pills: All, Pending, Scored, Present */}
-                  <div className="flex items-center gap-1 rounded-xl border border-[var(--border)] bg-[var(--bg)] p-1">
-                    <button
-                      onClick={() => setFilter("all")}
-                      className={cn(
-                        "rounded-lg px-2.5 py-1 text-xs font-semibold transition-all",
-                        filter === "all" ? "bg-[var(--accent)] text-white shadow-sm" : "text-[var(--fg-muted)] hover:text-[var(--fg)]"
+              <div className="grid grid-cols-1 gap-8 lg:grid-cols-12">
+                {/* Contestant List Column */}
+                <div className={cn("flex flex-col gap-4", activeContestant ? "lg:col-span-5" : "lg:col-span-12")}>
+                  {/* Search & Filters */}
+                  <div className="flex flex-col gap-3 rounded-2xl border border-[var(--border)] bg-[var(--bg-elevated)] p-4 sm:flex-row sm:items-center sm:justify-between">
+                    <div className="relative flex-1">
+                      <Search className="absolute left-3.5 top-1/2 size-4 -translate-y-1/2 text-[var(--fg-subtle)]" />
+                      <input
+                        type="text"
+                        value={search}
+                        onChange={(e) => setSearch(e.target.value)}
+                        placeholder="Search contestant by name, CRG ref, email or title…"
+                        className="h-10 w-full rounded-xl border border-[var(--border)] bg-[var(--bg)] pl-10 pr-8 text-xs text-[var(--fg)] placeholder:text-[var(--fg-subtle)] focus:border-[var(--accent)] focus:outline-none"
+                      />
+                      {search && (
+                        <button
+                          onClick={() => setSearch("")}
+                          className="absolute right-3 top-1/2 -translate-y-1/2 text-xs text-[var(--fg-subtle)] hover:text-[var(--fg)]"
+                        >
+                          ✕
+                        </button>
                       )}
-                    >
-                      All ({totalCount})
-                    </button>
-                    <button
-                      onClick={() => setFilter("present")}
-                      className={cn(
-                        "rounded-lg px-2.5 py-1 text-xs font-semibold transition-all flex items-center gap-1",
-                        filter === "present" ? "bg-emerald-600 text-white shadow-sm font-bold" : "text-emerald-400 hover:text-emerald-300"
-                      )}
-                      title="Show only confirmed present participants at the venue"
-                    >
-                      <span className="size-1.5 rounded-full bg-emerald-400" />
-                      Present ({presentCount})
-                    </button>
-                    <button
-                      onClick={() => setFilter("pending")}
-                      className={cn(
-                        "rounded-lg px-2.5 py-1 text-xs font-semibold transition-all",
-                        filter === "pending" ? "bg-[var(--accent)] text-white shadow-sm" : "text-[var(--fg-muted)] hover:text-[var(--fg)]"
-                      )}
-                    >
-                      Pending ({pendingCount})
-                    </button>
-                    <button
-                      onClick={() => setFilter("scored")}
-                      className={cn(
-                        "rounded-lg px-2.5 py-1 text-xs font-semibold transition-all",
-                        filter === "scored" ? "bg-[var(--accent)] text-white shadow-sm" : "text-[var(--fg-muted)] hover:text-[var(--fg)]"
-                      )}
-                    >
-                      Scored ({scoredCount})
-                    </button>
-                  </div>
-
-                  <div className="flex items-center gap-2">
-                    <Button variant="ghost" size="sm" onClick={() => selectedComp && loadContestantsForComp(selectedComp._id)}>
-                      <RefreshCw className={cn("size-3.5", contestantsLoading && "animate-spin")} />
-                    </Button>
-                  </div>
-                </div>
-
-                {/* Category Filter Pills (Junior, Sub-Junior, Senior) */}
-                {availableCategories.length > 0 && (
-                  <div className="flex items-center gap-1.5 overflow-x-auto pb-1 pt-0.5 scrollbar-none">
-                    <span className="text-[10.5px] font-bold uppercase tracking-wider text-[var(--fg-subtle)] mr-1 shrink-0">Category:</span>
-                    <button
-                      type="button"
-                      onClick={() => setSelectedCategory("ALL")}
-                      className={cn(
-                        "rounded-full px-3 py-1 text-xs font-bold transition-all whitespace-nowrap",
-                        selectedCategory === "ALL"
-                          ? "bg-[var(--accent)] text-white shadow-sm"
-                          : "border border-[var(--border)] bg-[var(--bg-elevated)] text-[var(--fg-muted)] hover:text-white"
-                      )}
-                    >
-                      All ({totalCount})
-                    </button>
-                    {availableCategories.map((cat) => (
-                      <button
-                        key={cat}
-                        type="button"
-                        onClick={() => setSelectedCategory(cat)}
-                        className={cn(
-                          "rounded-full px-3 py-1 text-xs font-bold transition-all whitespace-nowrap",
-                          selectedCategory === cat
-                            ? "bg-violet-600 text-white shadow-sm"
-                            : "border border-[var(--border)] bg-[var(--bg-elevated)] text-[var(--fg-muted)] hover:text-violet-300"
-                        )}
-                      >
-                        {cat}
-                      </button>
-                    ))}
-                  </div>
-                )}
-
-                {/* Stage Participation Queue Banner (1 of 20, 2 of 20...) */}
-                {filteredContestants.length > 0 && (
-                  <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 rounded-2xl border border-[var(--border)] bg-gradient-to-r from-[var(--bg-elevated)] via-[color-mix(in_srgb,var(--accent)_6%,var(--bg-elevated))] to-[var(--bg-elevated)] p-3.5 shadow-sm">
-                    <div className="flex items-center gap-2.5">
-                      <span className="grid size-8 shrink-0 place-items-center rounded-xl bg-[var(--accent)]/15 text-[var(--accent)] font-mono font-bold text-xs">
-                        {currentIndex >= 0 ? `#${currentIndex + 1}` : "Stage"}
-                      </span>
-                      <div className="min-w-0">
-                        <p className="text-[10px] font-bold uppercase tracking-wider text-[var(--fg-subtle)]">
-                          {activeContestant ? `Contestant ${currentIndex + 1} of ${filteredContestants.length} on Stage` : `Stage Queue (${filteredContestants.length} Contestants)`}
-                        </p>
-                        <p className="text-xs font-bold text-[var(--fg)] truncate">
-                          {activeContestant ? (activeContestant.user_name || activeContestant.user_email) : "Select Contestant #1 to begin evaluating in order"}
-                        </p>
-                      </div>
                     </div>
 
-                    <div className="flex items-center gap-2 shrink-0">
-                      {!activeContestant ? (
-                        <Button
-                          size="sm"
-                          variant="accent"
-                          onClick={() => setActiveContestant(filteredContestants[0])}
-                          className="gap-1.5 text-xs font-bold"
+                    {/* Filter Pills: All, Pending, Scored, Present */}
+                    <div className="flex items-center gap-1 rounded-xl border border-[var(--border)] bg-[var(--bg)] p-1">
+                      <button
+                        onClick={() => setFilter("all")}
+                        className={cn(
+                          "rounded-lg px-2.5 py-1 text-xs font-semibold transition-all",
+                          filter === "all" ? "bg-[var(--accent)] text-white shadow-sm" : "text-[var(--fg-muted)] hover:text-[var(--fg)]"
+                        )}
+                      >
+                        All ({totalCount})
+                      </button>
+                      <button
+                        onClick={() => setFilter("present")}
+                        className={cn(
+                          "rounded-lg px-2.5 py-1 text-xs font-semibold transition-all flex items-center gap-1",
+                          filter === "present" ? "bg-emerald-600 text-white shadow-sm font-bold" : "text-emerald-400 hover:text-emerald-300"
+                        )}
+                        title="Show only confirmed present participants at the venue"
+                      >
+                        <span className="size-1.5 rounded-full bg-emerald-400" />
+                        Present ({presentCount})
+                      </button>
+                      <button
+                        onClick={() => setFilter("pending")}
+                        className={cn(
+                          "rounded-lg px-2.5 py-1 text-xs font-semibold transition-all",
+                          filter === "pending" ? "bg-[var(--accent)] text-white shadow-sm" : "text-[var(--fg-muted)] hover:text-[var(--fg)]"
+                        )}
+                      >
+                        Pending ({pendingCount})
+                      </button>
+                      <button
+                        onClick={() => setFilter("scored")}
+                        className={cn(
+                          "rounded-lg px-2.5 py-1 text-xs font-semibold transition-all",
+                          filter === "scored" ? "bg-[var(--accent)] text-white shadow-sm" : "text-[var(--fg-muted)] hover:text-[var(--fg)]"
+                        )}
+                      >
+                        Scored ({scoredCount})
+                      </button>
+                    </div>
+
+                    <div className="flex items-center gap-2">
+                      <Button variant="ghost" size="sm" onClick={() => selectedComp && loadContestantsForComp(selectedComp._id)}>
+                        <RefreshCw className={cn("size-3.5", contestantsLoading && "animate-spin")} />
+                      </Button>
+                    </div>
+                  </div>
+
+                  {/* Category Filter Pills (Junior, Sub-Junior, Senior) */}
+                  {availableCategories.length > 0 && (
+                    <div className="flex items-center gap-1.5 overflow-x-auto pb-1 pt-0.5 scrollbar-none">
+                      <span className="text-[10.5px] font-bold uppercase tracking-wider text-[var(--fg-subtle)] mr-1 shrink-0">Category:</span>
+                      <button
+                        type="button"
+                        onClick={() => setSelectedCategory("ALL")}
+                        className={cn(
+                          "rounded-full px-3 py-1 text-xs font-bold transition-all whitespace-nowrap",
+                          selectedCategory === "ALL"
+                            ? "bg-[var(--accent)] text-white shadow-sm"
+                            : "border border-[var(--border)] bg-[var(--bg-elevated)] text-[var(--fg-muted)] hover:text-white"
+                        )}
+                      >
+                        All ({totalCount})
+                      </button>
+                      {availableCategories.map((cat) => (
+                        <button
+                          key={cat}
+                          type="button"
+                          onClick={() => setSelectedCategory(cat)}
+                          className={cn(
+                            "rounded-full px-3 py-1 text-xs font-bold transition-all whitespace-nowrap",
+                            selectedCategory === cat
+                              ? "bg-violet-600 text-white shadow-sm"
+                              : "border border-[var(--border)] bg-[var(--bg-elevated)] text-[var(--fg-muted)] hover:text-violet-300"
+                          )}
                         >
-                          <span>Start Queue (#1)</span>
-                          <ChevronRight className="size-3.5" />
-                        </Button>
-                      ) : (
-                        <div className="flex items-center gap-1.5">
-                          <Button
-                            size="sm"
-                            variant="outline"
-                            disabled={!prevContestant}
-                            onClick={() => {
-                              if (prevContestant) setActiveContestant(prevContestant);
-                            }}
-                            className="gap-1 text-xs"
-                          >
-                            <ChevronLeft className="size-3" /> Prev
-                          </Button>
+                          {cat}
+                        </button>
+                      ))}
+                    </div>
+                  )}
+
+                  {/* Stage Participation Queue Banner (1 of 20, 2 of 20...) */}
+                  {filteredContestants.length > 0 && (
+                    <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 rounded-2xl border border-[var(--border)] bg-gradient-to-r from-[var(--bg-elevated)] via-[color-mix(in_srgb,var(--accent)_6%,var(--bg-elevated))] to-[var(--bg-elevated)] p-3.5 shadow-sm">
+                      <div className="flex items-center gap-2.5">
+                        <span className="grid size-8 shrink-0 place-items-center rounded-xl bg-[var(--accent)]/15 text-[var(--accent)] font-mono font-bold text-xs">
+                          {currentIndex >= 0 ? `#${currentIndex + 1}` : "Stage"}
+                        </span>
+                        <div className="min-w-0">
+                          <p className="text-[10px] font-bold uppercase tracking-wider text-[var(--fg-subtle)]">
+                            {activeContestant ? `Contestant ${currentIndex + 1} of ${filteredContestants.length} on Stage` : `Stage Queue (${filteredContestants.length} Contestants)`}
+                          </p>
+                          <p className="text-xs font-bold text-[var(--fg)] truncate">
+                            {activeContestant ? (activeContestant.user_name || activeContestant.user_email) : "Select Contestant #1 to begin evaluating in order"}
+                          </p>
+                        </div>
+                      </div>
+
+                      <div className="flex items-center gap-2 shrink-0">
+                        {!activeContestant ? (
                           <Button
                             size="sm"
                             variant="accent"
-                            disabled={!nextContestant}
-                            onClick={() => {
-                              if (nextContestant) setActiveContestant(nextContestant);
-                            }}
-                            className="gap-1 text-xs font-bold"
+                            onClick={() => setActiveContestant(filteredContestants[0])}
+                            className="gap-1.5 text-xs font-bold"
                           >
-                            Next <ChevronRight className="size-3" />
-                          </Button>
-                        </div>
-                      )}
-                    </div>
-                  </div>
-                )}
-
-                {/* Contestants Cards */}
-                {contestantsLoading ? (
-                  <div className="flex min-h-[300px] flex-col items-center justify-center gap-3 rounded-2xl border border-[var(--border)] bg-[var(--bg-elevated)]">
-                    <span className="size-6 animate-spin rounded-full border-2 border-[var(--accent)] border-t-transparent" />
-                    <p className="text-xs text-[var(--fg-muted)]">Loading submissions…</p>
-                  </div>
-                ) : filteredContestants.length === 0 ? (
-                  <div className="rounded-2xl border border-dashed border-[var(--border)] bg-[var(--bg-elevated)]/40 p-8 text-center">
-                    <p className="text-sm text-[var(--fg-muted)]">No approved contestants match your criteria.</p>
-                  </div>
-                ) : (
-                  <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-1">
-                    {filteredContestants.map((c, index) => {
-                      const isSelected = activeContestant?._id === c._id;
-                      const hasVideo = c.submission_url && getYouTubeEmbedUrl(c.submission_url);
-                      const hasAudio = c.submission_url && isAudio(c.submission_url);
-                      const isScored = Boolean(
-                        c.is_scored || c.has_scored || c.status === "Scored" || c.is_locked
-                      );
-                      return (
-                        <motion.div
-                          key={c._id}
-                          layout
-                          onClick={() => setActiveContestant(c)}
-                          className={cn(
-                            "group relative cursor-pointer rounded-2xl border p-4 transition-all duration-200",
-                            isSelected
-                              ? "border-[var(--accent)] bg-[color-mix(in_srgb,var(--accent)_8%,var(--bg-elevated))] shadow-lg ring-1 ring-[var(--accent)]/50"
-                              : "border-[var(--border)] bg-[var(--bg-elevated)] hover:border-[var(--border-strong)] hover:bg-[var(--bg-subtle)]"
-                          )}
-                        >
-                          <div className="flex items-start gap-3.5">
-                            {/* Contestant Avatar */}
-                            <div className="relative size-10 shrink-0 overflow-hidden rounded-full border border-[var(--border)] bg-[var(--surface-2)]">
-                              <img
-                                src={imageFor(c.profile_photo, 1)}
-                                alt=""
-                                className="size-full object-cover"
-                              />
-                            </div>
-
-                            <div className="min-w-0 flex-1">
-                              <div className="flex items-start justify-between gap-2">
-                                <div className="min-w-0">
-                                  <div className="flex items-center gap-1.5 flex-wrap">
-                                    <span className="rounded bg-[var(--bg)] border border-[var(--border)] px-2 py-0.5 font-mono text-xs font-bold text-[var(--fg-muted)]">
-                                      #{index + 1}
-                                    </span>
-                                    <h3 className="text-sm sm:text-base font-bold text-[var(--fg)] group-hover:text-[var(--accent)] transition-colors truncate flex items-center gap-1">
-                                      <span>{c.user_name || "Contestant Entry"}</span>
-                                      {Boolean((c as any).is_verified || (c as any).verified_badge || (c as any).verified_tick) && (
-                                        <VerifiedBadge size="xs" />
-                                      )}
-                                    </h3>
-                                    {(c.registration_reference || c.registration_number || c.reg_no) && (
-                                      <span className="rounded bg-cyan-500/10 border border-cyan-500/20 px-2 py-0.5 font-mono text-xs font-bold text-cyan-400">
-                                        {c.registration_reference || c.registration_number || c.reg_no}
-                                      </span>
-                                    )}
-                                    {c.category && (
-                                      <span className="rounded-full bg-violet-500/15 border border-violet-500/30 px-2.5 py-0.5 text-xs font-bold text-violet-300">
-                                        {c.category}
-                                      </span>
-                                    )}
-                                    {c.is_present || c.attendance_status === "PRESENT" ? (
-                                      <span className="inline-flex items-center gap-1 rounded-full bg-emerald-500/15 border border-emerald-500/30 px-2.5 py-0.5 text-xs font-bold text-emerald-400">
-                                        <span className="size-2 rounded-full bg-emerald-400 animate-pulse" />
-                                        ✓ Present (Entry #{index + 1})
-                                      </span>
-                                    ) : (
-                                      <span className="inline-flex items-center gap-1 rounded-full bg-zinc-800/80 border border-zinc-700 px-2.5 py-0.5 text-xs font-medium text-zinc-400">
-                                        Absent
-                                      </span>
-                                    )}
-                                    {Boolean(
-                                      (stageCard?.current_performer?.user_email && (c.user_email || "").toLowerCase().trim() === stageCard.current_performer.user_email.toLowerCase().trim()) ||
-                                      (c as any).is_current_performer ||
-                                      (c as any).on_stage
-                                    ) && (
-                                      <span className="rounded-full bg-rose-500/20 border border-rose-500/40 px-2.5 py-0.5 text-xs font-extrabold text-rose-300 animate-pulse flex items-center gap-1">
-                                        <Radio className="size-3" /> ON STAGE
-                                      </span>
-                                    )}
-                                  </div>
-                                  <p className="text-xs text-[var(--fg-subtle)] truncate font-medium">
-                                    {c.user_email}
-                                  </p>
-                                </div>
-                                <Badge tone={isScored ? "success" : isSelected ? "brand" : "neutral"} className="shrink-0 text-xs">
-                                  {isScored ? "Scored" : c.status || "Submitted"}
-                                </Badge>
-                              </div>
-
-                              {/* Performance type tag */}
-                              <div className="mt-2 flex flex-wrap items-center gap-1.5">
-                                {hasVideo && (
-                                  <span className="inline-flex items-center gap-1 rounded-md bg-rose-500/15 px-2.5 py-0.5 text-xs font-semibold text-rose-400">
-                                    <Video className="size-3" /> YouTube Video
-                                  </span>
-                                )}
-                                {hasAudio && (
-                                  <span className="inline-flex items-center gap-1 rounded-md bg-amber-500/15 px-2.5 py-0.5 text-xs font-semibold text-amber-400">
-                                    <Music className="size-3" /> MP3 Audio
-                                  </span>
-                                )}
-                                {c.parsed_files && c.parsed_files.length > 0 && !hasVideo && !hasAudio && (
-                                  <span className="inline-flex items-center gap-1 rounded-md bg-cyan-500/15 px-2.5 py-0.5 text-xs font-semibold text-cyan-400">
-                                    <FileText className="size-3" /> {c.parsed_files.length} {c.parsed_files.length === 1 ? "file" : "files"}
-                                  </span>
-                                )}
-                              </div>
-                            </div>
-                          </div>
-
-                          <div className="mt-3 flex items-center justify-between border-t border-[var(--border)]/60 pt-3 text-xs text-[var(--fg-subtle)]">
-                            <span className="flex items-center gap-1.5">
-                              <Clock className="size-3.5" />
-                              {c.attended_at ? `Checked in: ${new Date(c.attended_at).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}` : c.submitted_at ? new Date(c.submitted_at).toLocaleDateString() : "Active Round"}
-                            </span>
-                            {isScored ? (
-                              <span className="inline-flex items-center gap-1.5 font-bold text-emerald-400 text-xs sm:text-sm">
-                                <CheckCircle2 className="size-4 text-emerald-400" />
-                                {c.my_score != null || c.total_score != null ? `${c.my_score ?? c.total_score} pts` : "Scored"}
-                                <span className="text-xs text-[var(--fg-subtle)] font-normal">View</span>
-                                <ChevronRight className="size-3.5 transition-transform group-hover:translate-x-0.5" />
-                              </span>
-                            ) : (
-                              <span className="inline-flex items-center gap-1 font-bold text-[var(--accent)] text-xs sm:text-sm">
-                                Score <ChevronRight className="size-3 transition-transform group-hover:translate-x-0.5" />
-                              </span>
-                            )}
-                          </div>
-                        </motion.div>
-                      );
-                    })}
-                  </div>
-                )}
-              </div>
-
-              {/* Live Scoring Panel Column */}
-              <AnimatePresence mode="wait">
-                {activeContestant && (
-                  <motion.div
-                    key={activeContestant._id}
-                    initial={{ opacity: 0, x: 20 }}
-                    animate={{ opacity: 1, x: 0 }}
-                    exit={{ opacity: 0, x: 20 }}
-                    transition={{ duration: 0.35, ease: EASE }}
-                    className="flex flex-col gap-6 rounded-3xl border border-[var(--border)] bg-[var(--bg-elevated)] p-6 shadow-2xl lg:col-span-7"
-                  >
-                    {/* Panel Header with User Profile Spotlight */}
-                    <div className="flex items-start justify-between border-b border-[var(--border)] pb-4">
-                      <div className="flex items-center gap-3.5">
-                        <div className="relative size-12 shrink-0 overflow-hidden rounded-full border-2 border-[var(--accent)] bg-[var(--surface-2)] shadow-md">
-                          <img
-                            src={imageFor(activeContestant.profile_photo, 1)}
-                            alt=""
-                            className="size-full object-cover"
-                          />
-                        </div>
-                        <div>
-                          <div className="flex items-center gap-2">
-                            <span className="text-[10px] font-bold uppercase tracking-[0.2em] text-[var(--accent)]">
-                              Contestant Under Evaluation
-                            </span>
-                            {(activeContestant.registration_reference || activeContestant.registration_number || activeContestant.reg_no) && (
-                              <span className="rounded bg-cyan-500/10 border border-cyan-500/20 px-2 py-0.5 font-mono text-[10px] font-bold text-cyan-400">
-                                {activeContestant.registration_reference || activeContestant.registration_number || activeContestant.reg_no}
-                              </span>
-                            )}
-                          </div>
-                          <h2 className="mt-0.5 text-base font-bold text-[var(--fg)] sm:text-lg">
-                            {activeContestant.user_name || activeContestant.user_email}
-                          </h2>
-                          <p className="text-xs text-[var(--fg-subtle)]">
-                            {activeContestant.user_email}
-                            {activeContestant.user_phone ? ` • ${activeContestant.user_phone}` : ""}
-                          </p>
-                        </div>
-                      </div>
-
-                      <div className="flex items-center gap-2">
-                        {/* Prev / Next Contestant Stepper */}
-                        <div className="flex items-center gap-1 rounded-xl border border-[var(--border)] bg-[var(--bg)] p-1">
-                          <button
-                            type="button"
-                            disabled={!prevContestant}
-                            onClick={() => prevContestant && setActiveContestant(prevContestant)}
-                            className="rounded-lg p-1.5 text-[var(--fg-muted)] hover:bg-[var(--bg-elevated)] hover:text-[var(--fg)] disabled:opacity-30 disabled:pointer-events-none transition-all"
-                            title="Previous Contestant"
-                          >
-                            <ChevronLeft className="size-4" />
-                          </button>
-
-                          <span className="px-2 text-[11px] font-mono font-bold text-[var(--fg-subtle)] whitespace-nowrap">
-                            {currentIndex + 1} / {filteredContestants.length}
-                          </span>
-
-                          <button
-                            type="button"
-                            disabled={!nextContestant}
-                            onClick={() => nextContestant && setActiveContestant(nextContestant)}
-                            className="rounded-lg p-1.5 text-[var(--fg-muted)] hover:bg-[var(--bg-elevated)] hover:text-[var(--fg)] disabled:opacity-30 disabled:pointer-events-none transition-all"
-                            title="Next Contestant"
-                          >
-                            <ChevronRight className="size-4" />
-                          </button>
-                        </div>
-
-                        {activeContestant.submission_url && (
-                          <a
-                            href={activeContestant.submission_url}
-                            target="_blank"
-                            rel="noopener noreferrer"
-                            className="hidden sm:inline-flex items-center gap-1 rounded-lg border border-[var(--border)] bg-[var(--bg)] px-2.5 py-1 text-xs font-semibold text-[var(--fg-muted)] hover:text-[var(--fg)]"
-                          >
-                            <ExternalLink className="size-3" /> View Entry
-                          </a>
-                        )}
-                        <Button
-                          variant="ghost"
-                          size="sm"
-                          onClick={() => setActiveContestant(null)}
-                          className="size-8 p-0"
-                        >
-                          ✕
-                        </Button>
-                      </div>
-                    </div>
-
-                    {/* Performance Submission Media Viewer */}
-                    {activeContestant.submission_url && (
-                      <div className="flex flex-col gap-3 rounded-2xl border border-[var(--border)] bg-[var(--bg)]/80 p-4">
-                        <div className="flex items-center justify-between">
-                          <span className="text-xs font-bold uppercase tracking-wider text-[var(--fg-subtle)] flex items-center gap-1.5">
-                            <Award className="size-3.5 text-[var(--accent)]" /> Submitted Performance
-                          </span>
-                          <a
-                            href={activeContestant.submission_url}
-                            target="_blank"
-                            rel="noopener noreferrer"
-                            className="inline-flex items-center gap-1 text-xs font-semibold text-[var(--accent)] hover:underline"
-                          >
-                            Open raw link <ExternalLink className="size-3" />
-                          </a>
-                        </div>
-
-                        {/* YouTube Player */}
-                        {getYouTubeEmbedUrl(activeContestant.submission_url) ? (
-                          <div className="relative aspect-video w-full overflow-hidden rounded-xl border border-[var(--border)] bg-black shadow-md">
-                            <iframe
-                              src={getYouTubeEmbedUrl(activeContestant.submission_url)!}
-                              title="Contestant Performance Video"
-                              allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
-                              allowFullScreen
-                              className="size-full border-0"
-                            />
-                          </div>
-                        ) : isAudio(activeContestant.submission_url) ? (
-                          <div className="rounded-xl border border-[var(--border)] bg-[var(--surface-2)] p-3">
-                            <audio controls className="w-full" src={activeContestant.submission_url}>
-                              Your browser does not support audio playback.
-                            </audio>
-                          </div>
-                        ) : null}
-
-                        {/* Other Parsed Files */}
-                        {activeContestant.parsed_files && activeContestant.parsed_files.length > 1 && (
-                          <div className="flex flex-col gap-2 pt-2 border-t border-[var(--border)]/60">
-                            <span className="text-[11px] font-semibold text-[var(--fg-subtle)]">Attached Submissions:</span>
-                            <div className="flex flex-wrap gap-2">
-                              {activeContestant.parsed_files.map((f, i) => (
-                                <a
-                                  key={i}
-                                  href={f.url}
-                                  target="_blank"
-                                  rel="noopener noreferrer"
-                                  className="inline-flex items-center gap-1.5 rounded-lg border border-[var(--border)] bg-[var(--surface)] px-2.5 py-1 text-xs font-medium text-[var(--fg-muted)] hover:text-[var(--fg)] hover:border-[var(--border-strong)] transition-colors"
-                                >
-                                  <FileText className="size-3 text-[var(--accent)]" /> {f.label}
-                                </a>
-                              ))}
-                            </div>
-                          </div>
-                        )}
-                      </div>
-                    )}
-
-                    {/* Awaiting Media Upload Notice (When contestant has enrolled/registered but has not submitted files yet) */}
-                    {!activeContestant.submission_url && (!activeContestant.parsed_files || activeContestant.parsed_files.length === 0) && (
-                      <div className="flex items-start gap-3 rounded-2xl border border-amber-500/35 bg-amber-500/10 p-4 text-xs text-amber-300 shadow-sm">
-                        <AlertCircle className="size-5 shrink-0 text-amber-400 mt-0.5" />
-                        <div>
-                          <p className="font-bold text-sm text-amber-200">Awaiting Performance Media</p>
-                          <p className="mt-1 text-amber-300/80 leading-relaxed">
-                            This contestant is officially registered in this competition, but has not yet uploaded their performance audition (YouTube link or MP3 audio).
-                          </p>
-                        </div>
-                      </div>
-                    )}
-
-                    {/* Locked / Already Scored Official Banner */}
-                    {isAlreadyScored && (
-                      <div className="flex items-center gap-3.5 rounded-2xl border border-emerald-500/35 bg-emerald-500/10 p-4 text-emerald-300 shadow-md">
-                        <div className="grid size-9 shrink-0 place-items-center rounded-xl bg-emerald-500/20 text-emerald-400">
-                          <CheckCircle2 className="size-5" />
-                        </div>
-                        <div className="min-w-0 flex-1">
-                          <div className="flex flex-wrap items-center gap-2">
-                            <span className="font-bold text-sm text-emerald-200">Official Score Submitted &amp; Finalized</span>
-                            <span className="rounded-full bg-emerald-500/25 px-2.5 py-0.5 text-[10.5px] font-black text-emerald-300">
-                              Total: {activeContestant.my_score ?? activeContestant.total_score ?? calculatedTotal} pts
-                            </span>
-                          </div>
-                          <p className="mt-0.5 text-xs text-emerald-300/80">
-                            You have already submitted your official score for this participant. Re-scoring is disabled to ensure fairness.
-                          </p>
-                        </div>
-                      </div>
-                    )}
-
-                    {/* Notice & Next Contestant Fast-Action */}
-                    {scoreNotice && (
-                      <div
-                        className={cn(
-                          "flex flex-col sm:flex-row sm:items-center justify-between gap-3 rounded-2xl border p-4 text-xs font-semibold shadow-sm",
-                          scoreNotice.tone === "success"
-                            ? "border-emerald-500/40 bg-emerald-500/10 text-emerald-400"
-                            : "border-[var(--error)]/30 bg-[color-mix(in_srgb,var(--error)_10%,transparent)] text-[var(--error)]"
-                        )}
-                      >
-                        <div className="flex items-center gap-2">
-                          {scoreNotice.tone === "success" ? (
-                            <CheckCircle2 className="size-4 text-emerald-400 shrink-0" />
-                          ) : (
-                            <AlertCircle className="size-4 text-[var(--error)] shrink-0" />
-                          )}
-                          <span>{scoreNotice.text}</span>
-                        </div>
-
-                        {scoreNotice.tone === "success" && nextContestant && (
-                          <Button
-                            type="button"
-                            size="sm"
-                            variant="primary"
-                            onClick={() => {
-                              setActiveContestant(nextContestant);
-                              setScoreNotice(null);
-                            }}
-                            className="gap-1.5 self-start sm:self-auto shrink-0 bg-emerald-500 hover:bg-emerald-600 text-black font-bold shadow-md"
-                          >
-                            <span>Score Next Contestant (#{currentIndex + 2})</span>
+                            <span>Start Queue (#1)</span>
                             <ChevronRight className="size-3.5" />
                           </Button>
+                        ) : (
+                          <div className="flex items-center gap-1.5">
+                            <Button
+                              size="sm"
+                              variant="outline"
+                              disabled={!prevContestant}
+                              onClick={() => {
+                                if (prevContestant) setActiveContestant(prevContestant);
+                              }}
+                              className="gap-1 text-xs"
+                            >
+                              <ChevronLeft className="size-3" /> Prev
+                            </Button>
+                            <Button
+                              size="sm"
+                              variant="accent"
+                              disabled={!nextContestant}
+                              onClick={() => {
+                                if (nextContestant) setActiveContestant(nextContestant);
+                              }}
+                              className="gap-1 text-xs font-bold"
+                            >
+                              Next <ChevronRight className="size-3" />
+                            </Button>
+                          </div>
                         )}
                       </div>
-                    )}
+                    </div>
+                  )}
 
-                    {/* Criteria Scoring Inputs */}
-                    <div className="flex flex-col gap-5">
-                      <div className="flex items-center justify-between">
-                        <span className="text-xs font-bold uppercase tracking-wider text-[var(--fg-subtle)]">
-                          Evaluation Criteria {isAlreadyScored && "(Read-Only)"}
-                        </span>
-                        <div className="flex items-center gap-2 rounded-xl bg-[var(--bg)] px-3 py-1.5 border border-[var(--border)]">
-                          <span className="text-xs text-[var(--fg-subtle)]">Total:</span>
-                          <span className="text-base font-black text-[var(--accent)]">
-                            {isAlreadyScored ? (activeContestant.my_score ?? activeContestant.total_score ?? calculatedTotal) : calculatedTotal}
-                          </span>
-                          <span className="text-xs text-[var(--fg-subtle)]">/ {maxPossibleTotal}</span>
-                        </div>
-                      </div>
-
-                      {criteriaList.map((crit) => {
-                        const currentVal = scores[crit.name] ?? 0;
+                  {/* Contestants Cards */}
+                  {contestantsLoading ? (
+                    <div className="flex min-h-[300px] flex-col items-center justify-center gap-3 rounded-2xl border border-[var(--border)] bg-[var(--bg-elevated)]">
+                      <span className="size-6 animate-spin rounded-full border-2 border-[var(--accent)] border-t-transparent" />
+                      <p className="text-xs text-[var(--fg-muted)]">Loading submissions…</p>
+                    </div>
+                  ) : filteredContestants.length === 0 ? (
+                    <div className="rounded-2xl border border-dashed border-[var(--border)] bg-[var(--bg-elevated)]/40 p-8 text-center">
+                      <p className="text-sm text-[var(--fg-muted)]">No approved contestants match your criteria.</p>
+                    </div>
+                  ) : (
+                    <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-1">
+                      {filteredContestants.map((c, index) => {
+                        const isSelected = activeContestant?._id === c._id;
+                        const hasVideo = c.submission_url && getYouTubeEmbedUrl(c.submission_url);
+                        const hasAudio = c.submission_url && isAudio(c.submission_url);
+                        const isScored = Boolean(
+                          c.is_scored || c.has_scored || c.status === "Scored" || c.is_locked
+                        );
                         return (
-                          <div
-                            key={crit.name}
+                          <motion.div
+                            key={c._id}
+                            layout
+                            onClick={() => setActiveContestant(c)}
                             className={cn(
-                              "flex flex-col gap-2 rounded-2xl border p-4 transition-colors",
-                              isAlreadyScored
-                                ? "border-emerald-500/20 bg-[var(--bg)]/40"
-                                : "border-[var(--border)] bg-[var(--bg)]/70"
+                              "group relative cursor-pointer rounded-2xl border p-4 transition-all duration-200",
+                              isSelected
+                                ? "border-[var(--accent)] bg-[color-mix(in_srgb,var(--accent)_8%,var(--bg-elevated))] shadow-lg ring-1 ring-[var(--accent)]/50"
+                                : "border-[var(--border)] bg-[var(--bg-elevated)] hover:border-[var(--border-strong)] hover:bg-[var(--bg-subtle)]"
                             )}
                           >
-                            <div className="flex items-center justify-between">
-                              <div>
-                                <h4 className="text-xs font-bold text-[var(--fg)]">{crit.name}</h4>
-                                {crit.description && (
-                                  <p className="text-[11px] text-[var(--fg-subtle)]">{crit.description}</p>
-                                )}
+                            <div className="flex items-start gap-3.5">
+                              {/* Contestant Avatar */}
+                              <div className="relative size-10 shrink-0 overflow-hidden rounded-full border border-[var(--border)] bg-[var(--surface-2)]">
+                                <img
+                                  src={imageFor(c.profile_photo, 1)}
+                                  alt=""
+                                  className="size-full object-cover"
+                                />
                               </div>
-                              <span className={cn("font-mono text-sm font-bold", isAlreadyScored ? "text-emerald-400" : "text-[var(--accent)]")}>
-                                {currentVal} / {crit.max_score}
-                              </span>
+
+                              <div className="min-w-0 flex-1">
+                                <div className="flex items-start justify-between gap-2">
+                                  <div className="min-w-0">
+                                    <div className="flex items-center gap-1.5 flex-wrap">
+                                      <span className="rounded bg-[var(--bg)] border border-[var(--border)] px-2 py-0.5 font-mono text-xs font-bold text-[var(--fg-muted)]">
+                                        #{index + 1}
+                                      </span>
+                                      <h3 className="text-sm sm:text-base font-bold text-[var(--fg)] group-hover:text-[var(--accent)] transition-colors truncate flex items-center gap-1">
+                                        <span>{c.user_name || "Contestant Entry"}</span>
+                                        {Boolean((c as any).is_verified || (c as any).verified_badge || (c as any).verified_tick) && (
+                                          <VerifiedBadge size="xs" />
+                                        )}
+                                      </h3>
+                                      {(c.registration_reference || c.registration_number || c.reg_no) && (
+                                        <span className="rounded bg-cyan-500/10 border border-cyan-500/20 px-2 py-0.5 font-mono text-xs font-bold text-cyan-400">
+                                          {c.registration_reference || c.registration_number || c.reg_no}
+                                        </span>
+                                      )}
+                                      {c.category && (
+                                        <span className="rounded-full bg-violet-500/15 border border-violet-500/30 px-2.5 py-0.5 text-xs font-bold text-violet-300">
+                                          {c.category}
+                                        </span>
+                                      )}
+                                      {c.is_present || c.attendance_status === "PRESENT" ? (
+                                        <span className="inline-flex items-center gap-1 rounded-full bg-emerald-500/15 border border-emerald-500/30 px-2.5 py-0.5 text-xs font-bold text-emerald-400">
+                                          <span className="size-2 rounded-full bg-emerald-400 animate-pulse" />
+                                          ✓ Present (Entry #{index + 1})
+                                        </span>
+                                      ) : (
+                                        <span className="inline-flex items-center gap-1 rounded-full bg-zinc-800/80 border border-zinc-700 px-2.5 py-0.5 text-xs font-medium text-zinc-400">
+                                          Absent
+                                        </span>
+                                      )}
+                                      {Boolean(
+                                        (stageCard?.current_performer?.user_email && (c.user_email || "").toLowerCase().trim() === stageCard.current_performer.user_email.toLowerCase().trim()) ||
+                                        (c as any).is_current_performer ||
+                                        (c as any).on_stage
+                                      ) && (
+                                          <span className="rounded-full bg-rose-500/20 border border-rose-500/40 px-2.5 py-0.5 text-xs font-extrabold text-rose-300 animate-pulse flex items-center gap-1">
+                                            <Radio className="size-3" /> ON STAGE
+                                          </span>
+                                        )}
+                                    </div>
+                                    <p className="text-xs text-[var(--fg-subtle)] truncate font-medium">
+                                      {c.user_email}
+                                    </p>
+                                  </div>
+                                  <Badge tone={isScored ? "success" : isSelected ? "brand" : "neutral"} className="shrink-0 text-xs">
+                                    {isScored ? "Scored" : c.status || "Submitted"}
+                                  </Badge>
+                                </div>
+
+                                {/* Performance type tag */}
+                                <div className="mt-2 flex flex-wrap items-center gap-1.5">
+                                  {hasVideo && (
+                                    <span className="inline-flex items-center gap-1 rounded-md bg-rose-500/15 px-2.5 py-0.5 text-xs font-semibold text-rose-400">
+                                      <Video className="size-3" /> YouTube Video
+                                    </span>
+                                  )}
+                                  {hasAudio && (
+                                    <span className="inline-flex items-center gap-1 rounded-md bg-amber-500/15 px-2.5 py-0.5 text-xs font-semibold text-amber-400">
+                                      <Music className="size-3" /> MP3 Audio
+                                    </span>
+                                  )}
+                                  {c.parsed_files && c.parsed_files.length > 0 && !hasVideo && !hasAudio && (
+                                    <span className="inline-flex items-center gap-1 rounded-md bg-cyan-500/15 px-2.5 py-0.5 text-xs font-semibold text-cyan-400">
+                                      <FileText className="size-3" /> {c.parsed_files.length} {c.parsed_files.length === 1 ? "file" : "files"}
+                                    </span>
+                                  )}
+                                </div>
+                              </div>
                             </div>
 
-                            <input
-                              type="range"
-                              min={0}
-                              max={crit.max_score}
-                              step={1}
-                              value={currentVal}
-                              disabled={isAlreadyScored}
-                              onChange={(e) =>
-                                !isAlreadyScored &&
-                                setScores((prev) => ({
-                                  ...prev,
-                                  [crit.name]: parseFloat(e.target.value) || 0,
-                                }))
-                              }
-                              className={cn(
-                                "h-2 w-full appearance-none rounded-lg",
-                                isAlreadyScored
-                                  ? "cursor-not-allowed bg-[var(--border)] opacity-60 accent-emerald-500"
-                                  : "cursor-pointer bg-[var(--border-strong)] accent-[var(--accent)]"
+                            <div className="mt-3 flex items-center justify-between border-t border-[var(--border)]/60 pt-3 text-xs text-[var(--fg-subtle)]">
+                              <span className="flex items-center gap-1.5">
+                                <Clock className="size-3.5" />
+                                {c.attended_at ? `Checked in: ${new Date(c.attended_at).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}` : c.submitted_at ? new Date(c.submitted_at).toLocaleDateString() : "Active Round"}
+                              </span>
+                              {isScored ? (
+                                <span className="inline-flex items-center gap-1.5 font-bold text-emerald-400 text-xs sm:text-sm">
+                                  <CheckCircle2 className="size-4 text-emerald-400" />
+                                  {c.my_score != null || c.total_score != null ? `${c.my_score ?? c.total_score} pts` : "Scored"}
+                                  <span className="text-xs text-[var(--fg-subtle)] font-normal">View</span>
+                                  <ChevronRight className="size-3.5 transition-transform group-hover:translate-x-0.5" />
+                                </span>
+                              ) : (
+                                <span className="inline-flex items-center gap-1 font-bold text-[var(--accent)] text-xs sm:text-sm">
+                                  Score <ChevronRight className="size-3 transition-transform group-hover:translate-x-0.5" />
+                                </span>
                               )}
-                            />
-                          </div>
+                            </div>
+                          </motion.div>
                         );
                       })}
                     </div>
+                  )}
+                </div>
 
-                    {/* Feedback / Comments */}
-                    <div className="flex flex-col gap-2">
-                      <label className="text-xs font-bold uppercase tracking-wider text-[var(--fg-subtle)]">
-                        Judges Feedback &amp; Comments {isAlreadyScored && "(Submitted)"}
-                      </label>
-                      <textarea
-                        rows={3}
-                        value={comments}
-                        disabled={isAlreadyScored}
-                        onChange={(e) => !isAlreadyScored && setComments(e.target.value)}
-                        placeholder={isAlreadyScored ? "No comments submitted." : "Constructive feedback for the participant…"}
-                        className={cn(
-                          "w-full rounded-xl border border-[var(--border)] bg-[var(--bg)] p-3 text-xs text-[var(--fg)] placeholder:text-[var(--fg-subtle)] focus:border-[var(--accent)] focus:outline-none",
-                          isAlreadyScored && "cursor-not-allowed opacity-75 bg-[var(--surface-2)]/60"
-                        )}
-                      />
-                    </div>
+                {/* Live Scoring Panel Column */}
+                <AnimatePresence mode="wait">
+                  {activeContestant && (
+                    <motion.div
+                      key={activeContestant._id}
+                      initial={{ opacity: 0, x: 20 }}
+                      animate={{ opacity: 1, x: 0 }}
+                      exit={{ opacity: 0, x: 20 }}
+                      transition={{ duration: 0.35, ease: EASE }}
+                      className="flex flex-col gap-6 rounded-3xl border border-[var(--border)] bg-[var(--bg-elevated)] p-6 shadow-2xl lg:col-span-7"
+                    >
+                      {/* Panel Header with User Profile Spotlight */}
+                      <div className="flex items-start justify-between border-b border-[var(--border)] pb-4">
+                        <div className="flex items-center gap-3.5">
+                          <div className="relative size-12 shrink-0 overflow-hidden rounded-full border-2 border-[var(--accent)] bg-[var(--surface-2)] shadow-md">
+                            <img
+                              src={imageFor(activeContestant.profile_photo, 1)}
+                              alt=""
+                              className="size-full object-cover"
+                            />
+                          </div>
+                          <div>
+                            <div className="flex items-center gap-2">
+                              <span className="text-[10px] font-bold uppercase tracking-[0.2em] text-[var(--accent)]">
+                                Contestant Under Evaluation
+                              </span>
+                              {(activeContestant.registration_reference || activeContestant.registration_number || activeContestant.reg_no) && (
+                                <span className="rounded bg-cyan-500/10 border border-cyan-500/20 px-2 py-0.5 font-mono text-[10px] font-bold text-cyan-400">
+                                  {activeContestant.registration_reference || activeContestant.registration_number || activeContestant.reg_no}
+                                </span>
+                              )}
+                            </div>
+                            <h2 className="mt-0.5 text-base font-bold text-[var(--fg)] sm:text-lg">
+                              {activeContestant.user_name || activeContestant.user_email}
+                            </h2>
+                            <p className="text-xs text-[var(--fg-subtle)]">
+                              {activeContestant.user_email}
+                              {activeContestant.user_phone ? ` • ${activeContestant.user_phone}` : ""}
+                            </p>
+                          </div>
+                        </div>
 
-                    {/* Actions Bar */}
-                    <div className="flex flex-wrap items-center justify-between gap-3 border-t border-[var(--border)] pt-4">
-                      {isAlreadyScored ? (
-                        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 w-full">
-                          <span className="inline-flex items-center gap-2 text-xs font-bold text-emerald-400">
-                            <CheckCircle2 className="size-4" /> Score Recorded ({activeContestant.my_score ?? activeContestant.total_score ?? calculatedTotal} pts)
-                          </span>
+                        <div className="flex items-center gap-2">
+                          {/* Prev / Next Contestant Stepper */}
+                          <div className="flex items-center gap-1 rounded-xl border border-[var(--border)] bg-[var(--bg)] p-1">
+                            <button
+                              type="button"
+                              disabled={!prevContestant}
+                              onClick={() => prevContestant && setActiveContestant(prevContestant)}
+                              className="rounded-lg p-1.5 text-[var(--fg-muted)] hover:bg-[var(--bg-elevated)] hover:text-[var(--fg)] disabled:opacity-30 disabled:pointer-events-none transition-all"
+                              title="Previous Contestant"
+                            >
+                              <ChevronLeft className="size-4" />
+                            </button>
+
+                            <span className="px-2 text-[11px] font-mono font-bold text-[var(--fg-subtle)] whitespace-nowrap">
+                              {currentIndex + 1} / {filteredContestants.length}
+                            </span>
+
+                            <button
+                              type="button"
+                              disabled={!nextContestant}
+                              onClick={() => nextContestant && setActiveContestant(nextContestant)}
+                              className="rounded-lg p-1.5 text-[var(--fg-muted)] hover:bg-[var(--bg-elevated)] hover:text-[var(--fg)] disabled:opacity-30 disabled:pointer-events-none transition-all"
+                              title="Next Contestant"
+                            >
+                              <ChevronRight className="size-4" />
+                            </button>
+                          </div>
+
+                          {activeContestant.submission_url && (
+                            <a
+                              href={activeContestant.submission_url}
+                              target="_blank"
+                              rel="noopener noreferrer"
+                              className="hidden sm:inline-flex items-center gap-1 rounded-lg border border-[var(--border)] bg-[var(--bg)] px-2.5 py-1 text-xs font-semibold text-[var(--fg-muted)] hover:text-[var(--fg)]"
+                            >
+                              <ExternalLink className="size-3" /> View Entry
+                            </a>
+                          )}
+                          <Button
+                            variant="ghost"
+                            size="sm"
+                            onClick={() => setActiveContestant(null)}
+                            className="size-8 p-0"
+                          >
+                            ✕
+                          </Button>
+                        </div>
+                      </div>
+
+                      {/* Performance Submission Media Viewer */}
+                      {activeContestant.submission_url && (
+                        <div className="flex flex-col gap-3 rounded-2xl border border-[var(--border)] bg-[var(--bg)]/80 p-4">
+                          <div className="flex items-center justify-between">
+                            <span className="text-xs font-bold uppercase tracking-wider text-[var(--fg-subtle)] flex items-center gap-1.5">
+                              <Award className="size-3.5 text-[var(--accent)]" /> Submitted Performance
+                            </span>
+                            <a
+                              href={activeContestant.submission_url}
+                              target="_blank"
+                              rel="noopener noreferrer"
+                              className="inline-flex items-center gap-1 text-xs font-semibold text-[var(--accent)] hover:underline"
+                            >
+                              Open raw link <ExternalLink className="size-3" />
+                            </a>
+                          </div>
+
+                          {/* YouTube Player */}
+                          {getYouTubeEmbedUrl(activeContestant.submission_url) ? (
+                            <div className="relative aspect-video w-full overflow-hidden rounded-xl border border-[var(--border)] bg-black shadow-md">
+                              <iframe
+                                src={getYouTubeEmbedUrl(activeContestant.submission_url)!}
+                                title="Contestant Performance Video"
+                                allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
+                                allowFullScreen
+                                className="size-full border-0"
+                              />
+                            </div>
+                          ) : isAudio(activeContestant.submission_url) ? (
+                            <div className="rounded-xl border border-[var(--border)] bg-[var(--surface-2)] p-3">
+                              <audio controls className="w-full" src={activeContestant.submission_url}>
+                                Your browser does not support audio playback.
+                              </audio>
+                            </div>
+                          ) : null}
+
+                          {/* Other Parsed Files */}
+                          {activeContestant.parsed_files && activeContestant.parsed_files.length > 1 && (
+                            <div className="flex flex-col gap-2 pt-2 border-t border-[var(--border)]/60">
+                              <span className="text-[11px] font-semibold text-[var(--fg-subtle)]">Attached Submissions:</span>
+                              <div className="flex flex-wrap gap-2">
+                                {activeContestant.parsed_files.map((f, i) => (
+                                  <a
+                                    key={i}
+                                    href={f.url}
+                                    target="_blank"
+                                    rel="noopener noreferrer"
+                                    className="inline-flex items-center gap-1.5 rounded-lg border border-[var(--border)] bg-[var(--surface)] px-2.5 py-1 text-xs font-medium text-[var(--fg-muted)] hover:text-[var(--fg)] hover:border-[var(--border-strong)] transition-colors"
+                                  >
+                                    <FileText className="size-3 text-[var(--accent)]" /> {f.label}
+                                  </a>
+                                ))}
+                              </div>
+                            </div>
+                          )}
+                        </div>
+                      )}
+
+                      {/* Awaiting Media Upload Notice (When contestant has enrolled/registered but has not submitted files yet) */}
+                      {!activeContestant.submission_url && (!activeContestant.parsed_files || activeContestant.parsed_files.length === 0) && (
+                        <div className="flex items-start gap-3 rounded-2xl border border-amber-500/35 bg-amber-500/10 p-4 text-xs text-amber-300 shadow-sm">
+                          <AlertCircle className="size-5 shrink-0 text-amber-400 mt-0.5" />
+                          <div>
+                            <p className="font-bold text-sm text-amber-200">Awaiting Performance Media</p>
+                            <p className="mt-1 text-amber-300/80 leading-relaxed">
+                              This contestant is officially registered in this competition, but has not yet uploaded their performance audition (YouTube link or MP3 audio).
+                            </p>
+                          </div>
+                        </div>
+                      )}
+
+                      {/* Locked / Already Scored Official Banner */}
+                      {isAlreadyScored && (
+                        <div className="flex items-center gap-3.5 rounded-2xl border border-emerald-500/35 bg-emerald-500/10 p-4 text-emerald-300 shadow-md">
+                          <div className="grid size-9 shrink-0 place-items-center rounded-xl bg-emerald-500/20 text-emerald-400">
+                            <CheckCircle2 className="size-5" />
+                          </div>
+                          <div className="min-w-0 flex-1">
+                            <div className="flex flex-wrap items-center gap-2">
+                              <span className="font-bold text-sm text-emerald-200">Official Score Submitted &amp; Finalized</span>
+                              <span className="rounded-full bg-emerald-500/25 px-2.5 py-0.5 text-[10.5px] font-black text-emerald-300">
+                                Total: {activeContestant.my_score ?? activeContestant.total_score ?? calculatedTotal} pts
+                              </span>
+                            </div>
+                            <p className="mt-0.5 text-xs text-emerald-300/80">
+                              You have already submitted your official score for this participant. Re-scoring is disabled to ensure fairness.
+                            </p>
+                          </div>
+                        </div>
+                      )}
+
+                      {/* Notice & Next Contestant Fast-Action */}
+                      {scoreNotice && (
+                        <div
+                          className={cn(
+                            "flex flex-col sm:flex-row sm:items-center justify-between gap-3 rounded-2xl border p-4 text-xs font-semibold shadow-sm",
+                            scoreNotice.tone === "success"
+                              ? "border-emerald-500/40 bg-emerald-500/10 text-emerald-400"
+                              : "border-[var(--error)]/30 bg-[color-mix(in_srgb,var(--error)_10%,transparent)] text-[var(--error)]"
+                          )}
+                        >
                           <div className="flex items-center gap-2">
-                            {prevContestant && (
+                            {scoreNotice.tone === "success" ? (
+                              <CheckCircle2 className="size-4 text-emerald-400 shrink-0" />
+                            ) : (
+                              <AlertCircle className="size-4 text-[var(--error)] shrink-0" />
+                            )}
+                            <span>{scoreNotice.text}</span>
+                          </div>
+
+                          {scoreNotice.tone === "success" && nextContestant && (
+                            <Button
+                              type="button"
+                              size="sm"
+                              variant="primary"
+                              onClick={() => {
+                                setActiveContestant(nextContestant);
+                                setScoreNotice(null);
+                              }}
+                              className="gap-1.5 self-start sm:self-auto shrink-0 bg-emerald-500 hover:bg-emerald-600 text-black font-bold shadow-md"
+                            >
+                              <span>Score Next Contestant (#{currentIndex + 2})</span>
+                              <ChevronRight className="size-3.5" />
+                            </Button>
+                          )}
+                        </div>
+                      )}
+
+                      {/* Criteria Scoring Inputs */}
+                      <div className="flex flex-col gap-5">
+                        <div className="flex items-center justify-between">
+                          <span className="text-xs font-bold uppercase tracking-wider text-[var(--fg-subtle)]">
+                            Evaluation Criteria {isAlreadyScored && "(Read-Only)"}
+                          </span>
+                          <div className="flex items-center gap-2 rounded-xl bg-[var(--bg)] px-3 py-1.5 border border-[var(--border)]">
+                            <span className="text-xs text-[var(--fg-subtle)]">Total:</span>
+                            <span className="text-base font-black text-[var(--accent)]">
+                              {isAlreadyScored ? (activeContestant.my_score ?? activeContestant.total_score ?? calculatedTotal) : calculatedTotal}
+                            </span>
+                            <span className="text-xs text-[var(--fg-subtle)]">/ {maxPossibleTotal}</span>
+                          </div>
+                        </div>
+
+                        {criteriaList.map((crit) => {
+                          const currentVal = scores[crit.name] ?? 0;
+                          return (
+                            <div
+                              key={crit.name}
+                              className={cn(
+                                "flex flex-col gap-2 rounded-2xl border p-4 transition-colors",
+                                isAlreadyScored
+                                  ? "border-emerald-500/20 bg-[var(--bg)]/40"
+                                  : "border-[var(--border)] bg-[var(--bg)]/70"
+                              )}
+                            >
+                              <div className="flex items-center justify-between">
+                                <div>
+                                  <h4 className="text-xs font-bold text-[var(--fg)]">{crit.name}</h4>
+                                  {crit.description && (
+                                    <p className="text-[11px] text-[var(--fg-subtle)]">{crit.description}</p>
+                                  )}
+                                </div>
+                                <span className={cn("font-mono text-sm font-bold", isAlreadyScored ? "text-emerald-400" : "text-[var(--accent)]")}>
+                                  {currentVal} / {crit.max_score}
+                                </span>
+                              </div>
+
+                              <input
+                                type="range"
+                                min={0}
+                                max={crit.max_score}
+                                step={1}
+                                value={currentVal}
+                                disabled={isAlreadyScored}
+                                onChange={(e) =>
+                                  !isAlreadyScored &&
+                                  setScores((prev) => ({
+                                    ...prev,
+                                    [crit.name]: parseFloat(e.target.value) || 0,
+                                  }))
+                                }
+                                className={cn(
+                                  "h-2 w-full appearance-none rounded-lg",
+                                  isAlreadyScored
+                                    ? "cursor-not-allowed bg-[var(--border)] opacity-60 accent-emerald-500"
+                                    : "cursor-pointer bg-[var(--border-strong)] accent-[var(--accent)]"
+                                )}
+                              />
+                            </div>
+                          );
+                        })}
+                      </div>
+
+                      {/* Feedback / Comments */}
+                      <div className="flex flex-col gap-2">
+                        <label className="text-xs font-bold uppercase tracking-wider text-[var(--fg-subtle)]">
+                          Judges Feedback &amp; Comments {isAlreadyScored && "(Submitted)"}
+                        </label>
+                        <textarea
+                          rows={3}
+                          value={comments}
+                          disabled={isAlreadyScored}
+                          onChange={(e) => !isAlreadyScored && setComments(e.target.value)}
+                          placeholder={isAlreadyScored ? "No comments submitted." : "Constructive feedback for the participant…"}
+                          className={cn(
+                            "w-full rounded-xl border border-[var(--border)] bg-[var(--bg)] p-3 text-xs text-[var(--fg)] placeholder:text-[var(--fg-subtle)] focus:border-[var(--accent)] focus:outline-none",
+                            isAlreadyScored && "cursor-not-allowed opacity-75 bg-[var(--surface-2)]/60"
+                          )}
+                        />
+                      </div>
+
+                      {/* Actions Bar */}
+                      <div className="flex flex-wrap items-center justify-between gap-3 border-t border-[var(--border)] pt-4">
+                        {isAlreadyScored ? (
+                          <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 w-full">
+                            <span className="inline-flex items-center gap-2 text-xs font-bold text-emerald-400">
+                              <CheckCircle2 className="size-4" /> Score Recorded ({activeContestant.my_score ?? activeContestant.total_score ?? calculatedTotal} pts)
+                            </span>
+                            <div className="flex items-center gap-2">
+                              {prevContestant && (
+                                <Button
+                                  type="button"
+                                  variant="outline"
+                                  size="sm"
+                                  onClick={() => setActiveContestant(prevContestant)}
+                                  className="gap-1 text-xs"
+                                >
+                                  <ChevronLeft className="size-3" /> Prev (#{currentIndex})
+                                </Button>
+                              )}
+                              {nextContestant && (
+                                <Button
+                                  type="button"
+                                  variant="accent"
+                                  size="sm"
+                                  onClick={() => setActiveContestant(nextContestant)}
+                                  className="gap-1 text-xs font-bold"
+                                >
+                                  Next (#{currentIndex + 2}) <ChevronRight className="size-3" />
+                                </Button>
+                              )}
                               <Button
                                 type="button"
                                 variant="outline"
                                 size="sm"
-                                onClick={() => setActiveContestant(prevContestant)}
-                                className="gap-1 text-xs"
+                                onClick={() => setActiveContestant(null)}
                               >
-                                <ChevronLeft className="size-3" /> Prev (#{currentIndex})
+                                Close
                               </Button>
-                            )}
-                            {nextContestant && (
+                            </div>
+                          </div>
+                        ) : (
+                          <>
+                            <Button
+                              type="button"
+                              variant="ghost"
+                              size="sm"
+                              onClick={() => setShowCoiModal(true)}
+                              className="gap-1.5 text-[var(--fg-subtle)] hover:text-[var(--error)]"
+                            >
+                              <SkipForward className="size-4" /> Declare COI / Skip
+                            </Button>
+
+                            <div className="flex items-center gap-2">
                               <Button
                                 type="button"
-                                variant="accent"
-                                size="sm"
-                                onClick={() => setActiveContestant(nextContestant)}
-                                className="gap-1 text-xs font-bold"
+                                variant="outline"
+                                size="md"
+                                loading={savingDraft}
+                                onClick={handleSaveDraft}
+                                className="gap-1.5"
                               >
-                                Next (#{currentIndex + 2}) <ChevronRight className="size-3" />
+                                <Save className="size-4" /> Save Draft
                               </Button>
-                            )}
-                            <Button
-                              type="button"
-                              variant="outline"
-                              size="sm"
-                              onClick={() => setActiveContestant(null)}
-                            >
-                              Close
-                            </Button>
-                          </div>
-                        </div>
-                      ) : (
-                        <>
-                          <Button
-                            type="button"
-                            variant="ghost"
-                            size="sm"
-                            onClick={() => setShowCoiModal(true)}
-                            className="gap-1.5 text-[var(--fg-subtle)] hover:text-[var(--error)]"
-                          >
-                            <SkipForward className="size-4" /> Declare COI / Skip
-                          </Button>
 
-                          <div className="flex items-center gap-2">
-                            <Button
-                              type="button"
-                              variant="outline"
-                              size="md"
-                              loading={savingDraft}
-                              onClick={handleSaveDraft}
-                              className="gap-1.5"
-                            >
-                              <Save className="size-4" /> Save Draft
-                            </Button>
-
-                            <Button
-                              type="button"
-                              variant="primary"
-                              size="md"
-                              loading={submittingScore}
-                              onClick={handleSubmitScore}
-                              className="gap-1.5"
-                            >
-                              <Send className="size-4" /> Submit Official Score
-                            </Button>
-                          </div>
-                        </>
-                      )}
-                    </div>
-                  </motion.div>
-                )}
-              </AnimatePresence>
-            </div>
+                              <Button
+                                type="button"
+                                variant="primary"
+                                size="md"
+                                loading={submittingScore}
+                                onClick={handleSubmitScore}
+                                className="gap-1.5"
+                              >
+                                <Send className="size-4" /> Submit Official Score
+                              </Button>
+                            </div>
+                          </>
+                        )}
+                      </div>
+                    </motion.div>
+                  )}
+                </AnimatePresence>
+              </div>
             )}
 
             {/* ── Scoreboard & Standings View (1st, 2nd, 3rd) ── */}

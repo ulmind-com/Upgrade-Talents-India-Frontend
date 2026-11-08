@@ -159,6 +159,13 @@ export async function apiFetch<T = any>(path: string, opts: Opts = {}): Promise<
 
 /* ─────────────── TYPES (from backend schemas) ─────────────── */
 
+export type EventCategoryTier = {
+  name: string;
+  price: number;
+  capacity?: number;
+  description?: string;
+};
+
 export type EventItem = {
   _id: string;
   title: string;
@@ -169,6 +176,8 @@ export type EventItem = {
   venue: string;
   capacity?: number;
   price?: number;
+  category?: string;
+  categories?: EventCategoryTier[];
   registration_deadline?: string;
   event_status?: "upcoming" | "live" | "completed" | "cancelled";
   registration_enabled?: boolean;
@@ -228,6 +237,8 @@ export type TicketTier = {
   _id: string;
   event_id: string;
   type: string;
+  category?: string;
+  description?: string;
   price: number;
   total_quantity: number;
   available: number;
@@ -582,6 +593,8 @@ export const vipApi = {
 export const activitiesApi = {
   events: (p: { skip?: number; limit?: number; search?: string } = {}) =>
     apiFetch<EventItem[]>("/api/activities/events", { query: p, cache: "no-store" }),
+  eventById: (id: string) =>
+    apiFetch<EventItem>(`/api/activities/events/${id}`, { cache: "no-store" }),
   tickets: (event_id: string, p: { skip?: number; limit?: number } = {}) =>
     apiFetch<TicketTier[]>("/api/activities/tickets", {
       query: { event_id, limit: p.limit ?? 20, skip: p.skip ?? 0 },
@@ -789,8 +802,14 @@ export const certificatesApi = {
 /* ─────────────── BOOKINGS + TICKETS ─────────────── */
 
 export const bookingsApi = {
-  create: (body: { event_id: string; ticket_id: string; quantity: number; holder_names?: string[] }) =>
-    apiFetch<any>("/api/bookings/", { method: "POST", body, auth: true }),
+  create: (body: {
+    event_id: string;
+    ticket_id?: string;
+    category?: string;
+    quantity: number;
+    holder_names?: string[];
+    payment_method?: string;
+  }) => apiFetch<any>("/api/bookings/", { method: "POST", body, auth: true }),
   my: () => apiFetch<any[]>("/api/bookings/my", { auth: true, cache: "no-store" }),
   cancel: (booking_id: string) =>
     apiFetch<any>(`/api/bookings/${booking_id}/cancel`, { method: "POST", auth: true }),

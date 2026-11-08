@@ -99,6 +99,9 @@ export function EventCard({ ev, index = 0 }: { ev: EventItem; index?: number }) 
   const expired = isEventExpired(ev.date, ev.time);
   const deadlinePassed = isDeadlinePassed(ev.registration_deadline);
   const soldOut = expired || deadlinePassed || ev.event_status === "completed" || ev.registration_enabled === false;
+  const categories = Array.isArray(ev.categories) && ev.categories.length > 0 ? ev.categories : null;
+  const prices = categories ? categories.map((c: any) => Number(c.price || 0)).filter((p) => !isNaN(p)) : [Number(ev.price || 0)];
+  const minPrice = prices.length ? Math.min(...prices) : Number(ev.price || 0);
 
   return (
     <TiltCard className="group h-full" intensity={7}>
@@ -131,6 +134,11 @@ export function EventCard({ ev, index = 0 }: { ev: EventItem; index?: number }) 
             ) : soldOut ? (
               <Badge tone="danger">Closed</Badge>
             ) : null}
+            {categories && (
+              <span className="rounded-full bg-black/60 px-2 py-0.5 font-mono text-[9px] font-bold uppercase tracking-wider text-[var(--acid)] border border-white/10 backdrop-blur-md">
+                {categories.length} Tiers
+              </span>
+            )}
           </div>
         </div>
 
@@ -138,6 +146,16 @@ export function EventCard({ ev, index = 0 }: { ev: EventItem; index?: number }) 
           <h3 className="font-display text-[22px] font-bold uppercase leading-[1.05] tracking-tight transition-colors group-hover:text-[var(--accent)]">
             {ev.title}
           </h3>
+
+          {categories && (
+            <div className="flex flex-wrap gap-1.5">
+              {categories.slice(0, 3).map((c: any, i: number) => (
+                <span key={i} className="rounded-md bg-white/5 border border-white/10 px-2 py-0.5 font-mono text-[10px] text-white/70">
+                  {c.name}: {formatINR(c.price)}
+                </span>
+              ))}
+            </div>
+          )}
 
           <ul className="flex flex-wrap gap-x-5 gap-y-1.5 text-[12px] text-[var(--fg-muted)]">
             {ev.venue && (
@@ -152,8 +170,10 @@ export function EventCard({ ev, index = 0 }: { ev: EventItem; index?: number }) 
 
           <div className="mt-auto flex items-center justify-between gap-4 border-t border-[var(--border)] pt-5">
             <div>
-              <span className="block font-mono text-[10px] uppercase tracking-[0.2em] text-[var(--fg-subtle)]">From</span>
-              <span className="font-display text-xl font-bold text-[var(--fg)]">{formatINR(ev.price)}</span>
+              <span className="block font-mono text-[10px] uppercase tracking-[0.2em] text-[var(--fg-subtle)]">
+                {categories && categories.length > 1 ? "Tiers from" : "From"}
+              </span>
+              <span className="font-display text-xl font-bold text-[var(--fg)]">{formatINR(minPrice)}</span>
             </div>
             <Link
               href={`/events/${ev._id}`}
