@@ -371,8 +371,8 @@ export const publicApi = {
           : []
     ),
   competition: (id: string) =>
-    apiFetch<any>(`/api/activities/competitions/${id}`, { revalidate: 10 }).catch(() =>
-      apiFetch<any>(`/api/v1/competitions/${id}`, { revalidate: 10 })
+    apiFetch<any>(`/api/activities/competitions/${id}`, { cache: "no-store" }).catch(() =>
+      apiFetch<any>(`/api/v1/competitions/${id}`, { cache: "no-store" })
     ),
   results: (id: string, category?: string) =>
     apiFetch<any>(`/api/v1/competitions/${id}/results`, {
@@ -506,18 +506,40 @@ export const competeApi = {
       submission_id?: string;
       registered_at?: string;
     }>(`/api/v1/competitions/${id}/my-registration`, { auth: true, cache: "no-store" }),
-  eligibility: (id: string, category?: string) =>
-    apiFetch<{ eligible: boolean; status: string; reason: string }>(`/api/v1/competitions/${id}/eligibility`, {
-      auth: true,
-      cache: "no-store",
-      query: category ? { category } : undefined,
-    }),
-  register: (id: string, rules_accepted = true, payment_method: "ONLINE" | "CASH" = "ONLINE", category?: string) =>
+  eligibility: (id: string, category?: string, date_of_birth?: string) =>
+    apiFetch<{ eligible: boolean; status: string; reason: string; calculated_age?: number; date_of_birth?: string }>(
+      `/api/v1/competitions/${id}/eligibility`,
+      {
+        auth: true,
+        cache: "no-store",
+        query: {
+          ...(category ? { category } : {}),
+          ...(date_of_birth ? { date_of_birth } : {}),
+        },
+      }
+    ),
+  register: (
+    id: string,
+    rules_accepted = true,
+    payment_method: "ONLINE" | "CASH" = "ONLINE",
+    category?: string,
+    date_of_birth?: string
+  ) =>
     apiFetch<any>(`/api/v1/competitions/${id}/register`, {
       method: "POST",
       auth: true,
-      query: { rules_accepted, payment_method, ...(category ? { category } : {}) },
-      body: { rules_accepted, payment_method, ...(category ? { category } : {}) },
+      query: {
+        rules_accepted,
+        payment_method,
+        ...(category ? { category } : {}),
+        ...(date_of_birth ? { date_of_birth } : {}),
+      },
+      body: {
+        rules_accepted,
+        payment_method,
+        ...(category ? { category } : {}),
+        ...(date_of_birth ? { date_of_birth } : {}),
+      },
     }),
   submit: (id: string, files: File[], fieldNames: string[]) => {
     const fd = new FormData();

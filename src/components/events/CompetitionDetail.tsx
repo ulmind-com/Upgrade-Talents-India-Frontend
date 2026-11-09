@@ -102,15 +102,26 @@ const ALLOWED_AUDIO_EXTENSIONS = [
 ];
 
 export default function CompetitionDetail({
-  comp,
+  comp: ssrComp,
   initialLeaderboard,
 }: {
   comp: Comp;
   initialLeaderboard: Row[];
 }) {
+  // Client-side refetch to always get fresh competition data (categories, settings, etc.)
+  const [liveComp, setLiveComp] = useState<Comp | null>(null);
+  const comp = liveComp || ssrComp;
   const id = comp._id || comp.id || "";
   const { user, loading } = useAuth();
   const router = useRouter();
+
+  useEffect(() => {
+    const cid = ssrComp._id || ssrComp.id;
+    if (!cid) return;
+    publicApi.competition(cid).then((fresh: any) => {
+      if (fresh && (fresh._id || fresh.id)) setLiveComp(fresh);
+    }).catch(() => {});
+  }, [ssrComp._id, ssrComp.id]);
 
   // Resolve dynamic submission fields matching configured requirements
   const fields = useMemo(() => {
@@ -193,22 +204,35 @@ export default function CompetitionDetail({
     if (comp.category && typeof comp.category === "string" && comp.category.trim()) {
       return [{ name: comp.category.trim() }];
     }
-    return [
-      { name: "Sub-Junior", age_limit: "3-7 years", min_age: 3, max_age: 7, description: "Ages 3 to 7 years" },
-      { name: "Junior", age_limit: "8-14 years", min_age: 8, max_age: 14, description: "Ages 8 to 14 years" },
-      { name: "Senior", age_limit: "15-28 years", min_age: 15, max_age: 28, description: "Ages 15 to 28 years" },
-    ];
+    return [];
   }, [comp.categories, comp.category]);
 
   const [selectedCategory, setSelectedCategory] = useState<string>("");
 
   useEffect(() => {
     if (!selectedCategory && availableCategories.length > 0) {
-      setSelectedCategory(availableCategories[0]?.name || "Junior");
+      setSelectedCategory(availableCategories[0]?.name || "");
+    }
+    // Reset selection if current selection no longer exists in available categories
+    if (selectedCategory && availableCategories.length > 0) {
+      const exists = availableCategories.some((c: any) => (c.name || c) === selectedCategory);
+      if (!exists) setSelectedCategory(availableCategories[0]?.name || "");
     }
   }, [availableCategories, selectedCategory]);
   const [paymentMode, setPaymentMode] = useState<"ONLINE" | "CASH">("ONLINE");
-  const [rulesAccepted, setRulesAccepted] = useState(false);
+  const [rulesAccepted, setRulesAccepted] = useState(true);
+  const [participantDob, setParticipantDob] = useState<string>("");
+
+  useEffect(() => {
+    if (user?.date_of_birth && !participantDob) {
+      setParticipantDob(String(user.date_of_birth).slice(0, 10));
+    }
+  }, [user?.date_of_birth, participantDob]);
+
+  const selectedCatObj = useMemo(() => {
+    return availableCategories.find((c: any) => (c.name || c) === selectedCategory) || null;
+  }, [availableCategories, selectedCategory]);
+
   const [entryModes, setEntryModes] = useState<Record<string, "file" | "link">>({});
   const [files, setFiles] = useState<Record<string, File | null>>({});
   const [links, setLinks] = useState<Record<string, string>>({});
@@ -600,20 +624,28 @@ export default function CompetitionDetail({
       return;
     }
 
+    if (!rulesAccepted) {
+      setMsg({ tone: "err", text: "Please check the box below to accept the competition rules and eligibility criteria." });
+      return;
+    }
+
     setBusy(true);
     setMsg(null);
     try {
       const chosenCat = selectedCategory || availableCategories[0]?.name || "Junior";
-      const el = await competeApi.eligibility(id, chosenCat);
+      const dobParam = participantDob.trim() || undefined;
+
+      const el = await competeApi.eligibility(id, chosenCat, dobParam);
       if (!el.eligible) {
         setMsg({ tone: "err", text: el.reason || "You are not eligible for this category division." });
+        setBusy(false);
         return;
       }
 
       const fee = comp.participation_fee || comp.fee || 0;
       const chosenMode = fee > 0 ? paymentMode : "ONLINE";
 
-      const regRes = await competeApi.register(id, true, chosenMode, chosenCat);
+      const regRes = await competeApi.register(id, true, chosenMode, chosenCat, dobParam);
 
       // If Cash on Spot, free registration, or confirmed without payment gateway
       if (
@@ -1878,6 +1910,34 @@ export default function CompetitionDetail({
                     </div>
                   )}
 
+                  {/* Participant Date of Birth (when category has age requirements) */}
+                  {selectedCatObj && (selectedCatObj.min_age != null || selectedCatObj.max_age != null || selectedCatObj.age_limit) && (
+                    <div className="mb-4 rounded-xl border border-amber-500/30 bg-amber-500/10 p-3">
+                      <div className="flex items-center justify-between gap-1 text-[11.5px] font-semibold text-amber-200">
+                        <span className="flex items-center gap-1.5">
+                          <Calendar className="size-3.5 text-amber-400" />
+                          Participant Date of Birth
+                        </span>
+                        <span className="text-[10px] font-mono text-amber-300/90">
+                          Allowed: {selectedCatObj.age_limit || `${selectedCatObj.min_age ?? 0}-${selectedCatObj.max_age ?? "+"} yrs`}
+                        </span>
+                      </div>
+                      <input
+                        type="date"
+                        value={participantDob}
+                        onChange={(e) => {
+                          setParticipantDob(e.target.value);
+                          setMsg(null);
+                        }}
+                        className="mt-2 w-full rounded-lg border border-[var(--border)] bg-[var(--surface)] px-2.5 py-1.5 text-xs text-[var(--fg)] outline-none focus:border-amber-400"
+                        placeholder="YYYY-MM-DD"
+                      />
+                      <p className="mt-1.5 text-[10.5px] text-[var(--fg-muted)] leading-tight">
+                        Required for age eligibility check in {selectedCategory}.
+                      </p>
+                    </div>
+                  )}
+
                   {!!(comp.participation_fee || comp.fee) && (
                     <div className="mb-4 space-y-3">
                       <div className="flex items-center justify-between rounded-xl border border-[var(--border)] bg-[var(--surface-2)] p-3">
@@ -2004,6 +2064,7 @@ export default function CompetitionDetail({
                       )}
                     </div>
                   )}
+
                   <label className="flex cursor-pointer items-start gap-2.5 text-[13px] text-[var(--fg-muted)]">
                     <input
                       type="checkbox"
@@ -2013,9 +2074,30 @@ export default function CompetitionDetail({
                     />
                     <span>I have read and accept the competition rules and eligibility criteria.</span>
                   </label>
+
+                  {/* Immediate in-card notification message */}
+                  {msg && step === "register" && (
+                    <motion.div
+                      initial={{ opacity: 0, y: 4 }}
+                      animate={{ opacity: 1, y: 0 }}
+                      className={`mt-3 flex items-start gap-2 rounded-xl p-3 text-[12px] leading-relaxed ${
+                        msg.tone === "ok"
+                          ? "border border-emerald-500/30 bg-emerald-500/15 text-emerald-300"
+                          : "border border-rose-500/30 bg-rose-500/15 text-rose-300"
+                      }`}
+                    >
+                      {msg.tone === "ok" ? (
+                        <CheckCircle2 className="mt-0.5 size-4 shrink-0 text-emerald-400" />
+                      ) : (
+                        <AlertCircle className="mt-0.5 size-4 shrink-0 text-rose-400" />
+                      )}
+                      <div>{msg.text}</div>
+                    </motion.div>
+                  )}
+
                   <button
                     onClick={doRegister}
-                    disabled={!rulesAccepted || busy || !open}
+                    disabled={busy || !open}
                     className="mt-4 inline-flex w-full items-center justify-center gap-2 rounded-full py-3 text-[13.5px] font-bold text-[var(--on-accent)] transition-opacity disabled:opacity-50"
                     style={{ background: "var(--grad-brand)" }}
                   >
@@ -2024,7 +2106,7 @@ export default function CompetitionDetail({
                       ? paymentMode === "CASH"
                         ? `Confirm Entry & Pay ₹${comp.participation_fee || comp.fee} Cash at Venue`
                         : `Pay ₹${comp.participation_fee || comp.fee} Online & Register`
-                      : "Register to compete"}
+                      : `Register in ${selectedCategory || "Competition"}`}
                   </button>
                 </>
               )
