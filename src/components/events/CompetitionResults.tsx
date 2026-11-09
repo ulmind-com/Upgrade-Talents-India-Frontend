@@ -6,7 +6,7 @@ import { motion, AnimatePresence } from "framer-motion";
 import {
   Trophy, Crown, Medal, ArrowLeft, Download, Award, Star,
   Search, MessageSquare, Volume2, CheckCircle2, AlertCircle,
-  ExternalLink, Sparkles, UserCheck, ShieldCheck, Flame, Loader2, Play, Pause,
+  ExternalLink, Sparkles, UserCheck, ShieldCheck, Flame, Loader2, Play, Pause, Layers
 } from "lucide-react";
 import { Reveal, StaggerGroup, StaggerItem } from "@/components/motion/Reveal";
 import { SectionLabel, Badge } from "@/components/ui/Primitives";
@@ -87,6 +87,41 @@ export default function CompetitionResults({
   const [activeAudioUrl, setActiveAudioUrl] = useState<string | null>(null);
   const [audioPlaying, setAudioPlaying] = useState(false);
   const [audioEl, setAudioEl] = useState<HTMLAudioElement | null>(null);
+
+  const [roundsData, setRoundsData] = useState<any | null>(null);
+  const [selectedRound, setSelectedRound] = useState<number | null>(null);
+
+  useEffect(() => {
+    publicApi.rounds(compId)
+      .then((rd) => {
+        setRoundsData(rd);
+        if (rd && Array.isArray(rd.rounds) && rd.rounds.length > 1) {
+          setSelectedRound(rd.total_rounds ?? rd.rounds.length);
+        }
+      })
+      .catch(() => setRoundsData(null));
+  }, [compId]);
+
+  const handleSelectRound = async (rNum: number) => {
+    setSelectedRound(rNum);
+    setLoading(true);
+    try {
+      const data = await publicApi.roundLeaderboard(compId, rNum);
+      if (data) {
+        setSnapshot((prev) => ({
+          ...prev,
+          category: data.category,
+          categories: data.categories || prev?.categories,
+          category_leaderboards: data.category_leaderboards || prev?.category_leaderboards,
+          leaderboard: data.leaderboard || [],
+        }));
+      }
+    } catch {
+      // ignore
+    } finally {
+      setLoading(false);
+    }
+  };
 
   // Load snapshot if missing
   useEffect(() => {
@@ -456,6 +491,59 @@ export default function CompetitionResults({
                 </div>
               </div>
             )}
+          </div>
+        </Reveal>
+      )}
+
+      {/* ── Multi-Round Knockout Stages Selector ── */}
+      {roundsData && Array.isArray(roundsData.rounds) && roundsData.rounds.length > 1 && (
+        <Reveal className="mt-8">
+          <div className="flex flex-col gap-2.5 rounded-2xl border border-amber-500/30 bg-gradient-to-r from-amber-500/10 via-[var(--surface-2)] to-amber-500/10 p-4 shadow-md">
+            <div className="flex flex-wrap items-center justify-between gap-2">
+              <span className="text-[12px] font-black uppercase tracking-wider text-[var(--fg)] flex items-center gap-2">
+                <Layers className="size-4 text-amber-400" />
+                Tournament Stages &amp; Final Rankings
+              </span>
+              <span className="text-xs text-[var(--fg-muted)]">
+                Viewing: {roundsData.rounds.find((r: any) => r.round_number === selectedRound)?.name || `Stage ${selectedRound || 1}`}
+              </span>
+            </div>
+
+            <div className="grid grid-cols-1 sm:grid-cols-3 gap-2.5 pt-1">
+              {roundsData.rounds.map((rd: any) => {
+                const isSelected = selectedRound === rd.round_number;
+                return (
+                  <button
+                    key={rd.round_number}
+                    type="button"
+                    onClick={() => handleSelectRound(rd.round_number)}
+                    className={`cursor-pointer rounded-xl p-3 text-left transition-all border relative flex flex-col justify-between gap-1.5 ${
+                      isSelected
+                        ? "border-amber-400 bg-amber-500/20 ring-2 ring-amber-400/40 shadow-lg text-white font-bold"
+                        : "border-[var(--border)] bg-[var(--surface)] text-[var(--fg-muted)] hover:border-[var(--border-strong)] hover:text-white"
+                    }`}
+                  >
+                    <div className="flex items-center justify-between gap-1.5">
+                      <span className="text-xs font-black tracking-wide text-[var(--fg)]">
+                        {rd.name || `Round ${rd.round_number}`}
+                      </span>
+                      {rd.is_final_round ? (
+                        <span className="rounded-full bg-yellow-500/20 border border-yellow-500/40 px-2 py-0.5 text-[9.5px] font-extrabold text-yellow-300">
+                          👑 Final
+                        </span>
+                      ) : (
+                        <span className="rounded-full bg-slate-500/20 px-2 py-0.5 text-[9.5px] font-bold text-slate-300">
+                          Qualifying
+                        </span>
+                      )}
+                    </div>
+                    {rd.description && (
+                      <p className="line-clamp-1 text-[11px] text-[var(--fg-muted)]">{rd.description}</p>
+                    )}
+                  </button>
+                );
+              })}
+            </div>
           </div>
         </Reveal>
       )}

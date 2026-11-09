@@ -1049,8 +1049,30 @@ export const judgeCompetitionsApi = {
   listAssigned: () =>
     apiFetch<JudgeCompetition[]>("/api/judge/", { auth: true }),
 
-  /** List scorable contestants/submissions for a competition */
-  listContestants: (compId: string, p: { category?: string; only_present?: boolean } = {}) =>
+  /** List competition multi-round knockout stages */
+  rounds: (compId: string) =>
+    apiFetch<{
+      competition_id?: string;
+      competition_title?: string;
+      current_round?: number;
+      total_rounds?: number;
+      rounds?: Array<{
+        round_number: number;
+        name: string;
+        description?: string;
+        status: string;
+        advancing_count?: number;
+        is_final_round?: boolean;
+        qualified_contestants_count?: number;
+      }>;
+    }>(`/api/judge/${compId}/rounds`, { auth: true, cache: "no-store" }),
+
+  /** List round-specific leaderboard and standings for judge worksheet */
+  roundLeaderboard: (compId: string, roundNumber: number) =>
+    apiFetch<any>(`/api/judge/${compId}/rounds/${roundNumber}/leaderboard`, { auth: true, cache: "no-store" }),
+
+  /** List scorable contestants/submissions for a competition (round-aware) */
+  listContestants: (compId: string, p: { category?: string; only_present?: boolean; round_number?: number } = {}) =>
     apiFetch<JudgeContestant[]>(`/api/judge/${compId}/contestants`, { auth: true, query: p }),
 
   /** List only confirmed present participants from the final present list */
@@ -1066,10 +1088,10 @@ export const judgeCompetitionsApi = {
     }),
 
   /** Auto-save partial draft score */
-  saveDraft: (compId: string, subId: string, scores: Record<string, number>, comments?: string) =>
+  saveDraft: (compId: string, subId: string, scores: Record<string, number>, comments?: string, round_number?: number) =>
     apiFetch<{ message: string }>(`/api/judge/${compId}/contestants/${subId}/draft`, {
       method: "POST",
-      body: { scores, comments },
+      body: { scores, comments, ...(round_number ? { round_number } : {}) },
       auth: true,
     }),
 
@@ -1088,11 +1110,11 @@ export const judgeCompetitionsApi = {
       auth: true,
     }),
 
-  /** Final score submission */
-  submitScore: (subId: string, scores: Record<string, number>, comments?: string) =>
+  /** Final score submission (round-aware) */
+  submitScore: (subId: string, scores: Record<string, number>, comments?: string, round_number?: number) =>
     apiFetch<{ message: string; total_score?: number; is_locked?: boolean }>(`/api/judge/submissions/${subId}/scores`, {
       method: "POST",
-      body: { scores, comments },
+      body: { scores, comments, ...(round_number ? { round_number } : {}) },
       auth: true,
     }),
 

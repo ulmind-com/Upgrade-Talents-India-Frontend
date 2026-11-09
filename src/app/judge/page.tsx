@@ -9,7 +9,7 @@ import {
   Lock, Unlock, ChevronRight, Award, Trophy, Star, ExternalLink,
   Save, SkipForward, LogOut, ArrowLeft, RefreshCw, Send, Check,
   Play, Music, Video, User, FileText, Crown, Sparkles, MessageSquare,
-  Flame, Filter, ChevronLeft, Radio
+  Flame, Filter, ChevronLeft, Radio, Layers
 } from "lucide-react";
 import {
   judgeCompetitionsApi,
@@ -45,6 +45,8 @@ export default function JudgeDashboardPage() {
 
   const [competitions, setCompetitions] = useState<JudgeCompetition[]>([]);
   const [selectedComp, setSelectedComp] = useState<JudgeCompetition | null>(null);
+  const [roundsData, setRoundsData] = useState<any | null>(null);
+  const [selectedRound, setSelectedRound] = useState<number>(1);
   const [contestants, setContestants] = useState<JudgeContestant[]>([]);
   const [loading, setLoading] = useState(true);
   const [contestantsLoading, setContestantsLoading] = useState(false);
@@ -134,12 +136,15 @@ export default function JudgeDashboardPage() {
   }, []);
 
   // Load contestants & enrich with contestant names/avatars and parsed submission files
-  const loadContestantsForComp = useCallback(async (compId: string) => {
+  const loadContestantsForComp = useCallback(async (compId: string, roundNum?: number) => {
     setContestantsLoading(true);
     try {
+      const activeR = roundNum ?? 1;
       const [data, lb] = await Promise.all([
-        judgeCompetitionsApi.listContestants(compId),
-        publicApi.leaderboard(compId).catch(() => ({ leaderboard: [] })),
+        judgeCompetitionsApi.listContestants(compId, { round_number: activeR }),
+        activeR > 1
+          ? publicApi.roundLeaderboard(compId, activeR).catch(() => ({ leaderboard: [] }))
+          : publicApi.leaderboard(compId).catch(() => ({ leaderboard: [] })),
       ]);
 
       const lbRows = Array.isArray(lb?.leaderboard) ? lb.leaderboard : [];
@@ -305,17 +310,27 @@ export default function JudgeDashboardPage() {
     }
   };
 
-  // Track current competition ID so contestants are only reloaded and activeContestant reset when compId actually changes
-  const prevCompIdRef = useRef<string | null>(null);
-
+  // Load rounds when competition changes
   useEffect(() => {
     if (!selectedComp?._id) return;
-    if (prevCompIdRef.current !== selectedComp._id) {
-      prevCompIdRef.current = selectedComp._id;
-      setActiveContestant(null);
-      loadContestantsForComp(selectedComp._id);
-    }
-  }, [selectedComp?._id, loadContestantsForComp]);
+    judgeCompetitionsApi.rounds(selectedComp._id)
+      .then((rd) => {
+        setRoundsData(rd);
+        if (rd?.current_round) {
+          setSelectedRound(rd.current_round);
+        } else {
+          setSelectedRound(1);
+        }
+      })
+      .catch(() => setRoundsData(null));
+  }, [selectedComp?._id]);
+
+  // Reload contestants when competition or selected round changes
+  useEffect(() => {
+    if (!selectedComp?._id) return;
+    setActiveContestant(null);
+    loadContestantsForComp(selectedComp._id, selectedRound);
+  }, [selectedComp?._id, selectedRound, loadContestantsForComp]);
 
   // Load draft scores when active contestant opens
   useEffect(() => {
@@ -404,7 +419,7 @@ export default function JudgeDashboardPage() {
     setSavingDraft(true);
     setScoreNotice(null);
     try {
-      await judgeCompetitionsApi.saveDraft(selectedComp._id, activeContestant._id, scores, comments);
+      await judgeCompetitionsApi.saveDraft(selectedComp._id, activeContestant._id, scores, comments, selectedRound);
       setScoreNotice({ tone: "success", text: "Draft auto-saved successfully." });
     } catch (err: any) {
       setScoreNotice({ tone: "error", text: err?.message || "Failed to save draft." });
@@ -423,14 +438,14 @@ export default function JudgeDashboardPage() {
       activeContestant.is_locked
     );
     if (isAlreadyScored) {
-      setScoreNotice({ tone: "error", text: "You have already submitted an official score for this participant in this competition. Each participant can only be scored once." });
+      setScoreNotice({ tone: "error", text: "You have already submitted an official score for this participant in this competition round. Each participant can only be scored once per round." });
       return;
     }
 
     setSubmittingScore(true);
     setScoreNotice(null);
     try {
-      const res = await judgeCompetitionsApi.submitScore(activeContestant._id, scores, comments);
+      const res = await judgeCompetitionsApi.submitScore(activeContestant._id, scores, comments, selectedRound);
       setScoreNotice({ tone: "success", text: "Official score successfully submitted!" });
       const finalScore = res.total_score ?? calculatedTotal;
       setContestants((prev) =>
@@ -798,6 +813,68 @@ export default function JudgeDashboardPage() {
                 );
               })()}
             </section>
+
+            {/* ── Knockout Stages & Round Selector ── */}
+            {roundsData && Array.isArray(roundsData.rounds) && roundsData.rounds.length > 1 && (
+              <div className="flex flex-col gap-2 rounded-2xl border border-amber-500/30 bg-gradient-to-r from-amber-500/10 via-[var(--bg-elevated)] to-amber-500/10 p-3.5 shadow-sm">
+                <div className="flex flex-wrap items-center justify-between gap-2">
+                  <div className="flex items-center gap-2 text-xs font-bold text-[var(--fg)]">
+                    <Layers className="size-4 text-amber-400" />
+                    <span>Tournament Stages &amp; Knockout Evaluation:</span>
+                  </div>
+                  <span className="text-[11px] font-medium text-[var(--fg-muted)]">
+                    Active: Stage {roundsData.current_round ?? 1} of {roundsData.total_rounds ?? roundsData.rounds.length}
+                  </span>
+                </div>
+
+                <div className="flex flex-wrap items-center gap-2 pt-1">
+                  {roundsData.rounds.map((rd: any) => {
+                    const isSelected = selectedRound === rd.round_number;
+                    const isActiveStage = rd.round_number === (roundsData.current_round ?? 1);
+                    const isCompleted = rd.status === "COMPLETED";
+
+                    return (
+                      <button
+                        key={rd.round_number}
+                        type="button"
+                        onClick={() => setSelectedRound(rd.round_number)}
+                        className={cn(
+                          "flex items-center gap-2 rounded-xl border px-3.5 py-2 text-xs font-bold transition-all shadow-xs cursor-pointer",
+                          isSelected
+                            ? "border-amber-400 bg-amber-500/20 text-amber-200 ring-2 ring-amber-400/40 font-black shadow-md"
+                            : "border-[var(--border)] bg-[var(--surface-2)] text-[var(--fg-muted)] hover:border-[var(--border-strong)] hover:text-white"
+                        )}
+                      >
+                        <span>{rd.name || `Round ${rd.round_number}`}</span>
+                        {isActiveStage ? (
+                          <span className="rounded-full bg-emerald-500/25 border border-emerald-500/40 px-2 py-0.5 text-[9.5px] font-extrabold text-emerald-300 animate-pulse">
+                            Active Stage
+                          </span>
+                        ) : isCompleted ? (
+                          <span className="rounded-full bg-slate-500/20 border border-slate-500/30 px-2 py-0.5 text-[9.5px] font-bold text-slate-300">
+                            Completed
+                          </span>
+                        ) : (
+                          <span className="rounded-full bg-amber-500/10 border border-amber-500/20 px-2 py-0.5 text-[9.5px] font-bold text-amber-300">
+                            Upcoming
+                          </span>
+                        )}
+                        {rd.advancing_count && !rd.is_final_round && (
+                          <span className="text-[10px] text-amber-300 font-mono">
+                            (Top {rd.advancing_count} advance)
+                          </span>
+                        )}
+                        {rd.is_final_round && (
+                          <span className="text-[10px] text-yellow-300 font-mono">
+                            👑 Grand Finale
+                          </span>
+                        )}
+                      </button>
+                    );
+                  })}
+                </div>
+              </div>
+            )}
 
             {/* ── Main View Selector Tabs (Evaluation vs Live Scoreboard & Standings) ── */}
             <section className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between border-b border-[var(--border)] pb-4">

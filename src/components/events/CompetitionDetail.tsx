@@ -8,7 +8,7 @@ import {
   Trophy, Calendar, Gavel, Upload, CheckCircle2, AlertCircle, ListChecks,
   ShieldCheck, LogIn, Loader2, Heart, Crown, FileUp, Link2, Film, Music, X,
   Radio, ArrowRight, Award, ExternalLink, Sparkles, MessageSquare, Play, Pause,
-  CreditCard, Banknote, Zap, Clock, Users, Mic, Youtube, HardDrive, Lock
+  CreditCard, Banknote, Zap, Clock, Users, Mic, Youtube, HardDrive, Lock, Layers
 } from "lucide-react";
 import { Reveal, StaggerGroup, StaggerItem } from "@/components/motion/Reveal";
 import { SectionLabel, Badge } from "@/components/ui/Primitives";
@@ -174,7 +174,17 @@ export default function CompetitionDetail({
     cash_payment?: boolean;
     cash_status?: string;
     category?: string;
+    current_round?: number;
+    qualified_rounds?: number[];
+    round_status?: string;
   } | null>(null);
+
+  const [roundsData, setRoundsData] = useState<any | null>(null);
+
+  useEffect(() => {
+    if (!id) return;
+    publicApi.rounds(id).then(setRoundsData).catch(() => setRoundsData(null));
+  }, [id]);
 
   const availableCategories = useMemo(() => {
     if (Array.isArray(comp.categories) && comp.categories.length > 0) {
@@ -361,6 +371,9 @@ export default function CompetitionDetail({
               cash_payment: isCash,
               cash_status: reg.cash_status,
               category: (reg as any).category,
+              current_round: (reg as any).current_round,
+              qualified_rounds: (reg as any).qualified_rounds,
+              round_status: (reg as any).round_status,
             });
             if ((reg as any).category) {
               setSelectedCategory((reg as any).category);
@@ -951,6 +964,113 @@ export default function CompetitionDetail({
             >
               View Certified Results →
             </Link>
+          </motion.div>
+        )}
+
+        {/* ── Multi-Round Knockout Stages Pipeline ── */}
+        {roundsData && Array.isArray(roundsData.rounds) && roundsData.rounds.length > 1 && (
+          <Reveal className="mb-8">
+            <div className="rounded-2xl border border-amber-500/30 bg-gradient-to-r from-amber-500/10 via-[var(--surface-2)] to-amber-500/10 p-5 shadow-sm">
+              <div className="flex flex-wrap items-center justify-between gap-2 mb-3.5">
+                <div className="flex items-center gap-2.5">
+                  <div className="grid size-9 place-items-center rounded-xl bg-amber-500/20 text-amber-400">
+                    <Layers className="size-4.5" />
+                  </div>
+                  <div>
+                    <h3 className="font-display font-bold text-sm sm:text-base text-[var(--fg)] flex items-center gap-2">
+                      <span>Knockout Stages &amp; Progression</span>
+                      <span className="rounded-full bg-amber-500/15 border border-amber-500/30 px-2 py-0.5 text-[10.5px] font-black text-amber-300">
+                        Active: Stage {roundsData.current_round ?? 1} of {roundsData.total_rounds ?? roundsData.rounds.length}
+                      </span>
+                    </h3>
+                    <p className="text-[11.5px] text-[var(--fg-muted)]">
+                      Multi-round championship: Prelims ➔ Semi-Finals ➔ Grand Finale. Top performers advance each stage.
+                    </p>
+                  </div>
+                </div>
+              </div>
+
+              <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
+                {roundsData.rounds.map((rd: any) => {
+                  const isActive = rd.round_number === (roundsData.current_round ?? 1);
+                  const isCompleted = rd.status === "COMPLETED";
+
+                  return (
+                    <div
+                      key={rd.round_number}
+                      className={cn(
+                        "rounded-xl p-3.5 border transition-all flex flex-col justify-between gap-2",
+                        isActive
+                          ? "border-amber-400 bg-amber-500/15 ring-2 ring-amber-400/40 shadow-md"
+                          : isCompleted
+                          ? "border-[var(--border)] bg-[var(--surface)] opacity-85"
+                          : "border-[var(--border)] bg-[var(--surface-2)]/60"
+                      )}
+                    >
+                      <div className="flex items-center justify-between gap-1.5">
+                        <span className="text-xs font-bold text-[var(--fg)]">
+                          {rd.name || `Round ${rd.round_number}`}
+                        </span>
+                        <span
+                          className={cn(
+                            "rounded-full px-2 py-0.5 text-[9.5px] font-extrabold uppercase",
+                            isActive
+                              ? "bg-emerald-500/20 text-emerald-300 border border-emerald-500/30 animate-pulse"
+                              : isCompleted
+                              ? "bg-slate-500/20 text-slate-300 border border-slate-500/30"
+                              : "bg-amber-500/10 text-amber-300 border border-amber-500/20"
+                          )}
+                        >
+                          {isActive ? "Active Stage" : isCompleted ? "Completed" : "Upcoming"}
+                        </span>
+                      </div>
+                      {rd.description && (
+                        <p className="line-clamp-2 text-[11px] text-[var(--fg-muted)] leading-relaxed">{rd.description}</p>
+                      )}
+                      <div className="pt-2 border-t border-[var(--border)]/60 text-[11px] font-bold">
+                        {rd.is_final_round ? (
+                          <span className="text-yellow-400 flex items-center gap-1">
+                            👑 Grand Finale Championship
+                          </span>
+                        ) : rd.advancing_count ? (
+                          <span className="text-amber-400">
+                            Top {rd.advancing_count} advance to next stage
+                          </span>
+                        ) : (
+                          <span className="text-sky-400">Open Auditions</span>
+                        )}
+                      </div>
+                    </div>
+                  );
+                })}
+              </div>
+            </div>
+          </Reveal>
+        )}
+
+        {/* ── Qualified for Next Stage Celebratory Banner ── */}
+        {enrollmentInfo && (enrollmentInfo.current_round ?? 1) > 1 && enrollmentInfo.round_status === "QUALIFIED" && (
+          <motion.div
+            initial={{ opacity: 0, y: -10 }}
+            animate={{ opacity: 1, y: 0 }}
+            className="mb-8 rounded-2xl border-2 border-amber-400/60 bg-gradient-to-r from-amber-500/25 via-yellow-500/15 to-amber-500/25 p-5 shadow-xl flex items-center justify-between gap-4"
+          >
+            <div className="flex items-center gap-3.5">
+              <div className="grid size-12 shrink-0 place-items-center rounded-2xl bg-amber-400 text-slate-950 font-black shadow-lg">
+                <Crown className="size-6 text-slate-950" />
+              </div>
+              <div>
+                <span className="inline-flex items-center gap-1.5 rounded-full bg-amber-500/30 border border-amber-400/50 px-2.5 py-0.5 text-[11px] font-black text-amber-200 uppercase tracking-wider mb-1">
+                  <Sparkles className="size-3 text-amber-300" /> Stage Qualified
+                </span>
+                <h4 className="font-display font-black text-base sm:text-lg text-white">
+                  Congratulations! You qualified for Round {enrollmentInfo.current_round}: {roundsData?.rounds?.find((r: any) => r.round_number === enrollmentInfo.current_round)?.name || `Stage ${enrollmentInfo.current_round}`}!
+                </h4>
+                <p className="text-xs text-amber-100/90 mt-0.5">
+                  Your performance cleared the qualification cut-off! Check the stage lineup for your next appearance.
+                </p>
+              </div>
+            </div>
           </motion.div>
         )}
 
