@@ -940,24 +940,24 @@ export default function LeaderboardView({
             </div>
 
             {/* Responsive Podium Cards:
-                - On Mobile: 1st Place (Gold Champion 🥇) is clearly on TOP (order-1) with the crown and champion badge so 1st and 2nd are never confused!
-                - On Desktop (sm+): Classic 3-column Olympic layout (2nd Silver on left, 1st elevated Gold in center, 3rd Bronze on right)
+                - On Mobile: 1st Place (Gold Champion 🥇) is rendered FIRST in DOM and visual top (order-1) so 1st and 2nd are completely unmistakable!
+                - On Desktop (sm+): Classic 3-column Olympic layout (2nd Silver on left sm:order-1, 1st elevated Gold in center sm:order-2, 3rd Bronze on right sm:order-3)
             */}
             <StaggerGroup className="grid grid-cols-1 items-end gap-6 sm:grid-cols-3">
-              {podium[1] && (
-                <StaggerItem
-                  key={podium[1].participant_id || podium[1].email || "podium-2"}
-                  className="order-2 sm:order-1 w-full"
-                >
-                  <PodiumCard row={podium[1]} place={1} />
-                </StaggerItem>
-              )}
               {podium[0] && (
                 <StaggerItem
                   key={podium[0].participant_id || podium[0].email || "podium-1"}
                   className="order-1 sm:order-2 w-full"
                 >
                   <PodiumCard row={podium[0]} place={0} />
+                </StaggerItem>
+              )}
+              {podium[1] && (
+                <StaggerItem
+                  key={podium[1].participant_id || podium[1].email || "podium-2"}
+                  className="order-2 sm:order-1 w-full"
+                >
+                  <PodiumCard row={podium[1]} place={1} />
                 </StaggerItem>
               )}
               {podium[2] && (

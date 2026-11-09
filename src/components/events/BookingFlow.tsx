@@ -137,15 +137,31 @@ export function getSeatingZoneMeta(name: string): SeatingZoneMeta {
   };
 }
 
-export default function BookingFlow({ event }: { event: EventItem }) {
+export default function BookingFlow({ event: initialEvent }: { event: EventItem }) {
   const router = useRouter();
   const searchParams = useSearchParams();
   const preselectedTierParam = searchParams.get("tier");
   const { user, loading: authLoading } = useAuth();
 
+  const [event, setEvent] = useState<EventItem>(initialEvent);
   const [tiers, setTiers] = useState<TicketTier[]>([]);
   const [loadingTiers, setLoadingTiers] = useState(true);
   const [tiersError, setTiersError] = useState<string | null>(null);
+
+  // Client-side fresh re-fetch on mount ensures latest categories/prices without stale cache
+  useEffect(() => {
+    let active = true;
+    activitiesApi
+      .eventById(initialEvent._id)
+      .then((fresh) => {
+        if (!active || !fresh || !fresh._id) return;
+        setEvent(fresh);
+      })
+      .catch(() => {});
+    return () => {
+      active = false;
+    };
+  }, [initialEvent._id]);
 
   const [selected, setSelected] = useState<string | null>(null);
   const [activeZoneFilter, setActiveZoneFilter] = useState<string>("all");
@@ -164,46 +180,81 @@ export default function BookingFlow({ event }: { event: EventItem }) {
 
     const fetchTiers = () => {
       activitiesApi
-        .tickets(event._id, { limit: 20 })
+        .tickets(event._id, { limit: 50 })
         .then((d) => {
           if (cancelled) return;
           let visible = (Array.isArray(d) ? d : []).filter((t) => t.is_visible !== false);
 
-          // If no tiers auto-created yet but event has categories defined, map them
-          if (!visible.length && Array.isArray(event.categories) && event.categories.length > 0) {
-            visible = event.categories.map((c, idx) => ({
-              _id: `cat-${idx}-${c.name.toLowerCase().replace(/\s+/g, "-")}`,
-              event_id: event._id,
-              type: c.name,
-              category: c.name,
-              price: c.price,
-              total_quantity: c.capacity || event.capacity || 100,
-              available: c.capacity || event.capacity || 100,
-              description: c.description,
-              display_order: idx,
-            }));
-          }
+          // If event has categories defined, strictly filter out stale tickets not in event.categories
+          if (Array.isArray(event.categories) && event.categories.length > 0) {
+            const allowedNames = new Set(
+              event.categories.map((c) => (c.name || "").trim().toLowerCase())
+            );
+            const matchedTickets = visible.filter((t) => {
+              const typeMatch = allowedNames.has((t.type || "").trim().toLowerCase());
+              const catMatch = allowedNames.has((t.category || "").trim().toLowerCase());
+              return typeMatch || catMatch;
+            });
 
-          // Merge any description from event.categories into ticket tiers
-          if (Array.isArray(event.categories)) {
+            if (matchedTickets.length > 0) {
+              visible = matchedTickets;
+            } else {
+              visible = event.categories.map((c, idx) => ({
+                _id: `cat-${idx}-${c.name.toLowerCase().replace(/\s+/g, "-")}`,
+                event_id: event._id,
+                type: c.name,
+                category: c.name,
+                price: c.price,
+                total_quantity: c.capacity || event.capacity || 100,
+                available: c.capacity || event.capacity || 100,
+                description: c.description,
+                display_order: idx,
+              }));
+            }
+
+            // Merge description and latest price from event.categories
             visible = visible.map((t) => {
               const matchedCat = event.categories?.find(
                 (c) => c.name.toLowerCase().trim() === (t.category || t.type).toLowerCase().trim()
               );
               return {
                 ...t,
-                category: t.category || t.type,
+                category: t.category || t.type || matchedCat?.name,
+                price: matchedCat?.price != null ? matchedCat.price : t.price,
                 description: t.description || matchedCat?.description,
               };
             });
-          }
 
-          // Sort by BookMyShow rank: Platinum/VIP first, then Gold, Silver, Bronze/General
-          visible.sort((a, b) => {
-            const metaA = getSeatingZoneMeta(a.category || a.type);
-            const metaB = getSeatingZoneMeta(b.category || b.type);
-            return metaA.rank - metaB.rank || b.price - a.price;
-          });
+            // Sort strictly matching the order configured in event.categories
+            const orderMap = new Map(
+              event.categories.map((c, idx) => [(c.name || "").trim().toLowerCase(), idx])
+            );
+            visible.sort((a, b) => {
+              const idxA = orderMap.get((a.category || a.type || "").trim().toLowerCase()) ?? 99;
+              const idxB = orderMap.get((b.category || b.type || "").trim().toLowerCase()) ?? 99;
+              return idxA - idxB;
+            });
+          } else {
+            // If no categories defined, fallback to BookMyShow rank
+            if (!visible.length && Array.isArray(event.categories) && event.categories.length > 0) {
+              visible = event.categories.map((c, idx) => ({
+                _id: `cat-${idx}-${c.name.toLowerCase().replace(/\s+/g, "-")}`,
+                event_id: event._id,
+                type: c.name,
+                category: c.name,
+                price: c.price,
+                total_quantity: c.capacity || event.capacity || 100,
+                available: c.capacity || event.capacity || 100,
+                description: c.description,
+                display_order: idx,
+              }));
+            }
+            visible.sort((a, b) => {
+              const metaA = getSeatingZoneMeta(a.category || a.type);
+              const metaB = getSeatingZoneMeta(b.category || b.type);
+              return metaA.rank - metaB.rank || b.price - a.price;
+            });
+          }
 
           if (!visible.length && attempts < 2 && event.ticket_enabled !== false) {
             attempts++;
@@ -483,7 +534,7 @@ export default function BookingFlow({ event }: { event: EventItem }) {
                           <div>
                             <div className="flex flex-wrap items-center gap-2">
                               <h3 className="font-display text-base sm:text-lg font-bold uppercase tracking-wide text-white">
-                                {meta.zoneTitle}
+                                {t.category || t.type || meta.zoneTitle}
                               </h3>
                               <span
                                 className="rounded-full px-2.5 py-0.5 font-mono text-[10px] font-bold uppercase tracking-wider"
@@ -493,7 +544,7 @@ export default function BookingFlow({ event }: { event: EventItem }) {
                               </span>
                             </div>
                             <p className="mt-0.5 text-xs text-white/60 font-cond uppercase tracking-wider">
-                              {meta.zoneSubtitle}
+                              {t.description || meta.zoneSubtitle}
                             </p>
                           </div>
                         </div>
@@ -676,7 +727,7 @@ export default function BookingFlow({ event }: { event: EventItem }) {
                         </span>
                       </div>
                       <h4 className="font-display text-lg sm:text-xl font-bold uppercase text-white">
-                        {tierMeta.zoneTitle}
+                        {tier.category || tier.type || tierMeta.zoneTitle}
                       </h4>
                       <p className="text-xs text-white/60">
                         {tier.description || tierMeta.zoneSubtitle}
@@ -989,7 +1040,7 @@ function CategoryTierCard({
           </div>
 
           <h3 className="font-display mt-3 text-xl font-bold uppercase tracking-wide text-white">
-            {meta.zoneTitle}
+            {tier.category || tier.type || meta.zoneTitle}
           </h3>
 
           <p className="mt-1 text-xs text-white/60 leading-relaxed font-cond">
