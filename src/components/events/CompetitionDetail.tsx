@@ -101,6 +101,138 @@ const ALLOWED_AUDIO_EXTENSIONS = [
   ".mp3", ".wav", ".m4a", ".aac", ".flac", ".ogg", ".wma", ".opus", ".aiff"
 ];
 
+function parseAgeRange(cat: any): { minAge: number | null; maxAge: number | null; label: string } {
+  if (!cat) return { minAge: null, maxAge: null, label: "Open" };
+  let minAge: number | null = cat.min_age != null && cat.min_age !== "" ? Number(cat.min_age) : null;
+  let maxAge: number | null = cat.max_age != null && cat.max_age !== "" ? Number(cat.max_age) : null;
+
+  const ageLimitStr = cat.age_limit || cat.age_range || (typeof cat === "string" ? cat : "");
+  if ((minAge == null || maxAge == null) && ageLimitStr) {
+    const s = String(ageLimitStr).trim().toLowerCase();
+    const m = s.match(/(\d{1,2})\s*(?:-|to|\.\.|and)\s*(\d{1,2})/);
+    if (m) {
+      const v1 = parseInt(m[1], 10);
+      const v2 = parseInt(m[2], 10);
+      minAge = Math.min(v1, v2);
+      maxAge = Math.max(v1, v2);
+    } else {
+      const mPlus = s.match(/(\d{1,2})\s*\+|above\s*(\d{1,2})|min\s*(\d{1,2})/);
+      if (mPlus) {
+        minAge = parseInt(mPlus[1] || mPlus[2] || mPlus[3], 10);
+      }
+    }
+  }
+
+  let label = "Open for all ages";
+  if (minAge != null && maxAge != null) {
+    label = `${minAge} to ${maxAge} years`;
+  } else if (minAge != null) {
+    label = `${minAge}+ years`;
+  } else if (maxAge != null) {
+    label = `Up to ${maxAge} years`;
+  }
+
+  return { minAge, maxAge, label };
+}
+
+function calculateAgeFromDob(dobStr: string): number {
+  if (!dobStr) return -1;
+  let y = 0, m = 0, d = 0;
+  const s = String(dobStr).trim();
+  const isoMatch = s.match(/^(\d{4})[-/](\d{1,2})[-/](\d{1,2})/);
+  if (isoMatch) {
+    y = parseInt(isoMatch[1], 10);
+    m = parseInt(isoMatch[2], 10) - 1;
+    d = parseInt(isoMatch[3], 10);
+  } else {
+    const dmyMatch = s.match(/^(\d{1,2})[-/](\d{1,2})[-/](\d{4})/);
+    if (dmyMatch) {
+      d = parseInt(dmyMatch[1], 10);
+      m = parseInt(dmyMatch[2], 10) - 1;
+      y = parseInt(dmyMatch[3], 10);
+    } else {
+      const parsed = new Date(s);
+      if (isNaN(parsed.getTime())) return -1;
+      y = parsed.getFullYear();
+      m = parsed.getMonth();
+      d = parsed.getDate();
+    }
+  }
+  const today = new Date();
+  let age = today.getFullYear() - y;
+  const monthDiff = today.getMonth() - m;
+  if (monthDiff < 0 || (monthDiff === 0 && today.getDate() < d)) {
+    age--;
+  }
+  return age >= 0 ? age : -1;
+}
+
+function checkEligibility(cat: any, dobStr: string): {
+  eligible: boolean;
+  age: number;
+  minAge: number | null;
+  maxAge: number | null;
+  label: string;
+  reason: string;
+} {
+  const { minAge, maxAge, label } = parseAgeRange(cat);
+  const age = calculateAgeFromDob(dobStr);
+  const catName = cat?.name || (typeof cat === "string" ? cat : "Category");
+
+  if (minAge == null && maxAge == null) {
+    return {
+      eligible: true,
+      age,
+      minAge: null,
+      maxAge: null,
+      label,
+      reason: "Open for all ages.",
+    };
+  }
+
+  if (age < 0) {
+    return {
+      eligible: false,
+      age: -1,
+      minAge,
+      maxAge,
+      label,
+      reason: `Please enter participant's Date of Birth to verify eligibility (${label}).`,
+    };
+  }
+
+  if (minAge != null && age < minAge) {
+    return {
+      eligible: false,
+      age,
+      minAge,
+      maxAge,
+      label,
+      reason: `Ineligible: Age ${age} yrs is below minimum requirement of ${minAge} yrs for ${catName} (${label}).`,
+    };
+  }
+
+  if (maxAge != null && age > maxAge) {
+    return {
+      eligible: false,
+      age,
+      minAge,
+      maxAge,
+      label,
+      reason: `Ineligible: Age ${age} yrs exceeds maximum limit of ${maxAge} yrs for ${catName} (${label}).`,
+    };
+  }
+
+  return {
+    eligible: true,
+    age,
+    minAge,
+    maxAge,
+    label,
+    reason: `Age ${age} yrs is verified & eligible for ${catName} (${label}).`,
+  };
+}
+
 export default function CompetitionDetail({
   comp: ssrComp,
   initialLeaderboard,
@@ -232,6 +364,16 @@ export default function CompetitionDetail({
   const selectedCatObj = useMemo(() => {
     return availableCategories.find((c: any) => (c.name || c) === selectedCategory) || null;
   }, [availableCategories, selectedCategory]);
+
+  const selectedCatEligibility = useMemo(() => {
+    if (!selectedCatObj) return { eligible: true, age: -1, minAge: null, maxAge: null, label: "Open", reason: "" };
+    return checkEligibility(selectedCatObj, participantDob);
+  }, [selectedCatObj, participantDob]);
+
+  const matchingCategory = useMemo(() => {
+    if (!participantDob) return null;
+    return availableCategories.find((c: any) => checkEligibility(c, participantDob).eligible) || null;
+  }, [availableCategories, participantDob]);
 
   const [entryModes, setEntryModes] = useState<Record<string, "file" | "link">>({});
   const [files, setFiles] = useState<Record<string, File | null>>({});
@@ -626,6 +768,11 @@ export default function CompetitionDetail({
 
     if (!rulesAccepted) {
       setMsg({ tone: "err", text: "Please check the box below to accept the competition rules and eligibility criteria." });
+      return;
+    }
+
+    if (!selectedCatEligibility.eligible) {
+      setMsg({ tone: "err", text: selectedCatEligibility.reason });
       return;
     }
 
@@ -1882,27 +2029,56 @@ export default function CompetitionDetail({
                         {availableCategories.map((cat: any) => {
                           const catName = cat.name || cat;
                           const isSelected = selectedCategory === catName;
+                          const catRange = parseAgeRange(cat);
+                          const catEl = checkEligibility(cat, participantDob);
+                          const hasAgeLimit = catRange.minAge != null || catRange.maxAge != null;
+
                           return (
                             <button
                               key={catName}
                               type="button"
-                              onClick={() => setSelectedCategory(catName)}
+                              onClick={() => {
+                                setSelectedCategory(catName);
+                                setMsg(null);
+                              }}
                               className={cn(
-                                "flex flex-col items-start rounded-xl border p-2.5 text-left transition-all",
+                                "flex flex-col items-start rounded-xl border p-2.5 text-left transition-all relative overflow-hidden",
                                 isSelected
-                                  ? "border-amber-400 bg-amber-500/15 ring-1 ring-amber-400 shadow-sm"
+                                  ? catEl.eligible || !hasAgeLimit
+                                    ? "border-amber-400 bg-amber-500/15 ring-1 ring-amber-400 shadow-sm"
+                                    : "border-rose-400 bg-rose-500/15 ring-1 ring-rose-400 shadow-sm"
                                   : "border-[var(--border)] bg-[var(--surface-2)]/60 hover:border-[var(--border-strong)]"
                               )}
                             >
                               <div className="flex w-full items-center justify-between">
-                                <span className={cn("text-xs font-bold", isSelected ? "text-amber-300" : "text-[var(--fg)]")}>
+                                <span className={cn(
+                                  "text-xs font-bold",
+                                  isSelected
+                                    ? catEl.eligible || !hasAgeLimit ? "text-amber-300" : "text-rose-300"
+                                    : "text-[var(--fg)]"
+                                )}>
                                   {catName}
                                 </span>
-                                {isSelected && <span className="size-2 rounded-full bg-amber-400" />}
+                                {isSelected && (
+                                  <span className={cn(
+                                    "size-2 rounded-full",
+                                    catEl.eligible || !hasAgeLimit ? "bg-amber-400" : "bg-rose-400"
+                                  )} />
+                                )}
                               </div>
                               <span className="mt-0.5 text-[10.5px] text-[var(--fg-muted)]">
-                                {cat.age_limit || (cat.min_age != null && cat.max_age != null ? `${cat.min_age}-${cat.max_age} yrs` : cat.description || "Open")}
+                                {catRange.label}
                               </span>
+                              {participantDob && hasAgeLimit && (
+                                <span className={cn(
+                                  "mt-1.5 rounded px-1.5 py-0.5 text-[9px] font-bold tracking-wide",
+                                  catEl.eligible
+                                    ? "bg-emerald-500/20 text-emerald-400 border border-emerald-500/30"
+                                    : "bg-rose-500/20 text-rose-300 border border-rose-500/30"
+                                )}>
+                                  {catEl.eligible ? "✓ Eligible" : `✕ Age ${catEl.age}`}
+                                </span>
+                              )}
                             </button>
                           );
                         })}
@@ -1911,15 +2087,22 @@ export default function CompetitionDetail({
                   )}
 
                   {/* Participant Date of Birth (when category has age requirements) */}
-                  {selectedCatObj && (selectedCatObj.min_age != null || selectedCatObj.max_age != null || selectedCatObj.age_limit) && (
-                    <div className="mb-4 rounded-xl border border-amber-500/30 bg-amber-500/10 p-3">
-                      <div className="flex items-center justify-between gap-1 text-[11.5px] font-semibold text-amber-200">
-                        <span className="flex items-center gap-1.5">
+                  {selectedCatObj && (parseAgeRange(selectedCatObj).minAge != null || parseAgeRange(selectedCatObj).maxAge != null) && (
+                    <div className={cn(
+                      "mb-4 rounded-xl border p-3 transition-colors",
+                      selectedCatEligibility.age >= 0
+                        ? selectedCatEligibility.eligible
+                          ? "border-emerald-500/35 bg-emerald-500/10"
+                          : "border-rose-500/35 bg-rose-500/10"
+                        : "border-amber-500/30 bg-amber-500/10"
+                    )}>
+                      <div className="flex items-center justify-between gap-1 text-[11.5px] font-semibold">
+                        <span className="flex items-center gap-1.5 text-amber-200">
                           <Calendar className="size-3.5 text-amber-400" />
                           Participant Date of Birth
                         </span>
-                        <span className="text-[10px] font-mono text-amber-300/90">
-                          Allowed: {selectedCatObj.age_limit || `${selectedCatObj.min_age ?? 0}-${selectedCatObj.max_age ?? "+"} yrs`}
+                        <span className="text-[10px] font-mono px-2 py-0.5 rounded-full bg-[var(--surface)] text-[var(--fg)] border border-[var(--border)]">
+                          Target: {parseAgeRange(selectedCatObj).label}
                         </span>
                       </div>
                       <input
@@ -1929,12 +2112,46 @@ export default function CompetitionDetail({
                           setParticipantDob(e.target.value);
                           setMsg(null);
                         }}
-                        className="mt-2 w-full rounded-lg border border-[var(--border)] bg-[var(--surface)] px-2.5 py-1.5 text-xs text-[var(--fg)] outline-none focus:border-amber-400"
+                        className="mt-2 w-full rounded-lg border border-[var(--border)] bg-[var(--surface)] px-2.5 py-1.5 text-xs text-[var(--fg)] outline-none focus:border-amber-400 font-mono"
                         placeholder="YYYY-MM-DD"
                       />
-                      <p className="mt-1.5 text-[10.5px] text-[var(--fg-muted)] leading-tight">
-                        Required for age eligibility check in {selectedCategory}.
-                      </p>
+
+                      {/* Real-time age & eligibility feedback message */}
+                      <div className="mt-2 text-[11px] leading-tight">
+                        {selectedCatEligibility.age >= 0 ? (
+                          selectedCatEligibility.eligible ? (
+                            <p className="flex items-center gap-1 text-emerald-300 font-medium">
+                              <CheckCircle2 className="size-3.5 shrink-0 text-emerald-400" />
+                              Age verified ({selectedCatEligibility.age} yrs). Eligible for {selectedCategory} division!
+                            </p>
+                          ) : (
+                            <div className="space-y-1.5">
+                              <p className="flex items-start gap-1 text-rose-300 font-medium">
+                                <AlertCircle className="mt-0.5 size-3.5 shrink-0 text-rose-400" />
+                                <span>
+                                  <strong>Not Eligible:</strong> Participant's calculated age is <strong>{selectedCatEligibility.age} years</strong> (DOB: {participantDob}). {selectedCategory} strictly requires <strong>{parseAgeRange(selectedCatObj).label}</strong>.
+                                </span>
+                              </p>
+                              {matchingCategory && (
+                                <button
+                                  type="button"
+                                  onClick={() => {
+                                    setSelectedCategory(matchingCategory.name || matchingCategory);
+                                    setMsg(null);
+                                  }}
+                                  className="inline-flex items-center gap-1 text-[10.5px] font-bold text-amber-300 hover:text-amber-200 underline cursor-pointer"
+                                >
+                                  👉 Click here to switch to {matchingCategory.name || matchingCategory} division ({parseAgeRange(matchingCategory).label})
+                                </button>
+                              )}
+                            </div>
+                          )
+                        ) : (
+                          <p className="text-[10.5px] text-[var(--fg-muted)]">
+                            Required for age eligibility check in {selectedCategory}.
+                          </p>
+                        )}
+                      </div>
                     </div>
                   )}
 
@@ -2097,16 +2314,31 @@ export default function CompetitionDetail({
 
                   <button
                     onClick={doRegister}
-                    disabled={busy || !open}
-                    className="mt-4 inline-flex w-full items-center justify-center gap-2 rounded-full py-3 text-[13.5px] font-bold text-[var(--on-accent)] transition-opacity disabled:opacity-50"
-                    style={{ background: "var(--grad-brand)" }}
+                    disabled={busy || !open || !selectedCatEligibility.eligible}
+                    className={cn(
+                      "mt-4 inline-flex w-full items-center justify-center gap-2 rounded-full py-3 text-[13.5px] font-bold transition-all shadow-md",
+                      !selectedCatEligibility.eligible
+                        ? "bg-rose-950/40 border border-rose-500/40 text-rose-300 cursor-not-allowed opacity-85"
+                        : "text-[var(--on-accent)] cursor-pointer disabled:opacity-50"
+                    )}
+                    style={selectedCatEligibility.eligible ? { background: "var(--grad-brand)" } : undefined}
                   >
-                    {busy ? <Loader2 className="size-4 animate-spin" aria-hidden /> : <ShieldCheck className="size-4" aria-hidden />}
-                    {(comp.participation_fee || comp.fee)
-                      ? paymentMode === "CASH"
-                        ? `Confirm Entry & Pay ₹${comp.participation_fee || comp.fee} Cash at Venue`
-                        : `Pay ₹${comp.participation_fee || comp.fee} Online & Register`
-                      : `Register in ${selectedCategory || "Competition"}`}
+                    {busy ? (
+                      <Loader2 className="size-4 animate-spin" aria-hidden />
+                    ) : !selectedCatEligibility.eligible ? (
+                      <AlertCircle className="size-4 text-rose-400" aria-hidden />
+                    ) : (
+                      <ShieldCheck className="size-4" aria-hidden />
+                    )}
+                    {!selectedCatEligibility.eligible
+                      ? selectedCatEligibility.age >= 0
+                        ? `Ineligible for ${selectedCategory} (Age: ${selectedCatEligibility.age} yrs)`
+                        : `Enter Birthdate for ${selectedCategory}`
+                      : (comp.participation_fee || comp.fee)
+                        ? paymentMode === "CASH"
+                          ? `Confirm Entry & Pay ₹${comp.participation_fee || comp.fee} Cash at Venue`
+                          : `Pay ₹${comp.participation_fee || comp.fee} Online & Register`
+                        : `Register in ${selectedCategory || "Competition"}`}
                   </button>
                 </>
               )
