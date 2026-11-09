@@ -1,7 +1,8 @@
 import type { Metadata } from "next";
 import { notFound } from "next/navigation";
+import TicketsHero from "@/components/events/TicketsHero";
 import BookingFlow from "@/components/events/BookingFlow";
-import { getEventById, getRelatedEvents } from "@/lib/events";
+import { getEventById } from "@/lib/events";
 
 export const dynamic = "force-dynamic";
 export const revalidate = 0;
@@ -9,7 +10,7 @@ export const revalidate = 0;
 export async function generateMetadata({ params }: { params: Promise<{ id: string }> }): Promise<Metadata> {
   const { id } = await params;
   const ev = await getEventById(id);
-  return { title: ev ? `Seats & Tickets — ${ev.title}` : "Book tickets" };
+  return { title: ev ? `Tickets — ${ev.title}` : "Book tickets" };
 }
 
 export default async function BookPage({ params }: { params: Promise<{ id: string }> }) {
@@ -17,7 +18,16 @@ export default async function BookPage({ params }: { params: Promise<{ id: strin
   const event = await getEventById(id);
   if (!event) notFound();
 
-  const related = await getRelatedEvents(id);
-
-  return <BookingFlow event={event} related={related} />;
+  return (
+    <>
+      <TicketsHero
+        left="Event"
+        right="Tickets"
+        blurb="Choose your seating tier and reserve your seats with live arena preview."
+        image={event.banner_url || event.banner_image_url || event.image_url}
+        seed={3}
+      />
+      <BookingFlow event={event} />
+    </>
+  );
 }
