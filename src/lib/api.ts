@@ -858,6 +858,11 @@ export const bookingsApi = {
   myTickets: () => apiFetch<MyTicket[]>("/api/bookings/my-tickets", { auth: true, cache: "no-store" }),
   ticketQr: (ticket_ref: string) =>
     apiFetch<any>(`/api/bookings/tickets/${ticket_ref}/qr`, { auth: true, cache: "no-store" }),
+  sendTicketEmail: (ticket_ref: string) =>
+    apiFetch<{ success: boolean; message: string; email: string; ticket_ref: string }>(
+      `/api/bookings/tickets/${ticket_ref}/send-email`,
+      { method: "POST", auth: true }
+    ),
 };
 
 /* ─────────────── PAYMENTS (Razorpay) ─────────────── */

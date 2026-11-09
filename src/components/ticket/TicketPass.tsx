@@ -3,11 +3,11 @@
 import { useRef, useState, useEffect } from "react";
 import {
   Download, Printer, Calendar, MapPin,
-  Clock, User, Sparkles, ShieldCheck, Loader2, CheckCircle2, TicketX
+  Clock, User, Sparkles, ShieldCheck, Loader2, CheckCircle2, TicketX, Mail, Check
 } from "lucide-react";
 import QRCode from "qrcode";
 import { toPng } from "html-to-image";
-import { type MyTicket } from "@/lib/api";
+import { type MyTicket, bookingsApi } from "@/lib/api";
 import { formatEventDate, formatINR, cn, imageFor, isUsableImageUrl, isEventExpired } from "@/lib/utils";
 import { Button } from "@/components/ui/Primitives";
 
@@ -154,6 +154,9 @@ export function TicketPass({ ticket, qrData, defaultVariant }: TicketPassProps) 
   const [downloading, setDownloading] = useState(false);
   const [printing, setPrinting] = useState(false);
   const [downloadSuccess, setDownloadSuccess] = useState(false);
+  const [emailing, setEmailing] = useState(false);
+  const [emailSuccess, setEmailSuccess] = useState(false);
+  const [emailError, setEmailError] = useState<string | null>(null);
   const [qrDataUrl, setQrDataUrl] = useState<string | null>(null);
   const [coverBase64, setCoverBase64] = useState<string | null>(null);
   const ticketRef = useRef<HTMLDivElement>(null);
@@ -381,6 +384,24 @@ export function TicketPass({ ticket, qrData, defaultVariant }: TicketPassProps) 
       setPrinting(false);
     }
   };
+
+  const handleEmailTicket = async () => {
+    if (emailing) return;
+    setEmailing(true);
+    setEmailSuccess(false);
+    setEmailError(null);
+    try {
+      await bookingsApi.sendTicketEmail(ticket.ticket_ref);
+      setEmailSuccess(true);
+      setTimeout(() => setEmailSuccess(false), 5000);
+    } catch (err: any) {
+      setEmailError(err?.message || "Failed to dispatch email");
+      setTimeout(() => setEmailError(null), 5000);
+    } finally {
+      setEmailing(false);
+    }
+  };
+
   const eventTitle = ticket.event_title || "Official Live Event";
   const dateFormatted = ticket.event_date ? formatEventDate(ticket.event_date) : formatEventDate(ticket.issued_at);
   const time = ticket.event_time || "10:00 PM";
@@ -453,6 +474,35 @@ export function TicketPass({ ticket, qrData, defaultVariant }: TicketPassProps) 
               <Printer className="size-3.5" />
             )}
             <span>{printing ? "Preparing…" : isUsed ? "Print (Used Pass)" : isExpired ? "Print (Expired)" : "Print"}</span>
+          </Button>
+
+          <Button
+            onClick={handleEmailTicket}
+            disabled={emailing}
+            variant="outline"
+            size="sm"
+            className={cn(
+              "gap-2 text-xs transition-colors",
+              emailSuccess && "border-emerald-500/50 text-emerald-400 bg-emerald-500/10",
+              emailError && "border-rose-500/50 text-rose-400 bg-rose-500/10"
+            )}
+          >
+            {emailing ? (
+              <Loader2 className="size-3.5 animate-spin" />
+            ) : emailSuccess ? (
+              <Check className="size-3.5 text-emerald-400" />
+            ) : (
+              <Mail className="size-3.5" />
+            )}
+            <span>
+              {emailing
+                ? "Sending…"
+                : emailSuccess
+                ? "Pass Emailed!"
+                : emailError
+                ? "Failed to send"
+                : "Email Pass"}
+            </span>
           </Button>
 
           <button
