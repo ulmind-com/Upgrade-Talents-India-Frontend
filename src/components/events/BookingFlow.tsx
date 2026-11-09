@@ -137,6 +137,27 @@ export function getSeatingZoneMeta(name: string): SeatingZoneMeta {
   };
 }
 
+function playSuccessChime() {
+  try {
+    const AudioCtx = window.AudioContext || (window as any).webkitAudioContext;
+    if (!AudioCtx) return;
+    const ctx = new AudioCtx();
+    const osc = ctx.createOscillator();
+    const gain = ctx.createGain();
+    osc.type = "sine";
+    osc.connect(gain);
+    gain.connect(ctx.destination);
+    osc.frequency.setValueAtTime(587.33, ctx.currentTime); // D5
+    osc.frequency.setValueAtTime(880.0, ctx.currentTime + 0.12); // A5
+    gain.gain.setValueAtTime(0.12, ctx.currentTime);
+    gain.gain.exponentialRampToValueAtTime(0.01, ctx.currentTime + 0.4);
+    osc.start(ctx.currentTime);
+    osc.stop(ctx.currentTime + 0.4);
+  } catch {
+    // AudioContext blocked or not supported
+  }
+}
+
 export default function BookingFlow({ event: initialEvent }: { event: EventItem }) {
   const router = useRouter();
   const searchParams = useSearchParams();
@@ -167,6 +188,7 @@ export default function BookingFlow({ event: initialEvent }: { event: EventItem 
   const [activeZoneFilter, setActiveZoneFilter] = useState<string>("all");
   const [qty, setQty] = useState(1);
   const [names, setNames] = useState<string[]>([""]);
+  const [paymentMethod, setPaymentMethod] = useState<"ONLINE" | "CASH">("ONLINE");
   const [openRule, setOpenRule] = useState(2);
 
   const [submitting, setSubmitting] = useState(false);
@@ -348,6 +370,7 @@ export default function BookingFlow({ event: initialEvent }: { event: EventItem 
     try {
       const holder_names = names.map((n, i) => n.trim() || user?.name || `Guest ${i + 1}`);
       const categoryName = chosen.category || chosen.type || (event.categories?.[0]?.name) || "General";
+      const chosenPaymentMode = chosen.price > 0 ? paymentMethod : "ONLINE";
 
       const booking = await bookingsApi.create({
         event_id: event._id,
@@ -355,11 +378,17 @@ export default function BookingFlow({ event: initialEvent }: { event: EventItem 
         category: categoryName,
         quantity: qty,
         holder_names,
+        payment_method: chosenPaymentMode,
       });
 
-      if (!booking?.payment_info || booking?.booking_status === "CONFIRMED") {
-        setSuccess(`Confirmed! Booking reference ${booking.booking_reference} for ${categoryName} Tier.`);
-        setTimeout(() => router.push("/dashboard"), 1400);
+      if (!booking?.payment_info || booking?.booking_status === "CONFIRMED" || chosenPaymentMode === "CASH") {
+        playSuccessChime();
+        setSuccess(
+          chosenPaymentMode === "CASH"
+            ? `Confirmed! Spot Pass reference ${booking.booking_reference} for ${categoryName} Tier. Cash amount of ${formatINR(amount)} is pending at the entrance gate.`
+            : `Confirmed! Booking reference ${booking.booking_reference} for ${categoryName} Tier.`
+        );
+        setTimeout(() => router.push("/dashboard"), 1600);
         return;
       }
 
@@ -393,8 +422,9 @@ export default function BookingFlow({ event: initialEvent }: { event: EventItem 
               razorpay_payment_id: resp.razorpay_payment_id,
               razorpay_signature: resp.razorpay_signature,
             });
+            playSuccessChime();
             setSuccess(`Payment verified! Booking ${booking.booking_reference} (${categoryName}) confirmed.`);
-            setTimeout(() => router.push("/dashboard"), 1400);
+            setTimeout(() => router.push("/dashboard"), 1600);
           } catch (e: any) {
             setError(e?.message || "Payment captured but verification failed. Contact support with your booking reference.");
           } finally { setSubmitting(false); }
@@ -408,7 +438,12 @@ export default function BookingFlow({ event: initialEvent }: { event: EventItem 
       rzp.open();
       return;
     } catch (e: any) {
-      setError(e?.message || "Something went wrong while creating your booking.");
+      const msg = e?.message || "";
+      if (msg.includes("Insufficient") || msg.includes("409")) {
+        setError("Seat availability changed — some seats in this tier were just claimed. Please re-check available seats.");
+      } else {
+        setError(msg || "Something went wrong while creating your booking.");
+      }
       setSubmitting(false);
     }
   };
@@ -812,6 +847,58 @@ export default function BookingFlow({ event: initialEvent }: { event: EventItem 
                   </div>
                 </fieldset>
 
+                {/* ── PAYMENT METHOD SELECTOR (When price > 0) ── */}
+                {total > 0 && (
+                  <div className="mt-8 rounded-2xl border border-white/10 bg-white/[0.03] p-4 sm:p-5">
+                    <span className="font-cond block text-xs uppercase tracking-[0.22em] text-white/60 mb-3">
+                      Select Payment Mode
+                    </span>
+                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                      <button
+                        type="button"
+                        onClick={() => setPaymentMethod("ONLINE")}
+                        className={cn(
+                          "relative flex flex-col p-3.5 rounded-xl border text-left transition-all",
+                          paymentMethod === "ONLINE"
+                            ? "border-[var(--acid)] bg-[var(--acid)]/10 shadow-[0_0_15px_rgba(191,255,46,0.15)]"
+                            : "border-white/10 bg-black/40 hover:border-white/25"
+                        )}
+                      >
+                        <div className="flex items-center justify-between">
+                          <span className="font-bold text-sm text-white">Online Payment</span>
+                          {paymentMethod === "ONLINE" && (
+                            <span className="size-2 rounded-full bg-[var(--acid)]" />
+                          )}
+                        </div>
+                        <p className="mt-1 text-xs text-white/60 font-cond uppercase tracking-wider">
+                          Instant QR Pass via UPI, Card, NetBanking (Razorpay)
+                        </p>
+                      </button>
+
+                      <button
+                        type="button"
+                        onClick={() => setPaymentMethod("CASH")}
+                        className={cn(
+                          "relative flex flex-col p-3.5 rounded-xl border text-left transition-all",
+                          paymentMethod === "CASH"
+                            ? "border-amber-400 bg-amber-400/10 shadow-[0_0_15px_rgba(251,191,36,0.15)]"
+                            : "border-white/10 bg-black/40 hover:border-white/25"
+                        )}
+                      >
+                        <div className="flex items-center justify-between">
+                          <span className="font-bold text-sm text-white">Pay at Venue Gate</span>
+                          {paymentMethod === "CASH" && (
+                            <span className="size-2 rounded-full bg-amber-400" />
+                          )}
+                        </div>
+                        <p className="mt-1 text-xs text-white/60 font-cond uppercase tracking-wider">
+                          Spot Registration · Pay {formatINR(total)} cash upon arrival
+                        </p>
+                      </button>
+                    </div>
+                  </div>
+                )}
+
                 {/* Total & Checkout Button */}
                 <div className="mt-9 flex flex-col gap-5 border-t border-dashed border-white/10 pt-7 sm:flex-row sm:items-center sm:justify-between">
                   <div>
@@ -851,8 +938,10 @@ export default function BookingFlow({ event: initialEvent }: { event: EventItem 
                       : submitting
                       ? "Securing Seats..."
                       : total > 0
-                      ? `Confirm & Pay ${formatINR(total)}`
-                      : "Confirm Free Admission"}
+                      ? paymentMethod === "CASH"
+                        ? "Confirm Spot Pass (Pay at Gate)"
+                        : `Pay & Confirm ${formatINR(total)}`
+                      : "Confirm Free Admission Pass"}
                   </button>
                 </div>
               </div>
