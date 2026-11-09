@@ -669,7 +669,7 @@ export function TicketPass({ ticket, qrData, defaultVariant }: TicketPassProps) 
               </svg>
 
               {/* Content sitting above the background */}
-              <div className="relative z-10 size-full flex flex-col justify-between pl-14 pr-6 py-5">
+              <div className="relative z-10 size-full flex flex-col justify-between pl-14 pr-5 pt-4 pb-3">
                 {/* Slanted Watermark Stamp on Ticket Body when Fully Used */}
                 {isUsed && (
                   <div className="pointer-events-none absolute inset-0 z-30 flex items-center justify-center overflow-hidden">
@@ -702,17 +702,17 @@ export function TicketPass({ ticket, qrData, defaultVariant }: TicketPassProps) 
 
                   {/* Event Name */}
                   <h2
-                    className="mt-1 font-display text-2xl font-black uppercase leading-tight tracking-tight line-clamp-1"
+                    className="mt-0.5 font-display text-xl font-black uppercase leading-tight tracking-tight line-clamp-1"
                     style={{ color: v.primary }}
                   >
                     {eventTitle}
                   </h2>
 
                   {/* Key metadata grid */}
-                  <div className="mt-3.5 grid grid-cols-2 gap-y-2.5 gap-x-4 border-t border-zinc-100 pt-3">
+                  <div className="mt-2.5 grid grid-cols-2 gap-y-2 gap-x-3.5 border-t border-zinc-100 pt-2.5">
                     {/* Holder */}
                     <div>
-                      <span className="text-[9.5px] font-bold uppercase tracking-[0.16em] text-zinc-400">
+                      <span className="text-[9px] font-bold uppercase tracking-[0.16em] text-zinc-400">
                         Attendee / Holder
                       </span>
                       <p className="mt-0.5 text-xs font-bold text-zinc-900 truncate flex items-center gap-1">
@@ -723,7 +723,7 @@ export function TicketPass({ ticket, qrData, defaultVariant }: TicketPassProps) 
 
                     {/* Tier */}
                     <div>
-                      <span className="text-[9.5px] font-bold uppercase tracking-[0.16em] text-zinc-400">
+                      <span className="text-[9px] font-bold uppercase tracking-[0.16em] text-zinc-400">
                         Access Tier
                       </span>
                       <p className="mt-0.5 text-xs font-bold text-zinc-900 truncate">
@@ -731,65 +731,60 @@ export function TicketPass({ ticket, qrData, defaultVariant }: TicketPassProps) 
                       </p>
                     </div>
 
-                    {/* Date */}
+                    {/* Date & Time */}
                     <div>
-                      <span className="text-[9.5px] font-bold uppercase tracking-[0.16em] text-zinc-400">
-                        Event Date
+                      <span className="text-[9px] font-bold uppercase tracking-[0.16em] text-zinc-400">
+                        Event Date &amp; Time
                       </span>
-                      <p className="mt-0.5 text-xs font-bold text-zinc-900 flex items-center gap-1">
+                      <p className="mt-0.5 text-xs font-bold text-zinc-900 flex items-center gap-1 truncate">
                         <Calendar className="size-3 text-zinc-400 shrink-0" />
-                        {dateFormatted}
+                        <span>{dateFormatted}</span>
+                        {time && <span className="text-zinc-500 font-semibold">• {time}</span>}
                       </p>
                     </div>
 
-                    {/* Time */}
+                    {/* Assigned Seats or Gate Time */}
                     <div>
-                      <span className="text-[9.5px] font-bold uppercase tracking-[0.16em] text-zinc-400">
-                        Gate Time
+                      <span className="text-[9px] font-bold uppercase tracking-[0.16em] text-zinc-400">
+                        {ticket.seats && ticket.seats.length > 0 ? "Assigned Seats" : "Gate Entry Time"}
                       </span>
-                      <p className="mt-0.5 text-xs font-bold text-zinc-900 flex items-center gap-1">
-                        <Clock className="size-3 text-zinc-400 shrink-0" />
-                        {time}
-                      </p>
+                      {ticket.seats && ticket.seats.length > 0 ? (
+                        <p className="mt-0.5 text-[11px] font-mono font-bold text-amber-800 bg-amber-50/90 border border-amber-200/80 px-2 py-0.5 rounded-md truncate inline-block max-w-full">
+                          {ticket.seats.join(", ")}
+                        </p>
+                      ) : (
+                        <p className="mt-0.5 text-xs font-bold text-zinc-900 flex items-center gap-1 truncate">
+                          <Clock className="size-3 text-zinc-400 shrink-0" />
+                          <span>{time}</span>
+                        </p>
+                      )}
                     </div>
                   </div>
-
-                  {/* Assigned Seats */}
-                  {ticket.seats && ticket.seats.length > 0 && (
-                    <div className="mt-2 flex items-center gap-1.5 rounded-lg bg-zinc-50 border border-zinc-100 px-2 py-1">
-                      <span className="text-[9px] font-bold uppercase tracking-wider text-zinc-400 shrink-0">
-                        Seats:
-                      </span>
-                      <span className="text-[11px] font-mono font-bold text-zinc-800 truncate">
-                        {ticket.seats.join(", ")}
-                      </span>
-                    </div>
-                  )}
                 </div>
 
                 {/* Bottom Venue & Pills Bar */}
-                <div className="border-t border-zinc-100 pt-2.5">
-                  <div className="flex items-center gap-1.5 text-[11px] font-semibold text-zinc-600 truncate">
+                <div className="border-t border-zinc-100 pt-2 shrink-0">
+                  <div className="flex items-center gap-1.5 text-[10.5px] font-semibold text-zinc-600 truncate">
                     <MapPin className="size-3 text-zinc-400 shrink-0" />
                     <span className="truncate">{venue}</span>
                   </div>
 
-                  <div className="mt-2 flex items-center gap-2">
+                  <div className="mt-1.5 flex items-center gap-1.5">
                     <span
-                      className="rounded-md px-2 py-0.5 text-[9px] font-bold uppercase tracking-wider"
+                      className="rounded-md px-2 py-0.5 text-[8.5px] font-bold uppercase tracking-wider shrink-0"
                       style={{ background: v.pillBg, color: v.pillText }}
                     >
                       {quantity > 1 ? `Admit ${quantity} Persons` : "Admit One"}
                     </span>
                     {quantity > 1 && (
-                      <span className="rounded-md bg-amber-100 px-2 py-0.5 text-[9px] font-bold uppercase tracking-wider text-amber-800">
+                      <span className="rounded-md bg-amber-100 px-2 py-0.5 text-[8.5px] font-bold uppercase tracking-wider text-amber-800 shrink-0">
                         Group Pass
                       </span>
                     )}
-                    <span className="rounded-md bg-zinc-100 px-2 py-0.5 text-[9px] font-bold uppercase tracking-wider text-zinc-600">
+                    <span className="rounded-md bg-zinc-100 px-2 py-0.5 text-[8.5px] font-bold uppercase tracking-wider text-zinc-600 shrink-0">
                       Non-Transferable
                     </span>
-                    <span className="ml-auto font-mono text-[10px] font-bold text-zinc-400">
+                    <span className="ml-auto font-mono text-[9.5px] font-bold text-zinc-400 truncate pl-1">
                       {ticket.ticket_ref}
                     </span>
                   </div>
