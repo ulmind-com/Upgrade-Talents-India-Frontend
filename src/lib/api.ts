@@ -171,6 +171,9 @@ export type EventItem = {
   title: string;
   description: string;
   image_url?: string;
+  card_image_url?: string;
+  banner_url?: string;
+  banner_image_url?: string;
   date: string;
   time?: string;
   venue: string;
@@ -626,6 +629,11 @@ export const activitiesApi = {
       query: { event_id, limit: p.limit ?? 20, skip: p.skip ?? 0 },
       cache: "no-store",
     }),
+  eventBookedSeats: (eventId: string) =>
+    apiFetch<{ event_id: string; booked_seats: string[]; count: number }>(
+      `/api/activities/events/${eventId}/booked-seats`,
+      { cache: "no-store" }
+    ),
   competitions: (p: { skip?: number; limit?: number; search?: string } = {}) =>
     apiFetch<any[]>("/api/activities/competitions", { query: p, cache: "no-store" }),
   merchandise: (p: { skip?: number; limit?: number; search?: string } = {}) =>
@@ -834,6 +842,7 @@ export const bookingsApi = {
     category?: string;
     quantity: number;
     holder_names?: string[];
+    seats?: string[];
     payment_method?: string;
   }) => apiFetch<any>("/api/bookings/", { method: "POST", body, auth: true }),
   my: () => apiFetch<any[]>("/api/bookings/my", { auth: true, cache: "no-store" }),
