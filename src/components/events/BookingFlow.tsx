@@ -94,8 +94,10 @@ export type SeatingZoneMeta = {
   perks: string[];
 };
 
-export function getSeatingZoneMeta(name: string): SeatingZoneMeta {
+export function getSeatingZoneMeta(name: string, price?: number): SeatingZoneMeta {
   const n = (name || "").toLowerCase();
+  const isFree = (price !== undefined && Number(price) === 0) || n.includes("free");
+
   if (n.includes("plat") || n.includes("vip") || n.includes("royal") || n.includes("front") || n.includes("diamond")) {
     return {
       rank: 1,
@@ -109,7 +111,7 @@ export function getSeatingZoneMeta(name: string): SeatingZoneMeta {
       glowClass: "from-purple-500/20 via-pink-500/10 to-transparent",
       bgGrad: "linear-gradient(135deg, rgba(168,85,247,0.18), rgba(236,72,153,0.08))",
       badgeIcon: "💎",
-      rowCodes: ["A", "B"],
+      rowCodes: ["A", "B", "C", "D"],
       seatsPerRow: 14,
       leftCount: 2,
       centerCount: 10,
@@ -135,7 +137,7 @@ export function getSeatingZoneMeta(name: string): SeatingZoneMeta {
       glowClass: "from-amber-500/20 via-yellow-500/10 to-transparent",
       bgGrad: "linear-gradient(135deg, rgba(245,158,11,0.18), rgba(217,119,6,0.08))",
       badgeIcon: "👑",
-      rowCodes: ["D", "E"],
+      rowCodes: ["E", "F", "G", "H"],
       seatsPerRow: 16,
       leftCount: 3,
       centerCount: 10,
@@ -161,7 +163,7 @@ export function getSeatingZoneMeta(name: string): SeatingZoneMeta {
       glowClass: "from-slate-500/20 via-blue-500/10 to-transparent",
       bgGrad: "linear-gradient(135deg, rgba(100,116,139,0.18), rgba(71,85,105,0.08))",
       badgeIcon: "⭐",
-      rowCodes: ["G", "H"],
+      rowCodes: ["L", "M"],
       seatsPerRow: 18,
       leftCount: 4,
       centerCount: 10,
@@ -171,6 +173,32 @@ export function getSeatingZoneMeta(name: string): SeatingZoneMeta {
         "High Quality Stadium Sound",
         "Dedicated Tier Restrooms",
         "Digital Matchday Programme",
+      ],
+    };
+  }
+  if (isFree) {
+    return {
+      rank: 5,
+      badge: "🎁 FREE ENTRY PASS",
+      badgeLabel: "Complimentary Pass · Open Admission",
+      zoneTitle: "General Free Admission",
+      zoneSubtitle: "Full Arena Access · 100% Free Official Entry",
+      themeColor: "#34d399",
+      badgeBg: "rgba(52, 211, 153, 0.15)",
+      borderClass: "border-emerald-400/60 shadow-[0_0_25px_rgba(52,211,153,0.25)]",
+      glowClass: "from-emerald-500/20 via-teal-500/10 to-transparent",
+      bgGrad: "linear-gradient(135deg, rgba(16,185,129,0.18), rgba(5,150,105,0.08))",
+      badgeIcon: "🎁",
+      rowCodes: ["V", "W", "X", "Y"],
+      seatsPerRow: 14,
+      leftCount: 2,
+      centerCount: 10,
+      rightCount: 2,
+      perks: [
+        "100% Free Official Entry Pass",
+        "Digital QR Check-in at Gate",
+        "Full Show & Stage View Access",
+        "Instant Admission Pass",
       ],
     };
   }
@@ -199,6 +227,110 @@ export function getSeatingZoneMeta(name: string): SeatingZoneMeta {
       "Access to Concessions & Merch",
     ],
   };
+}
+
+/* ─────────────── DYNAMIC CAPACITY SEAT GENERATOR ─────────────── */
+const MASTER_ROW_LETTERS = [
+  "A", "B", "C", "D", "E", "F", "G", "H", "J", "K", "L", "M", 
+  "N", "P", "Q", "R", "S", "T", "U", "V", "W", "X", "Y", "Z",
+  "AA", "BB", "CC", "DD", "EE", "FF", "GG", "HH", "JJ", "KK",
+  "LL", "MM", "NN", "PP", "QQ", "RR", "SS", "TT", "UU", "VV"
+];
+
+export interface TierGeneratedRow {
+  rowCode: string;
+  leftSeats: number[];
+  centerSeats: number[];
+  rightSeats: number[];
+}
+
+export function generateDynamicTierRows(
+  tier: TicketTier,
+  tierIdx: number,
+  allTiers: TicketTier[]
+): TierGeneratedRow[] {
+  const cap = Math.max(1, Number(tier.total_quantity || tier.available || 50));
+
+  // Determine standard layout proportions
+  let seatsPerRow = 14;
+  let standardLeft = 2;
+  let standardCenter = 10;
+  let standardRight = 2;
+
+  if (cap <= 24) {
+    seatsPerRow = 10;
+    standardLeft = 2;
+    standardCenter = 6;
+    standardRight = 2;
+  } else if (cap <= 70) {
+    // 50 capacity: 4 rows (14, 14, 14, 8 = 50 seats)
+    seatsPerRow = 14;
+    standardLeft = 2;
+    standardCenter = 10;
+    standardRight = 2;
+  } else if (cap <= 140) {
+    seatsPerRow = 16;
+    standardLeft = 3;
+    standardCenter = 10;
+    standardRight = 3;
+  } else {
+    // Large capacity (e.g. 300 seats): 15 rows of 20 seats
+    seatsPerRow = 20;
+    standardLeft = 4;
+    standardCenter = 12;
+    standardRight = 4;
+  }
+
+  // Calculate unique starting row index across previous tiers
+  let startRowIdx = 0;
+  for (let i = 0; i < tierIdx; i++) {
+    const prevCap = Math.max(1, Number(allTiers[i]?.total_quantity || allTiers[i]?.available || 50));
+    let prevSeatsPerRow = 14;
+    if (prevCap <= 24) prevSeatsPerRow = 10;
+    else if (prevCap <= 70) prevSeatsPerRow = 14;
+    else if (prevCap <= 140) prevSeatsPerRow = 16;
+    else prevSeatsPerRow = 20;
+    startRowIdx += Math.ceil(prevCap / prevSeatsPerRow);
+  }
+
+  const rowCount = Math.ceil(cap / seatsPerRow);
+  const rows: TierGeneratedRow[] = [];
+
+  let seatsAssigned = 0;
+  for (let r = 0; r < rowCount; r++) {
+    const rowCode = MASTER_ROW_LETTERS[(startRowIdx + r) % MASTER_ROW_LETTERS.length];
+    const seatsInThisRow = Math.min(seatsPerRow, cap - seatsAssigned);
+    seatsAssigned += seatsInThisRow;
+
+    let leftCount = standardLeft;
+    let rightCount = standardRight;
+    let centerCount = standardCenter;
+
+    if (seatsInThisRow < seatsPerRow) {
+      if (seatsInThisRow <= 4) {
+        leftCount = 1;
+        rightCount = 1;
+        centerCount = Math.max(0, seatsInThisRow - 2);
+      } else {
+        leftCount = Math.min(standardLeft, Math.max(1, Math.floor(seatsInThisRow / 5)));
+        rightCount = leftCount;
+        centerCount = seatsInThisRow - (leftCount + rightCount);
+      }
+    }
+
+    const leftSeats = Array.from({ length: leftCount }, (_, i) => i + 1);
+    const centerSeats = Array.from({ length: centerCount }, (_, i) => i + 1 + leftCount);
+    const rightSeats = Array.from({ length: rightCount }, (_, i) => i + 1 + leftCount + centerCount);
+
+    rows.push({
+      rowCode,
+      leftSeats,
+      centerSeats,
+      rightSeats,
+    });
+  }
+
+  return rows;
 }
 
 function loadRazorpay(): Promise<boolean> {
@@ -264,15 +396,34 @@ export default function BookingFlow({
   const { user, loading: authLoading } = useAuth();
 
   const [event, setEvent] = useState<EventItem>(initialEvent);
-  const [tiers, setTiers] = useState<TicketTier[]>([]);
-  const [loadingTiers, setLoadingTiers] = useState(true);
+
+  // Initialize tiers immediately from initialEvent.categories so that all tiers (including Free) are present on first render
+  const [tiers, setTiers] = useState<TicketTier[]>(() => {
+    const configured = Array.isArray(initialEvent.categories) && initialEvent.categories.length > 0 ? initialEvent.categories : [];
+    if (configured.length > 0) {
+      return configured.map((cat, idx) => ({
+        _id: `cat-tier-${idx}-${(cat.name || "").toLowerCase().replace(/[^a-z0-9]/g, "-")}`,
+        event_id: initialEvent._id,
+        type: cat.name,
+        category: cat.name,
+        price: Number(cat.price ?? 0),
+        total_quantity: Number(cat.capacity || initialEvent.capacity || 50),
+        available: Number(cat.capacity || initialEvent.capacity || 50),
+        description: cat.description || "",
+        display_order: idx,
+        is_visible: true,
+      }));
+    }
+    return [];
+  });
+  const [loadingTiers, setLoadingTiers] = useState(tiers.length === 0);
   const [tiersError, setTiersError] = useState<string | null>(null);
 
   // Wizard Step: 1 = Seat Selection, 2 = Guest Names & Payment, 3 = Confirmation
   const [step, setStep] = useState<1 | 2 | 3>(1);
 
   // Active highlighted tier (when user clicks tier header)
-  const [selectedTierId, setSelectedTierId] = useState<string | null>(null);
+  const [selectedTierId, setSelectedTierId] = useState<string | null>(() => tiers[0]?._id || null);
 
   // Booked seats from live backend
   const [bookedSeats, setBookedSeats] = useState<string[]>([]);
@@ -286,6 +437,15 @@ export default function BookingFlow({
   const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [confirmedBooking, setConfirmedBooking] = useState<any | null>(null);
+
+  // Pre-calculate deterministic, dynamic seating rows for each tier matching its exact capacity
+  const tierSeatRowsMap = useMemo(() => {
+    const map = new Map<string, TierGeneratedRow[]>();
+    tiers.forEach((t, idx) => {
+      map.set(t._id, generateDynamicTierRows(t, idx, tiers));
+    });
+    return map;
+  }, [tiers]);
 
   // Client-side fresh re-fetch on mount ensures latest categories/prices without stale cache
   useEffect(() => {
@@ -323,66 +483,65 @@ export default function BookingFlow({
   const bookedSeatSet = useMemo(() => new Set(bookedSeats), [bookedSeats]);
   const selectedSeatMap = useMemo(() => new Map(selectedSeats.map((s) => [s.seatId, s])), [selectedSeats]);
 
-  // Fetch ticket tiers and align strictly with event.categories
+  // Fetch ticket tiers and align strictly with event.categories as the primary authority
   useEffect(() => {
     let cancelled = false;
-    let attempts = 0;
 
     const fetchTiers = () => {
       activitiesApi
-        .tickets(event._id, { limit: 50 })
+        .tickets(event._id, { limit: 100 })
         .then((res) => {
           if (cancelled) return;
           const list = Array.isArray(res) ? res : [];
-          let visible = list.filter((t) => t.is_visible !== false);
+          const configuredCats = Array.isArray(event.categories) && event.categories.length > 0 ? event.categories : [];
+          let visible: TicketTier[] = [];
 
-          if (Array.isArray(event.categories) && event.categories.length > 0) {
-            visible = visible.map((t) => {
-              const matchedCat = event.categories?.find(
-                (c) => c.name.toLowerCase().trim() === (t.category || t.type).toLowerCase().trim()
-              );
+          if (configuredCats.length > 0) {
+            visible = configuredCats.map((cat, idx) => {
+              const catNameClean = (cat.name || "").trim().toLowerCase();
+              const matched = list.find((t) => {
+                const tName = (t.category || t.type || "").trim().toLowerCase();
+                return tName === catNameClean;
+              }) || list[idx];
+
+              const catCap = Number(cat.capacity != null ? cat.capacity : (event.capacity || 50));
+              const catPrice = Number(cat.price != null ? cat.price : 0);
+              const sold = matched ? Math.max(0, Number(matched.total_quantity || catCap) - Number(matched.available || catCap)) : 0;
+              const avail = Math.max(0, catCap - sold);
+
               return {
-                ...t,
-                category: t.category || t.type || matchedCat?.name,
-                price: matchedCat?.price != null ? matchedCat.price : t.price,
-                description: t.description || matchedCat?.description,
+                _id: matched?._id || `cat-tier-${idx}-${(cat.name || "").toLowerCase().replace(/[^a-z0-9]/g, "-")}`,
+                event_id: event._id,
+                type: cat.name,
+                category: cat.name,
+                price: catPrice,
+                total_quantity: catCap,
+                available: avail,
+                description: cat.description || matched?.description || "",
+                display_order: idx,
+                is_visible: true,
               };
             });
-
-            // Sort strictly matching the order configured in event.categories
-            const orderMap = new Map(
-              event.categories.map((c, idx) => [(c.name || "").trim().toLowerCase(), idx])
-            );
+          } else if (list.length > 0) {
+            visible = list.filter((t) => t.is_visible !== false);
             visible.sort((a, b) => {
-              const idxA = orderMap.get((a.category || a.type || "").trim().toLowerCase()) ?? 99;
-              const idxB = orderMap.get((b.category || b.type || "").trim().toLowerCase()) ?? 99;
-              return idxA - idxB;
-            });
-          } else {
-            if (!visible.length && Array.isArray(event.categories) && event.categories.length > 0) {
-              visible = event.categories.map((c, idx) => ({
-                _id: `cat-${idx}-${c.name.toLowerCase().replace(/\s+/g, "-")}`,
-                event_id: event._id,
-                type: c.name,
-                category: c.name,
-                price: c.price,
-                total_quantity: c.capacity || event.capacity || 100,
-                available: c.capacity || event.capacity || 100,
-                description: c.description,
-                display_order: idx,
-              }));
-            }
-            visible.sort((a, b) => {
-              const metaA = getSeatingZoneMeta(a.category || a.type);
-              const metaB = getSeatingZoneMeta(b.category || b.type);
+              const metaA = getSeatingZoneMeta(a.category || a.type, a.price);
+              const metaB = getSeatingZoneMeta(b.category || b.type, b.price);
               return metaA.rank - metaB.rank || b.price - a.price;
             });
-          }
-
-          if (!visible.length && attempts < 2 && event.ticket_enabled !== false) {
-            attempts++;
-            setTimeout(fetchTiers, 1200);
-            return;
+          } else {
+            visible = [{
+              _id: `default-${event._id}`,
+              event_id: event._id,
+              type: event.category || "General Admission",
+              category: event.category || "General Admission",
+              price: Number(event.price || 0),
+              total_quantity: Number(event.capacity || 100),
+              available: Math.max(0, Number(event.capacity || 100) - Number(event.registered_count || 0)),
+              description: "Standard Entry Admission",
+              display_order: 0,
+              is_visible: true,
+            }];
           }
 
           setTiers(visible);
@@ -397,8 +556,11 @@ export default function BookingFlow({
             }
           }
 
-          const firstOpen = visible.find((t) => (t.available ?? 0) > 0);
-          if (firstOpen) setSelectedTierId(firstOpen._id);
+          setSelectedTierId((prev) => {
+            if (prev && visible.some((t) => t._id === prev)) return prev;
+            const firstOpen = visible.find((t) => (t.available ?? 0) > 0);
+            return firstOpen?._id || visible[0]?._id || null;
+          });
         })
         .catch((e) => {
           if (!cancelled) setTiersError(e?.message || "Could not load ticket types.");
@@ -412,7 +574,7 @@ export default function BookingFlow({
     return () => {
       cancelled = true;
     };
-  }, [event._id, event.ticket_enabled, event.categories, preselectedTierParam]);
+  }, [event._id, event.ticket_enabled, event.categories, preselectedTierParam, event.capacity, event.price, event.registered_count, event.category]);
 
   // Synchronize attendee names array length with selectedSeats.length
   useEffect(() => {
@@ -733,7 +895,9 @@ export default function BookingFlow({
                           <span className="text-white/60">{seat.seatNum}th seat</span>
                         </div>
                         <div className="flex items-center gap-3">
-                          <span className="font-bold text-red-400">{formatINR(seat.price)}</span>
+                          <span className="font-bold text-red-400">
+                            {seat.price === 0 ? "Free" : formatINR(seat.price)}
+                          </span>
                           <button
                             type="button"
                             onClick={() => removeSeat(seat.seatId)}
@@ -750,7 +914,9 @@ export default function BookingFlow({
 
                 <div className="mt-4 pt-3 border-t border-dashed border-white/10 flex items-baseline justify-between">
                   <span className="text-xs text-white/60 uppercase font-mono">Total:</span>
-                  <span className="font-street text-2xl text-red-500 font-bold">{formatINR(totalAmount)}</span>
+                  <span className="font-street text-2xl text-red-500 font-bold">
+                    {totalAmount === 0 ? "Free" : formatINR(totalAmount)}
+                  </span>
                 </div>
 
                 <div className="mt-5 grid grid-cols-2 gap-2">
@@ -861,8 +1027,8 @@ export default function BookingFlow({
                         {/* Price & Seats Left */}
                         <div className="flex items-center gap-4 text-right">
                           <div>
-                            <span className="font-street text-xl sm:text-2xl font-bold" style={{ color: meta.themeColor }}>
-                              {formatINR(t.price)}
+                            <span className="font-street text-xl sm:text-2xl font-bold" style={{ color: t.price === 0 ? "#34d399" : meta.themeColor }}>
+                              {t.price === 0 ? "Free" : formatINR(t.price)}
                             </span>
                             <span className="block font-mono text-[10.5px] uppercase tracking-wider text-white/50">
                               {isSoldOut ? "Sold Out" : `${t.available} seats left`}
@@ -884,121 +1050,125 @@ export default function BookingFlow({
                       </div>
 
                       {/* Interactive Seat Rows for this Category */}
-                      <div className="mt-4 pt-3 border-t border-white/10">
-                        <div className="flex flex-col gap-2 overflow-x-auto pb-1">
-                          {meta.rowCodes.map((rowCode) => {
-                            const leftSeats = Array.from({ length: meta.leftCount }, (_, i) => i + 1);
-                            const centerSeats = Array.from({ length: meta.centerCount }, (_, i) => i + 1 + meta.leftCount);
-                            const rightSeats = Array.from({ length: meta.rightCount }, (_, i) => i + 1 + meta.leftCount + meta.centerCount);
+                      {(() => {
+                        const tierRows = tierSeatRowsMap.get(t._id) || generateDynamicTierRows(t, 0, [t]);
+                        return (
+                          <div className="mt-4 pt-3 border-t border-white/10">
+                            <div
+                              className={cn(
+                                "flex flex-col gap-2 overflow-x-auto pb-1",
+                                tierRows.length > 4 && "max-h-[380px] overflow-y-auto pr-1.5 custom-scrollbar"
+                              )}
+                            >
+                              {tierRows.map((row) => (
+                                <div key={row.rowCode} className="flex items-center justify-between gap-3 text-xs font-mono min-w-[460px]">
+                                  <span className="w-5 text-center font-bold text-white/70">{row.rowCode}</span>
 
-                            return (
-                              <div key={rowCode} className="flex items-center justify-between gap-3 text-xs font-mono min-w-[460px]">
-                                <span className="w-5 text-center font-bold text-white/70">{rowCode}</span>
+                                  <div className="flex-1 flex items-center justify-center gap-4 sm:gap-6">
+                                    {/* Left Wing */}
+                                    <div className="flex items-center gap-1.5">
+                                      {row.leftSeats.map((seatNum) => {
+                                        const seatId = `${row.rowCode}-${String(seatNum).padStart(2, "0")}`;
+                                        const isBooked = bookedSeatSet.has(seatId);
+                                        const isSelected = selectedSeatMap.has(seatId);
 
-                                <div className="flex-1 flex items-center justify-center gap-4 sm:gap-6">
-                                  {/* Left Wing */}
-                                  <div className="flex items-center gap-1.5">
-                                    {leftSeats.map((seatNum) => {
-                                      const seatId = `${rowCode}-${String(seatNum).padStart(2, "0")}`;
-                                      const isBooked = bookedSeatSet.has(seatId);
-                                      const isSelected = selectedSeatMap.has(seatId);
+                                        return (
+                                          <button
+                                            key={seatId}
+                                            type="button"
+                                            disabled={isBooked}
+                                            onClick={() => handleToggleSeat(seatId, row.rowCode, seatNum, t)}
+                                            title={`Row ${row.rowCode} · Seat ${seatNum} (${t.category || t.type}: ${t.price === 0 ? "Free" : formatINR(t.price)})${isBooked ? " - ALREADY BOOKED" : ""}`}
+                                            className={cn(
+                                              "size-6 sm:size-7 rounded-t-md rounded-b-xs transition-all relative flex items-center justify-center font-mono text-[9px] cursor-pointer",
+                                              isBooked && "bg-neutral-800/40 border border-neutral-800 text-neutral-600 cursor-not-allowed opacity-35",
+                                              !isBooked && !isSelected && "bg-[#1c1f26] border border-white/20 hover:border-white/70 hover:scale-110 text-white/70 hover:bg-[#282d37]",
+                                              isSelected && "scale-110 shadow-lg font-bold text-black animate-pulse"
+                                            )}
+                                            style={{
+                                              backgroundColor: isSelected ? meta.themeColor : undefined,
+                                              borderColor: isSelected ? meta.themeColor : undefined,
+                                              boxShadow: isSelected ? `0 0 12px ${meta.themeColor}` : undefined,
+                                            }}
+                                          >
+                                            <span>{seatNum}</span>
+                                          </button>
+                                        );
+                                      })}
+                                    </div>
 
-                                      return (
-                                        <button
-                                          key={seatId}
-                                          type="button"
-                                          disabled={isBooked}
-                                          onClick={() => handleToggleSeat(seatId, rowCode, seatNum, t)}
-                                          title={`Row ${rowCode} · Seat ${seatNum} (${t.category || t.type}: ${formatINR(t.price)})${isBooked ? " - ALREADY BOOKED" : ""}`}
-                                          className={cn(
-                                            "size-6 sm:size-7 rounded-t-md rounded-b-xs transition-all relative flex items-center justify-center font-mono text-[9px] cursor-pointer",
-                                            isBooked && "bg-neutral-800/40 border border-neutral-800 text-neutral-600 cursor-not-allowed opacity-35",
-                                            !isBooked && !isSelected && "bg-[#1c1f26] border border-white/20 hover:border-white/70 hover:scale-110 text-white/70 hover:bg-[#282d37]",
-                                            isSelected && "scale-110 shadow-lg font-bold text-black animate-pulse"
-                                          )}
-                                          style={{
-                                            backgroundColor: isSelected ? meta.themeColor : undefined,
-                                            borderColor: isSelected ? meta.themeColor : undefined,
-                                            boxShadow: isSelected ? `0 0 12px ${meta.themeColor}` : undefined,
-                                          }}
-                                        >
-                                          <span>{seatNum}</span>
-                                        </button>
-                                      );
-                                    })}
+                                    {/* Center Block */}
+                                    <div className="flex items-center gap-1.5">
+                                      {row.centerSeats.map((seatNum) => {
+                                        const seatId = `${row.rowCode}-${String(seatNum).padStart(2, "0")}`;
+                                        const isBooked = bookedSeatSet.has(seatId);
+                                        const isSelected = selectedSeatMap.has(seatId);
+
+                                        return (
+                                          <button
+                                            key={seatId}
+                                            type="button"
+                                            disabled={isBooked}
+                                            onClick={() => handleToggleSeat(seatId, row.rowCode, seatNum, t)}
+                                            title={`Row ${row.rowCode} · Seat ${seatNum} (${t.category || t.type}: ${t.price === 0 ? "Free" : formatINR(t.price)})${isBooked ? " - ALREADY BOOKED" : ""}`}
+                                            className={cn(
+                                              "size-6 sm:size-7 rounded-t-md rounded-b-xs transition-all relative flex items-center justify-center font-mono text-[9px] cursor-pointer",
+                                              isBooked && "bg-neutral-800/40 border border-neutral-800 text-neutral-600 cursor-not-allowed opacity-35",
+                                              !isBooked && !isSelected && "bg-[#1c1f26] border border-white/20 hover:border-white/70 hover:scale-110 text-white/70 hover:bg-[#282d37]",
+                                              isSelected && "scale-110 shadow-lg font-bold text-black animate-pulse"
+                                            )}
+                                            style={{
+                                              backgroundColor: isSelected ? meta.themeColor : undefined,
+                                              borderColor: isSelected ? meta.themeColor : undefined,
+                                              boxShadow: isSelected ? `0 0 12px ${meta.themeColor}` : undefined,
+                                            }}
+                                          >
+                                            <span>{seatNum}</span>
+                                          </button>
+                                        );
+                                      })}
+                                    </div>
+
+                                    {/* Right Wing */}
+                                    <div className="flex items-center gap-1.5">
+                                      {row.rightSeats.map((seatNum) => {
+                                        const seatId = `${row.rowCode}-${String(seatNum).padStart(2, "0")}`;
+                                        const isBooked = bookedSeatSet.has(seatId);
+                                        const isSelected = selectedSeatMap.has(seatId);
+
+                                        return (
+                                          <button
+                                            key={seatId}
+                                            type="button"
+                                            disabled={isBooked}
+                                            onClick={() => handleToggleSeat(seatId, row.rowCode, seatNum, t)}
+                                            title={`Row ${row.rowCode} · Seat ${seatNum} (${t.category || t.type}: ${t.price === 0 ? "Free" : formatINR(t.price)})${isBooked ? " - ALREADY BOOKED" : ""}`}
+                                            className={cn(
+                                              "size-6 sm:size-7 rounded-t-md rounded-b-xs transition-all relative flex items-center justify-center font-mono text-[9px] cursor-pointer",
+                                              isBooked && "bg-neutral-800/40 border border-neutral-800 text-neutral-600 cursor-not-allowed opacity-35",
+                                              !isBooked && !isSelected && "bg-[#1c1f26] border border-white/20 hover:border-white/70 hover:scale-110 text-white/70 hover:bg-[#282d37]",
+                                              isSelected && "scale-110 shadow-lg font-bold text-black animate-pulse"
+                                            )}
+                                            style={{
+                                              backgroundColor: isSelected ? meta.themeColor : undefined,
+                                              borderColor: isSelected ? meta.themeColor : undefined,
+                                              boxShadow: isSelected ? `0 0 12px ${meta.themeColor}` : undefined,
+                                            }}
+                                          >
+                                            <span>{seatNum}</span>
+                                          </button>
+                                        );
+                                      })}
+                                    </div>
                                   </div>
 
-                                  {/* Center Block */}
-                                  <div className="flex items-center gap-1.5">
-                                    {centerSeats.map((seatNum) => {
-                                      const seatId = `${rowCode}-${String(seatNum).padStart(2, "0")}`;
-                                      const isBooked = bookedSeatSet.has(seatId);
-                                      const isSelected = selectedSeatMap.has(seatId);
-
-                                      return (
-                                        <button
-                                          key={seatId}
-                                          type="button"
-                                          disabled={isBooked}
-                                          onClick={() => handleToggleSeat(seatId, rowCode, seatNum, t)}
-                                          title={`Row ${rowCode} · Seat ${seatNum} (${t.category || t.type}: ${formatINR(t.price)})${isBooked ? " - ALREADY BOOKED" : ""}`}
-                                          className={cn(
-                                            "size-6 sm:size-7 rounded-t-md rounded-b-xs transition-all relative flex items-center justify-center font-mono text-[9px] cursor-pointer",
-                                            isBooked && "bg-neutral-800/40 border border-neutral-800 text-neutral-600 cursor-not-allowed opacity-35",
-                                            !isBooked && !isSelected && "bg-[#1c1f26] border border-white/20 hover:border-white/70 hover:scale-110 text-white/70 hover:bg-[#282d37]",
-                                            isSelected && "scale-110 shadow-lg font-bold text-black animate-pulse"
-                                          )}
-                                          style={{
-                                            backgroundColor: isSelected ? meta.themeColor : undefined,
-                                            borderColor: isSelected ? meta.themeColor : undefined,
-                                            boxShadow: isSelected ? `0 0 12px ${meta.themeColor}` : undefined,
-                                          }}
-                                        >
-                                          <span>{seatNum}</span>
-                                        </button>
-                                      );
-                                    })}
-                                  </div>
-
-                                  {/* Right Wing */}
-                                  <div className="flex items-center gap-1.5">
-                                    {rightSeats.map((seatNum) => {
-                                      const seatId = `${rowCode}-${String(seatNum).padStart(2, "0")}`;
-                                      const isBooked = bookedSeatSet.has(seatId);
-                                      const isSelected = selectedSeatMap.has(seatId);
-
-                                      return (
-                                        <button
-                                          key={seatId}
-                                          type="button"
-                                          disabled={isBooked}
-                                          onClick={() => handleToggleSeat(seatId, rowCode, seatNum, t)}
-                                          title={`Row ${rowCode} · Seat ${seatNum} (${t.category || t.type}: ${formatINR(t.price)})${isBooked ? " - ALREADY BOOKED" : ""}`}
-                                          className={cn(
-                                            "size-6 sm:size-7 rounded-t-md rounded-b-xs transition-all relative flex items-center justify-center font-mono text-[9px] cursor-pointer",
-                                            isBooked && "bg-neutral-800/40 border border-neutral-800 text-neutral-600 cursor-not-allowed opacity-35",
-                                            !isBooked && !isSelected && "bg-[#1c1f26] border border-white/20 hover:border-white/70 hover:scale-110 text-white/70 hover:bg-[#282d37]",
-                                            isSelected && "scale-110 shadow-lg font-bold text-black animate-pulse"
-                                          )}
-                                          style={{
-                                            backgroundColor: isSelected ? meta.themeColor : undefined,
-                                            borderColor: isSelected ? meta.themeColor : undefined,
-                                            boxShadow: isSelected ? `0 0 12px ${meta.themeColor}` : undefined,
-                                          }}
-                                        >
-                                          <span>{seatNum}</span>
-                                        </button>
-                                      );
-                                    })}
-                                  </div>
+                                  <span className="w-5 text-center font-bold text-white/70">{row.rowCode}</span>
                                 </div>
-
-                                <span className="w-5 text-center font-bold text-white/70">{rowCode}</span>
-                              </div>
-                            );
-                          })}
-                        </div>
-                      </div>
+                              ))}
+                            </div>
+                          </div>
+                        );
+                      })()}
 
                       {/* Tier Perks Bar */}
                       <div className="mt-3 pt-2 border-t border-white/5 flex flex-wrap items-center gap-x-5 gap-y-1 text-[11px] text-white/60">
@@ -1081,7 +1251,9 @@ export default function BookingFlow({
                 </div>
                 <div className="text-right">
                   <span className="text-xs font-mono text-white/50 block">Amount Payable:</span>
-                  <span className="font-street text-2xl font-bold text-red-500">{formatINR(totalAmount)}</span>
+                  <span className="font-street text-2xl font-bold text-red-500">
+                    {totalAmount === 0 ? "Free Entry" : formatINR(totalAmount)}
+                  </span>
                 </div>
               </div>
 
@@ -1096,7 +1268,7 @@ export default function BookingFlow({
                       key={seat.seatId}
                       className="rounded-lg bg-white/10 px-3 py-1 font-mono text-xs font-bold text-white"
                     >
-                      {seat.seatId} ({seat.tierName} · {formatINR(seat.price)})
+                      {seat.seatId} ({seat.tierName} · {seat.price === 0 ? "Free" : formatINR(seat.price)})
                     </span>
                   ))}
                 </div>
@@ -1134,40 +1306,54 @@ export default function BookingFlow({
 
               {/* Payment Mode Selector */}
               <div className="mt-8 pt-6 border-t border-white/10">
-                <label className="font-mono text-xs uppercase tracking-wider text-white/70 block mb-3">
-                  Select Payment Method:
-                </label>
-                <div className="grid grid-cols-2 gap-4">
-                  <button
-                    type="button"
-                    onClick={() => setPaymentMethod("ONLINE")}
-                    className={cn(
-                      "flex flex-col items-center justify-center p-4 rounded-2xl border text-center transition-all cursor-pointer",
-                      paymentMethod === "ONLINE"
-                        ? "border-red-500 bg-red-500/10 text-white shadow-[0_0_20px_rgba(239,68,68,0.2)]"
-                        : "border-white/10 bg-black/40 text-white/60 hover:border-white/30"
-                    )}
-                  >
-                    <CreditCard className="size-6 mb-1.5 text-red-500" />
-                    <span className="font-mono text-xs font-bold uppercase">Online Payment</span>
-                    <span className="font-mono text-[10px] text-white/50 mt-0.5">UPI, Cards, NetBanking</span>
-                  </button>
+                {totalAmount === 0 ? (
+                  <div className="rounded-2xl border border-emerald-500/40 bg-emerald-500/10 p-5 text-center">
+                    <span className="text-2xl mb-1 block">🎁</span>
+                    <span className="font-mono text-sm font-bold text-emerald-400 block uppercase tracking-wide">
+                      Free Entry Admission Pass
+                    </span>
+                    <p className="font-mono text-xs text-white/70 mt-1 max-w-md mx-auto">
+                      No payment required for this reservation. Click below to issue your verified cryptographic QR Admission Passes instantly.
+                    </p>
+                  </div>
+                ) : (
+                  <>
+                    <label className="font-mono text-xs uppercase tracking-wider text-white/70 block mb-3">
+                      Select Payment Method:
+                    </label>
+                    <div className="grid grid-cols-2 gap-4">
+                      <button
+                        type="button"
+                        onClick={() => setPaymentMethod("ONLINE")}
+                        className={cn(
+                          "flex flex-col items-center justify-center p-4 rounded-2xl border text-center transition-all cursor-pointer",
+                          paymentMethod === "ONLINE"
+                            ? "border-red-500 bg-red-500/10 text-white shadow-[0_0_20px_rgba(239,68,68,0.2)]"
+                            : "border-white/10 bg-black/40 text-white/60 hover:border-white/30"
+                        )}
+                      >
+                        <CreditCard className="size-6 mb-1.5 text-red-500" />
+                        <span className="font-mono text-xs font-bold uppercase">Online Payment</span>
+                        <span className="font-mono text-[10px] text-white/50 mt-0.5">UPI, Cards, NetBanking</span>
+                      </button>
 
-                  <button
-                    type="button"
-                    onClick={() => setPaymentMethod("CASH")}
-                    className={cn(
-                      "flex flex-col items-center justify-center p-4 rounded-2xl border text-center transition-all cursor-pointer",
-                      paymentMethod === "CASH"
-                        ? "border-amber-400 bg-amber-400/10 text-white shadow-[0_0_20px_rgba(251,191,36,0.2)]"
-                        : "border-white/10 bg-black/40 text-white/60 hover:border-white/30"
-                    )}
-                  >
-                    <Banknote className="size-6 mb-1.5 text-amber-400" />
-                    <span className="font-mono text-xs font-bold uppercase">Cash Spot Pass</span>
-                    <span className="font-mono text-[10px] text-white/50 mt-0.5">Pay in Cash at Venue Gate</span>
-                  </button>
-                </div>
+                      <button
+                        type="button"
+                        onClick={() => setPaymentMethod("CASH")}
+                        className={cn(
+                          "flex flex-col items-center justify-center p-4 rounded-2xl border text-center transition-all cursor-pointer",
+                          paymentMethod === "CASH"
+                            ? "border-amber-400 bg-amber-400/10 text-white shadow-[0_0_20px_rgba(251,191,36,0.2)]"
+                            : "border-white/10 bg-black/40 text-white/60 hover:border-white/30"
+                        )}
+                      >
+                        <Banknote className="size-6 mb-1.5 text-amber-400" />
+                        <span className="font-mono text-xs font-bold uppercase">Cash Spot Pass</span>
+                        <span className="font-mono text-[10px] text-white/50 mt-0.5">Pay in Cash at Venue Gate</span>
+                      </button>
+                    </div>
+                  </>
+                )}
 
                 <div className="mt-8">
                   <button
@@ -1184,7 +1370,13 @@ export default function BookingFlow({
                     ) : (
                       <>
                         <Ticket className="size-4" />
-                        <span>Confirm &amp; Pay {formatINR(totalAmount)}</span>
+                        <span>
+                          {totalAmount === 0
+                            ? "Confirm Free Registration & Issue Passes"
+                            : paymentMethod === "ONLINE"
+                            ? `Confirm & Pay ${formatINR(totalAmount)}`
+                            : "Confirm Cash Spot Pass"}
+                        </span>
                       </>
                     )}
                   </button>

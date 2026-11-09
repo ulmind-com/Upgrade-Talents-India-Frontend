@@ -185,6 +185,7 @@ export type EventItem = {
   event_status?: "upcoming" | "live" | "completed" | "cancelled";
   registration_enabled?: boolean;
   ticket_enabled?: boolean;
+  registered_count?: number;
   display_order?: number;
 };
 
