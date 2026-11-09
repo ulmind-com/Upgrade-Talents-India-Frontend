@@ -181,9 +181,17 @@ export function TicketPass({ ticket, qrData, defaultVariant }: TicketPassProps) 
     };
   }, [ticket, qrData]);
 
-  // Priority: 1) local base64 if fetched, 2) event_cover if valid, 3) guaranteed embedded dancer base64
+  // Priority: 1) local base64 if fetched, 2) event_cover / event_image / card_image_url if valid, 3) guaranteed embedded dancer base64
   const defaultCover = TICKET_DANCER_BASE64;
-  const rawCover = isUsableImageUrl(ticket.event_cover) ? ticket.event_cover : defaultCover;
+  const candidateCover =
+    ticket.event_cover ||
+    ticket.event_image ||
+    (ticket as any).card_image_url ||
+    (ticket as any).image_url ||
+    (ticket as any).banner_url ||
+    (ticket as any).banner_image_url ||
+    (ticket as any).cover_image;
+  const rawCover = isUsableImageUrl(candidateCover) ? candidateCover : defaultCover;
   useEffect(() => {
     let cancelled = false;
     if (rawCover.startsWith("data:")) {
@@ -373,15 +381,25 @@ export function TicketPass({ ticket, qrData, defaultVariant }: TicketPassProps) 
       setPrinting(false);
     }
   };
-  const eventTitle = ticket.event_title || "Neon Night Battle";
+  const eventTitle = ticket.event_title || "Official Live Event";
   const dateFormatted = ticket.event_date ? formatEventDate(ticket.event_date) : formatEventDate(ticket.issued_at);
   const time = ticket.event_time || "10:00 PM";
   const venue = ticket.event_venue || "Kolkata";
-  const tierName = ticket.ticket_type || "General Access";
-  const priceAmount = ticket.price ?? ticket.base_price ?? 500;
+  const tierName = ticket.category || ticket.ticket_type || "General Access";
+  const quantity = Number(ticket.quantity || 1);
+  const totalAmount =
+    ticket.total_booking_amount ??
+    ticket.total_price ??
+    ticket.total_amount ??
+    (quantity > 1 && ticket.price ? ticket.price * quantity : ticket.price) ??
+    ticket.base_price ??
+    0;
+  const unitPrice =
+    ticket.unit_price ??
+    (totalAmount && quantity > 0 ? totalAmount / quantity : totalAmount);
+  const priceAmount = totalAmount;
   const coverImage = coverBase64 || rawCover;
 
-  const quantity = Number(ticket.quantity || 1);
   const admittedCount = Number(ticket.admitted_count || (ticket.is_checked_in ? quantity : 0));
   const isUsed = Boolean(ticket.is_checked_in || ticket.status === "USED" || (quantity > 0 && admittedCount >= quantity));
   const isExpired = isEventExpired(ticket.event_date || ticket.issued_at, ticket.event_time);
@@ -559,20 +577,27 @@ export function TicketPass({ ticket, qrData, defaultVariant }: TicketPassProps) 
                 style={{ background: v.primary }}
               >
                 {/* White spacer */}
-                <div className="size-full rounded-full bg-white p-[2.5px] flex items-center justify-center">
+                <div className="size-full rounded-full bg-white p-[2px] flex items-center justify-center">
                   {/* Inner colored ring & white core */}
                   <div
-                    className="size-full rounded-full border-2 bg-white flex flex-col items-center justify-center"
+                    className="size-full rounded-full border-2 bg-white flex flex-col items-center justify-center px-1"
                     style={{ borderColor: v.primary }}
                   >
                     <span
-                      className="font-black tracking-tight text-lg leading-tight"
+                      className={cn(
+                        "font-black tracking-tight leading-none text-center",
+                        formatINR(totalAmount).length > 7
+                          ? "text-[11px]"
+                          : formatINR(totalAmount).length > 5
+                          ? "text-[13px]"
+                          : "text-base"
+                      )}
                       style={{ color: v.primary }}
                     >
-                      {priceAmount === 0 ? "FREE" : formatINR(priceAmount)}
+                      {totalAmount === 0 ? "FREE" : formatINR(totalAmount)}
                     </span>
-                    <span className="text-[8.5px] font-extrabold uppercase tracking-[0.2em] text-zinc-400">
-                      Price
+                    <span className="text-[7.5px] font-extrabold uppercase tracking-[0.14em] text-zinc-400 mt-0.5 text-center leading-tight">
+                      {quantity > 1 ? `Total (${quantity}P)` : "Price"}
                     </span>
                   </div>
                 </div>
@@ -678,6 +703,18 @@ export function TicketPass({ ticket, qrData, defaultVariant }: TicketPassProps) 
                       </p>
                     </div>
                   </div>
+
+                  {/* Assigned Seats */}
+                  {ticket.seats && ticket.seats.length > 0 && (
+                    <div className="mt-2 flex items-center gap-1.5 rounded-lg bg-zinc-50 border border-zinc-100 px-2 py-1">
+                      <span className="text-[9px] font-bold uppercase tracking-wider text-zinc-400 shrink-0">
+                        Seats:
+                      </span>
+                      <span className="text-[11px] font-mono font-bold text-zinc-800 truncate">
+                        {ticket.seats.join(", ")}
+                      </span>
+                    </div>
+                  )}
                 </div>
 
                 {/* Bottom Venue & Pills Bar */}
@@ -801,7 +838,7 @@ export function TicketPass({ ticket, qrData, defaultVariant }: TicketPassProps) 
                     ) : (
                       <>
                         <ShieldCheck className="size-2.5 text-emerald-300" />
-                        <span>Scan for gate check-in</span>
+                        <span>{quantity > 1 ? `Valid for ${quantity} Attendees` : "Scan for gate check-in"}</span>
                       </>
                     )}
                   </div>

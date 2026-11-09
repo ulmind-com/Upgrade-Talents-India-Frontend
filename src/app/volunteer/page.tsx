@@ -17,7 +17,7 @@ import {
   type TicketScanVerifyResult
 } from "@/lib/api";
 import { useAuth } from "@/components/motion/Providers";
-import { cn } from "@/lib/utils";
+import { cn, formatINR } from "@/lib/utils";
 
 // Web Audio sound synthesizer for instant gate chimes
 function playGateSound(type: "success" | "error" | "warning", enabled = true) {
@@ -824,14 +824,53 @@ export default function VolunteerScannerPage() {
                         </button>
                       </div>
 
+                      {/* Event Banner & Details Card */}
+                      {(currentVerification.result.event_title || currentVerification.result.event_cover) && (
+                        <div className="flex items-center gap-3 rounded-xl border border-white/10 bg-white/[0.04] p-2.5">
+                          {currentVerification.result.event_cover && (
+                            <img
+                              src={currentVerification.result.event_cover}
+                              alt={currentVerification.result.event_title || "Event"}
+                              className="size-14 rounded-lg object-cover border border-white/10 shrink-0"
+                            />
+                          )}
+                          <div className="min-w-0 flex-1">
+                            <span className="text-[9.5px] font-mono font-bold uppercase tracking-wider text-cyan-400">
+                              Official Event Pass
+                            </span>
+                            <h4 className="font-display text-sm font-bold text-white truncate">
+                              {currentVerification.result.event_title || "Special Live Event"}
+                            </h4>
+                            <div className="flex items-center gap-2 text-[10.5px] text-zinc-400 font-mono mt-0.5">
+                              {currentVerification.result.event_date && (
+                                <span>{currentVerification.result.event_date}</span>
+                              )}
+                              {currentVerification.result.event_time && (
+                                <span>• {currentVerification.result.event_time}</span>
+                              )}
+                              {currentVerification.result.event_venue && (
+                                <span>• {currentVerification.result.event_venue}</span>
+                              )}
+                            </div>
+                          </div>
+                        </div>
+                      )}
+
                       <div className="flex items-center gap-3 pt-1">
                         <div className="grid size-11 shrink-0 place-items-center rounded-xl border border-white/10 bg-white/[0.05] text-white">
                           <User className="size-5 text-cyan-400" />
                         </div>
                         <div className="min-w-0 flex-1">
-                          <p className="font-display text-lg font-bold text-white uppercase truncate">
-                            {t.holder_name || "Guest Attendee"}
-                          </p>
+                          <div className="flex items-center justify-between gap-2">
+                            <p className="font-display text-base sm:text-lg font-bold text-white uppercase truncate">
+                              {t.holder_name || "Guest Attendee"}
+                            </p>
+                            {t.total_amount != null && (
+                              <span className="rounded-full bg-emerald-500/20 border border-emerald-500/30 px-2.5 py-0.5 text-xs font-mono font-black text-emerald-400 shrink-0">
+                                {formatINR(t.total_amount)}
+                              </span>
+                            )}
+                          </div>
                           <p className="font-mono text-xs text-zinc-400 truncate">
                             {t.holder_email || "No email"}
                           </p>
@@ -856,18 +895,79 @@ export default function VolunteerScannerPage() {
                           />
                         </div>
                         <div className="mt-2 flex items-center justify-between text-[11px]">
-                          <span className="text-zinc-500">Tier: <strong className="text-zinc-300">{t.ticket_type || "General"}</strong></span>
+                          <span className="text-zinc-500">Tier: <strong className="text-zinc-300">{t.category || t.ticket_type || "General"}</strong></span>
                           <span className={cn("font-bold", remaining > 0 ? "text-emerald-400" : "text-rose-400")}>
                             {remaining > 0 ? `${remaining} Person(s) Pending Entry` : "All Persons Entered (Void)"}
                           </span>
                         </div>
                       </div>
 
-                      <div className="mt-1 grid grid-cols-2 gap-2 pt-2 border-t border-white/[0.06] text-xs">
+                      {/* Registered Attendees List */}
+                      {t.holder_names && t.holder_names.length > 0 && (
+                        <div className="rounded-xl border border-white/10 bg-white/[0.03] p-3">
+                          <div className="flex items-center justify-between text-xs mb-2">
+                            <span className="font-mono text-[10.5px] font-bold uppercase tracking-wider text-zinc-400">
+                              Registered Attendees ({t.holder_names.length})
+                            </span>
+                            <span className="text-[10px] font-mono text-cyan-400">
+                              {qty > 1 ? `Group Admission (${qty} Persons)` : "Single Entry"}
+                            </span>
+                          </div>
+                          <div className="flex flex-col gap-1.5 max-h-40 overflow-y-auto pr-1">
+                            {t.holder_names.map((name, idx) => (
+                              <div
+                                key={idx}
+                                className="flex items-center justify-between rounded-lg bg-black/50 px-2.5 py-1.5 border border-white/[0.06] text-xs"
+                              >
+                                <span className="text-zinc-200 font-medium flex items-center gap-2">
+                                  <span className="size-4 grid place-items-center rounded-full bg-cyan-500/20 text-cyan-300 text-[10px] font-mono font-bold">
+                                    {idx + 1}
+                                  </span>
+                                  {name}
+                                </span>
+                                {idx === 0 && (
+                                  <span className="text-[9.5px] font-bold text-cyan-400 uppercase tracking-wider">
+                                    Primary
+                                  </span>
+                                )}
+                              </div>
+                            ))}
+                          </div>
+                        </div>
+                      )}
+
+                      {/* Allocated Seats */}
+                      {t.seats && t.seats.length > 0 && (
+                        <div className="rounded-xl border border-amber-500/20 bg-amber-500/5 p-3">
+                          <div className="flex items-center justify-between text-xs mb-2">
+                            <span className="font-mono text-[10.5px] font-bold uppercase tracking-wider text-amber-400">
+                              Allocated Seats ({t.seats.length})
+                            </span>
+                          </div>
+                          <div className="flex flex-wrap gap-1.5">
+                            {t.seats.map((seat, idx) => (
+                              <span
+                                key={idx}
+                                className="rounded-md bg-amber-400/20 border border-amber-400/30 px-2 py-0.5 text-xs font-mono font-bold text-amber-300"
+                              >
+                                {seat}
+                              </span>
+                            ))}
+                          </div>
+                        </div>
+                      )}
+
+                      <div className="mt-1 grid grid-cols-3 gap-2 pt-2 border-t border-white/[0.06] text-xs">
                         <div>
                           <span className="text-[10px] uppercase text-zinc-500 font-bold">Booking</span>
                           <p className="font-mono text-xs font-semibold text-emerald-400">
                             {currentVerification.result.booking_status || "CONFIRMED"}
+                          </p>
+                        </div>
+                        <div>
+                          <span className="text-[10px] uppercase text-zinc-500 font-bold">Payment</span>
+                          <p className="font-mono text-xs font-semibold text-zinc-200">
+                            {t.payment_status || "PAID"} ({t.payment_method || "ONLINE"})
                           </p>
                         </div>
                         <div>

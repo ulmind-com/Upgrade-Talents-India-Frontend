@@ -319,10 +319,13 @@ export type MyTicket = {
   booking_ref?: string;
   event_id: string;
   ticket_type: string;
+  category?: string;
   holder_name: string;
   holder_names?: string[];
   holder_email: string;
   quantity?: number;
+  seats?: string[];
+  seat?: string;
   admitted_count?: number;
   remaining_count?: number;
   is_checked_in: boolean;
@@ -335,7 +338,11 @@ export type MyTicket = {
   event_time?: string;
   event_venue?: string;
   event_cover?: string;
+  event_image?: string;
   price?: number;
+  unit_price?: number;
+  total_price?: number;
+  total_amount?: number;
   base_price?: number;
   total_booking_amount?: number;
   payment_method?: string;
@@ -1172,7 +1179,10 @@ export interface TicketScanVerifyResult {
     holder_names?: string[];
     holder_email: string;
     ticket_type?: string;
+    category?: string;
     quantity: number;
+    seats?: string[];
+    seat?: string;
     admitted_count: number;
     remaining_count: number;
     is_checked_in: boolean;
@@ -1181,8 +1191,14 @@ export interface TicketScanVerifyResult {
     check_in_time: string | null;
     payment_method?: string;
     payment_status?: string;
+    total_amount?: number;
+    unit_price?: number;
   };
   event_title?: string;
+  event_date?: string;
+  event_time?: string;
+  event_venue?: string;
+  event_cover?: string;
   booking_reference?: string;
   booking_status: string;
 }
