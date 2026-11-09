@@ -547,7 +547,10 @@ export default function LeaderboardView({
   const categoryRows = useMemo(() => {
     if (activeCategory === "ALL") return allNormalizedRows;
 
-    const precalc = categoryLeaderboards[activeCategory];
+    const precalcKey = Object.keys(categoryLeaderboards).find(
+      (k) => k.trim().toLowerCase() === activeCategory.trim().toLowerCase()
+    );
+    const precalc = precalcKey ? categoryLeaderboards[precalcKey] : undefined;
     if (Array.isArray(precalc) && precalc.length > 0) {
       const scoredPrecalc = precalc.filter((r: any) => {
         const rawFinal = r.final_score ?? r.total_score ?? r.score ?? r.points;
@@ -587,7 +590,8 @@ export default function LeaderboardView({
     const counts: Record<string, number> = {};
     for (const cat of availableCategories) {
       const cClean = cat.trim().toLowerCase();
-      const precalc = categoryLeaderboards[cat];
+      const precalcKey = Object.keys(categoryLeaderboards).find((k) => k.trim().toLowerCase() === cClean);
+      const precalc = precalcKey ? categoryLeaderboards[precalcKey] : undefined;
       if (Array.isArray(precalc)) {
         counts[cat] = precalc.length;
       } else {

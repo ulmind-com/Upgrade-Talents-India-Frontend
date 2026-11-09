@@ -80,17 +80,22 @@ type Comp = {
 
 type Row = {
   rank?: number;
+  category_rank?: number;
   name?: string;
   participant_id?: string;
   email?: string;
   profile_photo?: string;
+  category?: string;
   audience_votes?: number;
   raw_audience_votes?: number;
   judge_score?: number;
   raw_judge_score?: number;
   final_score?: number;
+  points?: number;
   is_verified?: boolean;
   verified_badge?: boolean;
+  is_advancing?: boolean;
+  round_status?: string;
 };
 
 const nf = (n?: number) => new Intl.NumberFormat("en-IN").format(Math.round(Number(n ?? 0)));
@@ -393,6 +398,9 @@ export default function CompetitionDetail({
       : [];
 
   const [rows, setRows] = useState<Row[]>(initialRowsList);
+  const [leaderboardRound, setLeaderboardRound] = useState<number>(1);
+  const [leaderboardCategory, setLeaderboardCategory] = useState<string>("ALL");
+  const [categoryLeaderboards, setCategoryLeaderboards] = useState<Record<string, any[]>>({});
   const [isScorePublic, setIsScorePublic] = useState<boolean>(true);
   const [voted, setVoted] = useState<Set<string>>(new Set());
   const [votingId, setVotingId] = useState<string | null>(null);
@@ -478,38 +486,114 @@ export default function CompetitionDetail({
       ))
   );
 
-  // Authoritative live leaderboard loader
-  const loadLeaderboard = useCallback(async () => {
+  // Authoritative live leaderboard loader with tournament round & category support
+  const loadLeaderboard = useCallback(async (targetRound?: number) => {
     if (!id) return;
     try {
-      const data: any = await publicApi.leaderboard(id);
+      let rData = null;
+      try {
+        rData = await publicApi.rounds(id);
+        if (rData && Array.isArray(rData.rounds) && rData.rounds.length > 0) {
+          setRoundsData(rData);
+        }
+      } catch {
+        // Ignored
+      }
+
+      const activeR = targetRound ?? (rData?.current_round ?? 1);
+      setLeaderboardRound(activeR);
+
+      let data: any = null;
+      if (rData && Array.isArray(rData.rounds) && rData.rounds.length > 1) {
+        data = await publicApi.roundLeaderboard(id, activeR);
+      } else {
+        data = await publicApi.leaderboard(id);
+      }
+
       const pub = data?.score_visible_for_public !== undefined
         ? Boolean(data.score_visible_for_public)
         : (data?.is_published !== undefined ? Boolean(data.is_published) : Boolean((comp as any)?.score_visible_for_public ?? comp?.results_published ?? true));
       setIsScorePublic(pub);
+
+      if (data?.category_leaderboards && typeof data.category_leaderboards === "object") {
+        setCategoryLeaderboards(data.category_leaderboards);
+      }
+
       if (Array.isArray(data?.leaderboard)) {
         const mapped: Row[] = data.leaderboard.map((r: any) => ({
           ...r,
           audience_votes: r.audience_votes ?? r.raw_audience_votes ?? 0,
           final_score: r.final_score,
+          points: r.points ?? r.final_score,
           is_verified: Boolean(r.is_verified || r.verified_badge || r.verified_tick),
           verified_badge: Boolean(r.is_verified || r.verified_badge || r.verified_tick),
         }));
 
-        // Filter out un-scored registrations from the public preview
-        const scoredList = mapped.filter((r: any) => {
-          const pts = r.final_score ?? r.points ?? 0;
-          const j = r.judge_score ?? 0;
-          const v = r.audience_votes ?? 0;
-          return pts > 0 || j > 0 || v > 0 || Boolean(r.is_scored || r.has_scored);
-        });
-
-        setRows(scoredList);
+        setRows(mapped);
       }
     } catch (e) {
       console.warn("Could not fetch live leaderboard:", e);
     }
-  }, [id, user, isParticipant, enrollmentInfo, step]);
+  }, [id, comp]);
+
+  const leaderboardCategories = useMemo(() => {
+    const set = new Set<string>();
+    if (categoryLeaderboards && typeof categoryLeaderboards === "object") {
+      Object.keys(categoryLeaderboards).forEach((k) => k && set.add(k.trim()));
+    }
+    rows.forEach((r) => {
+      if (r.category && typeof r.category === "string" && r.category.trim()) {
+        set.add(r.category.trim());
+      }
+    });
+    const compCats = (comp as any)?.categories;
+    if (Array.isArray(compCats)) {
+      compCats.forEach((c: any) => {
+        const name = typeof c === "string" ? c : c?.name;
+        if (name && typeof name === "string" && name.trim()) set.add(name.trim());
+      });
+    }
+    if (set.size === 0) {
+      set.add("Sub-Junior");
+      set.add("Junior");
+      set.add("Senior");
+    }
+    return Array.from(set);
+  }, [categoryLeaderboards, rows, comp]);
+
+  const displayedRows = useMemo(() => {
+    let list = rows;
+    if (leaderboardCategory !== "ALL") {
+      const cClean = leaderboardCategory.trim().toLowerCase();
+      const precalcKey = Object.keys(categoryLeaderboards).find((k) => k.trim().toLowerCase() === cClean);
+      if (precalcKey && Array.isArray(categoryLeaderboards[precalcKey]) && categoryLeaderboards[precalcKey].length > 0) {
+        list = categoryLeaderboards[precalcKey].map((r: any) => ({
+          ...r,
+          audience_votes: r.audience_votes ?? r.raw_audience_votes ?? 0,
+          final_score: r.final_score,
+          points: r.points ?? r.final_score,
+          is_verified: Boolean(r.is_verified || r.verified_badge || r.verified_tick),
+          verified_badge: Boolean(r.is_verified || r.verified_badge || r.verified_tick),
+        }));
+      } else {
+        list = rows.filter((r) => (r.category || "General").trim().toLowerCase() === cClean);
+      }
+    }
+
+    // Sort descending: by final_score / points, then judge score, then votes
+    const sorted = [...list].sort((a: any, b: any) => {
+      const aPts = Number(a.final_score ?? a.points ?? a.judge_score ?? a.audience_votes ?? 0);
+      const bPts = Number(b.final_score ?? b.points ?? b.judge_score ?? b.audience_votes ?? 0);
+      if (bPts !== aPts) return bPts - aPts;
+      return Number(b.audience_votes ?? 0) - Number(a.audience_votes ?? 0);
+    });
+
+    return sorted.map((r, idx) => ({
+      ...r,
+      category_rank: idx + 1,
+      rank: leaderboardCategory !== "ALL" ? idx + 1 : (r.rank ?? (idx + 1)),
+    }));
+  }, [rows, leaderboardCategory, categoryLeaderboards]);
 
   // Fetch live leaderboard on mount & when competition changes
   useEffect(() => {
@@ -1782,6 +1866,85 @@ export default function CompetitionDetail({
             )}
           </div>
 
+          {/* Tournament Rounds / Knockout Stages Selector */}
+          {roundsData && Array.isArray(roundsData.rounds) && roundsData.rounds.length > 1 && (
+            <div className="mt-3 flex flex-wrap items-center gap-2">
+              <span className="text-[10.5px] font-bold uppercase tracking-wider text-[var(--fg-subtle)] mr-1 shrink-0">Stage:</span>
+              {roundsData.rounds.map((rd: any) => {
+                const isSel = leaderboardRound === rd.round_number;
+                const isLiveActive = rd.round_number === (roundsData?.current_round ?? 1);
+                const isDone = rd.status === "COMPLETED";
+                return (
+                  <button
+                    key={rd.round_number}
+                    type="button"
+                    onClick={() => {
+                      setLeaderboardRound(rd.round_number);
+                      loadLeaderboard(rd.round_number);
+                    }}
+                    className={cn(
+                      "cursor-pointer flex items-center gap-1.5 rounded-xl border px-3 py-1.5 text-xs font-bold transition-all shadow-2xs",
+                      isSel
+                        ? "border-amber-400 bg-amber-500/20 text-amber-200 ring-2 ring-amber-400/40 font-black shadow-sm"
+                        : "border-[var(--border)] bg-[var(--surface-2)] text-[var(--fg-muted)] hover:border-[var(--border-strong)] hover:text-white"
+                    )}
+                  >
+                    <span>{rd.name || `Round ${rd.round_number}`}</span>
+                    {isLiveActive ? (
+                      <span className="rounded-full bg-emerald-500/25 border border-emerald-500/40 px-1.5 py-0.2 text-[9px] font-extrabold text-emerald-300 animate-pulse">
+                        Active Stage
+                      </span>
+                    ) : isDone ? (
+                      <span className="rounded-full bg-slate-500/20 border border-slate-500/30 px-1.5 py-0.2 text-[9px] font-bold text-slate-300">
+                        Completed
+                      </span>
+                    ) : null}
+                    {rd.is_final_round && <span className="text-[10px]">👑 Final</span>}
+                  </button>
+                );
+              })}
+            </div>
+          )}
+
+          {/* Category Filter Pills (Sub-Junior, Junior, Senior) */}
+          {leaderboardCategories.length > 0 && (
+            <div className="mt-2.5 flex flex-wrap items-center gap-1.5 pb-1">
+              <span className="text-[10.5px] font-bold uppercase tracking-wider text-[var(--fg-subtle)] mr-1 shrink-0">Category:</span>
+              <button
+                type="button"
+                onClick={() => setLeaderboardCategory("ALL")}
+                className={cn(
+                  "cursor-pointer rounded-full px-3 py-1 text-xs font-bold transition-all whitespace-nowrap",
+                  leaderboardCategory === "ALL"
+                    ? "bg-[var(--accent)] text-white shadow-sm font-black"
+                    : "border border-[var(--border)] bg-[var(--surface-2)] text-[var(--fg-muted)] hover:text-white"
+                )}
+              >
+                All Categories ({rows.length})
+              </button>
+              {leaderboardCategories.map((cat) => {
+                const count = rows.filter(
+                  (r) => (r.category || "General").trim().toLowerCase() === cat.trim().toLowerCase()
+                ).length;
+                return (
+                  <button
+                    key={cat}
+                    type="button"
+                    onClick={() => setLeaderboardCategory(cat)}
+                    className={cn(
+                      "cursor-pointer rounded-full px-3 py-1 text-xs font-bold transition-all whitespace-nowrap",
+                      leaderboardCategory === cat
+                        ? "bg-violet-600 text-white shadow-sm font-black"
+                        : "border border-[var(--border)] bg-[var(--surface-2)] text-[var(--fg-muted)] hover:text-violet-300"
+                    )}
+                  >
+                    {cat} {count > 0 ? `(${count})` : ""}
+                  </button>
+                );
+              })}
+            </div>
+          )}
+
           {!isScorePublic ? (
             <div className="mt-4 flex flex-col items-center justify-center rounded-2xl border border-amber-500/30 bg-amber-500/10 p-6 text-center">
               <Lock className="size-6 text-amber-400 mb-2" />
@@ -1790,25 +1953,45 @@ export default function CompetitionDetail({
                 Judges are evaluating live performances. Full scores and rankings will be revealed once the official results are published.
               </p>
             </div>
-          ) : rows.length === 0 ? (
+          ) : displayedRows.length === 0 ? (
             <div className="mt-4 flex flex-col items-center justify-center rounded-2xl border border-dashed border-[var(--border)] bg-[var(--surface-2)]/40 p-8 text-center backdrop-blur-sm">
               <div className="flex size-12 items-center justify-center rounded-2xl bg-[var(--surface-3)] text-[var(--fg-muted)] mb-3">
                 <Trophy className="size-6 text-[var(--accent)]" />
               </div>
-              <p className="text-sm font-semibold text-white">Live standings pending</p>
-              <p className="mt-1 text-xs text-[var(--fg-muted)] max-w-sm">
-                Official scores and rankings will appear here as contestants perform and judges score entries.
+              <p className="text-sm font-semibold text-white">
+                {leaderboardRound > 1
+                  ? `Round ${leaderboardRound} standings in preparation`
+                  : "Live standings pending"}
               </p>
+              <p className="mt-1 text-xs text-[var(--fg-muted)] max-w-sm">
+                {leaderboardRound > 1
+                  ? `Contestants are actively performing for Round ${leaderboardRound}. Switch to Round 1 above to review preliminary stage results.`
+                  : "Official scores and rankings will appear here as contestants perform and judges score entries."}
+              </p>
+              {leaderboardRound > 1 && (
+                <button
+                  type="button"
+                  onClick={() => {
+                    setLeaderboardRound(1);
+                    loadLeaderboard(1);
+                  }}
+                  className="mt-3 cursor-pointer inline-flex items-center gap-1.5 rounded-xl border border-amber-500/40 bg-amber-500/15 px-3 py-1.5 text-xs font-bold text-amber-300 hover:bg-amber-500/25 transition-all"
+                >
+                  View Round 1 Standings →
+                </button>
+              )}
             </div>
           ) : (
             <div className="mt-4 overflow-hidden rounded-[var(--radius-lg)] border border-[var(--border)] bg-[var(--surface)] shadow-md">
-              {rows.slice(0, 8).map((r, i) => {
+              {displayedRows.slice(0, 12).map((r, i) => {
                 const pid = r.participant_id || r.email || "";
                 const top = (r.rank ?? i + 1) <= 3;
                 const isSelfRow =
                   Boolean(user?.email) &&
                   (r.email?.toLowerCase() === user?.email?.toLowerCase() ||
                     r.participant_id?.toLowerCase() === user?.email?.toLowerCase());
+
+                const isFinalist = leaderboardRound > 1 || Boolean(r.is_advancing || r.round_status === "QUALIFIED");
 
                 return (
                   <div key={pid + i} className="flex items-center gap-3 border-t border-[var(--border)] px-4 py-3 first:border-t-0">
@@ -1844,8 +2027,27 @@ export default function CompetitionDetail({
                             You
                           </span>
                         )}
+                        {r.category && (
+                          <span className="rounded-full bg-violet-500/15 border border-violet-500/30 px-2 py-0.5 text-[10px] font-bold text-violet-300">
+                            {r.category}
+                          </span>
+                        )}
+                        {isFinalist && (
+                          <span className="rounded-full bg-amber-500/15 border border-amber-500/30 px-2 py-0.5 text-[10px] font-extrabold text-amber-300 flex items-center gap-1">
+                            <span>👑</span>
+                            <span>{leaderboardRound === 2 ? "Semi-Finalist" : leaderboardRound > 2 ? "Finalist" : "Qualifier"}</span>
+                          </span>
+                        )}
                       </div>
-                      <p className="truncate text-[11px] text-[var(--fg-subtle)]">{nf(r.audience_votes)} votes</p>
+                      <div className="flex items-center gap-2 mt-0.5 text-[11px] text-[var(--fg-subtle)] flex-wrap">
+                        <span className="font-medium text-emerald-400">{nf(r.audience_votes)} votes</span>
+                        {r.judge_score != null && Number(r.judge_score) > 0 && (
+                          <span>• Judge: <strong className="text-white">{r.judge_score} pts</strong></span>
+                        )}
+                        {(r.final_score != null && Number(r.final_score) > 0) && (
+                          <span>• Total: <strong className="text-amber-400 font-bold">{nf(r.final_score)} pts</strong></span>
+                        )}
+                      </div>
                     </div>
                     {isVotingOpen ? (
                       isSelfRow ? (
@@ -1881,7 +2083,7 @@ export default function CompetitionDetail({
                         </button>
                       )
                     ) : (
-                      <span className="text-[11px] font-mono text-[var(--fg-subtle)]">
+                      <span className="text-[11px] font-mono font-bold text-amber-400">
                         {r.final_score != null ? `${nf(r.final_score)} pts` : `${nf(r.audience_votes)} votes`}
                       </span>
                     )}
