@@ -47,6 +47,8 @@ export default function JudgeDashboardPage() {
   const [selectedComp, setSelectedComp] = useState<JudgeCompetition | null>(null);
   const [roundsData, setRoundsData] = useState<any | null>(null);
   const [selectedRound, setSelectedRound] = useState<number>(1);
+  const selectedRoundRef = useRef<number>(1);
+  selectedRoundRef.current = selectedRound;
   const [contestants, setContestants] = useState<JudgeContestant[]>([]);
   const [loading, setLoading] = useState(true);
   const [contestantsLoading, setContestantsLoading] = useState(false);
@@ -139,7 +141,7 @@ export default function JudgeDashboardPage() {
   const loadContestantsForComp = useCallback(async (compId: string, roundNum?: number) => {
     setContestantsLoading(true);
     try {
-      const activeR = roundNum ?? 1;
+      const activeR = roundNum ?? selectedRoundRef.current ?? 1;
       const [data, lb] = await Promise.all([
         judgeCompetitionsApi.listContestants(compId, { round_number: activeR }),
         activeR > 1
@@ -149,15 +151,43 @@ export default function JudgeDashboardPage() {
 
       const lbRows = Array.isArray(lb?.leaderboard) ? lb.leaderboard : [];
       const userMap = new Map<string, { name?: string; profile_photo?: string }>();
+      const qualifiedEmailSet = new Set<string>();
+      const qualifiedIdSet = new Set<string>();
+
       for (const r of lbRows) {
-        const em = (r.email || r.participant_id || "").toLowerCase().trim();
+        const em = (r.email || r.participant_id || r.user_email || "").toLowerCase().trim();
         if (em) {
           userMap.set(em, { name: r.name, profile_photo: r.profile_photo });
+          qualifiedEmailSet.add(em);
+        }
+        const rid = String(r.registration_id || r._id || "").trim();
+        if (rid) {
+          qualifiedIdSet.add(rid);
         }
       }
 
       const rawList = Array.isArray(data) ? data : [];
-      const enriched: JudgeContestant[] = rawList.map((c: any) => {
+
+      // If active round is greater than 1 (Semi-Final, Grand Finale, etc.),
+      // strictly filter so only qualified finalists appear.
+      // Non-qualifiers or eliminated contestants from earlier rounds MUST NOT appear.
+      let eligibleList = rawList;
+      if (activeR > 1) {
+        eligibleList = rawList.filter((c: any) => {
+          if (c.round_status === "ELIMINATED") return false;
+          const em = (c.user_email || "").toLowerCase().trim();
+          const rid = String(c.registration_id || c._id || "").trim();
+          if (qualifiedEmailSet.size > 0 || qualifiedIdSet.size > 0) {
+            return qualifiedEmailSet.has(em) || qualifiedIdSet.has(rid);
+          }
+          if (Array.isArray(c.qualified_rounds)) {
+            return c.qualified_rounds.includes(activeR);
+          }
+          return true;
+        });
+      }
+
+      const enriched: JudgeContestant[] = eligibleList.map((c: any) => {
         const em = (c.user_email || "").toLowerCase().trim();
         const info = userMap.get(em);
 
@@ -316,11 +346,9 @@ export default function JudgeDashboardPage() {
     judgeCompetitionsApi.rounds(selectedComp._id)
       .then((rd) => {
         setRoundsData(rd);
-        if (rd?.current_round) {
-          setSelectedRound(rd.current_round);
-        } else {
-          setSelectedRound(1);
-        }
+        const targetR = rd?.current_round || 1;
+        setSelectedRound(targetR);
+        selectedRoundRef.current = targetR;
       })
       .catch(() => setRoundsData(null));
   }, [selectedComp?._id]);
@@ -328,6 +356,7 @@ export default function JudgeDashboardPage() {
   // Reload contestants when competition or selected round changes
   useEffect(() => {
     if (!selectedComp?._id) return;
+    selectedRoundRef.current = selectedRound;
     setActiveContestant(null);
     loadContestantsForComp(selectedComp._id, selectedRound);
   }, [selectedComp?._id, selectedRound, loadContestantsForComp]);
@@ -482,7 +511,7 @@ export default function JudgeDashboardPage() {
       );
       setTimeout(() => {
         if (selectedComp) {
-          loadContestantsForComp(selectedComp._id);
+          loadContestantsForComp(selectedComp._id, selectedRoundRef.current);
         }
       }, 1500);
     } catch (err: any) {
@@ -504,7 +533,7 @@ export default function JudgeDashboardPage() {
       setShowPinModal(false);
       setSessionPin("");
       // Reload contestants
-      loadContestantsForComp(selectedComp._id);
+      loadContestantsForComp(selectedComp._id, selectedRoundRef.current);
     } catch (err: any) {
       setPinError(err?.message || "Invalid Session PIN. Please ask event coordinators.");
     } finally {
@@ -837,7 +866,14 @@ export default function JudgeDashboardPage() {
                       <button
                         key={rd.round_number}
                         type="button"
-                        onClick={() => setSelectedRound(rd.round_number)}
+                        onClick={() => {
+                          setSelectedRound(rd.round_number);
+                          selectedRoundRef.current = rd.round_number;
+                          if (selectedComp?._id) {
+                            setActiveContestant(null);
+                            loadContestantsForComp(selectedComp._id, rd.round_number);
+                          }
+                        }}
                         className={cn(
                           "flex items-center gap-2 rounded-xl border px-3.5 py-2 text-xs font-bold transition-all shadow-xs cursor-pointer",
                           isSelected
@@ -925,7 +961,7 @@ export default function JudgeDashboardPage() {
                 <Button
                   variant="outline"
                   size="sm"
-                  onClick={() => selectedComp && loadContestantsForComp(selectedComp._id)}
+                  onClick={() => selectedComp && loadContestantsForComp(selectedComp._id, selectedRoundRef.current)}
                   className="gap-2 self-start sm:self-auto"
                   disabled={contestantsLoading}
                 >
@@ -1069,7 +1105,7 @@ export default function JudgeDashboardPage() {
                     </div>
 
                     <div className="flex items-center gap-2">
-                      <Button variant="ghost" size="sm" onClick={() => selectedComp && loadContestantsForComp(selectedComp._id)}>
+                      <Button variant="ghost" size="sm" onClick={() => selectedComp && loadContestantsForComp(selectedComp._id, selectedRoundRef.current)}>
                         <RefreshCw className={cn("size-3.5", contestantsLoading && "animate-spin")} />
                       </Button>
                     </div>
