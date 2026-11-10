@@ -11,7 +11,7 @@ import { Reveal, StaggerGroup, StaggerItem, SplitHeading, Parallax } from "@/com
 import { Badge, Button, Magnetic, SectionLabel, Spotlights, TiltCard } from "@/components/ui/Primitives";
 import { GooglePlayIcon, AppleIcon } from "@/components/ui/Icons";
 import { cn, formatINR, imageFor, isUsableImageUrl, splitDate, truncate, isEventExpired, isDeadlinePassed } from "@/lib/utils";
-import type { BannerItem, ContestPromotion, CourseItem, EventItem, HomepageStatItem, LiveEventItem, TestimonialItem } from "@/lib/api";
+import type { BannerItem, ContestPromotion, CourseItem, EventItem, HomepageStatItem, LiveEventItem, TestimonialItem, PartnersSectionConfig } from "@/lib/api";
 import CoverflowCarousel from "./CoverflowCarousel";
 
 /* ═══════════ MARQUEE TICKER ═══════════ */
@@ -525,35 +525,69 @@ export function ContestBand({
   );
 }
 
-/* ═══════════ SPONSORS ═══════════ */
+/* ═══════════ SPONSORS & PARTNERS ═══════════ */
 
-export function Sponsors({ items }: { items: BannerItem[] }) {
-  if (!items?.length) return null;
-  const list = [...items, ...items];
+export function Sponsors({
+  items = [],
+  partnersSection,
+}: {
+  items?: BannerItem[];
+  partnersSection?: PartnersSectionConfig;
+}) {
+  const label = partnersSection?.label || "Powered by our partners";
+
+  // Prioritize dedicated partners configured by admin
+  const configuredPartners = (partnersSection?.partners || [])
+    .filter((p) => p.is_active !== false && isUsableImageUrl(p.logo_url))
+    .map((p, idx) => ({
+      id: p.id || `partner-${idx}`,
+      name: p.name || "Partner",
+      logo_url: p.logo_url,
+      website_url: p.website_url || "#",
+    }));
+
+  const fallbackPartners = (items || [])
+    .filter((b) => isUsableImageUrl(b.image_url))
+    .map((b) => ({
+      id: b._id,
+      name: b.sponsor_name || b.title || "Partner",
+      logo_url: b.image_url || "",
+      website_url: b.target_url || "#",
+    }));
+
+  const rawList = configuredPartners.length > 0 ? configuredPartners : fallbackPartners;
+  if (!rawList.length) return null;
+
+  // Duplicate for smooth seamless infinite marquee
+  const list = [...rawList, ...rawList];
 
   return (
-    <section className="relative overflow-hidden border-y border-[var(--border)] py-12">
-      <div className="container-x mb-8">
-        <SectionLabel>Powered by our partners</SectionLabel>
+    <section className="relative overflow-hidden border-y border-[var(--border)] py-10 sm:py-12 bg-[var(--surface-1)]/30">
+      <div className="container-x mb-6 sm:mb-8 flex items-center justify-between">
+        <SectionLabel>{label}</SectionLabel>
       </div>
-      <div className="relative">
-        <div className="marquee-track items-center gap-14">
+      <div className="relative w-full overflow-hidden">
+        {/* Subtle Edge Blur Gradients */}
+        <div className="pointer-events-none absolute left-0 inset-y-0 w-12 sm:w-28 bg-gradient-to-r from-[var(--bg)] to-transparent z-10" />
+        <div className="pointer-events-none absolute right-0 inset-y-0 w-12 sm:w-28 bg-gradient-to-l from-[var(--bg)] to-transparent z-10" />
+
+        <div className="marquee-track items-center gap-10 sm:gap-14">
           {[0, 1].map((dup) => (
-            <div key={dup} className="flex shrink-0 items-center gap-14 pr-14">
+            <div key={dup} className="flex shrink-0 items-center gap-10 sm:gap-14 pr-10 sm:pr-14">
               {list.map((b, i) => (
                 <a
-                  key={`${dup}-${b._id}-${i}`}
-                  href={b.target_url || "#"}
-                  target={b.target_url ? "_blank" : undefined}
+                  key={`${dup}-${b.id}-${i}`}
+                  href={b.website_url || "#"}
+                  target={b.website_url && b.website_url !== "#" ? "_blank" : undefined}
                   rel="noopener noreferrer"
-                  className="group flex h-16 shrink-0 items-center opacity-55 grayscale transition-all duration-500 hover:opacity-100 hover:grayscale-0"
-                  aria-label={b.sponsor_name || b.title}
+                  className="group flex h-14 sm:h-16 shrink-0 items-center px-4 py-2 rounded-xl bg-white/[0.04] border border-white/10 shadow-sm transition-all duration-300 hover:bg-white/[0.08] hover:border-white/25 hover:scale-108 cursor-pointer"
+                  aria-label={b.name}
                 >
-                  {isUsableImageUrl(b.image_url) ? (
+                  {isUsableImageUrl(b.logo_url) ? (
                     <img
-                      src={b.image_url}
-                      alt={b.sponsor_name || b.title}
-                      className="h-full w-auto max-w-[180px] object-contain"
+                      src={b.logo_url}
+                      alt={b.name}
+                      className="h-8 sm:h-10 w-auto max-w-[140px] sm:max-w-[170px] object-contain drop-shadow transition-transform duration-300 group-hover:scale-105"
                       loading="lazy"
                       onError={(e) => {
                         const img = e.currentTarget;
@@ -563,10 +597,10 @@ export function Sponsors({ items }: { items: BannerItem[] }) {
                     />
                   ) : null}
                   <span
-                    hidden={isUsableImageUrl(b.image_url)}
-                    className="whitespace-nowrap text-lg font-semibold tracking-tight text-[var(--fg)]"
+                    hidden={isUsableImageUrl(b.logo_url)}
+                    className="whitespace-nowrap text-base sm:text-lg font-bold tracking-tight text-white/90 group-hover:text-white"
                   >
-                    {b.sponsor_name || b.title}
+                    {b.name}
                   </span>
                 </a>
               ))}

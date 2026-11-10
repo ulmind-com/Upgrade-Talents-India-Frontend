@@ -97,7 +97,10 @@ export default async function HomePage() {
         banners={data.sponsored_banners}
         spotlightSection={data.spotlight_section}
       />
-      <Sponsors items={data.sponsored_banners} />
+      <Sponsors
+        items={data.sponsored_banners}
+        partnersSection={data.partners_section}
+      />
       <AppPromo promo={data.app_promotion} />
     </>
   );
