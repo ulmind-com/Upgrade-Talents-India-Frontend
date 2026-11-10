@@ -8,7 +8,14 @@ import {
   CalendarDays, Users, Clock, Hourglass, Trophy, ShoppingBag, GraduationCap,
   ArrowUpRight, Sparkles,
 } from "lucide-react";
-import type { BannerItem, EventItem, FeaturedTileItem, LiveEventItem } from "@/lib/api";
+import type { BannerItem, EventItem, FeaturedTileItem, LiveEventItem, SpotlightSectionConfig } from "@/lib/api";
+import {
+  SiFacebook,
+  SiInstagram,
+  SiX,
+  SiYoutube,
+  SiLinkedin,
+} from "@/components/common/SocialIcons";
 import { formatEventDate, imageFor, istParts, isUsableImageUrl, parseIst, truncate } from "@/lib/utils";
 import { getCompetitionLifecycle } from "@/lib/competition-lifecycle";
 import { SectionLabel } from "@/components/ui/Primitives";
@@ -710,34 +717,116 @@ const CURATED_STAGE_MOMENTS = [
   },
 ];
 
+function getSpotlightIcon(platform?: string, url?: string) {
+  const p = (platform || "").toLowerCase();
+  const u = (url || "").toLowerCase();
+  if (p === "youtube" || u.includes("youtube.com") || u.includes("youtu.be")) return SiYoutube;
+  if (p === "facebook" || u.includes("facebook.com") || u.includes("fb.watch")) return SiFacebook;
+  if (p === "x" || p === "twitter" || u.includes("twitter.com") || u.includes("x.com")) return SiX;
+  if (p === "linkedin" || u.includes("linkedin.com")) return SiLinkedin;
+  return SiInstagram;
+}
+
 export function PhotoStrip({
   events = [],
   banners = [],
   handle = "upgradetalents",
+  spotlightSection,
 }: {
   events?: EventItem[];
   banners?: BannerItem[];
   handle?: string;
+  spotlightSection?: SpotlightSectionConfig;
 }) {
-  // Extract genuine event stage photos
-  const eventShots = events
-    .filter((e) => isUsableImageUrl(e.image_url))
-    .map((e) => ({
-      id: e._id,
-      src: e.image_url,
-      title: e.title || "Live Stage Performance",
-      category: (e as any).category || e.venue || "Stage Event",
-      tag: "Live Stage",
-      href: `/events/${e._id}`,
-    }));
+  const sectionLabel = spotlightSection?.label || "Live Stage Moments";
+  const sectionTitle = spotlightSection?.title || "Moments in the Spotlight";
+  const sectionSubtitle =
+    spotlightSection?.subtitle ||
+    "Raw passion, electrifying rhythm, and pure stage energy from our dancers and performers across India.";
+  const effectiveHandle = spotlightSection?.handle || handle || "upgradetalents";
+  const followText = spotlightSection?.follow_text || `Follow @${effectiveHandle} on Instagram`;
+  const followUrl = spotlightSection?.follow_url || `https://instagram.com/${effectiveHandle}`;
+  const FollowIcon = getSpotlightIcon("", followUrl);
 
-  // Build the list of showcase moments: prioritizing real event shots, backed by curated high-res stage photos
-  const baseShots = eventShots.length >= 4
-    ? eventShots
-    : [...eventShots, ...CURATED_STAGE_MOMENTS.slice(eventShots.length)];
+  // Check if configured spotlight items exist
+  const configuredItems = (spotlightSection?.items || [])
+    .filter((item) => isUsableImageUrl(item.image_url))
+    .map((item, idx) => {
+      const isExternal = Boolean(item.post_url && /^https?:\/\//i.test(item.post_url));
+      return {
+        id: item.id || `spotlight-${idx}`,
+        src: item.image_url,
+        title: item.title || "Live Stage Performance",
+        category: item.category || "Social Spotlight",
+        tag: item.tag || "Live Stage",
+        href: item.post_url || `https://instagram.com/${effectiveHandle}`,
+        platform: item.platform || "instagram",
+        isExternal,
+      };
+    });
 
-  // Slice to 8 items for a balanced continuous marquee
-  const list = baseShots.slice(0, 8);
+  let list: Array<{
+    id: string;
+    src: string;
+    title: string;
+    category: string;
+    tag: string;
+    href: string;
+    platform: string;
+    isExternal: boolean;
+  }>;
+
+  if (configuredItems.length > 0) {
+    list = configuredItems;
+    // For smooth infinite marquee looping, we want at least 8 items
+    if (list.length < 8) {
+      const missingCount = 8 - list.length;
+      const padding = CURATED_STAGE_MOMENTS.slice(0, missingCount).map((c, i) => ({
+        id: `curated-pad-${i}`,
+        src: c.src,
+        title: c.title,
+        category: c.category,
+        tag: c.tag,
+        href: c.href,
+        platform: "instagram",
+        isExternal: /^https?:\/\//i.test(c.href),
+      }));
+      list = [...list, ...padding];
+    }
+  } else {
+    // Extract genuine event stage photos as fallback
+    const eventShots = events
+      .filter((e) => isUsableImageUrl(e.image_url))
+      .map((e) => ({
+        id: e._id,
+        src: e.image_url || "",
+        title: e.title || "Live Stage Performance",
+        category: (e as any).category || e.venue || "Stage Event",
+        tag: "Live Stage",
+        href: `/events/${e._id}`,
+        platform: "instagram",
+        isExternal: false,
+      }));
+
+    const baseShots =
+      eventShots.length >= 4
+        ? eventShots
+        : [
+            ...eventShots,
+            ...CURATED_STAGE_MOMENTS.slice(eventShots.length).map((c, i) => ({
+              id: `curated-${i}`,
+              src: c.src,
+              title: c.title,
+              category: c.category,
+              tag: c.tag,
+              href: c.href,
+              platform: "instagram",
+              isExternal: /^https?:\/\//i.test(c.href),
+            })),
+          ];
+
+    list = baseShots.slice(0, 8);
+  }
 
   return (
     <section className="relative overflow-hidden py-14 sm:py-20 md:py-24 border-t border-[var(--border)]">
@@ -750,12 +839,12 @@ export function PhotoStrip({
 
       {/* Section Header */}
       <div className="container-x mb-8 sm:mb-12 text-center flex flex-col items-center">
-        <SectionLabel>Live Stage Moments</SectionLabel>
+        <SectionLabel>{sectionLabel}</SectionLabel>
         <h2 className="mt-3 font-display text-[clamp(1.85rem,4.5vw,3.2rem)] font-bold uppercase tracking-tight text-[var(--fg)]">
-          Moments in the Spotlight
+          {sectionTitle}
         </h2>
         <p className="mt-2 max-w-xl text-[13.5px] sm:text-[15px] text-[var(--fg-muted)] leading-relaxed">
-          Raw passion, electrifying rhythm, and pure stage energy from our dancers and performers across India.
+          {sectionSubtitle}
         </p>
       </div>
 
@@ -768,53 +857,76 @@ export function PhotoStrip({
         <div className="marquee-track marquee-track-slow flex items-center">
           {[0, 1].map((dup) => (
             <div key={dup} className="flex shrink-0 items-center gap-5 sm:gap-6 md:gap-7 pr-5 sm:pr-6 md:pr-7">
-              {list.map((s, i) => (
-                <Link
-                  key={`${dup}-${s.id}-${i}`}
-                  href={s.href}
-                  aria-label={`View ${s.title}`}
-                  className="group relative shrink-0 w-[240px] sm:w-[280px] md:w-[310px] aspect-[4/5] rounded-[22px] sm:rounded-[26px] overflow-hidden border border-white/10 bg-[var(--surface-2)] shadow-xl transition-all duration-500 hover:border-[var(--accent)] hover:shadow-2xl hover:shadow-[var(--accent)]/15 hover:scale-[1.02] cursor-pointer block"
-                >
-                  {/* Photo with smooth zoom on hover */}
-                  <img
-                    src={imageFor(s.src, i)}
-                    alt={s.title}
-                    loading="lazy"
-                    className="size-full object-cover transition-transform duration-700 ease-[cubic-bezier(0.16,1,0.3,1)] group-hover:scale-108"
-                  />
+              {list.map((s, i) => {
+                const CardIcon = getSpotlightIcon(s.platform, s.href);
+                const cardContent = (
+                  <>
+                    {/* Photo with smooth zoom on hover */}
+                    <img
+                      src={imageFor(s.src, i)}
+                      alt={s.title}
+                      loading="lazy"
+                      className="size-full object-cover transition-transform duration-700 ease-[cubic-bezier(0.16,1,0.3,1)] group-hover:scale-108"
+                    />
 
-                  {/* Dark Vignette / Cinematic Scrim */}
-                  <div
-                    aria-hidden
-                    className="absolute inset-0 bg-gradient-to-t from-black/92 via-black/35 to-black/15 transition-opacity duration-300"
-                  />
+                    {/* Dark Vignette / Cinematic Scrim */}
+                    <div
+                      aria-hidden
+                      className="absolute inset-0 bg-gradient-to-t from-black/92 via-black/35 to-black/15 transition-opacity duration-300"
+                    />
 
-                  {/* Top Bar Badges */}
-                  <div className="absolute top-3.5 inset-x-3.5 flex items-center justify-between pointer-events-none z-10">
-                    <span className="rounded-full bg-black/60 backdrop-blur-md border border-white/15 px-2.5 py-1 text-[10px] font-mono font-semibold text-white/95 flex items-center gap-1.5 shadow-sm">
-                      <span className="size-1.5 rounded-full bg-emerald-400 animate-pulse" />
-                      {s.tag || "Live Stage"}
-                    </span>
-                    <span className="grid size-8 place-items-center rounded-full bg-black/60 backdrop-blur-md border border-white/15 text-white/90 group-hover:text-pink-400 group-hover:border-pink-500/50 group-hover:scale-110 transition-all shadow-sm">
-                      <Instagram className="size-4" />
-                    </span>
-                  </div>
-
-                  {/* Bottom Caption & Details */}
-                  <div className="absolute bottom-0 inset-x-0 p-4 sm:p-5 z-10 flex flex-col gap-1 text-left">
-                    <span className="font-mono text-[10px] font-bold uppercase tracking-wider text-cyan-300 truncate block">
-                      {s.category}
-                    </span>
-                    <h3 className="font-display text-sm sm:text-base font-bold text-white tracking-tight leading-snug truncate block group-hover:text-[var(--accent)] transition-colors">
-                      {s.title}
-                    </h3>
-                    <div className="mt-1 flex items-center gap-1 text-[11px] font-semibold text-white/75 group-hover:text-white transition-colors">
-                      <span>Explore stage</span>
-                      <ArrowUpRight className="size-3.5 group-hover:translate-x-0.5 group-hover:-translate-y-0.5 transition-transform" />
+                    {/* Top Bar Badges */}
+                    <div className="absolute top-3.5 inset-x-3.5 flex items-center justify-between pointer-events-none z-10">
+                      <span className="rounded-full bg-black/60 backdrop-blur-md border border-white/15 px-2.5 py-1 text-[10px] font-mono font-semibold text-white/95 flex items-center gap-1.5 shadow-sm">
+                        <span className="size-1.5 rounded-full bg-emerald-400 animate-pulse" />
+                        {s.tag || "Live Stage"}
+                      </span>
+                      <span className="grid size-8 place-items-center rounded-full bg-black/60 backdrop-blur-md border border-white/15 text-white/90 group-hover:text-pink-400 group-hover:border-pink-500/50 group-hover:scale-110 transition-all shadow-sm">
+                        <CardIcon className="size-4" />
+                      </span>
                     </div>
-                  </div>
-                </Link>
-              ))}
+
+                    {/* Bottom Caption & Details */}
+                    <div className="absolute bottom-0 inset-x-0 p-4 sm:p-5 z-10 flex flex-col gap-1 text-left">
+                      <span className="font-mono text-[10px] font-bold uppercase tracking-wider text-cyan-300 truncate block">
+                        {s.category}
+                      </span>
+                      <h3 className="font-display text-sm sm:text-base font-bold text-white tracking-tight leading-snug truncate block group-hover:text-[var(--accent)] transition-colors">
+                        {s.title}
+                      </h3>
+                      <div className="mt-1 flex items-center gap-1 text-[11px] font-semibold text-white/75 group-hover:text-white transition-colors">
+                        <span>{s.isExternal ? "Open link" : "Explore stage"}</span>
+                        <ArrowUpRight className="size-3.5 group-hover:translate-x-0.5 group-hover:-translate-y-0.5 transition-transform" />
+                      </div>
+                    </div>
+                  </>
+                );
+
+                const cardClasses =
+                  "group relative shrink-0 w-[240px] sm:w-[280px] md:w-[310px] aspect-[4/5] rounded-[22px] sm:rounded-[26px] overflow-hidden border border-white/10 bg-[var(--surface-2)] shadow-xl transition-all duration-500 hover:border-[var(--accent)] hover:shadow-2xl hover:shadow-[var(--accent)]/15 hover:scale-[1.02] cursor-pointer block";
+
+                return s.isExternal ? (
+                  <a
+                    key={`${dup}-${s.id}-${i}`}
+                    href={s.href}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    aria-label={`View ${s.title}`}
+                    className={cardClasses}
+                  >
+                    {cardContent}
+                  </a>
+                ) : (
+                  <Link
+                    key={`${dup}-${s.id}-${i}`}
+                    href={s.href}
+                    aria-label={`View ${s.title}`}
+                    className={cardClasses}
+                  >
+                    {cardContent}
+                  </Link>
+                );
+              })}
             </div>
           ))}
         </div>
@@ -823,13 +935,13 @@ export function PhotoStrip({
       {/* Bottom Follow Callout Button */}
       <div className="mt-8 sm:mt-12 flex justify-center container-x">
         <a
-          href={`https://instagram.com/${handle}`}
+          href={followUrl}
           target="_blank"
           rel="noopener noreferrer"
           className="group inline-flex items-center gap-2.5 rounded-full border border-pink-500/30 bg-gradient-to-r from-purple-500/10 via-pink-500/10 to-amber-500/10 px-5 sm:px-6 py-2.5 text-xs sm:text-sm font-semibold text-white shadow-lg transition-all duration-300 hover:border-pink-500/60 hover:bg-gradient-to-r hover:from-purple-500/20 hover:via-pink-500/20 hover:to-amber-500/20 hover:scale-105 active:scale-95 cursor-pointer"
         >
-          <Instagram className="size-4 text-pink-400 group-hover:rotate-6 transition-transform" />
-          <span>Follow @{handle} on Instagram</span>
+          <FollowIcon className="size-4 text-pink-400 group-hover:rotate-6 transition-transform" />
+          <span>{followText}</span>
           <ArrowUpRight className="size-3.5 text-white/60 group-hover:text-white transition-colors" />
         </a>
       </div>
