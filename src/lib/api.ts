@@ -319,6 +319,21 @@ export type HomepagePayload = {
     images?: { id?: string; image_url: string; caption?: string }[];
   };
   spotlight_section?: SpotlightSectionConfig;
+  partners_section?: PartnersSectionConfig;
+};
+
+export type PartnerItem = {
+  id?: string;
+  name: string;
+  logo_url: string;
+  website_url?: string;
+  is_active?: boolean;
+};
+
+export type PartnersSectionConfig = {
+  label?: string;
+  title?: string;
+  partners?: PartnerItem[];
 };
 
 export type SpotlightMomentItem = {
@@ -396,6 +411,7 @@ export const publicApi = {
   featuredTiles: () => apiFetch<FeaturedTileItem[]>("/api/v1/featured-tiles", { revalidate: 15 }),
   stageMoments: () => apiFetch<any>("/api/v1/stage-moments", { revalidate: 15 }),
   spotlightSection: () => apiFetch<SpotlightSectionConfig>("/api/v1/spotlight-section", { revalidate: 15 }),
+  partnersSection: () => apiFetch<PartnersSectionConfig>("/api/v1/partners-section", { revalidate: 15 }),
   appPromotion: () => apiFetch<Record<string, any>>("/api/v1/app-promotion", { revalidate: 60 }),
   contactInfo: () => apiFetch<Record<string, any>>("/api/v1/contact-info", { revalidate: 60 }),
   importantLinks: () => apiFetch<any[]>("/api/v1/important-links", { revalidate: 30 }),
