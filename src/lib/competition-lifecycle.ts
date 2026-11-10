@@ -1,4 +1,4 @@
-import { formatEventDate, istTime, parseDate } from "./utils";
+import { formatEventDate, istTime, parseDate, parseIst } from "./utils";
 
 export interface CompetitionLifecycleInput {
   start_date?: string | Date | null;
@@ -98,7 +98,7 @@ export function parseDateWithTime(
       hasSpecificTime = true;
     }
   } else {
-    const parsed = new Date(trimmed);
+    const parsed = parseIst(trimmed);
     if (!isNaN(parsed.getTime())) return parsed;
     return null;
   }

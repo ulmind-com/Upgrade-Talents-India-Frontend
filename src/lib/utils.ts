@@ -43,12 +43,46 @@ export function istParts(input: Date) {
   };
 }
 
+/**
+ * A date-time string with no timezone designator, as the API sends them
+ * ("2026-12-15T10:00:00"). The language parses these as the HOST's local time,
+ * which is UTC on the server and the visitor's zone in the browser — the same
+ * string then means two different instants and the two renders disagree.
+ */
+const NAIVE_DATE_TIME =
+  /^(\d{4})-(\d{2})-(\d{2})[T ](\d{1,2}):(\d{2})(?::(\d{2}))?(?:\.(\d{1,3})\d*)?$/;
+const DATE_ONLY = /^(\d{4})-(\d{2})-(\d{2})$/;
+
+/**
+ * Parse an API date the way the API means it: Indian wall-clock time. A string
+ * that does carry an offset or a trailing Z already names an instant, so it is
+ * left to the normal parser. Everything else is read as IST on both the server
+ * and the client, so the two renders always agree.
+ */
+export function parseIst(input: string): Date {
+  const trimmed = input.trim();
+
+  const dateOnly = trimmed.match(DATE_ONLY);
+  if (dateOnly) {
+    const [, y, m, d] = dateOnly;
+    return new Date(istTime(+y, +m - 1, +d));
+  }
+
+  const naive = trimmed.match(NAIVE_DATE_TIME);
+  if (naive) {
+    const [, y, m, d, h, mi, s, ms] = naive;
+    return new Date(istTime(+y, +m - 1, +d, +h, +mi, s ? +s : 0, ms ? +ms : 0));
+  }
+
+  return new Date(trimmed);
+}
+
 export function parseDate(input?: string | Date | null): Date | null {
   if (!input) return null;
   if (input instanceof Date) {
     return isNaN(input.getTime()) ? null : input;
   }
-  const d = new Date(input);
+  const d = parseIst(input);
   return isNaN(d.getTime()) ? null : d;
 }
 
@@ -101,7 +135,7 @@ export function isEventExpired(dateInput?: string | Date | null, timeInput?: str
         hasSpecificTime = true;
       }
     } else {
-      const parsed = new Date(trimmed);
+      const parsed = parseIst(trimmed);
       if (isNaN(parsed.getTime())) return false;
       const p = istParts(parsed);
       eventYear = p.y;
@@ -160,7 +194,7 @@ export function isDeadlinePassed(deadlineInput?: string | Date | null): boolean 
     const endOfDay = istTime(y, m, d, 23, 59, 59, 999);
     return Date.now() > endOfDay;
   }
-  const parsed = new Date(trimmed).getTime();
+  const parsed = parseIst(trimmed).getTime();
   return !isNaN(parsed) && Date.now() > parsed;
 }
 

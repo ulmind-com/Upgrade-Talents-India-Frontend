@@ -9,7 +9,7 @@ import {
   ArrowUpRight, Sparkles,
 } from "lucide-react";
 import type { BannerItem, EventItem, FeaturedTileItem, LiveEventItem } from "@/lib/api";
-import { formatEventDate, imageFor, istParts, isUsableImageUrl, truncate } from "@/lib/utils";
+import { formatEventDate, imageFor, istParts, isUsableImageUrl, parseIst, truncate } from "@/lib/utils";
 import { getCompetitionLifecycle } from "@/lib/competition-lifecycle";
 import { SectionLabel } from "@/components/ui/Primitives";
 
@@ -213,9 +213,10 @@ function formatShowTime(timeStr?: string | null, dateStr?: string | null, fallba
   // Extract from ISO string (e.g. "2026-11-01T10:00:00Z")
   if (dateStr && typeof dateStr === "string" && dateStr.includes("T")) {
     try {
-      const d = new Date(dateStr);
+      // Parsed AND read as Indian time — the API sends these without a
+      // timezone, and the server runs in UTC while the browser does not.
+      const d = parseIst(dateStr);
       if (!isNaN(d.getTime())) {
-        // Read off an Indian clock, not the renderer's — the server runs in UTC
         const { h: hours, mi: minutes } = istParts(d);
         // If hours and minutes are both 0, it's typically untimed midnight fallback
         if (hours !== 0 || minutes !== 0) {
@@ -256,8 +257,8 @@ function formatShowDuration(item: {
   }
 
   if (item.startDate && item.endDate) {
-    const d1 = new Date(item.startDate);
-    const d2 = new Date(item.endDate);
+    const d1 = item.startDate instanceof Date ? item.startDate : parseIst(item.startDate);
+    const d2 = item.endDate instanceof Date ? item.endDate : parseIst(item.endDate);
     if (!isNaN(d1.getTime()) && !isNaN(d2.getTime())) {
       const diffMs = d2.getTime() - d1.getTime();
       if (diffMs > 0) {
