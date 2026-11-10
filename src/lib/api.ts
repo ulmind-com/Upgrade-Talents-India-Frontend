@@ -648,6 +648,66 @@ export const activitiesApi = {
     apiFetch<any[]>("/api/activities/merchandise", { query: p, cache: "no-store" }),
 };
 
+/* ─────────────── PASSKEY (fingerprint / Face ID sign-in) ─────────────── */
+
+export type PasskeyCredential = {
+  id: string;
+  label: string;
+  created_at: string;
+  last_used_at: string;
+};
+
+/** Same login payload the password login returns, so routing after either is identical. */
+export type PasskeyLoginResult = {
+  access_token: string;
+  token_type: string;
+  user_email?: string;
+  role?: string;
+  registration_complete?: boolean;
+  is_profile_completed?: boolean;
+  profile_completed?: boolean;
+  requires_profile_completion?: boolean;
+  prompt_profile_form?: boolean;
+  first_time_login?: boolean;
+  missing_fields?: string[];
+  next_step?: string;
+  redirect_url?: string;
+  user?: any;
+};
+
+const pk = "/api/auth/passkey";
+
+export const passkeyApi = {
+  registerOptions: () => apiFetch<any>(`${pk}/register/options`, { method: "POST", auth: true }),
+
+  registerVerify: (response: any, label?: string) =>
+    apiFetch<{ message: string; credential_id: string; label: string }>(
+      `${pk}/register/verify`,
+      { method: "POST", body: { response, label }, auth: true }
+    ),
+
+  loginOptions: () =>
+    apiFetch<{ challenge_id: string; options: any }>(`${pk}/login/options`, {
+      method: "POST",
+      body: {},
+    }),
+
+  loginVerify: (body: { challenge_id: string; response: any }) =>
+    apiFetch<PasskeyLoginResult>(`${pk}/login/verify`, { method: "POST", body }),
+
+  listCredentials: () =>
+    apiFetch<{ credentials: PasskeyCredential[]; count: number }>(`${pk}/credentials`, {
+      auth: true,
+      cache: "no-store",
+    }),
+
+  deleteCredential: (id: string) =>
+    apiFetch<{ message: string }>(`${pk}/credentials/${encodeURIComponent(id)}`, {
+      method: "DELETE",
+      auth: true,
+    }),
+};
+
 /* ─────────────── AUTH ─────────────── */
 
 export const authApi = {

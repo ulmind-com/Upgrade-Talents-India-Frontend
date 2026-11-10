@@ -21,6 +21,7 @@ import {
 } from "@/lib/api";
 import { useAuth, usePageScrollLock } from "@/components/motion/Providers";
 import CoinLedger from "@/components/account/CoinLedger";
+import PasskeyManager from "@/components/account/PasskeyManager";
 import ShareReferralModal from "@/components/account/ShareReferralModal";
 import { Badge, Button, SectionLabel, Spotlights } from "@/components/ui/Primitives";
 import { Reveal, SplitHeading } from "@/components/motion/Reveal";
@@ -1534,6 +1535,9 @@ export default function DashboardPage() {
                   </div>
                 )}
 
+                {/* 6b. Fingerprint / Face ID sign-in */}
+                <PasskeyManager />
+
                 {/* 7. Grouped Section: Account Actions & Security */}
                 <div className="rounded-2xl border border-[var(--border)] bg-[var(--surface)] overflow-hidden shadow-sm divide-y divide-[var(--border)]/70 text-xs">
                   {/* Digital QR Pass */}
@@ -2187,6 +2191,9 @@ export default function DashboardPage() {
                 </div>
 
               </div>
+
+              {/* ── FINGERPRINT / FACE ID SIGN-IN ── */}
+              <PasskeyManager />
 
               {/* ── ACCOUNT ACTIONS & SIGN OUT (Placed cleanly at the very bottom) ── */}
               <div className="rounded-[28px] border border-red-500/20 bg-gradient-to-r from-red-500/[0.04] to-transparent p-5 sm:p-6 shadow-md flex flex-col sm:flex-row sm:items-center justify-between gap-4">

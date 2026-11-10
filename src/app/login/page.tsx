@@ -4,8 +4,9 @@ import Link from "next/link";
 import { useRouter, useSearchParams } from "next/navigation";
 import { Suspense, useState, useEffect } from "react";
 import { motion, type Variants } from "framer-motion";
-import { Eye, EyeOff, ArrowRight, Ticket, ShieldCheck, Sparkles, Gavel, ScanLine, AlertCircle, Loader2 } from "lucide-react";
+import { Eye, EyeOff, ArrowRight, Ticket, ShieldCheck, Sparkles, Gavel, ScanLine, AlertCircle, Loader2, Fingerprint } from "lucide-react";
 import { authApi, tokenStore } from "@/lib/api";
+import * as passkey from "@/lib/passkey";
 import { useAuth } from "@/components/motion/Providers";
 import { AuthShell, Field, FormAlert, Input } from "@/components/ui/Form";
 import { Button } from "@/components/ui/Primitives";
@@ -52,6 +53,15 @@ function LoginForm() {
   const [googleUser, setGoogleUser] = useState<{ name?: string | null; email?: string | null; photo?: string | null } | null>(null);
   const [authProcessing, setAuthProcessing] = useState(false);
 
+  /* ── Fingerprint / passkey sign-in ── */
+  // null until the check resolves, so the button does not flash in and out.
+  const [platformOk, setPlatformOk] = useState<boolean | null>(null);
+  const [pkLoading, setPkLoading] = useState(false);
+
+  useEffect(() => {
+    passkey.isPlatformAvailable().then(setPlatformOk).catch(() => setPlatformOk(false));
+  }, []);
+
   useEffect(() => {
     if (!authLoading) {
       if (isJudge) {
@@ -76,6 +86,63 @@ function LoginForm() {
     );
   }
 
+  /**
+   * Post-login routing, shared by the password form and fingerprint sign-in:
+   * both receive the same payload from the backend, so both land in the same
+   * place — the judge/volunteer panels, profile completion, or `next`.
+   */
+  const finishLogin = async (res: {
+    access_token: string;
+    requires_profile_completion?: boolean;
+    is_profile_completed?: boolean;
+    profile_completed?: boolean;
+  }) => {
+    tokenStore.set(res.access_token);
+    const me = await authApi.me().catch(() => null);
+    if (me?.role) tokenStore.setRole(me.role);
+    await refresh();
+    const role = (me?.role || "").toUpperCase();
+    if (role === "JUDGE") {
+      router.push("/judge");
+    } else if (role === "VOLUNTEER") {
+      router.push("/volunteer");
+    } else if (
+      res.requires_profile_completion ||
+      !res.is_profile_completed ||
+      !res.profile_completed ||
+      me?.requires_profile_completion ||
+      !me?.is_profile_completed ||
+      !me?.profile_completed ||
+      !me?.phone_number ||
+      !me?.date_of_birth ||
+      !me?.address ||
+      !me?.parent_phone_number
+    ) {
+      router.push("/complete-profile");
+    } else {
+      router.push(next);
+    }
+  };
+
+  /** Usernameless fingerprint / Face ID sign-in — no email, no password. */
+  const fingerprintLogin = async () => {
+    setFormError(null);
+    setPkLoading(true);
+    try {
+      const res = await passkey.authenticate();
+      await finishLogin(res);
+    } catch (err: any) {
+      const raw = String(err?.message || "");
+      setFormError(
+        /NotAllowed|abort|cancel/i.test(raw)
+          ? "No passkey on this device, or the prompt was cancelled. Sign in with your password, then add a passkey from your profile."
+          : raw || "Fingerprint sign-in failed. Use your password."
+      );
+    } finally {
+      setPkLoading(false);
+    }
+  };
+
   const submit = async (e: React.FormEvent) => {
     e.preventDefault();
     setFormError(null);
@@ -90,31 +157,7 @@ function LoginForm() {
     setLoading(true);
     try {
       const res = await authApi.login(email.trim(), password);
-      tokenStore.set(res.access_token);
-      const me = await authApi.me().catch(() => null);
-      if (me?.role) tokenStore.setRole(me.role);
-      await refresh();
-      const role = (me?.role || "").toUpperCase();
-      if (role === "JUDGE") {
-        router.push("/judge");
-      } else if (role === "VOLUNTEER") {
-        router.push("/volunteer");
-      } else if (
-        res.requires_profile_completion ||
-        !res.is_profile_completed ||
-        !res.profile_completed ||
-        me?.requires_profile_completion ||
-        !me?.is_profile_completed ||
-        !me?.profile_completed ||
-        !me?.phone_number ||
-        !me?.date_of_birth ||
-        !me?.address ||
-        !me?.parent_phone_number
-      ) {
-        router.push("/complete-profile");
-      } else {
-        router.push(next);
-      }
+      await finishLogin(res);
     } catch (err: any) {
       setFormError(err?.message || "Could not sign you in. Check your details and try again.");
     } finally {
@@ -304,6 +347,31 @@ function LoginForm() {
             <span className="tracking-[0.04em]">Continue with Google</span>
           </button>
         </motion.div>
+
+        {/* ── Fingerprint / Face ID Sign-In ──
+            Only on devices that actually have a biometric sensor; the passkey
+            itself is added from the dashboard profile tab. */}
+        {platformOk && (
+          <motion.div variants={itemV} className="flex flex-col items-center gap-2">
+            <button
+              type="button"
+              onClick={fingerprintLogin}
+              disabled={pkLoading || loading || googleLoading}
+              title="Sign in with your fingerprint or Face ID"
+              aria-label="Sign in with fingerprint"
+              className="group grid size-14 cursor-pointer place-items-center rounded-full border border-[var(--border-strong)] bg-[var(--bg-elevated)] text-[var(--fg)] transition-all duration-300 hover:-translate-y-0.5 hover:border-[var(--accent)] hover:text-[var(--accent)] hover:shadow-[0_8px_30px_-8px_var(--accent)] disabled:pointer-events-none disabled:opacity-50"
+            >
+              {pkLoading ? (
+                <Loader2 className="size-6 animate-spin" aria-hidden />
+              ) : (
+                <Fingerprint className="size-6" aria-hidden />
+              )}
+            </button>
+            <span className="text-[11.5px] text-[var(--fg-subtle)]">
+              Tap to sign in with your fingerprint
+            </span>
+          </motion.div>
+        )}
 
         {/* ── Role Links ── */}
         <motion.div variants={itemV} className="flex items-center justify-center gap-5 pt-0.5 sm:pt-1">
