@@ -178,10 +178,9 @@ function LoginForm() {
 
       const res = await authApi.googleLogin(idToken);
       tokenStore.set(res.access_token);
-      const me = await authApi.me().catch(() => null);
-      if (me?.role) tokenStore.setRole(me.role);
-      await refresh();
-      const role = (me?.role || "").toUpperCase();
+      if (res.role) tokenStore.setRole(res.role);
+      refresh().catch(() => {});
+      const role = (res.role || "").toUpperCase();
       if (role === "JUDGE") {
         router.push("/judge");
       } else if (role === "VOLUNTEER") {
@@ -190,13 +189,10 @@ function LoginForm() {
         res.requires_profile_completion ||
         !res.is_profile_completed ||
         !res.profile_completed ||
-        me?.requires_profile_completion ||
-        !me?.is_profile_completed ||
-        !me?.profile_completed ||
-        !me?.phone_number ||
-        !me?.date_of_birth ||
-        !me?.address ||
-        !me?.parent_phone_number
+        !res.user?.phone_number ||
+        !res.user?.date_of_birth ||
+        !res.user?.address ||
+        !res.user?.parent_phone_number
       ) {
         router.push("/complete-profile");
       } else {
