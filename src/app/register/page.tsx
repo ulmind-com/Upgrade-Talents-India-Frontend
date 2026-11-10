@@ -165,7 +165,7 @@ export default function RegisterPage() {
       const res = await authApi.googleLogin(idToken, referral.trim() || undefined);
       tokenStore.set(res.access_token);
       if (res.role) tokenStore.setRole(res.role);
-      await refresh();
+      refresh().catch(() => {});
       const role = (res.role || "").toUpperCase();
       if (role === "JUDGE") {
         router.push("/judge");
