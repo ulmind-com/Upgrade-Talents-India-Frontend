@@ -86,7 +86,12 @@ export default async function HomePage() {
       <LearnGrid title="Masterclasses" label="Courses" items={data.courses} href="/courses" />
       <LearnGrid title="Workshops" label="Workshops" items={data.workshops} href="/workshops" />
       <Testimonials items={data.testimonials} />
-      <ScrollMorphShowcase />
+      <ScrollMorphShowcase
+        images={data.stage_moments_section?.images?.map((i) => i.image_url).filter(Boolean)}
+        title={data.stage_moments_section?.title}
+        subtitle={data.stage_moments_section?.subtitle}
+        introTitle={data.stage_moments_section?.intro_title}
+      />
       <PhotoStrip events={data.upcoming_events} banners={data.sponsored_banners} />
       <Sponsors items={data.sponsored_banners} />
       <AppPromo promo={data.app_promotion} />

@@ -312,6 +312,12 @@ export type HomepagePayload = {
     view_all_url?: string;
     images?: { id?: string; image_url: string; caption?: string }[];
   };
+  stage_moments_section?: {
+    title?: string;
+    subtitle?: string;
+    intro_title?: string;
+    images?: { id?: string; image_url: string; caption?: string }[];
+  };
 };
 
 export type MyTicket = {
