@@ -13,7 +13,44 @@ export async function generateMetadata({ params }: { params: Promise<{ id: strin
     const all = await safe(publicApi.competitions({ limit: 200 }), []);
     comp = all.find((c: any) => (c._id || c.id) === id);
   }
-  return { title: comp?.title || comp?.name || "Competition" };
+
+  const title = comp?.title || comp?.name || "Official Talent Competition";
+  const descRaw = comp?.description || "Join the official talent competition on Upgrade Talents India! Register now, showcase your talent on stage, and win exciting prizes.";
+  const description = descRaw
+    .replace(/[━─—_\-=*#✨🏆💎💰🔥\n]+/g, " ")
+    .replace(/\s+/g, " ")
+    .trim()
+    .slice(0, 180);
+
+  const siteUrl = process.env.NEXT_PUBLIC_SITE_URL || "https://upgradetalentsindia.in";
+  const pageUrl = `${siteUrl.replace(/\/$/, "")}/competitions/${id}`;
+  const imageUrl = comp?.card_image_url || comp?.image_url || comp?.banner_image_url || `${siteUrl}/og-image.jpg`;
+
+  return {
+    title: `${title} | Upgrade Talents India`,
+    description,
+    openGraph: {
+      title: `${title} — Official Competition`,
+      description,
+      url: pageUrl,
+      siteName: "Upgrade Talents India",
+      images: [
+        {
+          url: imageUrl,
+          width: 1200,
+          height: 630,
+          alt: title,
+        },
+      ],
+      type: "website",
+    },
+    twitter: {
+      card: "summary_large_image",
+      title,
+      description,
+      images: [imageUrl],
+    },
+  };
 }
 
 export default async function CompetitionDetailPage({ params }: { params: Promise<{ id: string }> }) {

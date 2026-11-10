@@ -1,14 +1,15 @@
 "use client";
 
 import { motion, useScroll, useTransform } from "framer-motion";
-import { useRef, useMemo } from "react";
+import { useRef, useMemo, useState } from "react";
 import Link from "next/link";
 import {
   Trophy, Calendar, Clock, Users, ArrowDown, ChevronRight,
-  Radio, Sparkles, CheckCircle2, ShieldCheck, Ticket
+  Radio, Sparkles, CheckCircle2, ShieldCheck, Ticket, Share2
 } from "lucide-react";
 import { formatEventDate, formatINR, imageFor, cn } from "@/lib/utils";
 import { getCompetitionLifecycle } from "@/lib/competition-lifecycle";
+import ShareCompetitionModal from "@/components/events/ShareCompetitionModal";
 
 interface CompetitionHeroProps {
   comp: {
@@ -72,12 +73,24 @@ export default function CompetitionHero({ comp }: CompetitionHeroProps) {
   const fallbackImg = imageFor(desktopImg, 6);
 
   const compId = comp._id || comp.id;
+  const [shareOpen, setShareOpen] = useState(false);
 
   return (
     <section
       ref={ref}
       className="relative isolate min-h-[58vh] sm:min-h-[64vh] lg:min-h-[70vh] flex items-end overflow-hidden noise bg-black/95 pt-28 pb-12 sm:pb-16"
     >
+      {/* ── Top-right Floating Quick-Share Action ── */}
+      <button
+        type="button"
+        onClick={() => setShareOpen(true)}
+        className="cursor-pointer absolute top-24 sm:top-28 right-4 sm:right-8 z-30 flex items-center gap-2 rounded-full border border-white/20 bg-black/60 hover:bg-black/85 px-3.5 py-1.5 text-xs font-bold text-white backdrop-blur-xl transition-all shadow-lg hover:border-amber-400/60 active:scale-95 group"
+        title="Share this competition"
+      >
+        <Share2 className="size-3.5 text-amber-400 group-hover:scale-110 transition-transform" />
+        <span className="hidden sm:inline">Share</span>
+      </button>
+
       {/* ── Background Media Container with Dual 16:9 & 9:16 support ── */}
       <motion.div style={{ y }} className="absolute inset-0 -z-20 size-full overflow-hidden">
         <picture className="size-full">
@@ -289,9 +302,26 @@ export default function CompetitionHero({ comp }: CompetitionHeroProps) {
               <span>View Leaderboard</span>
               <ChevronRight className="size-3.5" />
             </Link>
+
+            {/* ── Ultra Pro Share Competition Button ── */}
+            <button
+              type="button"
+              onClick={() => setShareOpen(true)}
+              className="cursor-pointer inline-flex items-center gap-2 rounded-full border border-amber-400/40 bg-gradient-to-r from-amber-500/20 via-orange-500/20 to-amber-500/20 hover:from-amber-500/30 hover:to-orange-500/30 text-amber-200 hover:text-white px-5 py-2.5 text-xs font-extrabold backdrop-blur-md transition-all shadow-md shadow-amber-500/10 active:scale-95 group"
+            >
+              <Share2 className="size-3.5 text-amber-400 group-hover:scale-110 transition-transform" />
+              <span>Share Competition</span>
+            </button>
           </motion.div>
         </div>
       </motion.div>
+
+      {/* ── Ultra Pro & Premium Competition Share Modal ── */}
+      <ShareCompetitionModal
+        isOpen={shareOpen}
+        onClose={() => setShareOpen(false)}
+        comp={comp}
+      />
     </section>
   );
 }

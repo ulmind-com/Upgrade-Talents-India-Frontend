@@ -8,7 +8,8 @@ import {
   Trophy, Calendar, Gavel, Upload, CheckCircle2, AlertCircle, ListChecks,
   ShieldCheck, LogIn, Loader2, Heart, Crown, FileUp, Link2, Film, Music, X,
   Radio, ArrowRight, Award, ExternalLink, Sparkles, MessageSquare, Play, Pause,
-  CreditCard, Banknote, Zap, Clock, Users, Mic, Youtube, HardDrive, Lock, Layers
+  CreditCard, Banknote, Zap, Clock, Users, Mic, Youtube, HardDrive, Lock, Layers,
+  Share2
 } from "lucide-react";
 import { Reveal, StaggerGroup, StaggerItem } from "@/components/motion/Reveal";
 import { SectionLabel, Badge } from "@/components/ui/Primitives";
@@ -18,6 +19,7 @@ import { competeApi, profileApi, publicApi, certificatesApi } from "@/lib/api";
 import { imageFor, formatEventDate, cn } from "@/lib/utils";
 import { getCompetitionLifecycle } from "@/lib/competition-lifecycle";
 import VerifiedBadge from "@/components/ui/VerifiedBadge";
+import ShareCompetitionModal from "@/components/events/ShareCompetitionModal";
 
 type RulesObj = {
   terms_and_conditions?: string;
@@ -251,6 +253,7 @@ export default function CompetitionDetail({
   const id = comp._id || comp.id || "";
   const { user, loading } = useAuth();
   const router = useRouter();
+  const [shareOpen, setShareOpen] = useState(false);
 
   useEffect(() => {
     const cid = ssrComp._id || ssrComp.id;
@@ -1762,6 +1765,17 @@ export default function CompetitionDetail({
               </span>
             </StaggerItem>
           )}
+
+          <StaggerItem>
+            <button
+              type="button"
+              onClick={() => setShareOpen(true)}
+              className="cursor-pointer inline-flex items-center gap-1.5 rounded-full border border-amber-400/40 bg-amber-500/15 hover:bg-amber-500/25 px-3.5 py-1.5 text-[12px] font-extrabold text-amber-200 hover:text-white transition-all active:scale-95 shadow-xs group"
+            >
+              <Share2 className="size-3.5 text-amber-400 group-hover:scale-110 transition-transform" />
+              <span>Share Competition</span>
+            </button>
+          </StaggerItem>
         </StaggerGroup>
 
         {comp.description && (
@@ -2877,6 +2891,15 @@ export default function CompetitionDetail({
                   >
                     <Trophy className="size-3.5 text-[var(--accent)]" /> View Competition Leaderboard
                   </Link>
+
+                  <button
+                    type="button"
+                    onClick={() => setShareOpen(true)}
+                    className="cursor-pointer inline-flex w-full items-center justify-center gap-2 rounded-full border border-amber-500/40 bg-amber-500/15 hover:bg-amber-500/25 py-2.5 text-xs font-bold text-amber-200 hover:text-white transition-all shadow-sm active:scale-95 group"
+                  >
+                    <Share2 className="size-3.5 text-amber-400 group-hover:scale-110 transition-transform" />
+                    <span>Share Competition</span>
+                  </button>
                 </div>
               </div>
             )}
@@ -3040,6 +3063,13 @@ export default function CompetitionDetail({
           </motion.div>
         )}
       </AnimatePresence>
+
+      {/* ── Ultra Pro & Premium Competition Share Modal ── */}
+      <ShareCompetitionModal
+        isOpen={shareOpen}
+        onClose={() => setShareOpen(false)}
+        comp={comp}
+      />
     </section>
   );
 }

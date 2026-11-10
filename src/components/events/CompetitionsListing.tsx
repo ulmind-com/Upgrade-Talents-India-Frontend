@@ -2,11 +2,12 @@
 
 import { useMemo, useState } from "react";
 import Link from "next/link";
-import { Search, Trophy, Calendar, ArrowUpRight, Radio, Clock, Sparkles } from "lucide-react";
+import { Search, Trophy, Calendar, ArrowUpRight, Radio, Clock, Sparkles, Share2 } from "lucide-react";
 import { Reveal, StaggerGroup, StaggerItem } from "@/components/motion/Reveal";
 import { SectionLabel } from "@/components/ui/Primitives";
 import { imageFor, formatEventDate, truncate } from "@/lib/utils";
 import { getCompetitionLifecycle } from "@/lib/competition-lifecycle";
+import ShareCompetitionModal from "@/components/events/ShareCompetitionModal";
 
 type Comp = {
   _id?: string; id?: string;
@@ -29,6 +30,7 @@ const cid = (c: Comp) => c._id || c.id || "";
 
 export default function CompetitionsListing({ items }: { items: Comp[] }) {
   const [q, setQ] = useState("");
+  const [selectedShareComp, setSelectedShareComp] = useState<Comp | null>(null);
   const list = useMemo(
     () => items.filter((c) => !q || (c.title || c.name || "").toLowerCase().includes(q.toLowerCase())),
     [items, q]
@@ -113,6 +115,20 @@ export default function CompetitionsListing({ items }: { items: Comp[] }) {
                         <Trophy className="size-3" aria-hidden /> {c.prize}
                       </span>
                     )}
+
+                    {/* Quick 1-click Share button on thumbnail */}
+                    <button
+                      type="button"
+                      onClick={(e) => {
+                        e.preventDefault();
+                        e.stopPropagation();
+                        setSelectedShareComp(c);
+                      }}
+                      className="cursor-pointer absolute right-3 bottom-3 z-10 flex size-8 items-center justify-center rounded-full bg-black/70 hover:bg-amber-500 text-white hover:text-slate-950 border border-white/20 hover:border-amber-400 backdrop-blur-md shadow-lg transition-all active:scale-90 group/share"
+                      title="Share Competition"
+                    >
+                      <Share2 className="size-3.5 group-hover/share:scale-110 transition-transform" />
+                    </button>
                   </div>
                   <div className="flex flex-1 flex-col p-5">
                     <h3 className="font-display text-[1.25rem] font-bold leading-tight">{c.title || c.name || "Competition"}</h3>
@@ -138,16 +154,30 @@ export default function CompetitionsListing({ items }: { items: Comp[] }) {
                           ? formatEventDate(c.registration_deadline)
                           : "Open entry"}
                       </span>
-                      <span className="inline-flex items-center gap-1 text-[12.5px] font-semibold text-[var(--accent)]">
-                        {lifecycle.isResultsOut
-                          ? "View Results"
-                          : lifecycle.isLive
-                          ? "Watch & Vote"
-                          : lifecycle.canRegister
-                          ? "Enter Now"
-                          : "View Details"}{" "}
-                        <ArrowUpRight className="size-3.5 transition-transform group-hover:translate-x-0.5 group-hover:-translate-y-0.5" aria-hidden />
-                      </span>
+                      <div className="flex items-center gap-2">
+                        <button
+                          type="button"
+                          onClick={(e) => {
+                            e.preventDefault();
+                            e.stopPropagation();
+                            setSelectedShareComp(c);
+                          }}
+                          className="cursor-pointer p-1 rounded-lg hover:bg-white/10 text-[var(--fg-muted)] hover:text-amber-400 transition-colors"
+                          title="Share Competition"
+                        >
+                          <Share2 className="size-4" />
+                        </button>
+                        <span className="inline-flex items-center gap-1 text-[12.5px] font-semibold text-[var(--accent)]">
+                          {lifecycle.isResultsOut
+                            ? "View Results"
+                            : lifecycle.isLive
+                            ? "Watch & Vote"
+                            : lifecycle.canRegister
+                            ? "Enter Now"
+                            : "View Details"}{" "}
+                          <ArrowUpRight className="size-3.5 transition-transform group-hover:translate-x-0.5 group-hover:-translate-y-0.5" aria-hidden />
+                        </span>
+                      </div>
                     </div>
                   </div>
                 </Link>
@@ -156,6 +186,13 @@ export default function CompetitionsListing({ items }: { items: Comp[] }) {
           })}
         </StaggerGroup>
       )}
+
+      {/* ── Ultra Pro & Premium Competition Share Modal ── */}
+      <ShareCompetitionModal
+        isOpen={!!selectedShareComp}
+        onClose={() => setSelectedShareComp(null)}
+        comp={selectedShareComp}
+      />
     </section>
   );
 }
