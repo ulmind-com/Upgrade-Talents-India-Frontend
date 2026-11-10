@@ -93,13 +93,15 @@ type Opts = {
   query?: Record<string, string | number | boolean | undefined | null>;
   cache?: RequestCache;
   revalidate?: number;
+  headers?: Record<string, string>;
+  idempotencyKey?: string;
 };
 
 /* Long enough for cloud cold starts, short enough to avoid indefinite hanging. */
 const READ_TIMEOUT_MS = 35_000;
 
 export async function apiFetch<T = any>(path: string, opts: Opts = {}): Promise<T> {
-  const { method = "GET", body, auth, regAuth, form, query, cache, revalidate } = opts;
+  const { method = "GET", body, auth, regAuth, form, query, cache, revalidate, headers: customHeaders, idempotencyKey } = opts;
 
   let url = `${API_BASE}${path}`;
   if (query) {
@@ -111,7 +113,7 @@ export async function apiFetch<T = any>(path: string, opts: Opts = {}): Promise<
     if (s) url += `?${s}`;
   }
 
-  const headers: Record<string, string> = {};
+  const headers: Record<string, string> = { ...(customHeaders || {}) };
   // Only set Content-Type when a JSON body is actually sent — adding it to a
   // plain GET turns it into a preflighted request for no reason.
   if (!form && body !== undefined) headers["Content-Type"] = "application/json";
@@ -122,6 +124,9 @@ export async function apiFetch<T = any>(path: string, opts: Opts = {}): Promise<
   if (regAuth) {
     const t = tokenStore.getReg();
     if (t) headers["Authorization"] = `Bearer ${t}`;
+  }
+  if (idempotencyKey) {
+    headers["Idempotency-Key"] = idempotencyKey;
   }
 
   const init: RequestInit & { next?: { revalidate: number } } = {
@@ -579,7 +584,8 @@ export const competeApi = {
     rules_accepted = true,
     payment_method: "ONLINE" | "CASH" = "ONLINE",
     category?: string,
-    date_of_birth?: string
+    date_of_birth?: string,
+    idempotency_key?: string
   ) =>
     apiFetch<any>(`/api/v1/competitions/${id}/register`, {
       method: "POST",
@@ -596,6 +602,7 @@ export const competeApi = {
         ...(category ? { category } : {}),
         ...(date_of_birth ? { date_of_birth } : {}),
       },
+      idempotencyKey: idempotency_key || `comp_reg_${id}_${category || "gen"}_${Date.now()}`,
     }),
   submit: (id: string, files: File[], fieldNames: string[]) => {
     const fd = new FormData();
@@ -608,7 +615,13 @@ export const competeApi = {
     razorpay_order_id: string;
     razorpay_payment_id: string;
     razorpay_signature: string;
-  }) => apiFetch<any>(`/api/v1/competitions/${compId}/verify-payment`, { method: "POST", auth: true, body }),
+    idempotency_key?: string;
+  }) => apiFetch<any>(`/api/v1/competitions/${compId}/verify-payment`, {
+    method: "POST",
+    auth: true,
+    body,
+    idempotencyKey: body.idempotency_key || `comp_verify_${body.registration_reference}_${body.razorpay_payment_id}`,
+  }),
   vote: (id: string, participant_id: string, source: "WEBSITE" | "MOBILE_APP" = "WEBSITE") =>
     apiFetch<any>(`/api/v1/competitions/${id}/vote`, { method: "POST", auth: true, body: { participant_id, source } }),
   results: (id: string) =>
@@ -957,7 +970,16 @@ export const bookingsApi = {
     holder_names?: string[];
     seats?: string[];
     payment_method?: string;
-  }) => apiFetch<any>("/api/bookings/", { method: "POST", body, auth: true }),
+    idempotency_key?: string;
+  }) => {
+    const idemKey = body.idempotency_key || `bkg_${body.event_id}_${body.category || 'all'}_${Date.now()}`;
+    return apiFetch<any>("/api/bookings/", {
+      method: "POST",
+      body,
+      auth: true,
+      idempotencyKey: idemKey
+    });
+  },
   my: () => apiFetch<any[]>("/api/bookings/my", { auth: true, cache: "no-store" }),
   cancel: (booking_id: string) =>
     apiFetch<any>(`/api/bookings/${booking_id}/cancel`, { method: "POST", auth: true }),
@@ -981,7 +1003,16 @@ export const paymentsApi = {
     razorpay_order_id: string;
     razorpay_payment_id: string;
     razorpay_signature: string;
-  }) => apiFetch<any>("/api/payments/verify-razorpay", { method: "POST", body, auth: true }),
+    idempotency_key?: string;
+  }) => {
+    const idemKey = body.idempotency_key || `rzp_${body.razorpay_order_id}_${body.razorpay_payment_id}`;
+    return apiFetch<any>("/api/payments/verify-razorpay", {
+      method: "POST",
+      body,
+      auth: true,
+      idempotencyKey: idemKey
+    });
+  },
   verifyMock: (booking_id: string) =>
     apiFetch<any>(`/api/payments/verify-mock/${booking_id}`, { method: "POST", auth: true }),
 };
@@ -989,10 +1020,25 @@ export const paymentsApi = {
 /* ─────────────── REGISTRATIONS (free events / courses) ─────────────── */
 
 export const registrationsApi = {
-  create: (body: any) => apiFetch<any>("/api/registrations/", { method: "POST", body, auth: true }),
+  create: (body: any, idempotency_key?: string) => {
+    const idemKey = idempotency_key || `reg_act_${body?.activity_id}_${Date.now()}`;
+    return apiFetch<any>("/api/registrations/", {
+      method: "POST",
+      body,
+      auth: true,
+      idempotencyKey: idemKey
+    });
+  },
   remove: (id: string) => apiFetch<any>(`/api/registrations/${id}`, { method: "DELETE", auth: true }),
-  verifyPayment: (body: any) =>
-    apiFetch<any>("/api/registrations/verify-payment", { method: "POST", body, auth: true }),
+  verifyPayment: (body: any, idempotency_key?: string) => {
+    const idemKey = idempotency_key || `reg_pay_${body?.order_reference}_${body?.razorpay_payment_id}`;
+    return apiFetch<any>("/api/registrations/verify-payment", {
+      method: "POST",
+      body,
+      auth: true,
+      idempotencyKey: idemKey
+    });
+  },
 };
 
 /* ─────────────── WALLET & REWARDS ─────────────── */
