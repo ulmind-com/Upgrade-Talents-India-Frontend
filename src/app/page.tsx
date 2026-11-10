@@ -92,7 +92,11 @@ export default async function HomePage() {
         subtitle={data.stage_moments_section?.subtitle}
         introTitle={data.stage_moments_section?.intro_title}
       />
-      <PhotoStrip events={data.upcoming_events} banners={data.sponsored_banners} />
+      <PhotoStrip
+        events={data.upcoming_events}
+        banners={data.sponsored_banners}
+        spotlightSection={data.spotlight_section}
+      />
       <Sponsors items={data.sponsored_banners} />
       <AppPromo promo={data.app_promotion} />
     </>

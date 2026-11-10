@@ -318,6 +318,27 @@ export type HomepagePayload = {
     intro_title?: string;
     images?: { id?: string; image_url: string; caption?: string }[];
   };
+  spotlight_section?: SpotlightSectionConfig;
+};
+
+export type SpotlightMomentItem = {
+  id?: string;
+  platform?: "instagram" | "youtube" | "facebook" | "x" | "linkedin" | "general" | string;
+  title: string;
+  category?: string;
+  tag?: string;
+  image_url: string;
+  post_url?: string;
+};
+
+export type SpotlightSectionConfig = {
+  label?: string;
+  title?: string;
+  subtitle?: string;
+  handle?: string;
+  follow_text?: string;
+  follow_url?: string;
+  items?: SpotlightMomentItem[];
 };
 
 export type MyTicket = {
@@ -373,6 +394,8 @@ export const publicApi = {
     apiFetch<CourseItem[]>("/api/v1/workshops", { query: p, revalidate: 15 }),
   contestPromotions: () => apiFetch<ContestPromotion[]>("/api/v1/contest-promotions", { revalidate: 15 }),
   featuredTiles: () => apiFetch<FeaturedTileItem[]>("/api/v1/featured-tiles", { revalidate: 15 }),
+  stageMoments: () => apiFetch<any>("/api/v1/stage-moments", { revalidate: 15 }),
+  spotlightSection: () => apiFetch<SpotlightSectionConfig>("/api/v1/spotlight-section", { revalidate: 15 }),
   appPromotion: () => apiFetch<Record<string, any>>("/api/v1/app-promotion", { revalidate: 60 }),
   contactInfo: () => apiFetch<Record<string, any>>("/api/v1/contact-info", { revalidate: 60 }),
   importantLinks: () => apiFetch<any[]>("/api/v1/important-links", { revalidate: 30 }),
