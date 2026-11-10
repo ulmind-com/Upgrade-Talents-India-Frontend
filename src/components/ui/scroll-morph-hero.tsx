@@ -118,9 +118,9 @@ const rand = (i: number, salt: number) => {
 
 export default function IntroAnimation({
   images = IMAGES,
-  title = "Explore Our Vision",
-  subtitle = "Discover a world where technology meets creativity.",
-  introTitle = "The future is built on AI.",
+  title = "Moments from the floor",
+  subtitle = "Stages, crews and performances from across the Upgrade Talents circuit.",
+  introTitle = "The floor is built on movement.",
 }: {
   images?: string[];
   title?: string;
@@ -133,7 +133,18 @@ export default function IntroAnimation({
   const containerRef = useRef<HTMLDivElement>(null);
   const trackRef = useRef<HTMLDivElement>(null);
 
-  const pool = images.length ? images : IMAGES;
+  // If custom stage photos are uploaded from admin panel, put them first and fill
+  // any remaining slots up to 20 from default IMAGES so the circle design remains pristine.
+  const pool = useMemo(() => {
+    const valid = Array.isArray(images) ? images.filter(Boolean) : [];
+    if (valid.length === 0) return IMAGES;
+    const combined = [...valid];
+    for (let i = 0; combined.length < TOTAL_IMAGES; i++) {
+      combined.push(IMAGES[i % IMAGES.length]);
+    }
+    return combined;
+  }, [images]);
+
   const cards = useMemo(
     () => Array.from({ length: TOTAL_IMAGES }, (_, i) => pool[i % pool.length]),
     [pool],
