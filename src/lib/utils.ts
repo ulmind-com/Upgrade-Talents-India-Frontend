@@ -16,6 +16,33 @@ export function formatINR(value?: number | null) {
   }).format(n);
 }
 
+/**
+ * Every date on this site is an Indian wall-clock date. The server renders in
+ * UTC and the browser in the visitor's own zone, so anything derived from the
+ * host timezone produces different HTML on each side and React throws the
+ * server markup away (hydration error #418). Pinning the zone keeps both
+ * renders identical. India has no DST, so the offset is a constant.
+ */
+export const IST_TZ = "Asia/Kolkata";
+const IST_OFFSET_MS = 5.5 * 60 * 60 * 1000;
+
+/** The instant at which the given wall-clock time occurs in India. */
+export function istTime(y: number, m: number, d: number, h = 0, mi = 0, s = 0, ms = 0) {
+  return Date.UTC(y, m, d, h, mi, s, ms) - IST_OFFSET_MS;
+}
+
+/** Calendar parts of an instant as read off a clock in India. */
+export function istParts(input: Date) {
+  const u = new Date(input.getTime() + IST_OFFSET_MS);
+  return {
+    y: u.getUTCFullYear(),
+    m: u.getUTCMonth(),
+    d: u.getUTCDate(),
+    h: u.getUTCHours(),
+    mi: u.getUTCMinutes(),
+  };
+}
+
 export function parseDate(input?: string | Date | null): Date | null {
   if (!input) return null;
   if (input instanceof Date) {
@@ -28,7 +55,7 @@ export function parseDate(input?: string | Date | null): Date | null {
 export function formatEventDate(input?: string | Date | null) {
   const d = parseDate(input);
   if (!d) return typeof input === "string" ? input || "TBA" : "TBA";
-  return d.toLocaleDateString("en-IN", { day: "2-digit", month: "short", year: "numeric" });
+  return d.toLocaleDateString("en-IN", { day: "2-digit", month: "short", year: "numeric", timeZone: IST_TZ });
 }
 
 /**
@@ -49,11 +76,12 @@ export function isEventExpired(dateInput?: string | Date | null, timeInput?: str
 
   if (dateInput instanceof Date) {
     if (isNaN(dateInput.getTime())) return false;
-    eventYear = dateInput.getFullYear();
-    eventMonth = dateInput.getMonth();
-    eventDay = dateInput.getDate();
-    eventHours = dateInput.getHours();
-    eventMinutes = dateInput.getMinutes();
+    const p = istParts(dateInput);
+    eventYear = p.y;
+    eventMonth = p.m;
+    eventDay = p.d;
+    eventHours = p.h;
+    eventMinutes = p.mi;
     hasSpecificTime = eventHours !== 0 || eventMinutes !== 0;
   } else if (typeof dateInput === "string") {
     const trimmed = dateInput.trim();
@@ -75,11 +103,12 @@ export function isEventExpired(dateInput?: string | Date | null, timeInput?: str
     } else {
       const parsed = new Date(trimmed);
       if (isNaN(parsed.getTime())) return false;
-      eventYear = parsed.getFullYear();
-      eventMonth = parsed.getMonth();
-      eventDay = parsed.getDate();
-      eventHours = parsed.getHours();
-      eventMinutes = parsed.getMinutes();
+      const p = istParts(parsed);
+      eventYear = p.y;
+      eventMonth = p.m;
+      eventDay = p.d;
+      eventHours = p.h;
+      eventMinutes = p.mi;
       hasSpecificTime = eventHours !== 0 || eventMinutes !== 0;
     }
   } else {
@@ -101,12 +130,12 @@ export function isEventExpired(dateInput?: string | Date | null, timeInput?: str
     }
   }
 
-  // End of that calendar day
-  const endOfDay = new Date(eventYear, eventMonth, eventDay, 23, 59, 59, 999).getTime();
+  // End of that calendar day, in India
+  const endOfDay = istTime(eventYear, eventMonth, eventDay, 23, 59, 59, 999);
 
   let expiryTime = endOfDay;
   if (hasSpecificTime) {
-    const startDateTime = new Date(eventYear, eventMonth, eventDay, eventHours, eventMinutes, 0, 0).getTime();
+    const startDateTime = istTime(eventYear, eventMonth, eventDay, eventHours, eventMinutes, 0, 0);
     // 4 hours buffer after start time
     const bufferTime = startDateTime + (4 * 60 * 60 * 1000);
     expiryTime = Math.max(bufferTime, endOfDay);
@@ -127,8 +156,8 @@ export function isDeadlinePassed(deadlineInput?: string | Date | null): boolean 
     const y = parseInt(ymdMatch[1], 10);
     const m = parseInt(ymdMatch[2], 10) - 1;
     const d = parseInt(ymdMatch[3], 10);
-    // Deadline closes at end of that day (23:59:59.999)
-    const endOfDay = new Date(y, m, d, 23, 59, 59, 999).getTime();
+    // Deadline closes at end of that day in India (23:59:59.999 IST)
+    const endOfDay = istTime(y, m, d, 23, 59, 59, 999);
     return Date.now() > endOfDay;
   }
   const parsed = new Date(trimmed).getTime();
@@ -139,10 +168,10 @@ export function splitDate(input?: string | null) {
   const d = parseDate(input);
   if (!d) return { day: "--", month: "TBA", weekday: "", year: "" };
   return {
-    day: d.toLocaleDateString("en-IN", { day: "2-digit" }),
-    month: d.toLocaleDateString("en-IN", { month: "short" }).toUpperCase(),
-    weekday: d.toLocaleDateString("en-IN", { weekday: "short" }),
-    year: String(d.getFullYear()),
+    day: d.toLocaleDateString("en-IN", { day: "2-digit", timeZone: IST_TZ }),
+    month: d.toLocaleDateString("en-IN", { month: "short", timeZone: IST_TZ }).toUpperCase(),
+    weekday: d.toLocaleDateString("en-IN", { weekday: "short", timeZone: IST_TZ }),
+    year: String(istParts(d).y),
   };
 }
 

@@ -9,7 +9,7 @@ import {
   ArrowUpRight, Sparkles,
 } from "lucide-react";
 import type { BannerItem, EventItem, FeaturedTileItem, LiveEventItem } from "@/lib/api";
-import { formatEventDate, imageFor, isUsableImageUrl, truncate } from "@/lib/utils";
+import { formatEventDate, imageFor, istParts, isUsableImageUrl, truncate } from "@/lib/utils";
 import { getCompetitionLifecycle } from "@/lib/competition-lifecycle";
 import { SectionLabel } from "@/components/ui/Primitives";
 
@@ -215,8 +215,8 @@ function formatShowTime(timeStr?: string | null, dateStr?: string | null, fallba
     try {
       const d = new Date(dateStr);
       if (!isNaN(d.getTime())) {
-        const hours = d.getHours();
-        const minutes = d.getMinutes();
+        // Read off an Indian clock, not the renderer's — the server runs in UTC
+        const { h: hours, mi: minutes } = istParts(d);
         // If hours and minutes are both 0, it's typically untimed midnight fallback
         if (hours !== 0 || minutes !== 0) {
           const period = hours >= 12 ? "PM" : "AM";

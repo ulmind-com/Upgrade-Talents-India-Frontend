@@ -1,4 +1,4 @@
-import { formatEventDate, parseDate } from "./utils";
+import { formatEventDate, istTime, parseDate } from "./utils";
 
 export interface CompetitionLifecycleInput {
   start_date?: string | Date | null;
@@ -120,7 +120,10 @@ export function parseDateWithTime(
     }
   }
 
-  return new Date(y, m, d, hr, min, sec, ms);
+  // A bare "2026-10-30" is an Indian calendar date, not a date in whatever zone
+  // the renderer happens to run in — the server is UTC and the browser is not,
+  // and a host-local Date here makes the two renders disagree.
+  return new Date(istTime(y, m, d, hr, min, sec, ms));
 }
 
 /**

@@ -394,6 +394,34 @@ p { text-wrap: pretty; overflow-wrap: anywhere; }
   .ribbon-drift, .bubble-float { animation: none !important; }
 }
 
+/* ── HERO ENTRANCE ───────────────────────────────────────
+   The hero copy is the first thing a visitor must see, so it is revealed
+   with CSS rather than with a JavaScript motion library. A JS entrance
+   ships its own start frame — opacity 0 — inside the server HTML, which
+   leaves the headline invisible until the whole bundle has downloaded and
+   hydrated. Stylesheets block the first paint, so these run immediately
+   and the copy is readable even if the JavaScript never arrives. */
+@keyframes hero-rise {
+  from { opacity: 0; transform: translateY(110%); }
+  to   { opacity: 1; transform: translateY(0); }
+}
+@keyframes hero-lift {
+  from { opacity: 0; transform: translateY(22px); }
+  to   { opacity: 1; transform: translateY(0); }
+}
+.hero-rise,
+.hero-lift {
+  animation-duration: .9s;
+  animation-timing-function: cubic-bezier(0.16, 1, 0.3, 1);
+  animation-fill-mode: both;
+}
+.hero-rise { animation-name: hero-rise; }
+.hero-lift { animation-name: hero-lift; }
+
+@media (prefers-reduced-motion: reduce) {
+  .hero-rise, .hero-lift { animation: none !important; opacity: 1; transform: none; }
+}
+
 /* ── GLITCH DISPLAY TITLE (events banner) ────────────── */
 
 .glitch {

@@ -237,49 +237,41 @@ export default function Hero({
       >
         <div className="flex w-full justify-end">
           <div className="w-full max-w-[560px] lg:w-[52%]">
+            {/* The headline, paragraph and thumbnail rail use CSS entrances
+                (see globals.css). A motion-library entrance would serialise
+                its opacity-0 start frame into the server HTML and leave the
+                hero blank until the bundle hydrates. */}
             <h1 className="font-hero">
               <span className="block overflow-hidden">
-                <motion.span
-                  key="hero-lead"
-                  initial={{ y: "110%", opacity: 0 }}
-                  animate={{ y: "0%", opacity: 1 }}
-                  transition={{ duration: 0.95, delay: 0.1, ease }}
-                  style={{ fontSize: leadSize }}
-                  className="block font-medium leading-[1.04] tracking-[-0.02em] text-white [overflow-wrap:anywhere]"
+                <span
+                  style={{ fontSize: leadSize, animationDelay: "0.1s" }}
+                  className="hero-rise block font-medium leading-[1.04] tracking-[-0.02em] text-white [overflow-wrap:anywhere]"
                 >
                   {lead}
-                </motion.span>
+                </span>
               </span>
               <span className="-mt-1 block overflow-hidden">
-                <motion.span
-                  key="hero-punch"
-                  initial={{ y: "110%", opacity: 0 }}
-                  animate={{ y: "0%", opacity: 1 }}
-                  transition={{ duration: 0.95, delay: 0.2, ease }}
-                  style={{ fontSize: punchSize }}
-                  className="block font-bold leading-[1.04] tracking-[-0.035em] text-white [overflow-wrap:anywhere]"
+                <span
+                  style={{ fontSize: punchSize, animationDelay: "0.2s" }}
+                  className="hero-rise block font-bold leading-[1.04] tracking-[-0.035em] text-white [overflow-wrap:anywhere]"
                 >
                   {punch}
-                </motion.span>
+                </span>
               </span>
             </h1>
 
-            <motion.p
-              initial={{ opacity: 0, y: 22 }}
-              animate={{ opacity: 1, y: 0 }}
-              transition={{ duration: 0.8, delay: 0.36, ease }}
-              className="font-hero mt-4 max-w-[520px] text-[clamp(0.95rem,1.6vw,1.3rem)] font-normal leading-[1.3] text-white"
+            <p
+              style={{ animationDelay: "0.36s" }}
+              className="hero-lift font-hero mt-4 max-w-[520px] text-[clamp(0.95rem,1.6vw,1.3rem)] font-normal leading-[1.3] text-white"
             >
               {body}
-            </motion.p>
+            </p>
 
             {/* Thumbnail queue — a new still enters on the left each tick
                 and the rest march to the right. */}
-            <motion.ul
-              initial={{ opacity: 0, y: 30 }}
-              animate={{ opacity: 1, y: 0 }}
-              transition={{ duration: 0.85, delay: 0.46, ease }}
-              className="mt-7 flex gap-4"
+            <ul
+              style={{ animationDelay: "0.46s" }}
+              className="hero-lift mt-7 flex gap-4"
               aria-label="Recent stills"
             >
               <AnimatePresence initial={false} mode="popLayout">
@@ -333,7 +325,7 @@ export default function Hero({
                   </motion.li>
                 ))}
               </AnimatePresence>
-            </motion.ul>
+            </ul>
 
             {/* Progress line — advances with the gallery */}
             <div className="mt-5 h-[3px] w-full bg-white/30" aria-hidden>
@@ -346,11 +338,9 @@ export default function Hero({
             </div>
 
             {/* Tabs */}
-            <motion.div
-              initial={{ opacity: 0, y: 18 }}
-              animate={{ opacity: 1, y: 0 }}
-              transition={{ duration: 0.75, delay: 0.66, ease }}
-              className="mt-6 flex flex-wrap items-center gap-x-10 gap-y-3"
+            <div
+              style={{ animationDelay: "0.66s" }}
+              className="hero-lift mt-6 flex flex-wrap items-center gap-x-10 gap-y-3"
             >
               {TABS.map((t, i) => (
                 <button
@@ -377,7 +367,7 @@ export default function Hero({
                 <span className="hidden sm:inline">Explore</span>
                 <ArrowRight className="size-4 shrink-0 opacity-0 transition-all duration-300 group-hover:translate-x-1 group-hover:opacity-100" aria-hidden />
               </Link>
-            </motion.div>
+            </div>
           </div>
         </div>
       </motion.div>

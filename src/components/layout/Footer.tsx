@@ -4,6 +4,7 @@ import { useCallback, useEffect, useRef } from "react";
 import Link from "next/link";
 import { Facebook, Instagram, Twitter, Youtube, Linkedin, Mail, Phone, MapPin, ArrowUpRight, Sparkles } from "lucide-react";
 import { useTheme } from "@/components/motion/Providers";
+import { istParts } from "@/lib/utils";
 
 type Props = {
   brandName?: string;
@@ -316,7 +317,9 @@ function FooterReel() {
 
 export default function Footer({ brandName = "UPGRADE TALENTS INDIA", tagline, contact, links = [] }: Props) {
   const socials = Object.entries(contact?.social_media || {}).filter(([, v]) => !!v) as [string, string][];
-  const year = new Date().getFullYear();
+  // Indian calendar year: a host-local year makes the server and the browser
+  // disagree across the New Year boundary and discards the server markup.
+  const year = istParts(new Date()).y;
   // the giant wordmark carries just the lead word — the full name would have
   // to shrink to fit the width and lose its weight
   const wordmark = brandName.trim().split(/\s+/)[0];
