@@ -16,12 +16,16 @@ import { imageFor, formatEventDate } from "@/lib/utils";
 
 type LeaderboardEntry = {
   rank?: number;
+  category_rank?: number;
   participant_id?: string;
   user_email?: string;
   email?: string;
   name?: string;
   profile_photo?: string;
   final_score?: number;
+  total_score?: number;
+  score?: number;
+  points?: number;
   raw_audience_votes?: number;
   audience_votes?: number;
   normalized_audience_score?: number;
@@ -31,6 +35,8 @@ type LeaderboardEntry = {
   ranking_mode?: string;
   submission_id?: string;
   category?: string;
+  is_advancing?: boolean;
+  round_status?: string;
 };
 
 type ResultSnapshot = {
@@ -57,6 +63,8 @@ type JudgeFeedback = {
 };
 
 const nf = (n?: number) => new Intl.NumberFormat("en-IN").format(Math.round(Number(n ?? 0)));
+const getPoints = (r: LeaderboardEntry) =>
+  Number(r.final_score ?? r.points ?? r.total_score ?? r.score ?? r.judge_score ?? r.audience_votes ?? 0);
 const handle = (r: LeaderboardEntry) =>
   "@" + ((r.email || r.participant_id || r.user_email || r.name || "player").split("@")[0].replace(/\s+/g, "_").toLowerCase());
 
@@ -262,7 +270,7 @@ export default function CompetitionResults({
     const filteredList = rawLeaderboard.filter(
       (r) => (r.category || "").trim().toLowerCase() === activeCategory.trim().toLowerCase()
     );
-    filteredList.sort((a, b) => (b.final_score ?? 0) - (a.final_score ?? 0));
+    filteredList.sort((a, b) => getPoints(b) - getPoints(a));
     return filteredList.map((r, idx) => ({ ...r, rank: idx + 1 }));
   }, [rawLeaderboard, snapshot, activeCategory]);
 
@@ -648,7 +656,7 @@ export default function CompetitionResults({
                 </div>
                 <div className="mt-6 w-full rounded-2xl border border-slate-300/50 bg-slate-100/70 dark:bg-slate-800/40 p-3">
                   <p className="font-display text-2xl font-bold text-slate-800 dark:text-slate-100">
-                    {nf(top3[1].final_score ?? top3[1].raw_audience_votes)}
+                    {nf(getPoints(top3[1]))}
                   </p>
                   <p className="text-[10px] font-semibold uppercase tracking-wider text-[var(--fg-subtle)]">Final Score</p>
                   <div className="mt-2 flex justify-around text-[11px] text-[var(--fg-muted)]">
@@ -682,7 +690,7 @@ export default function CompetitionResults({
                 </div>
                 <div className="mt-6 w-full rounded-2xl border border-amber-400/35 bg-amber-500/10 dark:bg-amber-500/15 p-4">
                   <p className="font-display text-3xl font-black text-transparent bg-clip-text bg-gradient-to-r from-amber-500 via-yellow-500 to-amber-600 dark:from-amber-300 dark:via-yellow-300 dark:to-amber-500">
-                    {nf(top3[0].final_score ?? top3[0].raw_audience_votes)}
+                    {nf(getPoints(top3[0]))}
                   </p>
                   <p className="text-[10px] font-semibold uppercase tracking-wider text-[var(--fg-subtle)]">Final Score</p>
                   <div className="mt-3 flex justify-around text-xs text-[var(--fg-muted)]">
@@ -716,7 +724,7 @@ export default function CompetitionResults({
                 </div>
                 <div className="mt-6 w-full rounded-2xl border border-amber-700/35 bg-amber-700/10 dark:bg-amber-900/30 p-3">
                   <p className="font-display text-2xl font-bold text-amber-800 dark:text-amber-300">
-                    {nf(top3[2].final_score ?? top3[2].raw_audience_votes)}
+                    {nf(getPoints(top3[2]))}
                   </p>
                   <p className="text-[10px] font-semibold uppercase tracking-wider text-[var(--fg-subtle)]">Final Score</p>
                   <div className="mt-2 flex justify-around text-[11px] text-[var(--fg-muted)]">
@@ -826,7 +834,7 @@ export default function CompetitionResults({
                         {nf(row.judge_score ?? row.raw_judge_score)}
                       </td>
                       <td className="py-3.5 pl-4 pr-6 text-right font-mono text-[13.5px] font-bold text-[var(--accent)]">
-                        {nf(row.final_score ?? row.raw_audience_votes)}
+                        {nf(getPoints(row))}
                       </td>
                     </tr>
                   );
