@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState, useMemo } from "react";
+import React, { useEffect, useState, useMemo, useRef } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import {
   X,
@@ -18,19 +18,24 @@ import {
   Radio,
   CheckCircle2,
   ExternalLink,
-  MessageCircle,
-  Twitter,
-  Send,
-  Linkedin,
-  Facebook,
-  Mail,
   Smartphone,
   Eye,
-  ArrowRight
+  Loader2,
+  AlertCircle,
+  FileImage,
+  Layers,
 } from "lucide-react";
 import QRCode from "qrcode";
 import { formatEventDate, formatINR, imageFor, cn } from "@/lib/utils";
 import { getCompetitionLifecycle } from "@/lib/competition-lifecycle";
+import {
+  SiFacebook,
+  SiInstagram,
+  SiX,
+  SiWhatsapp,
+  SiTelegram,
+  SiLinkedin,
+} from "@/components/common/SocialIcons";
 
 export interface ShareCompetitionModalProps {
   isOpen: boolean;
@@ -57,6 +62,7 @@ export interface ShareCompetitionModalProps {
     card_image_url?: string | null;
     banner_image_url?: string | null;
     image_url?: string | null;
+    share_image_url?: string | null;
     status?: string;
     voting_status?: string;
     judging_status?: string;
@@ -78,19 +84,37 @@ export default function ShareCompetitionModal({
   const [activeTab, setActiveTab] = useState<"share" | "qr">("share");
   const [qrDataUrl, setQrDataUrl] = useState<string>("");
   const [canNativeShare, setCanNativeShare] = useState(false);
+  const [canShareFiles, setCanShareFiles] = useState(false);
+
+  // Loading & notification states
+  const [isPreparingShare, setIsPreparingShare] = useState(false);
+  const [isDownloadingPoster, setIsDownloadingPoster] = useState(false);
+  const [downloadSuccess, setDownloadSuccess] = useState(false);
+  const [shareFeedback, setShareFeedback] = useState<{
+    type: "success" | "info" | "warning";
+    message: string;
+  } | null>(null);
 
   const compId = comp?._id || comp?.id || "";
   const title = comp?.title || comp?.name || "Official Talent Competition";
   const category = comp?.category || comp?.type || "Competition";
   const fee = comp?.participation_fee ?? comp?.fee ?? 0;
   const prize = comp?.prize || "";
-  const venue = comp?.venue || (comp?.event_mode === "OFFLINE" ? "Main Stage Venue" : "Virtual / Online Live Stage");
+  const venue =
+    comp?.venue ||
+    (comp?.event_mode === "OFFLINE"
+      ? "Main Stage Venue"
+      : "Virtual / Online Live Stage");
   const startDate = comp?.start_date ? formatEventDate(comp.start_date) : "";
   const startTime = comp?.start_time || comp?.time || "";
   const dateTimeStr = [startDate, startTime].filter(Boolean).join(" at ");
 
   const desktopImg = comp?.card_image_url || comp?.image_url || "";
-  const posterImg = comp?.banner_image_url || desktopImg || imageFor(desktopImg, 6);
+  const posterImg =
+    comp?.share_image_url ||
+    comp?.banner_image_url ||
+    desktopImg ||
+    imageFor(desktopImg, 6);
 
   const lifecycle = comp ? getCompetitionLifecycle(comp) : ({} as any);
 
@@ -133,10 +157,24 @@ export default function ShareCompetitionModal({
     return lines.join("\n");
   }, [title, category, dateTimeStr, venue, prize, fee, shareMode, registerUrl, detailsUrl]);
 
-  // Check if native sharing is available
+  // Check Web Share API and File sharing capabilities safely
   useEffect(() => {
     if (typeof navigator !== "undefined" && typeof navigator.share === "function") {
       setCanNativeShare(true);
+      try {
+        if (typeof navigator.canShare === "function") {
+          const testFile = new File(
+            [new Blob(["t"], { type: "image/jpeg" })],
+            "t.jpg",
+            { type: "image/jpeg" }
+          );
+          if (navigator.canShare({ files: [testFile] })) {
+            setCanShareFiles(true);
+          }
+        }
+      } catch {
+        setCanShareFiles(false);
+      }
     }
   }, []);
 
@@ -162,6 +200,7 @@ export default function ShareCompetitionModal({
       document.body.style.overflow = "hidden";
     } else {
       document.body.style.overflow = "";
+      setShareFeedback(null);
     }
     return () => {
       document.body.style.overflow = "";
@@ -170,11 +209,53 @@ export default function ShareCompetitionModal({
 
   if (!isOpen || !comp) return null;
 
+  // Helper to fetch the actual poster image as a File object with proxy fallback
+  const fetchPosterFile = async (): Promise<File | null> => {
+    if (!posterImg) return null;
+    const safeTitle = (comp.title || "competition")
+      .replace(/[^a-zA-Z0-9]/g, "_")
+      .toLowerCase()
+      .slice(0, 40);
+    const fileName = `${safeTitle}_poster.jpg`;
+
+    // 1. Direct fetch
+    try {
+      const res = await fetch(posterImg, { mode: "cors" });
+      if (res.ok) {
+        const blob = await res.blob();
+        return new File([blob], fileName, { type: blob.type || "image/jpeg" });
+      }
+    } catch {
+      // Direct fetch failed (likely CORS), try proxy
+    }
+
+    // 2. Proxy fetch fallback
+    try {
+      const proxyUrl = `/api/proxy-image?url=${encodeURIComponent(posterImg)}`;
+      const res = await fetch(proxyUrl);
+      if (res.ok) {
+        const blob = await res.blob();
+        return new File([blob], fileName, { type: blob.type || "image/jpeg" });
+      }
+    } catch (err) {
+      console.warn("Could not fetch poster file:", err);
+    }
+
+    return null;
+  };
+
   const copyLink = async () => {
     try {
       await navigator.clipboard.writeText(activeUrl);
       setCopiedLink(true);
-      setTimeout(() => setCopiedLink(false), 2400);
+      setShareFeedback({
+        type: "success",
+        message: "Competition URL copied to clipboard!",
+      });
+      setTimeout(() => {
+        setCopiedLink(false);
+        setShareFeedback(null);
+      }, 3000);
     } catch {
       // Fallback
     }
@@ -184,12 +265,131 @@ export default function ShareCompetitionModal({
     try {
       await navigator.clipboard.writeText(shareMessage);
       setCopiedText(true);
-      setTimeout(() => setCopiedText(false), 2400);
+      setShareFeedback({
+        type: "success",
+        message: "Full invite message copied to clipboard!",
+      });
+      setTimeout(() => {
+        setCopiedText(false);
+        setShareFeedback(null);
+      }, 3000);
     } catch {
       // Fallback
     }
   };
 
+  // Action 1: Share Poster + Competition Link (Web Share API with file attachment)
+  const handleSharePosterAndLink = async () => {
+    setIsPreparingShare(true);
+    setShareFeedback(null);
+
+    try {
+      const posterFile = await fetchPosterFile();
+
+      // Check if navigator.canShare supports files
+      if (
+        posterFile &&
+        typeof navigator !== "undefined" &&
+        navigator.canShare &&
+        navigator.canShare({ files: [posterFile] })
+      ) {
+        try {
+          await navigator.share({
+            title,
+            text: `🏆 ${title} | ${category}\nJoin this competition on Upgrade Talents India!\n\n${activeUrl}`,
+            url: activeUrl,
+            files: [posterFile],
+          });
+          setShareFeedback({
+            type: "success",
+            message: "Poster and link shared successfully via device menu!",
+          });
+          return;
+        } catch (err: any) {
+          if (err?.name === "AbortError") {
+            // User closed share sheet without sharing - DO NOT claim success
+            return;
+          }
+          console.warn("File share failed, attempting fallback:", err);
+        }
+      }
+
+      // Fallback when browser/OS cannot share image files directly
+      // Fallback A: Standard navigator.share without file
+      if (typeof navigator !== "undefined" && navigator.share) {
+        try {
+          await navigator.share({
+            title,
+            text: `🏆 ${title} | ${category}\n${activeUrl}`,
+            url: activeUrl,
+          });
+          setShareFeedback({
+            type: "info",
+            message: "Link shared! (Your browser does not support direct image file sharing).",
+          });
+          return;
+        } catch (err: any) {
+          if (err?.name === "AbortError") return;
+        }
+      }
+
+      // Fallback B: Download poster and copy link
+      await downloadPoster();
+      await copyLink();
+      setShareFeedback({
+        type: "info",
+        message: "Poster downloaded and link copied! Browser does not support direct file sharing.",
+      });
+    } catch (err) {
+      console.error("Error in share poster:", err);
+      setShareFeedback({
+        type: "warning",
+        message: "Could not share automatically. URL has been copied to your clipboard.",
+      });
+      copyLink();
+    } finally {
+      setIsPreparingShare(false);
+    }
+  };
+
+  // Action 2: Download Competition Poster
+  const downloadPoster = async () => {
+    setIsDownloadingPoster(true);
+    try {
+      const posterFile = await fetchPosterFile();
+      if (posterFile) {
+        const blobUrl = URL.createObjectURL(posterFile);
+        const a = document.createElement("a");
+        a.href = blobUrl;
+        a.download = posterFile.name;
+        document.body.appendChild(a);
+        a.click();
+        document.body.removeChild(a);
+        setTimeout(() => URL.revokeObjectURL(blobUrl), 1500);
+        setDownloadSuccess(true);
+        setTimeout(() => setDownloadSuccess(false), 3000);
+      } else {
+        // Direct anchor download attempt
+        const a = document.createElement("a");
+        a.href = posterImg;
+        a.target = "_blank";
+        a.download = `${(comp.title || "competition").replace(/\s+/g, "_")}_poster.jpg`;
+        document.body.appendChild(a);
+        a.click();
+        document.body.removeChild(a);
+        setDownloadSuccess(true);
+        setTimeout(() => setDownloadSuccess(false), 3000);
+      }
+    } catch (err) {
+      console.error("Download poster failed:", err);
+      // Open in new tab as ultimate fallback
+      window.open(posterImg, "_blank");
+    } finally {
+      setIsDownloadingPoster(false);
+    }
+  };
+
+  // Action 3: Native Device Share Menu (Web Share API)
   const handleNativeShare = async () => {
     if (typeof navigator !== "undefined" && navigator.share) {
       try {
@@ -198,14 +398,17 @@ export default function ShareCompetitionModal({
           text: `Check out '${title}' on Upgrade Talents India!`,
           url: activeUrl,
         });
-      } catch {
-        // User dismissed sheet
+      } catch (err: any) {
+        if (err?.name !== "AbortError") {
+          copyLink();
+        }
       }
     } else {
       copyLink();
     }
   };
 
+  // Social Share URLs
   const openWhatsApp = () => {
     const url = `https://api.whatsapp.com/send?text=${encodeURIComponent(shareMessage)}`;
     window.open(url, "_blank", "noopener,noreferrer");
@@ -221,9 +424,9 @@ export default function ShareCompetitionModal({
     window.open(url, "_blank", "noopener,noreferrer");
   };
 
-  const openTwitter = () => {
+  const openX = () => {
     const tweetText = `🏆 Participate in '${title}' on Upgrade Talents India!\n\n#UpgradeTalentsIndia #TalentContest #${category.replace(/\s+/g, "")}`;
-    const url = `https://twitter.com/intent/tweet?text=${encodeURIComponent(tweetText)}&url=${encodeURIComponent(activeUrl)}`;
+    const url = `https://x.com/intent/post?text=${encodeURIComponent(tweetText)}&url=${encodeURIComponent(activeUrl)}`;
     window.open(url, "_blank", "noopener,noreferrer");
   };
 
@@ -232,12 +435,14 @@ export default function ShareCompetitionModal({
     window.open(url, "_blank", "noopener,noreferrer");
   };
 
-  const openEmail = () => {
-    const subject = encodeURIComponent(`Invitation to participate in ${title}`);
-    const body = encodeURIComponent(
-      `Hi,\n\nI wanted to share this exciting competition with you:\n\n${shareMessage}\n\nCheck out full details at: ${activeUrl}`
-    );
-    window.open(`mailto:?subject=${subject}&body=${body}`, "_self");
+  // Instagram Action: Downloads poster + copies caption + offers native share
+  const handleInstagramShare = async () => {
+    await copyFullMessage();
+    await downloadPoster();
+    setShareFeedback({
+      type: "info",
+      message: "Poster downloaded & caption copied! Open Instagram to share to your Story or Feed.",
+    });
   };
 
   const downloadQr = () => {
@@ -284,11 +489,11 @@ export default function ShareCompetitionModal({
                 <h3 className="text-sm sm:text-base font-extrabold tracking-tight text-white flex items-center gap-2">
                   <span>Share Competition</span>
                   <span className="rounded-full bg-amber-500/20 border border-amber-400/30 px-2 py-0.2 text-[10px] font-bold text-amber-300">
-                    VIP Invite
+                    Official Invite
                   </span>
                 </h3>
                 <p className="text-[11px] text-neutral-400">
-                  Send invite with rich preview, image &amp; direct link
+                  Share official poster, direct link, and rich preview
                 </p>
               </div>
             </div>
@@ -303,7 +508,31 @@ export default function ShareCompetitionModal({
             </button>
           </div>
 
-          <div className="max-h-[80vh] overflow-y-auto p-5 sm:p-6 space-y-5 scrollbar-thin">
+          <div className="max-h-[82vh] overflow-y-auto p-5 sm:p-6 space-y-5 scrollbar-thin">
+            {/* Feedback notification banner if any */}
+            {shareFeedback && (
+              <motion.div
+                initial={{ opacity: 0, y: -6 }}
+                animate={{ opacity: 1, y: 0 }}
+                exit={{ opacity: 0 }}
+                className={cn(
+                  "p-3 rounded-xl border text-xs font-semibold flex items-center gap-2 shadow-md",
+                  shareFeedback.type === "success"
+                    ? "bg-emerald-500/15 border-emerald-500/30 text-emerald-300"
+                    : shareFeedback.type === "warning"
+                    ? "bg-amber-500/15 border-amber-500/30 text-amber-300"
+                    : "bg-sky-500/15 border-sky-500/30 text-sky-300"
+                )}
+              >
+                {shareFeedback.type === "success" ? (
+                  <CheckCircle2 className="size-4 shrink-0 text-emerald-400" />
+                ) : (
+                  <AlertCircle className="size-4 shrink-0 text-amber-400" />
+                )}
+                <span>{shareFeedback.message}</span>
+              </motion.div>
+            )}
+
             {/* ── Ultra Pro Visual Competition Card Preview ── */}
             <div className="group relative overflow-hidden rounded-2xl border border-white/15 bg-gradient-to-br from-white/[0.07] via-white/[0.03] to-transparent p-3.5 sm:p-4 shadow-xl backdrop-blur-xl">
               <div className="flex flex-col sm:flex-row gap-3.5 sm:gap-4 items-start">
@@ -315,7 +544,7 @@ export default function ShareCompetitionModal({
                     className="size-full object-cover object-center group-hover:scale-105 transition-transform duration-500"
                   />
                   <div className="absolute inset-0 bg-gradient-to-t from-black/80 via-transparent to-black/20" />
-                  
+
                   {/* Category Pill on Image */}
                   <span className="absolute top-2 left-2 inline-flex items-center gap-1 rounded-md bg-black/75 border border-white/20 px-2 py-0.5 text-[9.5px] font-extrabold text-white backdrop-blur-md uppercase tracking-wider">
                     <Sparkles className="size-2.5 text-amber-400" />
@@ -376,7 +605,10 @@ export default function ShareCompetitionModal({
                   <div className="mt-3 pt-2.5 border-t border-white/10 flex items-center justify-between text-[11px] text-neutral-400">
                     <span className="flex items-center gap-1 text-[10.5px]">
                       <Eye className="size-3 text-amber-400" />
-                      Recipient lands on: <strong className="text-white font-semibold">{shareMode === "register" ? "Registration Form" : "Details & Media"}</strong>
+                      Recipient lands on:{" "}
+                      <strong className="text-white font-semibold">
+                        {shareMode === "register" ? "Registration Form" : "Details & Media"}
+                      </strong>
                     </span>
                     <span className="text-[10px] font-mono text-emerald-400 bg-emerald-500/10 px-1.5 py-0.2 rounded border border-emerald-500/20">
                       Direct Link Ready
@@ -415,7 +647,60 @@ export default function ShareCompetitionModal({
               </button>
             </div>
 
-            {/* ── View Tab Selector (Quick Share vs QR Code) ── */}
+            {/* ── Primary Dual Action Bar: [Share Poster + Link] and [Download Poster] ── */}
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-2.5">
+              {/* Share Poster + Link Button */}
+              <button
+                type="button"
+                onClick={handleSharePosterAndLink}
+                disabled={isPreparingShare}
+                className="cursor-pointer group relative flex items-center justify-center gap-2 rounded-2xl bg-gradient-to-r from-amber-500 via-orange-500 to-yellow-500 hover:from-amber-400 hover:to-yellow-400 p-3.5 text-slate-950 font-extrabold text-xs shadow-lg shadow-amber-500/25 transition-all hover:scale-[1.01] active:scale-95 disabled:opacity-75"
+              >
+                {isPreparingShare ? (
+                  <>
+                    <Loader2 className="size-4 animate-spin" />
+                    <span>Preparing Poster...</span>
+                  </>
+                ) : (
+                  <>
+                    <FileImage className="size-4 text-slate-950 group-hover:scale-110 transition-transform" />
+                    <span>Share Poster + Competition Link</span>
+                  </>
+                )}
+              </button>
+
+              {/* Download Poster Button */}
+              <button
+                type="button"
+                onClick={downloadPoster}
+                disabled={isDownloadingPoster}
+                className={cn(
+                  "cursor-pointer flex items-center justify-center gap-2 rounded-2xl border p-3.5 font-bold text-xs transition-all hover:scale-[1.01] active:scale-95",
+                  downloadSuccess
+                    ? "border-emerald-500/40 bg-emerald-500/20 text-emerald-300"
+                    : "border-white/15 bg-white/5 hover:bg-white/10 text-white"
+                )}
+              >
+                {isDownloadingPoster ? (
+                  <>
+                    <Loader2 className="size-4 animate-spin text-amber-400" />
+                    <span>Downloading Poster...</span>
+                  </>
+                ) : downloadSuccess ? (
+                  <>
+                    <Check className="size-4 text-emerald-400" />
+                    <span>Poster Downloaded!</span>
+                  </>
+                ) : (
+                  <>
+                    <Download className="size-4 text-amber-400" />
+                    <span>Download Competition Poster</span>
+                  </>
+                )}
+              </button>
+            </div>
+
+            {/* ── View Tab Selector (Instant Social vs QR Code) ── */}
             <div className="flex items-center justify-between border-b border-white/10 pb-2">
               <div className="flex items-center gap-2 text-xs font-bold text-neutral-300">
                 <button
@@ -429,7 +714,7 @@ export default function ShareCompetitionModal({
                   )}
                 >
                   <Share2 className="size-3.5" />
-                  <span>Instant Social Share</span>
+                  <span>Official Social Share</span>
                 </button>
                 <button
                   type="button"
@@ -467,99 +752,131 @@ export default function ShareCompetitionModal({
 
             {activeTab === "share" ? (
               <div className="space-y-4">
-                {/* ── One-Click Social Share Grid (Ultra Pro Badges) ── */}
+                {/* ── One-Click Official Brand Social Share Grid ── */}
                 <div>
-                  <label className="text-[11px] font-bold uppercase tracking-wider text-neutral-400 mb-2 block">
-                    Share directly with contacts &amp; apps:
+                  <label className="text-[11px] font-bold uppercase tracking-wider text-neutral-400 mb-2.5 block">
+                    Official Social Channels:
                   </label>
-                  <div className="grid grid-cols-2 sm:grid-cols-4 gap-2.5">
+                  <div className="grid grid-cols-2 sm:grid-cols-3 gap-2.5">
                     {/* WhatsApp */}
                     <button
                       type="button"
                       onClick={openWhatsApp}
-                      className="cursor-pointer flex flex-col items-center justify-center gap-1.5 rounded-2xl border border-emerald-500/30 bg-[#25D366]/15 hover:bg-[#25D366]/25 p-3 text-emerald-300 transition-all hover:scale-[1.02] active:scale-95 group shadow-sm"
+                      className="cursor-pointer flex items-center gap-3 rounded-2xl border border-emerald-500/30 bg-[#25D366]/10 hover:bg-[#25D366]/20 p-3 text-emerald-300 transition-all hover:scale-[1.02] active:scale-95 group shadow-sm text-left"
                     >
-                      <div className="size-9 rounded-xl bg-[#25D366] text-white grid place-items-center shadow-md shadow-[#25D366]/30 group-hover:rotate-6 transition-transform">
-                        <MessageCircle className="size-5 fill-current" />
+                      <div className="size-9 rounded-xl bg-[#25D366] text-white grid place-items-center shadow-md shadow-[#25D366]/30 group-hover:rotate-6 transition-transform shrink-0">
+                        <SiWhatsapp className="size-5 text-white" />
                       </div>
-                      <span className="text-xs font-bold text-white">WhatsApp</span>
-                      <span className="text-[9.5px] text-emerald-300/80 font-mono">Image &amp; text</span>
-                    </button>
-
-                    {/* Telegram */}
-                    <button
-                      type="button"
-                      onClick={openTelegram}
-                      className="cursor-pointer flex flex-col items-center justify-center gap-1.5 rounded-2xl border border-sky-500/30 bg-[#229ED9]/15 hover:bg-[#229ED9]/25 p-3 text-sky-300 transition-all hover:scale-[1.02] active:scale-95 group shadow-sm"
-                    >
-                      <div className="size-9 rounded-xl bg-[#229ED9] text-white grid place-items-center shadow-md shadow-[#229ED9]/30 group-hover:-rotate-6 transition-transform">
-                        <Send className="size-4.5" />
+                      <div className="min-w-0">
+                        <span className="block text-xs font-bold text-white">WhatsApp</span>
+                        <span className="block text-[9.5px] text-emerald-300/80 font-mono truncate">
+                          Poster &amp; text
+                        </span>
                       </div>
-                      <span className="text-xs font-bold text-white">Telegram</span>
-                      <span className="text-[9.5px] text-sky-300/80 font-mono">Instant forward</span>
                     </button>
 
                     {/* Facebook */}
                     <button
                       type="button"
                       onClick={openFacebook}
-                      className="cursor-pointer flex flex-col items-center justify-center gap-1.5 rounded-2xl border border-blue-500/30 bg-[#1877F2]/15 hover:bg-[#1877F2]/25 p-3 text-blue-300 transition-all hover:scale-[1.02] active:scale-95 group shadow-sm"
+                      className="cursor-pointer flex items-center gap-3 rounded-2xl border border-blue-500/30 bg-[#1877F2]/10 hover:bg-[#1877F2]/20 p-3 text-blue-300 transition-all hover:scale-[1.02] active:scale-95 group shadow-sm text-left"
                     >
-                      <div className="size-9 rounded-xl bg-[#1877F2] text-white grid place-items-center shadow-md shadow-[#1877F2]/30 group-hover:rotate-6 transition-transform">
-                        <Facebook className="size-5 fill-current" />
+                      <div className="size-9 rounded-xl bg-[#1877F2] text-white grid place-items-center shadow-md shadow-[#1877F2]/30 group-hover:rotate-6 transition-transform shrink-0">
+                        <SiFacebook className="size-5 text-white" />
                       </div>
-                      <span className="text-xs font-bold text-white">Facebook</span>
-                      <span className="text-[9.5px] text-blue-300/80 font-mono">Feed &amp; Groups</span>
+                      <div className="min-w-0">
+                        <span className="block text-xs font-bold text-white">Facebook</span>
+                        <span className="block text-[9.5px] text-blue-300/80 font-mono truncate">
+                          Feed &amp; Groups
+                        </span>
+                      </div>
                     </button>
 
-                    {/* Twitter / X */}
+                    {/* Instagram */}
                     <button
                       type="button"
-                      onClick={openTwitter}
-                      className="cursor-pointer flex flex-col items-center justify-center gap-1.5 rounded-2xl border border-white/20 bg-neutral-800/60 hover:bg-neutral-800 p-3 text-white transition-all hover:scale-[1.02] active:scale-95 group shadow-sm"
+                      onClick={handleInstagramShare}
+                      className="cursor-pointer flex items-center gap-3 rounded-2xl border border-rose-500/30 bg-gradient-to-br from-rose-500/10 via-amber-500/10 to-violet-500/10 hover:from-rose-500/20 hover:to-violet-500/20 p-3 text-rose-300 transition-all hover:scale-[1.02] active:scale-95 group shadow-sm text-left"
                     >
-                      <div className="size-9 rounded-xl bg-black text-white grid place-items-center border border-white/20 shadow-md group-hover:-rotate-6 transition-transform">
-                        <Twitter className="size-4.5" />
+                      <div className="size-9 rounded-xl bg-gradient-to-tr from-[#FFDC80] via-[#FD1D1D] to-[#833AB4] text-white grid place-items-center shadow-md group-hover:rotate-6 transition-transform shrink-0">
+                        <SiInstagram className="size-5 text-white" />
                       </div>
-                      <span className="text-xs font-bold text-white">X / Twitter</span>
-                      <span className="text-[9.5px] text-neutral-400 font-mono">Post tweet</span>
+                      <div className="min-w-0">
+                        <span className="block text-xs font-bold text-white">Instagram</span>
+                        <span className="block text-[9.5px] text-rose-300/80 font-mono truncate">
+                          Story &amp; Post
+                        </span>
+                      </div>
+                    </button>
+
+                    {/* LinkedIn */}
+                    <button
+                      type="button"
+                      onClick={openLinkedIn}
+                      className="cursor-pointer flex items-center gap-3 rounded-2xl border border-sky-600/30 bg-[#0A66C2]/10 hover:bg-[#0A66C2]/20 p-3 text-sky-200 transition-all hover:scale-[1.02] active:scale-95 group shadow-sm text-left"
+                    >
+                      <div className="size-9 rounded-xl bg-[#0A66C2] text-white grid place-items-center shadow-md shadow-[#0A66C2]/30 group-hover:rotate-6 transition-transform shrink-0">
+                        <SiLinkedin className="size-4.5 text-white" />
+                      </div>
+                      <div className="min-w-0">
+                        <span className="block text-xs font-bold text-white">LinkedIn</span>
+                        <span className="block text-[9.5px] text-sky-300/80 font-mono truncate">
+                          Professional feed
+                        </span>
+                      </div>
+                    </button>
+
+                    {/* Telegram */}
+                    <button
+                      type="button"
+                      onClick={openTelegram}
+                      className="cursor-pointer flex items-center gap-3 rounded-2xl border border-sky-500/30 bg-[#229ED9]/10 hover:bg-[#229ED9]/20 p-3 text-sky-300 transition-all hover:scale-[1.02] active:scale-95 group shadow-sm text-left"
+                    >
+                      <div className="size-9 rounded-xl bg-[#229ED9] text-white grid place-items-center shadow-md shadow-[#229ED9]/30 group-hover:-rotate-6 transition-transform shrink-0">
+                        <SiTelegram className="size-4.5 text-white" />
+                      </div>
+                      <div className="min-w-0">
+                        <span className="block text-xs font-bold text-white">Telegram</span>
+                        <span className="block text-[9.5px] text-sky-300/80 font-mono truncate">
+                          Instant forward
+                        </span>
+                      </div>
+                    </button>
+
+                    {/* X (Twitter) */}
+                    <button
+                      type="button"
+                      onClick={openX}
+                      className="cursor-pointer flex items-center gap-3 rounded-2xl border border-white/20 bg-black/60 hover:bg-neutral-900 p-3 text-white transition-all hover:scale-[1.02] active:scale-95 group shadow-sm text-left"
+                    >
+                      <div className="size-9 rounded-xl bg-black text-white grid place-items-center border border-white/20 shadow-md group-hover:-rotate-6 transition-transform shrink-0">
+                        <SiX className="size-4.5 text-white" />
+                      </div>
+                      <div className="min-w-0">
+                        <span className="block text-xs font-bold text-white">X / Twitter</span>
+                        <span className="block text-[9.5px] text-neutral-400 font-mono truncate">
+                          Post update
+                        </span>
+                      </div>
                     </button>
                   </div>
                 </div>
 
-                {/* Additional Platform Buttons (LinkedIn, Email, Device Share) */}
-                <div className="flex flex-wrap items-center gap-2 pt-1">
-                  <button
-                    type="button"
-                    onClick={openLinkedIn}
-                    className="cursor-pointer flex-1 inline-flex items-center justify-center gap-2 rounded-xl border border-sky-600/30 bg-[#0A66C2]/15 hover:bg-[#0A66C2]/25 py-2.5 px-3 text-xs font-bold text-sky-200 transition-all active:scale-95"
-                  >
-                    <Linkedin className="size-3.5 fill-current text-[#0A66C2]" />
-                    <span>LinkedIn</span>
-                  </button>
-
-                  <button
-                    type="button"
-                    onClick={openEmail}
-                    className="cursor-pointer flex-1 inline-flex items-center justify-center gap-2 rounded-xl border border-white/10 bg-white/5 hover:bg-white/10 py-2.5 px-3 text-xs font-bold text-neutral-300 hover:text-white transition-all active:scale-95"
-                  >
-                    <Mail className="size-3.5 text-neutral-400" />
-                    <span>Email Invite</span>
-                  </button>
-
-                  {canNativeShare && (
+                {/* Native Device Share Sheet Button */}
+                {canNativeShare && (
+                  <div className="pt-1">
                     <button
                       type="button"
                       onClick={handleNativeShare}
-                      className="cursor-pointer flex-1 inline-flex items-center justify-center gap-2 rounded-xl border border-amber-500/40 bg-gradient-to-r from-amber-500/20 via-orange-500/20 to-rose-500/20 hover:from-amber-500/30 hover:to-rose-500/30 py-2.5 px-3 text-xs font-extrabold text-amber-200 hover:text-white transition-all active:scale-95 shadow-sm"
+                      className="cursor-pointer w-full flex items-center justify-center gap-2 rounded-xl border border-amber-500/30 bg-gradient-to-r from-amber-500/15 via-orange-500/15 to-rose-500/15 hover:from-amber-500/25 hover:to-rose-500/25 py-2.5 px-4 text-xs font-extrabold text-amber-200 hover:text-white transition-all active:scale-95 shadow-sm"
                     >
-                      <Smartphone className="size-3.5 text-amber-400" />
-                      <span>Device Share Sheet</span>
+                      <Smartphone className="size-4 text-amber-400" />
+                      <span>Open Device Share Menu (AirDrop, Messages, Nearby)</span>
                     </button>
-                  )}
-                </div>
+                  </div>
+                )}
 
-                {/* ── Direct URL Copy Box ── */}
+                {/* ── Direct Competition URL Copy Bar ── */}
                 <div className="pt-2">
                   <label className="text-[11px] font-bold uppercase tracking-wider text-neutral-400 mb-1.5 block">
                     Direct Competition Link:
@@ -598,7 +915,7 @@ export default function ShareCompetitionModal({
                 </div>
               </div>
             ) : (
-              /* ── QR Code Tab (Scan on mobile or download poster) ── */
+              /* ── QR Code Tab ── */
               <div className="flex flex-col items-center justify-center text-center p-4 bg-white/[0.02] border border-white/10 rounded-2xl space-y-4">
                 <div className="relative p-3.5 bg-white rounded-2xl shadow-2xl border-4 border-amber-400/40">
                   {qrDataUrl ? (
@@ -652,7 +969,7 @@ export default function ShareCompetitionModal({
           <div className="border-t border-white/10 bg-black/40 px-5 sm:px-6 py-3 flex items-center justify-between text-[11px] text-neutral-400">
             <span className="flex items-center gap-1.5">
               <Sparkles className="size-3 text-amber-400" />
-              <span>Official event poster preview automatically attaches on WhatsApp</span>
+              <span>Official event poster automatically previewed on social platforms</span>
             </span>
             <a
               href={activeUrl}
@@ -669,4 +986,3 @@ export default function ShareCompetitionModal({
     </AnimatePresence>
   );
 }
-

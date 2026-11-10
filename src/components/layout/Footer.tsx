@@ -2,7 +2,19 @@
 
 import { useCallback, useEffect, useRef } from "react";
 import Link from "next/link";
-import { Facebook, Instagram, Twitter, Youtube, Linkedin, Mail, Phone, MapPin, ArrowUpRight, Sparkles } from "lucide-react";
+import { Mail, Phone, MapPin, ArrowUpRight, Sparkles } from "lucide-react";
+import {
+  SiFacebook,
+  SiInstagram,
+  SiX,
+  SiWhatsapp,
+  SiTelegram,
+  SiThreads,
+  SiGithub,
+  SiLeetcode,
+  SiYoutube,
+  SiLinkedin,
+} from "@/components/common/SocialIcons";
 import { useTheme } from "@/components/motion/Providers";
 import { istParts } from "@/lib/utils";
 
@@ -18,12 +30,18 @@ type Props = {
   links?: { _id: string; title?: string; label?: string; url?: string }[];
 };
 
-const SOCIAL_ICONS: Record<string, typeof Facebook> = {
-  facebook: Facebook,
-  instagram: Instagram,
-  twitter: Twitter,
-  youtube: Youtube,
-  linkedin: Linkedin,
+const SOCIAL_ICONS: Record<string, React.ComponentType<any>> = {
+  facebook: SiFacebook,
+  instagram: SiInstagram,
+  twitter: SiX,
+  x: SiX,
+  youtube: SiYoutube,
+  linkedin: SiLinkedin,
+  whatsapp: SiWhatsapp,
+  telegram: SiTelegram,
+  threads: SiThreads,
+  github: SiGithub,
+  leetcode: SiLeetcode,
 };
 
 const CLIPS = ["/assets/dance1.mp4", "/assets/dance2.mp4", "/assets/dance3.mp4"];

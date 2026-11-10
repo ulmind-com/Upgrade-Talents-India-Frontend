@@ -1,5 +1,17 @@
 import type { Metadata } from "next";
-import { Mail, Phone, MapPin, LifeBuoy, Instagram, Facebook, Twitter, Youtube, Linkedin } from "lucide-react";
+import { Mail, Phone, MapPin, LifeBuoy } from "lucide-react";
+import {
+  SiFacebook,
+  SiInstagram,
+  SiX,
+  SiWhatsapp,
+  SiTelegram,
+  SiThreads,
+  SiGithub,
+  SiLeetcode,
+  SiYoutube,
+  SiLinkedin,
+} from "@/components/common/SocialIcons";
 import PageHero from "@/components/events/PageHero";
 import ContactForm from "@/components/events/ContactForm";
 import { Reveal, SplitHeading, StaggerGroup, StaggerItem } from "@/components/motion/Reveal";
@@ -9,7 +21,19 @@ import { publicApi, safe } from "@/lib/api";
 export const metadata: Metadata = { title: "Contact", description: "Reach the Upgrade Talents India team — support, partnerships and bookings." };
 export const revalidate = 15;
 
-const SOCIAL_ICONS: Record<string, any> = { instagram: Instagram, facebook: Facebook, twitter: Twitter, youtube: Youtube, linkedin: Linkedin };
+const SOCIAL_ICONS: Record<string, React.ComponentType<any>> = {
+  instagram: SiInstagram,
+  facebook: SiFacebook,
+  twitter: SiX,
+  x: SiX,
+  youtube: SiYoutube,
+  linkedin: SiLinkedin,
+  whatsapp: SiWhatsapp,
+  telegram: SiTelegram,
+  threads: SiThreads,
+  github: SiGithub,
+  leetcode: SiLeetcode,
+};
 
 export default async function ContactPage() {
   const contact = await safe(publicApi.contactInfo(), {} as Record<string, any>);
@@ -66,7 +90,7 @@ export default async function ContactPage() {
                 <span className="font-mono text-[10px] uppercase tracking-[0.26em] text-[var(--fg-subtle)]">Follow the movement</span>
                 <ul className="mt-4 flex flex-wrap gap-2.5">
                   {socials.map(([k, url]) => {
-                    const Icon = SOCIAL_ICONS[k] || Instagram;
+                    const Icon = SOCIAL_ICONS[k] || SiInstagram;
                     return (
                       <li key={k}>
                         <a
