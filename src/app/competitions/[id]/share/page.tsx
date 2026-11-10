@@ -94,3 +94,4 @@ export default async function CompetitionShareLandingPage({
   const targetUrl = action === "register" ? `/competitions/${id}?action=register#register` : `/competitions/${id}`;
   redirect(targetUrl);
 }
+
