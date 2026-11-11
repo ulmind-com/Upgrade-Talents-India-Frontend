@@ -2,7 +2,7 @@
 
 import { useMemo, useState } from "react";
 import Link from "next/link";
-import { Search, Trophy, Calendar, ArrowUpRight, Radio, Clock, Sparkles, Share2 } from "lucide-react";
+import { Search, Trophy, Calendar, ArrowRight, Radio, Clock, Sparkles, Share2 } from "lucide-react";
 import { Reveal, StaggerGroup, StaggerItem } from "@/components/motion/Reveal";
 import { SectionLabel } from "@/components/ui/Primitives";
 import { imageFor, formatEventDate, truncate } from "@/lib/utils";
@@ -67,18 +67,30 @@ export default function CompetitionsListing({ items }: { items: Comp[] }) {
           {list.map((c, i) => {
             const lifecycle = getCompetitionLifecycle(c);
             const isResults = lifecycle.isResultsOut;
+            const targetUrl = isResults ? `/competitions/${cid(c)}/results` : `/competitions/${cid(c)}`;
 
             return (
               <StaggerItem key={cid(c) || i}>
-                <Link
-                  href={isResults ? `/competitions/${cid(c)}/results` : `/competitions/${cid(c)}`}
-                  className="group relative flex h-full flex-col overflow-hidden rounded-[var(--radius-lg)] border border-[var(--border)] bg-[var(--surface)] transition-all duration-500 hover:-translate-y-1 hover:border-[var(--border-strong)]"
-                >
-                  <div className="relative aspect-[16/10] overflow-hidden">
-                    <img src={imageFor(c.image_url, i)} alt="" className="size-full object-cover transition-transform duration-[1.1s] group-hover:scale-110" />
-                    <span className="absolute inset-0 bg-gradient-to-t from-black/70 via-black/10 to-transparent" aria-hidden />
+                <div className="group relative flex h-full flex-col overflow-hidden rounded-[var(--radius-lg)] border border-[var(--border)] bg-[var(--surface)] transition-all duration-300 hover:-translate-y-1 hover:border-[var(--border-strong)] hover:shadow-[0_20px_45px_-18px_rgba(0,0,0,0.5)]">
+                  {/* Full Card 1-Click Instant Navigation Link */}
+                  <Link
+                    href={targetUrl}
+                    prefetch={true}
+                    className="absolute inset-0 z-10 cursor-pointer"
+                    aria-label={c.title || c.name || "Competition Details"}
+                  />
+
+                  {/* Thumbnail & Media */}
+                  <div className="relative aspect-[16/10] overflow-hidden bg-black/40">
+                    <img
+                      src={imageFor(c.image_url, i)}
+                      alt=""
+                      className="size-full object-cover transition-transform duration-[1.1s] group-hover:scale-105"
+                    />
+                    <span className="absolute inset-0 bg-gradient-to-t from-black/75 via-black/15 to-transparent pointer-events-none" aria-hidden />
                     
-                    <div className="absolute left-3 top-3 flex flex-wrap gap-1.5">
+                    {/* Top-left Badges */}
+                    <div className="absolute left-3 top-3 flex flex-wrap gap-1.5 z-0 pointer-events-none">
                       {lifecycle.isResultsOut ? (
                         <span className="rounded-full bg-emerald-500/90 px-3 py-1 text-[10.5px] font-bold uppercase tracking-wider text-black shadow-md backdrop-blur-md">
                           Results Out
@@ -111,12 +123,12 @@ export default function CompetitionsListing({ items }: { items: Comp[] }) {
                     </div>
 
                     {c.prize && (
-                      <span className="absolute right-3 top-3 inline-flex items-center gap-1 rounded-full px-3 py-1 text-[11px] font-bold text-[var(--on-accent)]" style={{ background: "var(--grad-brand)" }}>
+                      <span className="absolute right-3 top-3 inline-flex items-center gap-1 rounded-full px-3 py-1 text-[11px] font-bold text-[var(--on-accent)] z-0 pointer-events-none" style={{ background: "var(--grad-brand)" }}>
                         <Trophy className="size-3" aria-hidden /> {c.prize}
                       </span>
                     )}
 
-                    {/* Quick 1-click Share button on thumbnail */}
+                    {/* Quick 1-click Share button on thumbnail (elevated z-20 above full-card link) */}
                     <button
                       type="button"
                       onClick={(e) => {
@@ -124,63 +136,85 @@ export default function CompetitionsListing({ items }: { items: Comp[] }) {
                         e.stopPropagation();
                         setSelectedShareComp(c);
                       }}
-                      className="cursor-pointer absolute right-3 bottom-3 z-10 flex size-8 items-center justify-center rounded-full bg-black/70 hover:bg-amber-500 text-white hover:text-slate-950 border border-white/20 hover:border-amber-400 backdrop-blur-md shadow-lg transition-all active:scale-90 group/share"
+                      className="cursor-pointer relative z-20 absolute right-3 bottom-3 flex size-8 items-center justify-center rounded-full bg-black/75 hover:bg-amber-400 text-white hover:text-slate-950 border border-white/20 hover:border-amber-400 backdrop-blur-md shadow-lg transition-all active:scale-90"
                       title="Share Competition"
                     >
-                      <Share2 className="size-3.5 group-hover/share:scale-110 transition-transform" />
+                      <Share2 className="size-3.5" />
                     </button>
                   </div>
-                  <div className="flex flex-1 flex-col p-5">
-                    <h3 className="font-display text-[1.25rem] font-bold leading-tight">{c.title || c.name || "Competition"}</h3>
-                    {c.description && <p className="mt-2 text-[13px] leading-relaxed text-[var(--fg-muted)]">{truncate(c.description, 96)}</p>}
-                    <div className="mt-auto flex items-center justify-between pt-5">
-                      <span className="inline-flex items-center gap-1.5 text-[12px] text-[var(--fg-subtle)]">
-                        <Calendar className="size-3.5" aria-hidden />{" "}
-                        {lifecycle.isLive && lifecycle.canRegister
-                          ? "Live right now • Open reg"
-                          : lifecycle.isLive
-                          ? "Live right now"
-                          : lifecycle.isRegistrationOpen && c.registration_deadline
-                          ? `Closes ${formatEventDate(c.registration_deadline)}`
-                          : lifecycle.isRegistrationOpen && !c.registration_deadline
-                          ? (c.start_date ? `Starts ${formatEventDate(c.start_date)} • Open reg` : "Open registration")
-                          : lifecycle.isRegClosed && c.start_date
-                          ? `Starts ${formatEventDate(c.start_date)}`
-                          : lifecycle.isRegUpcoming && c.registration_start_date
-                          ? `Reg opens ${formatEventDate(c.registration_start_date)}`
-                          : c.start_date
-                          ? `Starts ${formatEventDate(c.start_date)}`
-                          : c.registration_deadline
-                          ? formatEventDate(c.registration_deadline)
-                          : "Open entry"}
-                      </span>
-                      <div className="flex items-center gap-2">
-                        <button
-                          type="button"
-                          onClick={(e) => {
-                            e.preventDefault();
-                            e.stopPropagation();
-                            setSelectedShareComp(c);
-                          }}
-                          className="cursor-pointer p-1 rounded-lg hover:bg-white/10 text-[var(--fg-muted)] hover:text-amber-400 transition-colors"
-                          title="Share Competition"
-                        >
-                          <Share2 className="size-4" />
-                        </button>
-                        <span className="inline-flex items-center gap-1 text-[12.5px] font-semibold text-[var(--accent)]">
-                          {lifecycle.isResultsOut
-                            ? "View Results"
+
+                  {/* Body Content */}
+                  <div className="flex flex-1 flex-col p-5 pointer-events-none">
+                    <h3 className="font-display text-[1.25rem] font-bold leading-tight text-[var(--fg)] group-hover:text-amber-400 transition-colors line-clamp-2">
+                      {c.title || c.name || "Competition"}
+                    </h3>
+                    {c.description && (
+                      <p className="mt-2 text-[13px] leading-relaxed text-[var(--fg-muted)] line-clamp-2">
+                        {truncate(c.description, 96)}
+                      </p>
+                    )}
+
+                    {/* Footer Info & Grand Eye-Catching Button */}
+                    <div className="mt-auto flex items-center justify-between gap-3 pt-5 border-t border-[var(--border)]">
+                      <span className="inline-flex items-center gap-1.5 text-[12px] text-[var(--fg-subtle)] font-medium">
+                        <Calendar className="size-3.5 shrink-0 text-amber-400" aria-hidden />{" "}
+                        <span className="truncate">
+                          {lifecycle.isLive && lifecycle.canRegister
+                            ? "Live right now • Open reg"
                             : lifecycle.isLive
-                            ? "Watch & Vote"
-                            : lifecycle.canRegister
-                            ? "Enter Now"
-                            : "View Details"}{" "}
-                          <ArrowUpRight className="size-3.5 transition-transform group-hover:translate-x-0.5 group-hover:-translate-y-0.5" aria-hidden />
+                            ? "Live right now"
+                            : lifecycle.isRegistrationOpen && c.registration_deadline
+                            ? `Closes ${formatEventDate(c.registration_deadline)}`
+                            : lifecycle.isRegistrationOpen && !c.registration_deadline
+                            ? (c.start_date ? `Starts ${formatEventDate(c.start_date)} • Open reg` : "Open registration")
+                            : lifecycle.isRegClosed && c.start_date
+                            ? `Starts ${formatEventDate(c.start_date)}`
+                            : lifecycle.isRegUpcoming && c.registration_start_date
+                            ? `Reg opens ${formatEventDate(c.registration_start_date)}`
+                            : c.start_date
+                            ? `Starts ${formatEventDate(c.start_date)}`
+                            : c.registration_deadline
+                            ? formatEventDate(c.registration_deadline)
+                            : "Open entry"}
                         </span>
+                      </span>
+
+                      {/* Grand Eye-Catching Blinking / Pulsing Action Button */}
+                      <div className="shrink-0">
+                        {lifecycle.isResultsOut ? (
+                          <span className="relative inline-flex items-center justify-center gap-1.5 px-4 py-2 rounded-full font-black text-xs uppercase tracking-wider text-slate-950 bg-gradient-to-r from-emerald-400 via-teal-300 to-emerald-400 shadow-[0_0_15px_rgba(52,211,153,0.5)] transition-all duration-300 group-hover:scale-105">
+                            <Trophy className="size-3.5" />
+                            View Results
+                            <ArrowRight className="size-3.5 transition-transform group-hover:translate-x-0.5" aria-hidden />
+                          </span>
+                        ) : lifecycle.isLive ? (
+                          <span className="relative inline-flex items-center justify-center gap-1.5 px-4 py-2 rounded-full font-black text-xs uppercase tracking-wider text-white bg-gradient-to-r from-rose-600 via-red-500 to-rose-600 shadow-[0_0_20px_rgba(225,29,72,0.65)] transition-all duration-300 group-hover:scale-105">
+                            <span className="absolute -inset-0.5 rounded-full bg-rose-500 opacity-75 blur-sm animate-pulse" />
+                            <span className="relative z-10 flex items-center gap-1.5">
+                              <span className="size-2 rounded-full bg-white animate-ping" />
+                              Watch & Vote
+                              <ArrowRight className="size-3.5 transition-transform group-hover:translate-x-0.5" aria-hidden />
+                            </span>
+                          </span>
+                        ) : lifecycle.canRegister ? (
+                          <span className="relative inline-flex items-center justify-center gap-1.5 px-5 py-2.5 rounded-full font-black text-xs uppercase tracking-wider text-slate-950 bg-gradient-to-r from-amber-400 via-yellow-300 to-amber-500 shadow-[0_0_25px_rgba(251,191,36,0.7)] group-hover:shadow-[0_0_35px_rgba(251,191,36,0.95)] transition-all duration-300 group-hover:scale-105 active:scale-95">
+                            <span className="absolute -inset-0.5 rounded-full bg-gradient-to-r from-amber-400 via-yellow-300 to-amber-500 opacity-80 blur-sm animate-pulse" />
+                            <span className="relative z-10 flex items-center gap-1.5">
+                              <Sparkles className="size-3.5 fill-slate-950 text-slate-950" />
+                              Enter Now
+                              <ArrowRight className="size-3.5 transition-transform group-hover:translate-x-1" aria-hidden />
+                            </span>
+                          </span>
+                        ) : (
+                          <span className="inline-flex items-center justify-center gap-1 px-3.5 py-1.5 rounded-full text-xs font-semibold text-[var(--fg-muted)] border border-[var(--border-strong)] bg-white/5 group-hover:border-amber-400/50 group-hover:text-[var(--fg)] transition-all duration-300">
+                            Details
+                            <ArrowRight className="size-3" aria-hidden />
+                          </span>
+                        )}
                       </div>
                     </div>
                   </div>
-                </Link>
+                </div>
               </StaggerItem>
             );
           })}

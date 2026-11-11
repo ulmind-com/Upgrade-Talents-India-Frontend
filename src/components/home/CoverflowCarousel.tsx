@@ -349,9 +349,10 @@ export default function CoverflowCarousel({
           >
             <Link
               href={item.href}
-              onClick={(e) => { if (drag.current.moved > 6) e.preventDefault(); }}
+              prefetch={true}
+              onClick={(e) => { if (drag.current.moved > 14) e.preventDefault(); }}
               draggable={false}
-              className="group relative block size-full"
+              className="group relative block size-full cursor-pointer"
             >
               <img
                 src={imageFor(item.image_url, p.idx)}

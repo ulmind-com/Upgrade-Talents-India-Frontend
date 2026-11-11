@@ -325,6 +325,21 @@ export type HomepagePayload = {
   };
   spotlight_section?: SpotlightSectionConfig;
   partners_section?: PartnersSectionConfig;
+  sponsor_popup?: GrandSponsorPopupConfig;
+};
+
+export type GrandSponsorPopupConfig = {
+  is_enabled: boolean;
+  sponsor_name?: string;
+  badge_text?: string;
+  title?: string;
+  subtitle?: string;
+  banner_image_url?: string;
+  mobile_image_url?: string;
+  cta_text?: string;
+  cta_link?: string;
+  show_mode?: "always" | "once_per_session" | "once_per_day" | string;
+  auto_close_seconds?: number;
 };
 
 export type PartnerItem = {
@@ -417,6 +432,7 @@ export const publicApi = {
   stageMoments: () => apiFetch<any>("/api/v1/stage-moments", { revalidate: 15 }),
   spotlightSection: () => apiFetch<SpotlightSectionConfig>("/api/v1/spotlight-section", { revalidate: 15 }),
   partnersSection: () => apiFetch<PartnersSectionConfig>("/api/v1/partners-section", { revalidate: 15 }),
+  sponsorPopup: () => apiFetch<GrandSponsorPopupConfig>("/api/v1/sponsor-popup", { revalidate: 15 }),
   appPromotion: () => apiFetch<Record<string, any>>("/api/v1/app-promotion", { revalidate: 60 }),
   contactInfo: () => apiFetch<Record<string, any>>("/api/v1/contact-info", { revalidate: 60 }),
   importantLinks: () => apiFetch<any[]>("/api/v1/important-links", { revalidate: 30 }),

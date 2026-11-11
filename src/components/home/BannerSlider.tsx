@@ -80,8 +80,10 @@ function SlideLink({
 
 export default function BannerSlider({
   banners = [],
+  isHero = true,
 }: {
   banners?: BannerItem[];
+  isHero?: boolean;
 }) {
   // Use admin uploaded banners if available; otherwise use default UTI banners
   const slides = useMemo(() => {
@@ -137,7 +139,11 @@ export default function BannerSlider({
 
   return (
     <section
-      className="relative w-full max-w-[1440px] mx-auto px-3 sm:px-5 lg:px-6 xl:px-8 py-3 sm:py-5 md:py-6 select-none"
+      className={`relative w-full select-none ${
+        isHero
+          ? "w-full max-w-none px-0 py-0"
+          : "max-w-[1440px] mx-auto px-3 sm:px-5 lg:px-6 xl:px-8 py-3 sm:py-5 md:py-6"
+      }`}
       aria-label="Featured Promotions Banner"
       onMouseEnter={() => setIsPaused(true)}
       onMouseLeave={() => setIsPaused(false)}
@@ -146,10 +152,22 @@ export default function BannerSlider({
       onTouchEnd={handleTouchEnd}
     >
       {/* Outer Banner Card Container */}
-      <div className="relative w-full overflow-hidden rounded-xl sm:rounded-2xl bg-[#090B10] border border-white/10 dark:border-white/10 shadow-[0_16px_40px_-15px_rgba(0,0,0,0.7)] group">
+      <div
+        className={`relative w-full overflow-hidden bg-[#090B10] group ${
+          isHero
+            ? "border-b border-white/10 shadow-[0_20px_50px_-15px_rgba(0,0,0,0.8)]"
+            : "rounded-xl sm:rounded-2xl border border-white/10 dark:border-white/10 shadow-[0_16px_40px_-15px_rgba(0,0,0,0.7)]"
+        }`}
+      >
         
-        {/* Banner Images Carousel View - Desktop (Sleek Slim Height, Full Container Width) */}
-        <div className="relative w-full h-[240px] sm:h-[270px] md:h-[295px] lg:h-[320px] hidden md:block overflow-hidden bg-[#0A0D14]">
+        {/* Banner Images Carousel View - Desktop */}
+        <div
+          className={`relative w-full hidden md:block overflow-hidden bg-[#0A0D14] ${
+            isHero
+              ? "h-[360px] sm:h-[440px] md:h-[500px] lg:h-[580px] xl:h-[640px]"
+              : "h-[240px] sm:h-[270px] md:h-[295px] lg:h-[320px]"
+          }`}
+        >
           {slides.map((slide, idx) => {
             const isActive = idx === current;
             const desktopSrc = slide.image_url_desktop || slide.image_url;
@@ -167,24 +185,36 @@ export default function BannerSlider({
                     <img
                       src={desktopSrc}
                       alt={slide.title || "Featured Banner"}
-                      className="size-full object-cover object-center transition-transform duration-1000 ease-out group-hover:scale-[1.01]"
+                      className="size-full object-cover object-center transition-transform duration-1000 ease-out group-hover:scale-[1.015]"
                       decoding="async"
                     />
 
-                    {/* Subtle aesthetic gradient overlay at bottom for depth */}
-                    <div className="absolute inset-0 bg-gradient-to-t from-black/60 via-black/10 to-transparent pointer-events-none" />
+                    {/* Gradient overlay for contrast and depth */}
+                    <div className="absolute inset-0 bg-gradient-to-t from-black/85 via-black/25 to-black/15 pointer-events-none" />
 
-                    {/* Overlay Tag / Sponsor Pill */}
-                    {(slide.sponsor_name || slide.title) && (
-                      <div className="absolute top-3 left-3 sm:top-4 sm:left-4 flex items-center gap-2 pointer-events-none">
-                        {slide.sponsor_name && (
-                          <span className="inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full text-[10px] font-bold tracking-wide uppercase bg-black/65 text-[#BFFF2E] border border-[#BFFF2E]/40 backdrop-blur-md shadow-lg">
-                            <Sparkles className="size-2.5" />
-                            {slide.sponsor_name}
-                          </span>
-                        )}
-                      </div>
-                    )}
+                    {/* Overlay Tag / Sponsor Pill & Title Info */}
+                    <div className="absolute inset-x-0 bottom-0 p-6 sm:p-8 lg:p-10 flex flex-col gap-2 pointer-events-none max-w-3xl">
+                      {(slide.sponsor_name || slide.title) && (
+                        <div className="flex items-center gap-2">
+                          {slide.sponsor_name && (
+                            <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-[11px] font-bold tracking-wide uppercase bg-black/75 text-[#BFFF2E] border border-[#BFFF2E]/50 backdrop-blur-md shadow-xl">
+                              <Sparkles className="size-3" />
+                              {slide.sponsor_name}
+                            </span>
+                          )}
+                        </div>
+                      )}
+                      {slide.title && (
+                        <h2 className="font-display text-2xl sm:text-3xl lg:text-4xl font-extrabold text-white leading-tight drop-shadow-md">
+                          {slide.title}
+                        </h2>
+                      )}
+                      {slide.description && (
+                        <p className="text-xs sm:text-sm text-zinc-200 line-clamp-2 drop-shadow">
+                          {slide.description}
+                        </p>
+                      )}
+                    </div>
                   </div>
                 </SlideLink>
               </div>
@@ -193,7 +223,11 @@ export default function BannerSlider({
         </div>
 
         {/* MOBILE VIEW */}
-        <div className="relative w-full h-[180px] sm:h-[210px] block md:hidden overflow-hidden bg-[#0A0D14]">
+        <div
+          className={`relative w-full block md:hidden overflow-hidden bg-[#0A0D14] ${
+            isHero ? "h-[250px] sm:h-[300px]" : "h-[180px] sm:h-[210px]"
+          }`}
+        >
           {slides.map((slide, idx) => {
             const isActive = idx === current;
             const mobileSrc = slide.image_url_mobile || slide.mobile_image_url || slide.image_url_desktop || slide.image_url;
@@ -216,16 +250,21 @@ export default function BannerSlider({
                     />
 
                     {/* Subtle mobile gradient */}
-                    <div className="absolute inset-0 bg-gradient-to-t from-black/65 via-transparent to-transparent pointer-events-none" />
+                    <div className="absolute inset-0 bg-gradient-to-t from-black/85 via-black/20 to-transparent pointer-events-none" />
 
-                    {/* Mobile Sponsor Tag */}
-                    {slide.sponsor_name && (
-                      <div className="absolute top-2.5 left-2.5 pointer-events-none">
-                        <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[9px] font-bold uppercase bg-black/70 text-[#BFFF2E] border border-[#BFFF2E]/40 backdrop-blur-md">
+                    {/* Mobile Title & Tag */}
+                    <div className="absolute inset-x-0 bottom-0 p-3.5 sm:p-4 flex flex-col gap-1 pointer-events-none">
+                      {slide.sponsor_name && (
+                        <span className="w-fit inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-[9px] font-bold uppercase bg-black/75 text-[#BFFF2E] border border-[#BFFF2E]/40 backdrop-blur-md">
                           {slide.sponsor_name}
                         </span>
-                      </div>
-                    )}
+                      )}
+                      {slide.title && (
+                        <h3 className="font-display text-sm sm:text-base font-bold text-white line-clamp-1">
+                          {slide.title}
+                        </h3>
+                      )}
+                    </div>
                   </div>
                 </SlideLink>
               </div>

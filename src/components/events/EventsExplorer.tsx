@@ -293,9 +293,17 @@ function EventCard({ ev, index }: { ev: EventItem; index: number }) {
     ev.event_status === "cancelled";
 
   return (
-    <div className="group relative flex h-full flex-col overflow-hidden rounded-[var(--radius-lg)] border border-[var(--border)] bg-[var(--surface)] transition-all duration-500 hover:-translate-y-1 hover:border-[var(--border-strong)] hover:shadow-[0_20px_45px_-18px_rgba(0,0,0,0.5)]">
+    <div className="group relative flex h-full flex-col overflow-hidden rounded-[var(--radius-lg)] border border-[var(--border)] bg-[var(--surface)] transition-all duration-300 hover:-translate-y-1 hover:border-[var(--border-strong)] hover:shadow-[0_20px_45px_-18px_rgba(0,0,0,0.5)]">
+      {/* Full Card 1-Click Instant Navigation Link */}
+      <Link
+        href={`/events/${ev._id}`}
+        prefetch={true}
+        className="absolute inset-0 z-10 cursor-pointer"
+        aria-label={ev.title}
+      />
+
       {/* Media / Poster */}
-      <Link href={`/events/${ev._id}`} className="relative aspect-[16/10] overflow-hidden block">
+      <div className="relative aspect-[16/10] overflow-hidden bg-black/40">
         <img
           src={imageFor(ev.image_url, index)}
           alt={ev.title}
@@ -305,10 +313,10 @@ function EventCard({ ev, index }: { ev: EventItem; index: number }) {
             expired && "filter blur-[1px] grayscale-[40%] opacity-60"
           )}
         />
-        <span className="absolute inset-0 bg-gradient-to-t from-black/80 via-black/20 to-transparent" aria-hidden />
+        <span className="absolute inset-0 bg-gradient-to-t from-black/80 via-black/20 to-transparent pointer-events-none" aria-hidden />
 
         {/* Top-left Badges */}
-        <div className="absolute left-3 top-3 z-10 flex flex-wrap gap-1.5">
+        <div className="absolute left-3 top-3 z-0 flex flex-wrap gap-1.5 pointer-events-none">
           {isLive ? (
             <span className="inline-flex items-center gap-1.5 rounded-full bg-rose-600/95 px-3 py-1 text-[10.5px] font-bold uppercase tracking-wider text-white shadow-md backdrop-blur-md animate-pulse">
               <span className="size-2 rounded-full bg-white animate-ping" />
@@ -335,10 +343,10 @@ function EventCard({ ev, index }: { ev: EventItem; index: number }) {
             </span>
           )}
         </div>
-      </Link>
+      </div>
 
       {/* Info Body */}
-      <div className="flex flex-1 flex-col p-5">
+      <div className="flex flex-1 flex-col p-5 pointer-events-none">
         {/* Date & Time */}
         <div className="flex flex-wrap items-center gap-2 text-[12px] font-semibold text-[var(--accent)]">
           <span className="inline-flex items-center gap-1.5">
@@ -357,13 +365,8 @@ function EventCard({ ev, index }: { ev: EventItem; index: number }) {
         </div>
 
         {/* Title */}
-        <h3 className="mt-2.5">
-          <Link
-            href={`/events/${ev._id}`}
-            className="font-display text-[1.22rem] font-bold leading-tight text-[var(--fg)] transition-colors hover:text-[var(--accent)] line-clamp-2"
-          >
-            {ev.title}
-          </Link>
+        <h3 className="mt-2.5 font-display text-[1.22rem] font-bold leading-tight text-[var(--fg)] group-hover:text-[var(--accent)] transition-colors line-clamp-2">
+          {ev.title}
         </h3>
 
         {/* Venue */}
@@ -397,21 +400,18 @@ function EventCard({ ev, index }: { ev: EventItem; index: number }) {
             )}
           </span>
 
-          <div className="flex items-center gap-2">
-            <Link
-              href={`/events/${ev._id}`}
-              className="rounded-full border border-[var(--border-strong)] px-3 py-1 text-[11.5px] font-semibold text-[var(--fg-muted)] transition-colors hover:border-[var(--accent)] hover:text-[var(--fg)]"
-            >
+          <div className="flex items-center gap-2 pointer-events-auto">
+            <span className="rounded-full border border-[var(--border-strong)] px-3 py-1 text-[11.5px] font-semibold text-[var(--fg-muted)] group-hover:border-[var(--accent)] group-hover:text-[var(--fg)] transition-colors">
               Details
-            </Link>
-            {closed ? (
-              <span className="inline-flex items-center rounded-full bg-[var(--surface-2)] px-3.5 py-1 text-[11.5px] font-semibold text-[var(--fg-subtle)]">
-                {expired ? "Ended" : "Closed"}
-              </span>
-            ) : (
+            </span>
+            {!closed && (
               <Link
                 href={`/events/${ev._id}/book`}
-                className="inline-flex items-center gap-1 rounded-full bg-[var(--accent)] px-3.5 py-1 text-[11.5px] font-semibold text-[var(--on-accent)] shadow-sm transition-all duration-300 hover:scale-[1.03] hover:bg-[var(--accent-hover)]"
+                prefetch={true}
+                onClick={(e) => {
+                  e.stopPropagation();
+                }}
+                className="cursor-pointer relative z-20 inline-flex items-center gap-1 rounded-full bg-[var(--accent)] px-3.5 py-1 text-[11.5px] font-semibold text-[var(--on-accent)] shadow-sm transition-all duration-300 hover:scale-105 hover:bg-[var(--accent-hover)]"
               >
                 <Ticket className="size-3.5" aria-hidden />
                 Buy Ticket

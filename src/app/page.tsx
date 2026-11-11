@@ -1,5 +1,6 @@
 import Hero from "@/components/home/Hero";
 import BannerSlider from "@/components/home/BannerSlider";
+import GrandSponsorPopup from "@/components/home/GrandSponsorPopup";
 import { ScrollCue, QuadTiles, FeaturedShow, PhotoStrip } from "@/components/home/Theater";
 import {
   AppPromo, ContestBand, LearnGrid, LiveNow, Marquee,
@@ -48,6 +49,13 @@ export default async function HomePage() {
 
   return (
     <>
+      {/* ── Grand Platinum Sponsor Website Opening Pop-up ── */}
+      <GrandSponsorPopup popup={data.sponsor_popup} />
+
+      {/* ── 1st: Grand Full-Screen Hero Sponsor Banner ── */}
+      <BannerSlider banners={data.sponsored_banners} isHero={true} />
+
+      {/* ── 2nd: Interactive Hero Showcase ── */}
       <Hero
         events={data.upcoming_events}
         competitions={data.upcoming_competitions}
@@ -58,7 +66,6 @@ export default async function HomePage() {
 
       <ScrollCue />
       <QuadTiles events={data.upcoming_events} tiles={data.featured_tiles} />
-      <BannerSlider banners={data.sponsored_banners} />
       <FeaturedShow
         events={data.upcoming_events}
         competitions={data.upcoming_competitions}
