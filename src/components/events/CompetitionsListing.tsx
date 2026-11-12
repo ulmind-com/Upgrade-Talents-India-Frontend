@@ -2,12 +2,13 @@
 
 import { useMemo, useState } from "react";
 import Link from "next/link";
-import { Search, Trophy, Calendar, ArrowRight, Sparkles } from "lucide-react";
+import { Search, Trophy, Calendar, ArrowRight, Sparkles, Share2 } from "lucide-react";
 import { Reveal, StaggerGroup, StaggerItem } from "@/components/motion/Reveal";
 import { SectionLabel } from "@/components/ui/Primitives";
 import { imageFor, formatEventDate, truncate } from "@/lib/utils";
 import { getCompetitionLifecycle } from "@/lib/competition-lifecycle";
 import LinkPending from "@/components/ui/LinkPending";
+import ShareCompetitionModal from "@/components/events/ShareCompetitionModal";
 
 type Comp = {
   _id?: string; id?: string;
@@ -30,6 +31,7 @@ const cid = (c: Comp) => c._id || c.id || "";
 
 export default function CompetitionsListing({ items }: { items: Comp[] }) {
   const [q, setQ] = useState("");
+  const [shareComp, setShareComp] = useState<Comp | null>(null);
   const list = useMemo(
     () => items.filter((c) => !q || (c.title || c.name || "").toLowerCase().includes(q.toLowerCase())),
     [items, q]
@@ -129,6 +131,20 @@ export default function CompetitionsListing({ items }: { items: Comp[] }) {
                       </span>
                     )}
 
+                    {/* Share — sits above the full-card link so it never navigates */}
+                    <button
+                      type="button"
+                      onClick={(e) => {
+                        e.preventDefault();
+                        e.stopPropagation();
+                        setShareComp(c);
+                      }}
+                      aria-label={`Share ${c.title || c.name || "this competition"}`}
+                      title="Share this competition"
+                      className="absolute bottom-3 right-3 z-20 flex size-11 cursor-pointer items-center justify-center rounded-full border border-white/20 bg-black/75 text-white shadow-lg backdrop-blur-md transition-all hover:border-amber-400 hover:bg-amber-400 hover:text-slate-950 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-amber-400 active:scale-90"
+                    >
+                      <Share2 className="size-4" aria-hidden />
+                    </button>
                   </div>
 
                   {/* Body Content */}
@@ -201,6 +217,11 @@ export default function CompetitionsListing({ items }: { items: Comp[] }) {
         </StaggerGroup>
       )}
 
+      <ShareCompetitionModal
+        isOpen={!!shareComp}
+        onClose={() => setShareComp(null)}
+        comp={shareComp}
+      />
     </section>
   );
 }
