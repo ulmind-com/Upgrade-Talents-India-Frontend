@@ -17,10 +17,9 @@ export async function generateMetadata({ params }: { params: Promise<{ id: strin
 
 export default async function EventDetailPage({ params }: { params: Promise<{ id: string }> }) {
   const { id } = await params;
-  const ev = await getEventById(id);
+  // Both lookups start together instead of one after the other.
+  const [ev, related] = await Promise.all([getEventById(id), getRelatedEvents(id)]);
   if (!ev) notFound();
-
-  const related = await getRelatedEvents(id);
 
   return <BookingFlow event={ev} related={related} />;
 }

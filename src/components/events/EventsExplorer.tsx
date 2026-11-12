@@ -9,6 +9,7 @@ import {
 import { publicApi, type BannerItem, type EventItem } from "@/lib/api";
 import { Button, SectionLabel } from "@/components/ui/Primitives";
 import { Reveal, StaggerGroup, StaggerItem } from "@/components/motion/Reveal";
+import LinkPending from "@/components/ui/LinkPending";
 import {
   cn, formatINR, imageFor, parseDate, formatEventDate, truncate,
   isEventExpired, isDeadlinePassed
@@ -300,7 +301,9 @@ function EventCard({ ev, index }: { ev: EventItem; index: number }) {
         prefetch={true}
         className="absolute inset-0 z-10 cursor-pointer"
         aria-label={ev.title}
-      />
+      >
+        <LinkPending />
+      </Link>
 
       {/* Media / Poster */}
       <div className="relative aspect-[16/10] overflow-hidden bg-black/40">

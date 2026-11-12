@@ -2,17 +2,14 @@ import type { Metadata } from "next";
 import CompetitionHero from "@/components/events/CompetitionHero";
 import CompetitionDetail from "@/components/events/CompetitionDetail";
 import { publicApi, safe } from "@/lib/api";
+import { getCompetition } from "@/lib/server-competition";
 
 export const dynamic = "force-dynamic";
 export const revalidate = 0;
 
 export async function generateMetadata({ params }: { params: Promise<{ id: string }> }): Promise<Metadata> {
   const { id } = await params;
-  let comp = await safe(publicApi.competition(id), null);
-  if (!comp) {
-    const all = await safe(publicApi.competitions({ limit: 200 }), []);
-    comp = all.find((c: any) => (c._id || c.id) === id);
-  }
+  const comp = await getCompetition(id);
 
   const title = comp?.title || comp?.name || "Official Talent Competition";
   const descRaw = comp?.description || "Join the official talent competition on Upgrade Talents India! Register now, showcase your talent on stage, and win exciting prizes.";
@@ -74,12 +71,12 @@ export async function generateMetadata({ params }: { params: Promise<{ id: strin
 
 export default async function CompetitionDetailPage({ params }: { params: Promise<{ id: string }> }) {
   const { id } = await params;
-  let comp = await safe(publicApi.competition(id), null);
-  if (!comp) {
-    const all = await safe(publicApi.competitions({ limit: 200 }), []);
-    comp = all.find((c: any) => (c._id || c.id) === id) || { _id: id, title: "Competition" };
-  }
-  const lb = await safe(publicApi.leaderboard(id), { leaderboard: [] });
+  // Both calls start together: the leaderboard never waits on the competition.
+  const [compRaw, lb] = await Promise.all([
+    getCompetition(id),
+    safe(publicApi.leaderboard(id), { leaderboard: [] }),
+  ]);
+  const comp = compRaw || { _id: id, title: "Competition" };
 
   return (
     <>

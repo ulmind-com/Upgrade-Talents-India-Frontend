@@ -164,7 +164,7 @@ export default function BannerSlider({
         <div
           className={`relative w-full hidden md:block overflow-hidden bg-[#0A0D14] ${
             isHero
-              ? "h-[360px] sm:h-[440px] md:h-[500px] lg:h-[580px] xl:h-[640px]"
+              ? "h-[100svh]"
               : "h-[240px] sm:h-[270px] md:h-[295px] lg:h-[320px]"
           }`}
         >
@@ -225,7 +225,7 @@ export default function BannerSlider({
         {/* MOBILE VIEW */}
         <div
           className={`relative w-full block md:hidden overflow-hidden bg-[#0A0D14] ${
-            isHero ? "h-[250px] sm:h-[300px]" : "h-[180px] sm:h-[210px]"
+            isHero ? "h-[100svh]" : "h-[180px] sm:h-[210px]"
           }`}
         >
           {slides.map((slide, idx) => {

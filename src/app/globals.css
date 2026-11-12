@@ -1083,3 +1083,106 @@ input[type="date"]::-webkit-calendar-picker-indicator:hover {
   }
 }
 
+
+/* ───────────────────────────────────────────────────────────────
+   Beacon CTA — the primary card action (Enter Now / Watch & Vote /
+   View Results). Full width, 52px tall, with a slow breathing glow
+   and a shine that sweeps across so it catches the eye without
+   flashing. Both effects stop under reduced motion.
+   ─────────────────────────────────────────────────────────────── */
+.cta-beacon {
+  position: relative;
+  display: flex;
+  width: 100%;
+  min-height: 52px;
+  align-items: center;
+  justify-content: center;
+  gap: 0.6rem;
+  overflow: hidden;
+  border-radius: 999px;
+  padding: 0.875rem 1.25rem;
+  font-weight: 900;
+  font-size: 0.95rem;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  transition: transform 0.25s ease, box-shadow 0.25s ease;
+}
+
+.cta-beacon > * {
+  position: relative;
+  z-index: 2;
+}
+
+/* Sweeping shine */
+.cta-beacon::after {
+  content: "";
+  position: absolute;
+  inset: 0;
+  z-index: 1;
+  background: linear-gradient(
+    110deg,
+    transparent 25%,
+    rgba(255, 255, 255, 0.55) 48%,
+    transparent 70%
+  );
+  transform: translateX(-120%);
+  animation: cta-shine 3.2s ease-in-out infinite;
+}
+
+.group:hover .cta-beacon {
+  transform: scale(1.02);
+}
+
+.cta-beacon--gold {
+  color: #0b0b0b;
+  background: linear-gradient(90deg, #f59e0b, #fde047, #f59e0b);
+  box-shadow: 0 0 0 0 rgba(251, 191, 36, 0.7);
+  animation: cta-breathe-gold 2.2s ease-in-out infinite;
+}
+
+.cta-beacon--rose {
+  color: #fff;
+  background: linear-gradient(90deg, #e11d48, #fb7185, #e11d48);
+  box-shadow: 0 0 0 0 rgba(225, 29, 72, 0.7);
+  animation: cta-breathe-rose 2.2s ease-in-out infinite;
+}
+
+.cta-beacon--emerald {
+  color: #052e1b;
+  background: linear-gradient(90deg, #10b981, #6ee7b7, #10b981);
+  box-shadow: 0 0 0 0 rgba(16, 185, 129, 0.6);
+  animation: cta-breathe-emerald 2.6s ease-in-out infinite;
+}
+
+@keyframes cta-shine {
+  0%, 55% { transform: translateX(-120%); }
+  85%, 100% { transform: translateX(120%); }
+}
+
+@keyframes cta-breathe-gold {
+  0%, 100% { box-shadow: 0 0 18px 0 rgba(251, 191, 36, 0.45); }
+  50% { box-shadow: 0 0 34px 6px rgba(251, 191, 36, 0.85); }
+}
+
+@keyframes cta-breathe-rose {
+  0%, 100% { box-shadow: 0 0 18px 0 rgba(225, 29, 72, 0.45); }
+  50% { box-shadow: 0 0 34px 6px rgba(225, 29, 72, 0.85); }
+}
+
+@keyframes cta-breathe-emerald {
+  0%, 100% { box-shadow: 0 0 14px 0 rgba(16, 185, 129, 0.4); }
+  50% { box-shadow: 0 0 28px 5px rgba(16, 185, 129, 0.75); }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .cta-beacon,
+  .cta-beacon::after {
+    animation: none;
+  }
+  .cta-beacon::after {
+    display: none;
+  }
+  .cta-beacon--gold { box-shadow: 0 0 18px 0 rgba(251, 191, 36, 0.5); }
+  .cta-beacon--rose { box-shadow: 0 0 18px 0 rgba(225, 29, 72, 0.5); }
+  .cta-beacon--emerald { box-shadow: 0 0 14px 0 rgba(16, 185, 129, 0.45); }
+}

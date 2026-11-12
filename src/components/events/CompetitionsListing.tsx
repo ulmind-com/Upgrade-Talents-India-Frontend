@@ -2,12 +2,12 @@
 
 import { useMemo, useState } from "react";
 import Link from "next/link";
-import { Search, Trophy, Calendar, ArrowRight, Radio, Clock, Sparkles, Share2 } from "lucide-react";
+import { Search, Trophy, Calendar, ArrowRight, Sparkles } from "lucide-react";
 import { Reveal, StaggerGroup, StaggerItem } from "@/components/motion/Reveal";
 import { SectionLabel } from "@/components/ui/Primitives";
 import { imageFor, formatEventDate, truncate } from "@/lib/utils";
 import { getCompetitionLifecycle } from "@/lib/competition-lifecycle";
-import ShareCompetitionModal from "@/components/events/ShareCompetitionModal";
+import LinkPending from "@/components/ui/LinkPending";
 
 type Comp = {
   _id?: string; id?: string;
@@ -30,7 +30,6 @@ const cid = (c: Comp) => c._id || c.id || "";
 
 export default function CompetitionsListing({ items }: { items: Comp[] }) {
   const [q, setQ] = useState("");
-  const [selectedShareComp, setSelectedShareComp] = useState<Comp | null>(null);
   const list = useMemo(
     () => items.filter((c) => !q || (c.title || c.name || "").toLowerCase().includes(q.toLowerCase())),
     [items, q]
@@ -78,7 +77,9 @@ export default function CompetitionsListing({ items }: { items: Comp[] }) {
                     prefetch={true}
                     className="absolute inset-0 z-10 cursor-pointer"
                     aria-label={c.title || c.name || "Competition Details"}
-                  />
+                  >
+                    <LinkPending />
+                  </Link>
 
                   {/* Thumbnail & Media */}
                   <div className="relative aspect-[16/10] overflow-hidden bg-black/40">
@@ -128,19 +129,6 @@ export default function CompetitionsListing({ items }: { items: Comp[] }) {
                       </span>
                     )}
 
-                    {/* Quick 1-click Share button on thumbnail (elevated z-20 above full-card link) */}
-                    <button
-                      type="button"
-                      onClick={(e) => {
-                        e.preventDefault();
-                        e.stopPropagation();
-                        setSelectedShareComp(c);
-                      }}
-                      className="cursor-pointer relative z-20 absolute right-3 bottom-3 flex size-8 items-center justify-center rounded-full bg-black/75 hover:bg-amber-400 text-white hover:text-slate-950 border border-white/20 hover:border-amber-400 backdrop-blur-md shadow-lg transition-all active:scale-90"
-                      title="Share Competition"
-                    >
-                      <Share2 className="size-3.5" />
-                    </button>
                   </div>
 
                   {/* Body Content */}
@@ -155,7 +143,7 @@ export default function CompetitionsListing({ items }: { items: Comp[] }) {
                     )}
 
                     {/* Footer Info & Grand Eye-Catching Button */}
-                    <div className="mt-auto flex items-center justify-between gap-3 pt-5 border-t border-[var(--border)]">
+                    <div className="mt-auto flex flex-col gap-3 pt-5 border-t border-[var(--border)]">
                       <span className="inline-flex items-center gap-1.5 text-[12px] text-[var(--fg-subtle)] font-medium">
                         <Calendar className="size-3.5 shrink-0 text-amber-400" aria-hidden />{" "}
                         <span className="truncate">
@@ -180,38 +168,30 @@ export default function CompetitionsListing({ items }: { items: Comp[] }) {
                       </span>
 
                       {/* Grand Eye-Catching Blinking / Pulsing Action Button */}
-                      <div className="shrink-0">
-                        {lifecycle.isResultsOut ? (
-                          <span className="relative inline-flex items-center justify-center gap-1.5 px-4 py-2 rounded-full font-black text-xs uppercase tracking-wider text-slate-950 bg-gradient-to-r from-emerald-400 via-teal-300 to-emerald-400 shadow-[0_0_15px_rgba(52,211,153,0.5)] transition-all duration-300 group-hover:scale-105">
-                            <Trophy className="size-3.5" />
-                            View Results
-                            <ArrowRight className="size-3.5 transition-transform group-hover:translate-x-0.5" aria-hidden />
-                          </span>
-                        ) : lifecycle.isLive ? (
-                          <span className="relative inline-flex items-center justify-center gap-1.5 px-4 py-2 rounded-full font-black text-xs uppercase tracking-wider text-white bg-gradient-to-r from-rose-600 via-red-500 to-rose-600 shadow-[0_0_20px_rgba(225,29,72,0.65)] transition-all duration-300 group-hover:scale-105">
-                            <span className="absolute -inset-0.5 rounded-full bg-rose-500 opacity-75 blur-sm animate-pulse" />
-                            <span className="relative z-10 flex items-center gap-1.5">
-                              <span className="size-2 rounded-full bg-white animate-ping" />
-                              Watch & Vote
-                              <ArrowRight className="size-3.5 transition-transform group-hover:translate-x-0.5" aria-hidden />
-                            </span>
-                          </span>
-                        ) : lifecycle.canRegister ? (
-                          <span className="relative inline-flex items-center justify-center gap-1.5 px-5 py-2.5 rounded-full font-black text-xs uppercase tracking-wider text-slate-950 bg-gradient-to-r from-amber-400 via-yellow-300 to-amber-500 shadow-[0_0_25px_rgba(251,191,36,0.7)] group-hover:shadow-[0_0_35px_rgba(251,191,36,0.95)] transition-all duration-300 group-hover:scale-105 active:scale-95">
-                            <span className="absolute -inset-0.5 rounded-full bg-gradient-to-r from-amber-400 via-yellow-300 to-amber-500 opacity-80 blur-sm animate-pulse" />
-                            <span className="relative z-10 flex items-center gap-1.5">
-                              <Sparkles className="size-3.5 fill-slate-950 text-slate-950" />
-                              Enter Now
-                              <ArrowRight className="size-3.5 transition-transform group-hover:translate-x-1" aria-hidden />
-                            </span>
-                          </span>
-                        ) : (
-                          <span className="inline-flex items-center justify-center gap-1 px-3.5 py-1.5 rounded-full text-xs font-semibold text-[var(--fg-muted)] border border-[var(--border-strong)] bg-white/5 group-hover:border-amber-400/50 group-hover:text-[var(--fg)] transition-all duration-300">
-                            Details
-                            <ArrowRight className="size-3" aria-hidden />
-                          </span>
-                        )}
-                      </div>
+                      {lifecycle.isResultsOut ? (
+                        <span className="cta-beacon cta-beacon--emerald">
+                          <Trophy className="size-5" aria-hidden />
+                          View Results
+                          <ArrowRight className="size-5 transition-transform group-hover:translate-x-1" aria-hidden />
+                        </span>
+                      ) : lifecycle.isLive ? (
+                        <span className="cta-beacon cta-beacon--rose">
+                          <span className="size-2.5 rounded-full bg-white animate-ping" aria-hidden />
+                          Watch &amp; Vote
+                          <ArrowRight className="size-5 transition-transform group-hover:translate-x-1" aria-hidden />
+                        </span>
+                      ) : lifecycle.canRegister ? (
+                        <span className="cta-beacon cta-beacon--gold">
+                          <Sparkles className="size-5 fill-slate-950 text-slate-950" aria-hidden />
+                          Enter Now
+                          <ArrowRight className="size-5 transition-transform group-hover:translate-x-1" aria-hidden />
+                        </span>
+                      ) : (
+                        <span className="inline-flex w-full items-center justify-center gap-1.5 rounded-full border border-[var(--border-strong)] bg-white/5 px-4 py-3 text-[13px] font-semibold text-[var(--fg-muted)] transition-all duration-300 group-hover:border-amber-400/50 group-hover:text-[var(--fg)]">
+                          Details
+                          <ArrowRight className="size-4" aria-hidden />
+                        </span>
+                      )}
                     </div>
                   </div>
                 </div>
@@ -221,12 +201,6 @@ export default function CompetitionsListing({ items }: { items: Comp[] }) {
         </StaggerGroup>
       )}
 
-      {/* ── Ultra Pro & Premium Competition Share Modal ── */}
-      <ShareCompetitionModal
-        isOpen={!!selectedShareComp}
-        onClose={() => setSelectedShareComp(null)}
-        comp={selectedShareComp}
-      />
     </section>
   );
 }
