@@ -453,7 +453,7 @@ export default function CompetitionDetail({
     if (currentEmail) {
       currIdx = lineup.findIndex((p: any) => (p.user_email || "").toLowerCase().trim() === currentEmail);
     }
-    const isCompleted = concluded || myEntry.stage_status === "COMPLETED";
+    const isCompleted = concluded || myEntry.stage_status === "COMPLETED" || (!isCurrent && myEntry.stage_status === "ON_STAGE");
     const aheadCount = currIdx >= 0 ? Math.max(0, myIndex - currIdx) : myIndex;
     const isNextUp = !isCurrent && !isCompleted && aheadCount === 1;
 
@@ -2984,10 +2984,27 @@ export default function CompetitionDetail({
                   <div className="divide-y divide-[var(--border)]/60">
                     {stageData.lineup.map((p: any, idx: number) => {
                       const isMe = user?.email && (p.user_email || "").toLowerCase() === user.email.toLowerCase();
-                      // After the competition concludes, ignore stale ON_STAGE rows and
-                      // show everyone as Completed (no one is really on stage anymore).
-                      const isOnStage = !stageConcluded && (p.stage_status === "ON_STAGE" || p.is_current_performer);
-                      const isDone = p.stage_status === "COMPLETED" || (stageConcluded && !isOnStage);
+                      
+                      // Strict single-performer invariant: ONLY the true active performer can be "On Stage".
+                      // Never allow multiple people to show "On Stage" at the same time.
+                      const activePerformerEmail = (stageData?.has_active_performer && stageData?.current_performer?.user_email || "").toLowerCase().trim();
+                      const activePerformerSubId = String(stageData?.has_active_performer && stageData?.current_performer?.submission_id || "").trim();
+                      const activePerformerRegId = String(stageData?.has_active_performer && stageData?.current_performer?.registration_id || "").trim();
+
+                      const pEmail = (p.user_email || "").toLowerCase().trim();
+                      const pSubId = String(p.submission_id || p._id || "").trim();
+                      const pRegId = String(p.registration_id || p._id || "").trim();
+
+                      const matchesActivePerformer = Boolean(
+                        stageData?.has_active_performer && (
+                          (activePerformerEmail && pEmail === activePerformerEmail) ||
+                          (activePerformerRegId && pRegId === activePerformerRegId) ||
+                          (activePerformerSubId && pSubId === activePerformerSubId)
+                        )
+                      );
+
+                      const isOnStage = !stageConcluded && matchesActivePerformer;
+                      const isDone = !isOnStage && (p.stage_status === "COMPLETED" || stageConcluded || (!stageData?.has_active_performer && p.stage_status === "ON_STAGE"));
 
                       return (
                         <div
