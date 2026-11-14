@@ -54,10 +54,12 @@ const NAIVE_DATE_TIME =
 const DATE_ONLY = /^(\d{4})-(\d{2})-(\d{2})$/;
 
 /**
- * Parse an API date the way the API means it: Indian wall-clock time. A string
- * that does carry an offset or a trailing Z already names an instant, so it is
- * left to the normal parser. Everything else is read as IST on both the server
- * and the client, so the two renders always agree.
+ * Parse an API date into the instant it actually names. A string that carries
+ * an offset or a trailing Z already names an instant and is left to the normal
+ * parser. A timezone-less DATE-TIME ("2026-12-06T04:30:00") is a UTC value the
+ * backend stored and serialized without its "Z", so it is read as UTC — never
+ * as host-local or IST, both of which land 5h30 off. A bare DATE-ONLY value has
+ * no clock meaning, so it is pinned to the Indian calendar day it denotes.
  */
 export function parseIst(input: string): Date {
   const trimmed = input.trim();
@@ -71,7 +73,7 @@ export function parseIst(input: string): Date {
   const naive = trimmed.match(NAIVE_DATE_TIME);
   if (naive) {
     const [, y, m, d, h, mi, s, ms] = naive;
-    return new Date(istTime(+y, +m - 1, +d, +h, +mi, s ? +s : 0, ms ? +ms : 0));
+    return new Date(Date.UTC(+y, +m - 1, +d, +h, +mi, s ? +s : 0, ms ? +ms : 0));
   }
 
   return new Date(trimmed);

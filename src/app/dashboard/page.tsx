@@ -25,7 +25,7 @@ import PasskeyManager from "@/components/account/PasskeyManager";
 import ShareReferralModal from "@/components/account/ShareReferralModal";
 import { Badge, Button, SectionLabel, Spotlights } from "@/components/ui/Primitives";
 import { Reveal, SplitHeading } from "@/components/motion/Reveal";
-import { cn, formatEventDate, formatINR, isEventExpired, imageFor, FALLBACK_IMAGES } from "@/lib/utils";
+import { cn, formatEventDate, formatINR, isEventExpired, imageFor, FALLBACK_IMAGES, parseDate, istParts, IST_TZ } from "@/lib/utils";
 import { TicketPass } from "@/components/ticket/TicketPass";
 import VerifiedBadge from "@/components/ui/VerifiedBadge";
 
@@ -342,9 +342,12 @@ export default function DashboardPage() {
   const formatCompTime = useCallback((timeVal?: string, dateVal?: string) => {
     if (timeVal && typeof timeVal === "string" && timeVal.trim()) return timeVal;
     if (dateVal) {
-      const d = new Date(dateVal);
-      if (!isNaN(d.getTime()) && (d.getHours() !== 0 || d.getMinutes() !== 0)) {
-        return d.toLocaleTimeString("en-IN", { hour: "numeric", minute: "2-digit", hour12: true });
+      const d = parseDate(dateVal);
+      if (d) {
+        const { h, mi } = istParts(d);
+        if (h !== 0 || mi !== 0) {
+          return d.toLocaleTimeString("en-IN", { hour: "numeric", minute: "2-digit", hour12: true, timeZone: IST_TZ });
+        }
       }
     }
     return "10:00 AM – 6:00 PM";

@@ -413,6 +413,7 @@ export default function CompetitionDetail({
   // Live stage tracking & lineup
   const [stageData, setStageData] = useState<any | null>(null);
   const [showLineupModal, setShowLineupModal] = useState(false);
+  const [lineupCategory, setLineupCategory] = useState<string>("ALL");
 
   const loadStageData = useCallback(async () => {
     if (!id) return;
@@ -3061,10 +3062,75 @@ export default function CompetitionDetail({
                 </button>
               </div>
 
+              {/* Category Filter Bar */}
+              {(() => {
+                const cats = new Set<string>();
+                if (Array.isArray(stageData?.categories)) {
+                  stageData.categories.forEach((c: any) => {
+                    const name = typeof c === "string" ? c : c?.name;
+                    if (name && typeof name === "string" && name.trim()) cats.add(name.trim());
+                  });
+                }
+                (stageData?.lineup || []).forEach((p: any) => {
+                  const cName = ((typeof p.category === "string" ? p.category : p.category?.name || p.division) || "").trim();
+                  if (cName) cats.add(cName);
+                });
+                const catList = Array.from(cats);
+                if (!catList.length) return null;
+
+                return (
+                  <div className="mt-3 flex flex-wrap items-center gap-1.5 border-b border-[var(--border)] pb-3">
+                    <span className="text-[10px] font-bold uppercase tracking-wider text-[var(--fg-subtle)] mr-1 shrink-0">
+                      Category:
+                    </span>
+                    <button
+                      type="button"
+                      onClick={() => setLineupCategory("ALL")}
+                      className={cn(
+                        "cursor-pointer rounded-lg px-2.5 py-1 text-[11px] font-bold transition-all",
+                        lineupCategory === "ALL"
+                          ? "bg-violet-600 text-white shadow-sm font-black ring-1 ring-violet-400"
+                          : "border border-[var(--border)] bg-[var(--surface-2)] text-[var(--fg-muted)] hover:text-white"
+                      )}
+                    >
+                      All ({stageData?.lineup?.length || 0})
+                    </button>
+                    {catList.map((cat) => {
+                      const count = (stageData?.lineup || []).filter((p: any) => {
+                        const pCat = ((typeof p.category === "string" ? p.category : p.category?.name || p.division) || "General").trim().toLowerCase();
+                        return pCat === cat.trim().toLowerCase();
+                      }).length;
+                      const isActive = lineupCategory.trim().toLowerCase() === cat.trim().toLowerCase();
+                      return (
+                        <button
+                          key={cat}
+                          type="button"
+                          onClick={() => setLineupCategory(cat)}
+                          className={cn(
+                            "cursor-pointer rounded-lg px-2.5 py-1 text-[11px] font-bold transition-all",
+                            isActive
+                              ? "bg-violet-600 text-white shadow-sm font-black ring-1 ring-violet-400"
+                              : "border border-[var(--border)] bg-[var(--surface-2)] text-[var(--fg-muted)] hover:text-white"
+                          )}
+                        >
+                          {cat} ({count})
+                        </button>
+                      );
+                    })}
+                  </div>
+                );
+              })()}
+
               <div className="mt-4 flex-1 overflow-y-auto pr-1">
                 {stageData?.lineup && stageData.lineup.length > 0 ? (
                   <div className="divide-y divide-[var(--border)]/60">
-                    {stageData.lineup.map((p: any, idx: number) => {
+                    {(stageData.lineup || [])
+                      .filter((p: any) => {
+                        if (lineupCategory === "ALL") return true;
+                        const pCat = ((typeof p.category === "string" ? p.category : p.category?.name || p.division) || "General").trim().toLowerCase();
+                        return pCat === lineupCategory.trim().toLowerCase();
+                      })
+                      .map((p: any, idx: number) => {
                       const isMe = user?.email && (p.user_email || "").toLowerCase() === user.email.toLowerCase();
                       
                       // Strict single-performer invariant: ONLY the true active performer can be "On Stage".

@@ -68,6 +68,9 @@ export function parseDateWithTime(
   let sec = defaultEndOfDay ? 59 : 0;
   let ms = defaultEndOfDay ? 999 : 0;
   let hasSpecificTime = false;
+  // Whether the clock parts came from an inline ISO time (a UTC instant the
+  // backend stored without its "Z") rather than a human-entered IST time field.
+  let timeIsUtc = false;
 
   if (dateInput instanceof Date) {
     if (isNaN(dateInput.getTime())) return null;
@@ -96,6 +99,7 @@ export function parseDateWithTime(
       min = parseInt(isoTimeMatch[2], 10);
       sec = isoTimeMatch[3] ? parseInt(isoTimeMatch[3], 10) : 0;
       hasSpecificTime = true;
+      timeIsUtc = true;
     }
   } else {
     const parsed = parseIst(trimmed);
@@ -117,13 +121,21 @@ export function parseDateWithTime(
       sec = 0;
       ms = 0;
       hasSpecificTime = true;
+      // A separate time field is a human-entered IST wall-clock time.
+      timeIsUtc = false;
     }
   }
 
-  // A bare "2026-10-30" is an Indian calendar date, not a date in whatever zone
-  // the renderer happens to run in — the server is UTC and the browser is not,
-  // and a host-local Date here makes the two renders disagree.
-  return new Date(istTime(y, m, d, hr, min, sec, ms));
+  // Clock parts from an inline ISO time name a UTC instant (the backend drops
+  // the trailing "Z"); a separate time field or a bare date is Indian
+  // wall-clock. A bare "2026-10-30" is an Indian calendar date, not a date in
+  // whatever zone the renderer runs in — the server is UTC and the browser is
+  // not, and a host-local Date here makes the two renders disagree.
+  return new Date(
+    timeIsUtc
+      ? Date.UTC(y, m, d, hr, min, sec, ms)
+      : istTime(y, m, d, hr, min, sec, ms)
+  );
 }
 
 /**
