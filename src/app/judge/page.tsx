@@ -729,27 +729,6 @@ export default function JudgeDashboardPage() {
   const currentIndex = activeContestant
     ? filteredContestants.findIndex((c) => c._id === activeContestant._id)
     : -1;
-  const prevContestant = currentIndex > 0 ? filteredContestants[currentIndex - 1] : null;
-  const nextContestant =
-    currentIndex >= 0 && currentIndex < filteredContestants.length - 1
-      ? filteredContestants[currentIndex + 1]
-      : null;
-
-  // Keyboard Stage Navigation (ArrowLeft / ArrowRight)
-  useEffect(() => {
-    const handleKeyDown = (e: KeyboardEvent) => {
-      if (!activeContestant) return;
-      if (["INPUT", "TEXTAREA"].includes((e.target as HTMLElement)?.tagName)) return;
-
-      if (e.key === "ArrowRight" && nextContestant) {
-        setActiveContestant(nextContestant);
-      } else if (e.key === "ArrowLeft" && prevContestant) {
-        setActiveContestant(prevContestant);
-      }
-    };
-    window.addEventListener("keydown", handleKeyDown);
-    return () => window.removeEventListener("keydown", handleKeyDown);
-  }, [activeContestant, nextContestant, prevContestant]);
 
   const handleLogout = () => {
     tokenStore.clear();
@@ -807,31 +786,11 @@ export default function JudgeDashboardPage() {
         </div>
 
         <div className="flex items-center justify-between gap-2 sm:justify-end">
-          {/* Prev / Next Contestant Stepper */}
-          <div className="flex items-center gap-1 rounded-xl border border-[var(--border)] bg-[var(--bg)] p-1">
-            <button
-              type="button"
-              disabled={!prevContestant}
-              onClick={() => prevContestant && setActiveContestant(prevContestant)}
-              className="rounded-lg p-1.5 text-[var(--fg-muted)] hover:bg-[var(--bg-elevated)] hover:text-[var(--fg)] disabled:opacity-30 disabled:pointer-events-none transition-all"
-              title="Previous Contestant"
-            >
-              <ChevronLeft className="size-4" />
-            </button>
-
-            <span className="px-2 text-[11px] font-mono font-bold text-[var(--fg-subtle)] whitespace-nowrap">
-              {currentIndex + 1} / {filteredContestants.length}
+          {/* Contestant Index Badge (Stage Authority: Super Admin controls live sequence) */}
+          <div className="flex items-center gap-1.5 rounded-xl border border-[var(--border)] bg-[var(--bg)] px-3 py-1.5">
+            <span className="text-[11px] font-mono font-bold text-[var(--fg-subtle)] whitespace-nowrap">
+              Contestant #{currentIndex >= 0 ? currentIndex + 1 : 1} of {filteredContestants.length}
             </span>
-
-            <button
-              type="button"
-              disabled={!nextContestant}
-              onClick={() => nextContestant && setActiveContestant(nextContestant)}
-              className="rounded-lg p-1.5 text-[var(--fg-muted)] hover:bg-[var(--bg-elevated)] hover:text-[var(--fg)] disabled:opacity-30 disabled:pointer-events-none transition-all"
-              title="Next Contestant"
-            >
-              <ChevronRight className="size-4" />
-            </button>
           </div>
 
           {activeContestant.submission_url && (
@@ -1225,35 +1184,13 @@ export default function JudgeDashboardPage() {
               <CheckCircle2 className="size-4" /> Score Recorded ({activeContestant.my_score ?? activeContestant.total_score ?? calculatedTotal} pts)
             </span>
             <div className="flex items-center gap-2">
-              {prevContestant && (
-                <Button
-                  type="button"
-                  variant="outline"
-                  size="sm"
-                  onClick={() => setActiveContestant(prevContestant)}
-                  className="gap-1 text-xs"
-                >
-                  <ChevronLeft className="size-3" /> Prev
-                </Button>
-              )}
-              {nextContestant && (
-                <Button
-                  type="button"
-                  variant="accent"
-                  size="sm"
-                  onClick={() => setActiveContestant(nextContestant)}
-                  className="gap-1 text-xs font-bold"
-                >
-                  Next <ChevronRight className="size-3" />
-                </Button>
-              )}
               <Button
                 type="button"
                 variant="outline"
                 size="sm"
                 onClick={() => setActiveContestant(null)}
               >
-                Close
+                Close Worksheet
               </Button>
             </div>
           </div>
@@ -1834,30 +1771,14 @@ export default function JudgeDashboardPage() {
                             <ChevronRight className="size-3.5" />
                           </Button>
                         ) : (
-                          <div className="flex items-center gap-1.5">
-                            <Button
-                              size="sm"
-                              variant="outline"
-                              disabled={!prevContestant}
-                              onClick={() => {
-                                if (prevContestant) setActiveContestant(prevContestant);
-                              }}
-                              className="gap-1 text-xs"
-                            >
-                              <ChevronLeft className="size-3" /> Prev
-                            </Button>
-                            <Button
-                              size="sm"
-                              variant="accent"
-                              disabled={!nextContestant}
-                              onClick={() => {
-                                if (nextContestant) setActiveContestant(nextContestant);
-                              }}
-                              className="gap-1 text-xs font-bold"
-                            >
-                              Next <ChevronRight className="size-3" />
-                            </Button>
-                          </div>
+                          <Button
+                            size="sm"
+                            variant="outline"
+                            onClick={() => setActiveContestant(null)}
+                            className="text-xs"
+                          >
+                            Close Evaluation
+                          </Button>
                         )}
                       </div>
                     </div>
