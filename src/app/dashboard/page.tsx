@@ -69,6 +69,71 @@ export default function DashboardPage() {
   const [editOpen, setEditOpen] = useState(false);
   const [shareModalOpen, setShareModalOpen] = useState(false);
 
+  // Live stage lineup modal state for User Profile / Dashboard
+  const [lineupModalOpen, setLineupModalOpen] = useState(false);
+  const [selectedCompForLineup, setSelectedCompForLineup] = useState<{ id: string; title: string } | null>(null);
+  const [dashboardStageData, setDashboardStageData] = useState<any | null>(null);
+  const [loadingDashboardStage, setLoadingDashboardStage] = useState(false);
+
+  const handleOpenDashboardLineup = useCallback(async (compId: string, compTitle: string) => {
+    setSelectedCompForLineup({ id: compId, title: compTitle });
+    setLineupModalOpen(true);
+    setLoadingDashboardStage(true);
+    try {
+      const data = await publicApi.liveStage(compId);
+      setDashboardStageData(data);
+    } catch {
+      // Ignored if stage not initialized
+    } finally {
+      setLoadingDashboardStage(false);
+    }
+  }, []);
+
+  useEffect(() => {
+    if (!lineupModalOpen || !selectedCompForLineup?.id) return;
+    const interval = setInterval(async () => {
+      try {
+        const data = await publicApi.liveStage(selectedCompForLineup.id);
+        setDashboardStageData(data);
+      } catch {}
+    }, 7000);
+    return () => clearInterval(interval);
+  }, [lineupModalOpen, selectedCompForLineup?.id]);
+
+  const dashboardUserQueueInfo = useMemo(() => {
+    if (!user?.email || !dashboardStageData?.lineup) return null;
+    const uEmail = user.email.toLowerCase().trim();
+    const lineup: any[] = dashboardStageData.lineup || [];
+    const myIndex = lineup.findIndex(
+      (p: any) => (p.user_email || "").toLowerCase().trim() === uEmail
+    );
+    if (myIndex === -1) return null;
+
+    const myEntry = lineup[myIndex];
+    const myOrder = myEntry.order || myIndex + 1;
+    const currentPerformer = dashboardStageData.current_performer;
+    const currentEmail = (currentPerformer?.user_email || "").toLowerCase().trim();
+    const isCurrent = Boolean(currentEmail && currentEmail === uEmail);
+
+    let currIdx = -1;
+    if (currentEmail) {
+      currIdx = lineup.findIndex((p: any) => (p.user_email || "").toLowerCase().trim() === currentEmail);
+    }
+    const isCompleted = myEntry.stage_status === "COMPLETED" || (!isCurrent && myEntry.stage_status === "ON_STAGE");
+    const aheadCount = currIdx >= 0 ? Math.max(0, myIndex - currIdx) : myIndex;
+    const isNextUp = !isCurrent && !isCompleted && aheadCount === 1;
+
+    return {
+      entry: myEntry,
+      order: myOrder,
+      isCurrent,
+      isNextUp,
+      isCompleted,
+      aheadCount,
+      totalParticipants: lineup.length,
+    };
+  }, [user?.email, dashboardStageData]);
+
   // Profile Suite Calendar & Quick Actions
   const [calendarDate, setCalendarDate] = useState(() => new Date());
   const [copiedRef, setCopiedRef] = useState(false);
@@ -843,10 +908,45 @@ export default function DashboardPage() {
                               </span>
                             )}
                           </div>
+
+                          {(c.is_present || c.attendance_status === "PRESENT") && (
+                            <div className="flex items-center gap-2 pt-0.5">
+                              <span className="text-[var(--fg-subtle)]">Venue Attendance:</span>
+                              <span className="inline-flex items-center gap-1 font-semibold text-emerald-400">
+                                <CheckCircle2 className="size-3.5" /> Present (Confirmed at Venue)
+                              </span>
+                            </div>
+                          )}
+
+                          {c.current_performer && (
+                            <div className="mt-3 rounded-2xl border border-rose-500/30 bg-rose-500/10 p-2.5">
+                              <div className="flex items-center justify-between gap-2">
+                                <span className="inline-flex items-center gap-1 text-[10px] font-black uppercase tracking-wider text-rose-400">
+                                  <Radio className="size-3 animate-pulse" /> Live on Stage
+                                </span>
+                                {c.current_performer.stage_order && (
+                                  <span className="font-mono text-[10px] font-bold text-rose-300">
+                                    Order #{c.current_performer.stage_order}
+                                  </span>
+                                )}
+                              </div>
+                              <p className="mt-0.5 text-xs font-bold text-white truncate">
+                                {c.current_performer.user_name || "Active Performer"}
+                              </p>
+                            </div>
+                          )}
                         </div>
                       </div>
 
                       <div className="mt-6 flex flex-col gap-2 border-t border-[var(--border)] pt-4">
+                        <button
+                          type="button"
+                          onClick={() => handleOpenDashboardLineup(compId, c.title || c.name || "Competition")}
+                          className="inline-flex w-full items-center justify-center gap-2 rounded-full border border-rose-500/40 bg-rose-500/15 py-2 text-xs font-bold text-rose-200 hover:bg-rose-500/25 transition-all cursor-pointer shadow-sm active:scale-95"
+                        >
+                          <Users className="size-3.5 text-rose-400" />
+                          <span>Live Performance Lineup</span>
+                        </button>
                         <Link
                           href={`/competitions/${compId}`}
                           className="inline-flex w-full items-center justify-center gap-2 rounded-full py-2.5 text-xs font-bold text-[var(--on-accent)] transition-transform active:scale-95"
@@ -2253,6 +2353,222 @@ export default function DashboardPage() {
           coinValuation: referralData?.coin_value_inr || 0.5,
         }}
       />
+
+      {/* ── Official Performance Lineup Modal (Present Contestants) ── */}
+      <AnimatePresence>
+        {lineupModalOpen && selectedCompForLineup && (
+          <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
+            <motion.div
+              initial={{ opacity: 0 }}
+              animate={{ opacity: 1 }}
+              exit={{ opacity: 0 }}
+              onClick={() => setLineupModalOpen(false)}
+              className="fixed inset-0 bg-black/80 backdrop-blur-md"
+            />
+
+            <motion.div
+              initial={{ opacity: 0, scale: 0.95, y: 16 }}
+              animate={{ opacity: 1, scale: 1, y: 0 }}
+              exit={{ opacity: 0, scale: 0.95, y: 16 }}
+              className="relative z-10 flex max-h-[85vh] w-full max-w-xl flex-col rounded-3xl border border-white/15 bg-neutral-950 p-6 shadow-2xl"
+            >
+              {/* Header */}
+              <div className="flex items-start justify-between border-b border-white/10 pb-4">
+                <div>
+                  <div className="flex items-center gap-2 flex-wrap">
+                    <span className="rounded-full bg-rose-500/20 px-2.5 py-0.5 text-[10px] font-black uppercase tracking-wider text-rose-400 flex items-center gap-1 border border-rose-500/30">
+                      <Radio className="size-3 animate-pulse" /> Live Stage Queue
+                    </span>
+                    <span className="text-xs text-white/50 font-mono">
+                      {dashboardStageData?.total_participants || 0} Present Contestants
+                    </span>
+                  </div>
+                  <h3 className="mt-1 font-display text-lg font-bold text-white">
+                    {selectedCompForLineup.title}
+                  </h3>
+                  <p className="text-xs text-white/60 mt-0.5">
+                    Official sequence of attendees confirmed present at venue.
+                  </p>
+                </div>
+
+                <button
+                  type="button"
+                  onClick={() => setLineupModalOpen(false)}
+                  className="grid size-8 cursor-pointer place-items-center rounded-full text-white/60 hover:bg-white/10 hover:text-white transition-colors"
+                >
+                  <X className="size-4" />
+                </button>
+              </div>
+
+              {/* Personalized Queue Banner if user is in lineup */}
+              {dashboardUserQueueInfo && (
+                <div className={cn(
+                  "mt-4 rounded-2xl border p-4 shadow-md",
+                  dashboardUserQueueInfo.isCurrent
+                    ? "border-rose-500/60 bg-rose-500/15"
+                    : dashboardUserQueueInfo.isNextUp
+                    ? "border-amber-500/60 bg-amber-500/15 animate-pulse"
+                    : dashboardUserQueueInfo.isCompleted
+                    ? "border-emerald-500/40 bg-emerald-500/10"
+                    : "border-sky-500/40 bg-sky-500/10"
+                )}>
+                  <div className="flex items-center justify-between gap-3">
+                    <div className="flex items-center gap-2.5">
+                      <div className={cn(
+                        "grid size-9 place-items-center rounded-xl",
+                        dashboardUserQueueInfo.isCurrent
+                          ? "bg-rose-500 text-white"
+                          : dashboardUserQueueInfo.isNextUp
+                          ? "bg-amber-500 text-black"
+                          : dashboardUserQueueInfo.isCompleted
+                          ? "bg-emerald-500/20 text-emerald-400 border border-emerald-500/30"
+                          : "bg-sky-500/20 text-sky-400 border border-sky-500/30"
+                      )}>
+                        {dashboardUserQueueInfo.isCurrent ? (
+                          <Radio className="size-5 animate-pulse" />
+                        ) : dashboardUserQueueInfo.isNextUp ? (
+                          <Zap className="size-5" />
+                        ) : dashboardUserQueueInfo.isCompleted ? (
+                          <CheckCircle2 className="size-5" />
+                        ) : (
+                          <Clock className="size-5" />
+                        )}
+                      </div>
+                      <div>
+                        <p className="text-xs font-bold text-white">
+                          {dashboardUserQueueInfo.isCurrent
+                            ? "🎤 You Are On Stage Now!"
+                            : dashboardUserQueueInfo.isNextUp
+                            ? "⚡ You Are Next Up (Backstage Alert)"
+                            : dashboardUserQueueInfo.isCompleted
+                            ? "✓ Performance Completed"
+                            : `Your Position: #${dashboardUserQueueInfo.order} in Lineup`}
+                        </p>
+                        <p className="text-[11px] text-white/60">
+                          {dashboardUserQueueInfo.aheadCount > 0
+                            ? `${dashboardUserQueueInfo.aheadCount} performer${dashboardUserQueueInfo.aheadCount === 1 ? "" : "s"} ahead of you`
+                            : dashboardUserQueueInfo.isCurrent
+                            ? "Judges are scoring your performance"
+                            : "Ready"}
+                        </p>
+                      </div>
+                    </div>
+                    <span className="font-mono text-sm font-black text-white/90">
+                      #{dashboardUserQueueInfo.order}
+                    </span>
+                  </div>
+                </div>
+              )}
+
+              {/* Lineup List */}
+              <div className="mt-4 flex-1 overflow-y-auto pr-1">
+                {loadingDashboardStage ? (
+                  <div className="flex min-h-[220px] items-center justify-center">
+                    <Loader2 className="size-6 animate-spin text-rose-500" />
+                  </div>
+                ) : dashboardStageData?.lineup && dashboardStageData.lineup.length > 0 ? (
+                  <div className="divide-y divide-white/10">
+                    {dashboardStageData.lineup.map((p: any, idx: number) => {
+                      const isMe = user?.email && (p.user_email || "").toLowerCase() === user.email.toLowerCase();
+                      const activePerformerEmail = (dashboardStageData?.has_active_performer && dashboardStageData?.current_performer?.user_email || "").toLowerCase().trim();
+                      const pEmail = (p.user_email || "").toLowerCase().trim();
+                      const isOnStage = Boolean(
+                        dashboardStageData?.has_active_performer &&
+                        (activePerformerEmail && pEmail === activePerformerEmail)
+                      );
+                      const isDone = !isOnStage && (p.stage_status === "COMPLETED" || (!dashboardStageData?.has_active_performer && p.stage_status === "ON_STAGE"));
+
+                      return (
+                        <div
+                          key={p.registration_id || idx}
+                          className={cn(
+                            "flex items-center justify-between gap-3 py-3 px-3 rounded-2xl transition-colors",
+                            isMe ? "bg-amber-500/10 border border-amber-500/30" : "",
+                            isOnStage ? "bg-rose-500/15 border border-rose-500/30" : ""
+                          )}
+                        >
+                          <div className="flex items-center gap-3 min-w-0">
+                            <span className={cn(
+                              "font-mono text-xs font-black w-6 text-center",
+                              isOnStage ? "text-rose-400" : isMe ? "text-amber-400" : "text-white/50"
+                            )}>
+                              #{p.order || idx + 1}
+                            </span>
+                            <div className="relative shrink-0">
+                              {p.avatar || p.user_photo ? (
+                                <img
+                                  src={imageFor(p.avatar || p.user_photo, 1)}
+                                  alt={p.participant_name}
+                                  className="size-9 rounded-full object-cover border border-white/10"
+                                />
+                              ) : (
+                                <div className="flex size-9 items-center justify-center rounded-full bg-white/10 text-xs font-bold text-white/70">
+                                  {((p.participant_name || p.user_name || "P")[0] || "P").toUpperCase()}
+                                </div>
+                              )}
+                              {(p.is_verified || p.verified_badge) && (
+                                <span className="absolute -bottom-1 -right-1">
+                                  <VerifiedBadge size="xs" />
+                                </span>
+                              )}
+                            </div>
+                            <div className="min-w-0">
+                              <p className="font-bold text-xs text-white truncate flex items-center gap-1">
+                                <span>{p.participant_name || p.user_name}</span>
+                                {isMe && <span className="text-[10px] text-amber-400 font-extrabold ml-1">(You)</span>}
+                                {(p.is_verified || p.verified_badge) && <VerifiedBadge size="xs" />}
+                              </p>
+                              <span className="block font-mono text-[10px] text-white/40 truncate">
+                                {p.registration_reference}
+                              </span>
+                            </div>
+                          </div>
+
+                          <div className="shrink-0">
+                            {isOnStage ? (
+                              <span className="inline-flex items-center gap-1 rounded-full bg-rose-500/20 border border-rose-500/40 px-2.5 py-0.5 text-[10px] font-extrabold text-rose-300 animate-pulse whitespace-nowrap">
+                                <Radio className="size-2.5" /> On Stage Now
+                              </span>
+                            ) : isDone ? (
+                              <span className="inline-flex items-center gap-1 rounded-full bg-emerald-500/15 border border-emerald-500/30 px-2 py-0.5 text-[10px] font-bold text-emerald-400 whitespace-nowrap">
+                                <CheckCircle2 className="size-3" /> Completed
+                              </span>
+                            ) : (
+                              <span className="text-[10px] font-mono text-white/40 font-semibold whitespace-nowrap">
+                                In Lineup
+                              </span>
+                            )}
+                          </div>
+                        </div>
+                      );
+                    })}
+                  </div>
+                ) : (
+                  <div className="py-12 text-center text-xs text-white/50">
+                    No contestants checked in or present yet for this competition.
+                  </div>
+                )}
+              </div>
+
+              {/* Footer */}
+              <div className="mt-4 border-t border-white/10 pt-3 flex items-center justify-between text-xs text-white/50">
+                <span className="flex items-center gap-1.5">
+                  <span className="size-2 rounded-full bg-emerald-500 animate-pulse" />
+                  <span>Auto-updating live queue (7s sync)</span>
+                </span>
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={() => setLineupModalOpen(false)}
+                  className="border-white/15 text-white hover:bg-white/10"
+                >
+                  Close
+                </Button>
+              </div>
+            </motion.div>
+          </div>
+        )}
+      </AnimatePresence>
     </section>
   );
 }

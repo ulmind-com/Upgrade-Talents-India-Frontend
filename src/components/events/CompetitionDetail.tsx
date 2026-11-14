@@ -442,7 +442,10 @@ export default function CompetitionDetail({
 
     const myEntry = lineup[myIndex];
     const myOrder = myEntry.order || myIndex + 1;
-    const currentPerformer = stageData.current_performer;
+    // When results are published / competition is over, no one is on stage anymore —
+    // the lineup's stage_status can be stale, so force a concluded view.
+    const concluded = Boolean(comp.results_published || comp.result_status === "PUBLISHED" || comp.judging_status === "CLOSED");
+    const currentPerformer = concluded ? null : stageData.current_performer;
     const currentEmail = (currentPerformer?.user_email || "").toLowerCase().trim();
     const isCurrent = Boolean(currentEmail && currentEmail === uEmail);
 
@@ -450,7 +453,7 @@ export default function CompetitionDetail({
     if (currentEmail) {
       currIdx = lineup.findIndex((p: any) => (p.user_email || "").toLowerCase().trim() === currentEmail);
     }
-    const isCompleted = myEntry.stage_status === "COMPLETED";
+    const isCompleted = concluded || myEntry.stage_status === "COMPLETED" || (!isCurrent && myEntry.stage_status === "ON_STAGE");
     const aheadCount = currIdx >= 0 ? Math.max(0, myIndex - currIdx) : myIndex;
     const isNextUp = !isCurrent && !isCompleted && aheadCount === 1;
 
@@ -468,6 +471,11 @@ export default function CompetitionDetail({
   const lifecycle = getCompetitionLifecycle(comp);
   const open = lifecycle.canRegister;
   const isResultsPublished = lifecycle.isResultsOut;
+  // Once the competition has concluded (results out / ended / judging closed), the
+  // live-stage feed can still carry stale stage_status="ON_STAGE" rows from the
+  // backend. Treat the stage as closed so no one is shown "On Stage" after the end.
+  const stageConcluded =
+    isResultsPublished || lifecycle.isEnded || comp.judging_status === "CLOSED";
   const isVotingOpen = Boolean(
     comp.audience_voting_enabled &&
     (comp.voting_status === "OPEN" || !comp.voting_status) &&
@@ -1341,7 +1349,7 @@ export default function CompetitionDetail({
         )}
 
         {/* ── Public Live Stage Performer Announcement Banner ── */}
-        {stageData?.has_active_performer && stageData?.current_performer ? (
+        {!stageConcluded && stageData?.has_active_performer && stageData?.current_performer ? (
           <motion.div
             initial={{ opacity: 0, y: -10 }}
             animate={{ opacity: 1, y: 0 }}
@@ -2976,8 +2984,27 @@ export default function CompetitionDetail({
                   <div className="divide-y divide-[var(--border)]/60">
                     {stageData.lineup.map((p: any, idx: number) => {
                       const isMe = user?.email && (p.user_email || "").toLowerCase() === user.email.toLowerCase();
-                      const isOnStage = p.stage_status === "ON_STAGE" || p.is_current_performer;
-                      const isDone = p.stage_status === "COMPLETED";
+                      
+                      // Strict single-performer invariant: ONLY the true active performer can be "On Stage".
+                      // Never allow multiple people to show "On Stage" at the same time.
+                      const activePerformerEmail = (stageData?.has_active_performer && stageData?.current_performer?.user_email || "").toLowerCase().trim();
+                      const activePerformerSubId = String(stageData?.has_active_performer && stageData?.current_performer?.submission_id || "").trim();
+                      const activePerformerRegId = String(stageData?.has_active_performer && stageData?.current_performer?.registration_id || "").trim();
+
+                      const pEmail = (p.user_email || "").toLowerCase().trim();
+                      const pSubId = String(p.submission_id || p._id || "").trim();
+                      const pRegId = String(p.registration_id || p._id || "").trim();
+
+                      const matchesActivePerformer = Boolean(
+                        stageData?.has_active_performer && (
+                          (activePerformerEmail && pEmail === activePerformerEmail) ||
+                          (activePerformerRegId && pRegId === activePerformerRegId) ||
+                          (activePerformerSubId && pSubId === activePerformerSubId)
+                        )
+                      );
+
+                      const isOnStage = !stageConcluded && matchesActivePerformer;
+                      const isDone = !isOnStage && (p.stage_status === "COMPLETED" || stageConcluded || (!stageData?.has_active_performer && p.stage_status === "ON_STAGE"));
 
                       return (
                         <div

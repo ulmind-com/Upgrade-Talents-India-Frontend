@@ -847,14 +847,14 @@ export default function BookingFlow({
       )}
 
       {/* ═══════════ MAIN CONTENT BODY ═══════════ */}
-      <div className="container-x py-8 sm:py-12">
+      <div className="w-full max-w-[1560px] mx-auto px-4 sm:px-6 lg:px-8 xl:px-8 2xl:px-10 py-8 sm:py-12">
         
         {/* ── STEP 1: RESPONSIVE BOOKING ARENA ── */}
         {step === 1 && (
-          <div className="grid grid-cols-1 lg:grid-cols-[280px_minmax(0,1fr)] xl:grid-cols-[270px_minmax(0,1fr)_215px] 2xl:grid-cols-[290px_minmax(0,1fr)_235px] gap-6 lg:gap-8 items-start w-full max-w-full">
+          <div className="grid grid-cols-1 lg:grid-cols-[260px_minmax(0,1fr)] xl:grid-cols-[250px_minmax(0,1fr)_205px] 2xl:grid-cols-[280px_minmax(0,1fr)_230px] gap-5 lg:gap-6 2xl:gap-8 items-start w-full max-w-full min-w-0">
             
             {/* ── LEFT COLUMN: Floating Poster Card & Selected Seats Cart ── */}
-            <div className="flex flex-col w-full max-w-[280px] mx-auto lg:mx-0 lg:sticky lg:top-24">
+            <div className="flex flex-col w-full max-w-[280px] lg:max-w-none mx-auto lg:mx-0 lg:sticky lg:top-24 min-w-0">
               {/* Vertical Poster Card */}
               <div className="relative overflow-hidden rounded-2xl border border-white/20 bg-neutral-900 shadow-2xl aspect-[2/3] w-full max-w-[280px] mx-auto group">
                 <img
@@ -976,7 +976,7 @@ export default function BookingFlow({
             </div>
 
             {/* ── CENTER COLUMN: Stage & Category-wise Seating Grid ── */}
-            <div className="flex flex-col items-center w-full min-w-0">
+            <div className="flex flex-col items-center w-full min-w-0 overflow-hidden">
               
               {/* 3D Trapezoid Stage Perspective */}
               <div className="relative mx-auto mb-6 w-full max-w-lg text-center">
@@ -1231,49 +1231,49 @@ export default function BookingFlow({
             </div>
 
             {/* ── RIGHT COLUMN: Date, Time, Type & Seat Legend (Visible on xl+ screens) ── */}
-            <div className="hidden xl:flex flex-col gap-4 w-full max-w-[215px] 2xl:max-w-[235px] shrink-0 sticky top-24">
-              <div className="rounded-2xl border border-white/10 bg-black/60 p-4 backdrop-blur-md">
+            <div className="hidden xl:flex flex-col gap-4 w-full max-w-[205px] 2xl:max-w-[230px] min-w-0 shrink-0 sticky top-24">
+              <div className="rounded-2xl border border-white/10 bg-black/60 p-3.5 2xl:p-4 backdrop-blur-md w-full min-w-0 overflow-hidden shadow-2xl">
                 
                 {/* Date Box */}
                 <span className="font-mono text-[11px] uppercase tracking-wider text-white/50 block">Date:</span>
-                <div className="mt-1.5 rounded-xl border border-white/20 bg-neutral-900/90 p-3 text-center shadow-inner">
-                  <span className="font-street text-3xl font-extrabold text-white block leading-none">{eventDay}</span>
-                  <span className="font-mono text-xs font-bold text-red-500 uppercase tracking-widest mt-1 block">{eventMonth} {eventYear}</span>
+                <div className="mt-1.5 rounded-xl border border-white/20 bg-neutral-900/90 p-2.5 2xl:p-3 text-center shadow-inner">
+                  <span className="font-street text-2xl 2xl:text-3xl font-extrabold text-white block leading-none">{eventDay}</span>
+                  <span className="font-mono text-[10.5px] 2xl:text-xs font-bold text-red-500 uppercase tracking-widest mt-1 block truncate">{eventMonth} {eventYear}</span>
                 </div>
 
                 {/* Time */}
-                <div className="mt-4">
-                  <span className="font-mono text-[11px] uppercase tracking-wider text-white/50 block">Time:</span>
-                  <span className="font-bold text-sm text-white mt-0.5 block">{event.time || "18:00 IST"}</span>
+                <div className="mt-3.5">
+                  <span className="font-mono text-[10.5px] uppercase tracking-wider text-white/50 block">Time:</span>
+                  <span className="font-bold text-xs 2xl:text-sm text-white mt-0.5 block truncate">{event.time || "18:00 IST"}</span>
                 </div>
 
                 {/* Type / Category */}
-                <div className="mt-4">
-                  <span className="font-mono text-[11px] uppercase tracking-wider text-white/50 block">Type:</span>
-                  <span className="font-bold text-xs text-red-400 uppercase tracking-wider mt-0.5 block">
+                <div className="mt-3.5">
+                  <span className="font-mono text-[10.5px] uppercase tracking-wider text-white/50 block">Type:</span>
+                  <span className="font-bold text-[11px] 2xl:text-xs text-red-400 uppercase tracking-wider mt-0.5 block truncate">
                     {event.category || "LIVE ARENA PASS"}
                   </span>
                 </div>
 
                 {/* Live Arena Sync Status */}
-                <div className="mt-4 pt-3 border-t border-white/10 flex items-center gap-2 text-[10.5px] font-mono text-emerald-400">
+                <div className="mt-3.5 pt-3 border-t border-white/10 flex items-center gap-2 text-[10px] 2xl:text-[10.5px] font-mono text-emerald-400">
                   <span className="size-2 rounded-full bg-emerald-500 animate-pulse shrink-0" />
-                  <span>Real-time Seat Lock</span>
+                  <span className="truncate">Real-time Seat Lock</span>
                 </div>
 
                 {/* Seating Legend */}
-                <div className="mt-4 pt-4 border-t border-white/10 flex flex-col gap-2.5 text-xs font-mono">
-                  <div className="flex items-center gap-2.5">
-                    <div className="size-4 rounded-t-sm rounded-b-xs bg-[#1c1f26] border border-white/30" />
-                    <span className="text-white/60">Available</span>
+                <div className="mt-3.5 pt-3 border-t border-white/10 flex flex-col gap-2 text-[10.5px] 2xl:text-xs font-mono">
+                  <div className="flex items-center gap-2">
+                    <div className="size-3.5 shrink-0 rounded-t-sm rounded-b-xs bg-[#1c1f26] border border-white/30" />
+                    <span className="text-white/60 truncate">Available</span>
                   </div>
-                  <div className="flex items-center gap-2.5">
-                    <div className="size-4 rounded-t-sm rounded-b-xs bg-red-600 border border-red-400 shadow-[0_0_8px_rgba(239,68,68,0.7)]" />
-                    <span className="text-red-400 font-bold">Selected</span>
+                  <div className="flex items-center gap-2">
+                    <div className="size-3.5 shrink-0 rounded-t-sm rounded-b-xs bg-red-600 border border-red-400 shadow-[0_0_8px_rgba(239,68,68,0.7)]" />
+                    <span className="text-red-400 font-bold truncate">Selected</span>
                   </div>
-                  <div className="flex items-center gap-2.5">
-                    <div className="size-4 rounded-t-sm rounded-b-xs bg-neutral-800/40 border border-neutral-800 opacity-40" />
-                    <span className="text-white/30">Reserved / Taken</span>
+                  <div className="flex items-center gap-2">
+                    <div className="size-3.5 shrink-0 rounded-t-sm rounded-b-xs bg-neutral-800/40 border border-neutral-800 opacity-40" />
+                    <span className="text-white/30 truncate">Reserved / Taken</span>
                   </div>
                 </div>
               </div>
