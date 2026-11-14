@@ -3126,6 +3126,11 @@ export default function CompetitionDetail({
                                   {isMe && <span className="text-[10px] text-[var(--brand)] ml-1 font-bold">(You)</span>}
                                 </p>
                                 {(p.is_verified || p.verified_badge) && <VerifiedBadge size="xs" />}
+                                {p.category && (
+                                  <span className="rounded-full border border-violet-500/30 bg-violet-500/10 px-2 py-0.2 text-[9px] font-bold text-violet-300">
+                                    {p.category}
+                                  </span>
+                                )}
                               </div>
                               <span className="block font-mono text-[10.5px] text-[var(--fg-subtle)] truncate">
                                 {p.registration_reference}
