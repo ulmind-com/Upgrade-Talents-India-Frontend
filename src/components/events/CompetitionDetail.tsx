@@ -468,7 +468,17 @@ export default function CompetitionDetail({
     };
   }, [user?.email, stageData]);
 
-  const lifecycle = getCompetitionLifecycle(comp);
+  const effectiveComp = useMemo(() => {
+    const cr = roundsData?.current_round ?? (comp as any)?.current_round ?? 1;
+    const r1Done = Boolean(cr > 1 || roundsData?.rounds?.some((r: any) => r.round_number === 1 && r.status === "COMPLETED"));
+    return {
+      ...comp,
+      current_round: cr,
+      round_1_completed: r1Done,
+    };
+  }, [comp, roundsData]);
+
+  const lifecycle = getCompetitionLifecycle(effectiveComp);
   const open = lifecycle.canRegister;
   const isResultsPublished = lifecycle.isResultsOut;
   // Once the competition has concluded (results out / ended / judging closed), the
@@ -605,6 +615,22 @@ export default function CompetitionDetail({
       rank: leaderboardCategory !== "ALL" ? idx + 1 : (r.rank ?? (idx + 1)),
     }));
   }, [rows, leaderboardCategory, categoryLeaderboards]);
+
+  const selfLeaderboardRow = useMemo(() => {
+    if (!user?.email) return null;
+    const uEm = user.email.toLowerCase().trim();
+    return (
+      displayedRows.find(
+        (r: any) =>
+          (r.email || r.participant_id || r.user_email || "").toLowerCase().trim() === uEm
+      ) ||
+      rows.find(
+        (r: any) =>
+          (r.email || r.participant_id || r.user_email || "").toLowerCase().trim() === uEm
+      ) ||
+      null
+    );
+  }, [user?.email, displayedRows, rows]);
 
   // Fetch live leaderboard on mount & when competition changes
   useEffect(() => {
@@ -2004,7 +2030,62 @@ export default function CompetitionDetail({
               )}
             </div>
           ) : (
-            <div className="mt-4 overflow-hidden rounded-[var(--radius-lg)] border border-[var(--border)] bg-[var(--surface)] shadow-md">
+            <div className="mt-4 flex flex-col gap-3">
+              {/* Pinned Personal Rank & Standing Card for Competitor */}
+              {selfLeaderboardRow && (
+                <div className="relative overflow-hidden rounded-2xl border-2 border-amber-400/60 bg-gradient-to-r from-amber-500/20 via-[var(--surface-2)] to-amber-500/10 p-4 shadow-lg backdrop-blur-md">
+                  <div className="absolute top-0 right-0 rounded-bl-xl bg-amber-400 px-3 py-0.5 text-[10px] font-black uppercase tracking-wider text-slate-950">
+                    Your Official Standing
+                  </div>
+                  <div className="flex flex-wrap items-center justify-between gap-4 pt-1">
+                    <div className="flex items-center gap-3 min-w-0">
+                      <div className="grid size-12 shrink-0 place-items-center rounded-2xl bg-gradient-to-br from-amber-300 to-amber-500 text-slate-950 font-black text-xl shadow-md">
+                        #{selfLeaderboardRow.rank ?? "—"}
+                      </div>
+                      <div className="min-w-0">
+                        <div className="flex items-center gap-2">
+                          <p className="font-bold text-sm text-white truncate">
+                            {selfLeaderboardRow.name || user?.name || "You"}
+                          </p>
+                          {((selfLeaderboardRow as any).is_verified || (selfLeaderboardRow as any).verified_badge || user?.is_verified) && (
+                            <VerifiedBadge size="xs" />
+                          )}
+                        </div>
+                        <p className="text-xs text-[var(--fg-muted)] truncate mt-0.5">
+                          Division: <strong className="text-amber-300 font-semibold">{selfLeaderboardRow.category || "General"}</strong>
+                          {(selfLeaderboardRow as any).registration_reference ? ` · Ref: ${(selfLeaderboardRow as any).registration_reference}` : ""}
+                        </p>
+                      </div>
+                    </div>
+                    <div className="flex items-center gap-4 ml-auto text-right">
+                      {selfLeaderboardRow.judge_score != null && Number(selfLeaderboardRow.judge_score) > 0 && (
+                        <div>
+                          <span className="block text-[10px] font-mono uppercase tracking-wider text-[var(--fg-subtle)]">Judge Score</span>
+                          <span className="font-street text-xl font-black text-amber-300">
+                            {Number(selfLeaderboardRow.judge_score).toFixed(1)} <span className="text-xs font-sans text-amber-400 font-bold">pts</span>
+                          </span>
+                        </div>
+                      )}
+                      <div>
+                        <span className="block text-[10px] font-mono uppercase tracking-wider text-[var(--fg-subtle)]">Audience Votes</span>
+                        <span className="font-street text-xl font-black text-emerald-400">
+                          {nf(selfLeaderboardRow.audience_votes ?? 0)}
+                        </span>
+                      </div>
+                      {(selfLeaderboardRow.final_score != null && Number(selfLeaderboardRow.final_score) > 0) && (
+                        <div className="pl-3 border-l border-white/10">
+                          <span className="block text-[10px] font-mono uppercase tracking-wider text-[var(--fg-subtle)]">Total Points</span>
+                          <span className="font-street text-2xl font-black text-white">
+                            {nf(selfLeaderboardRow.final_score)} <span className="text-xs font-sans text-amber-400 font-bold">pts</span>
+                          </span>
+                        </div>
+                      )}
+                    </div>
+                  </div>
+                </div>
+              )}
+
+              <div className="overflow-hidden rounded-[var(--radius-lg)] border border-[var(--border)] bg-[var(--surface)] shadow-md">
               {displayedRows.slice(0, 12).map((r, i) => {
                 const pid = r.participant_id || r.email || "";
                 const top = (r.rank ?? i + 1) <= 3;
@@ -2112,6 +2193,7 @@ export default function CompetitionDetail({
                   </div>
                 );
               })}
+              </div>
             </div>
           )}
           {isParticipant && isVotingOpen && (

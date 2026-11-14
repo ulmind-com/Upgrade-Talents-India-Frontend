@@ -201,9 +201,15 @@ export function getCompetitionLifecycle(comp: CompetitionLifecycleInput): Compet
   const isExplicitUpcoming =
     String(comp.registration_status || "").toUpperCase() === "UPCOMING";
 
+  const currentRound = Number((comp as any).current_round ?? (comp as any).active_round ?? 1);
+  const isPastRound1 = currentRound > 1 || Boolean((comp as any).round_1_completed);
+
   if (isResultsOut || isEnded) {
     isRegClosed = true;
     regMessage = "Competition has concluded. Registration is closed.";
+  } else if (isPastRound1) {
+    isRegClosed = true;
+    regMessage = `Round 1 has concluded. Stage ${currentRound} is currently underway. Registration is closed.`;
   } else if (regDeadlineMs && now >= regDeadlineMs) {
     // Deadline passed: strictly prevent registration
     isRegClosed = true;
