@@ -598,17 +598,18 @@ export default function BookingFlow({
   const backdropUrl = event.banner_url || event.banner_image_url || event.image_url || FALLBACK_IMAGES[0];
   const posterUrl = event.card_image_url || event.image_url || FALLBACK_IMAGES[1];
 
-  // Date Parsing for the Date Badge (Day + Month)
-  const { eventDay, eventMonth } = useMemo(() => {
+  // Date Parsing for the Date Badge (Day + Month + Year)
+  const { eventDay, eventMonth, eventYear } = useMemo(() => {
     try {
       const d = new Date(event.date);
-      if (isNaN(d.getTime())) return { eventDay: "14", eventMonth: "DEC" };
+      if (isNaN(d.getTime())) return { eventDay: "14", eventMonth: "DEC", eventYear: "2026" };
       return {
         eventDay: String(d.getDate()).padStart(2, "0"),
         eventMonth: d.toLocaleString("en-US", { month: "short" }).toUpperCase(),
+        eventYear: String(d.getFullYear()),
       };
     } catch {
-      return { eventDay: "14", eventMonth: "DEC" };
+      return { eventDay: "14", eventMonth: "DEC", eventYear: "2026" };
     }
   }, [event.date]);
 
@@ -765,7 +766,7 @@ export default function BookingFlow({
   };
 
   return (
-    <div className="relative min-h-screen bg-[#07080a] text-white">
+    <div className="relative min-h-screen bg-[#07080a] text-white overflow-x-clip">
       {/* ═══════════ CINEMATIC HERO BACKDROP & HEADING (From Admin Panel) ═══════════ */}
       <div className="relative w-full h-[280px] sm:h-[340px] md:h-[380px] overflow-hidden select-none border-b border-white/10">
         <img
@@ -778,13 +779,23 @@ export default function BookingFlow({
         <div className="absolute inset-0 bg-gradient-to-r from-[#07080a]/80 via-transparent to-[#07080a]/80" />
 
         {/* Mortal Engines Style Hero Heading */}
-        <div className="container-x absolute inset-0 flex flex-col justify-end pb-8 sm:pb-12 pl-4 sm:pl-8 lg:pl-[340px]">
-          <span className="font-mono text-xs uppercase tracking-[0.3em] text-red-500 font-bold mb-2 flex items-center gap-2">
-            <Sparkles className="size-3.5 animate-pulse" /> Official Arena Booking
-          </span>
-          <h1 className="font-street text-[clamp(2.5rem,7vw,5.5rem)] font-extrabold uppercase leading-[0.85] tracking-tight text-white drop-shadow-2xl">
-            {event.title}
-          </h1>
+        <div className="container-x absolute inset-0 flex flex-col justify-end pb-8 sm:pb-10">
+          <div className="max-w-4xl">
+            <span className="font-mono text-xs uppercase tracking-[0.3em] text-red-500 font-bold mb-2 flex items-center gap-2">
+              <Sparkles className="size-3.5 animate-pulse" /> Official Arena Booking
+            </span>
+            <h1 className="font-street text-[clamp(2.2rem,5.5vw,4.5rem)] font-extrabold uppercase leading-[0.9] tracking-tight text-white drop-shadow-2xl">
+              {event.title}
+            </h1>
+            {event.venue && (
+              <p className="font-mono text-xs text-white/70 mt-2 flex items-center gap-2">
+                <MapPin className="size-3 text-red-500 shrink-0" />
+                <span>{event.venue}</span>
+                <span>•</span>
+                <span>{eventDay} {eventMonth}</span>
+              </p>
+            )}
+          </div>
         </div>
       </div>
 
@@ -838,14 +849,14 @@ export default function BookingFlow({
       {/* ═══════════ MAIN CONTENT BODY ═══════════ */}
       <div className="container-x py-8 sm:py-12">
         
-        {/* ── STEP 1: 3-COLUMN BOOKMYSHOW CINEMA ARENA ── */}
+        {/* ── STEP 1: RESPONSIVE BOOKING ARENA ── */}
         {step === 1 && (
-          <div className="grid grid-cols-1 lg:grid-cols-[280px_1fr_210px] xl:grid-cols-[300px_1fr_220px] gap-8 items-start">
+          <div className="grid grid-cols-1 lg:grid-cols-[280px_minmax(0,1fr)] xl:grid-cols-[270px_minmax(0,1fr)_215px] 2xl:grid-cols-[290px_minmax(0,1fr)_235px] gap-6 lg:gap-8 items-start w-full max-w-full">
             
             {/* ── LEFT COLUMN: Floating Poster Card & Selected Seats Cart ── */}
-            <div className="flex flex-col">
-              {/* Floating Vertical Poster Card (Pulls up slightly into the hero header) */}
-              <div className="relative overflow-hidden rounded-2xl border border-white/20 bg-neutral-900 shadow-2xl aspect-[2/3] w-full max-w-[280px] mx-auto lg:-mt-24 z-10 group">
+            <div className="flex flex-col w-full max-w-[280px] mx-auto lg:mx-0 lg:sticky lg:top-24">
+              {/* Vertical Poster Card */}
+              <div className="relative overflow-hidden rounded-2xl border border-white/20 bg-neutral-900 shadow-2xl aspect-[2/3] w-full max-w-[280px] mx-auto group">
                 <img
                   src={posterUrl}
                   alt={event.title}
@@ -861,8 +872,25 @@ export default function BookingFlow({
                 </div>
               </div>
 
+              {/* Compact Event Date & Info Bar (Visible on mobile/tablet/lg where right column is hidden) */}
+              <div className="xl:hidden mt-4 rounded-2xl border border-white/10 bg-black/60 p-3.5 backdrop-blur-md flex items-center justify-between gap-3">
+                <div className="flex items-center gap-3 min-w-0">
+                  <div className="rounded-xl border border-white/20 bg-neutral-900/90 px-3 py-1.5 text-center shrink-0">
+                    <span className="font-street text-xl font-extrabold text-white block leading-none">{eventDay}</span>
+                    <span className="font-mono text-[10px] font-bold text-red-500 uppercase tracking-widest block">{eventMonth}</span>
+                  </div>
+                  <div className="min-w-0">
+                    <span className="font-mono text-[10px] text-red-400 font-bold uppercase tracking-wider block truncate">
+                      {event.category || "LIVE ARENA PASS"}
+                    </span>
+                    <p className="font-bold text-xs text-white truncate">{event.time || "18:00 IST"}</p>
+                    <p className="text-[11px] text-white/50 truncate">{event.venue}</p>
+                  </div>
+                </div>
+              </div>
+
               {/* Selected Seats Cart (Exact Match to Reference Image) */}
-              <div className="mt-5 rounded-2xl border border-white/10 bg-black/60 p-4 backdrop-blur-md">
+              <div className="mt-4 rounded-2xl border border-white/10 bg-black/60 p-4 backdrop-blur-md">
                 <div className="flex items-center justify-between border-b border-white/10 pb-2 mb-3">
                   <span className="font-mono text-xs uppercase tracking-wider text-white/70">
                     Selected Seats ({selectedSeats.length})
@@ -884,7 +912,7 @@ export default function BookingFlow({
                     Click available seats in Platinum, Gold, or Bronze to select
                   </div>
                 ) : (
-                  <div className="flex flex-col gap-2 max-h-[220px] overflow-y-auto pr-1">
+                  <div className="flex flex-col gap-2 max-h-[220px] overflow-y-auto pr-1 custom-scrollbar">
                     {selectedSeats.map((seat) => (
                       <div
                         key={seat.seatId}
@@ -948,10 +976,10 @@ export default function BookingFlow({
             </div>
 
             {/* ── CENTER COLUMN: Stage & Category-wise Seating Grid ── */}
-            <div className="flex flex-col items-center">
+            <div className="flex flex-col items-center w-full min-w-0">
               
               {/* 3D Trapezoid Stage Perspective */}
-              <div className="relative mx-auto mb-8 w-full max-w-lg text-center">
+              <div className="relative mx-auto mb-6 w-full max-w-lg text-center">
                 <div
                   className="relative mx-auto h-12 sm:h-14 w-full rounded-t-lg bg-gradient-to-b from-neutral-200 via-neutral-500 to-neutral-800 shadow-[0_15px_30px_rgba(255,255,255,0.12)] flex items-center justify-center overflow-hidden"
                   style={{ clipPath: "polygon(14% 0%, 86% 0%, 100% 100%, 0% 100%)" }}
@@ -964,8 +992,24 @@ export default function BookingFlow({
                 <div className="mx-auto h-7 w-3/4 bg-gradient-to-b from-white/15 to-transparent blur-md pointer-events-none" />
               </div>
 
-              {/* Seating Categories: Platinum, Gold, Bronze (Maintained exactly as requested) */}
-              <div className="w-full flex flex-col gap-6">
+              {/* Horizontal Seating Legend directly under Stage for instant clarity */}
+              <div className="flex flex-wrap items-center justify-center gap-4 sm:gap-6 mb-6 py-2 px-4 rounded-xl border border-white/10 bg-black/40 backdrop-blur-sm text-xs font-mono">
+                <div className="flex items-center gap-2">
+                  <div className="size-3.5 rounded-t-sm rounded-b-xs bg-[#1c1f26] border border-white/30" />
+                  <span className="text-white/60">Available</span>
+                </div>
+                <div className="flex items-center gap-2">
+                  <div className="size-3.5 rounded-t-sm rounded-b-xs bg-red-600 border border-red-400 shadow-[0_0_8px_rgba(239,68,68,0.7)]" />
+                  <span className="text-red-400 font-bold">Selected</span>
+                </div>
+                <div className="flex items-center gap-2">
+                  <div className="size-3.5 rounded-t-sm rounded-b-xs bg-neutral-800/40 border border-neutral-800 opacity-40" />
+                  <span className="text-white/30">Reserved / Taken</span>
+                </div>
+              </div>
+
+              {/* Seating Categories: Platinum, Gold, Bronze */}
+              <div className="w-full min-w-0 flex flex-col gap-6">
                 {tiers.map((t) => {
                   const meta = getSeatingZoneMeta(t.category || t.type);
                   const isSelectedTier = selectedTierId === t._id;
@@ -976,7 +1020,7 @@ export default function BookingFlow({
                     <div
                       key={t._id}
                       className={cn(
-                        "group relative overflow-hidden rounded-2xl border p-4 sm:p-5 transition-all duration-300",
+                        "group relative overflow-hidden rounded-2xl border p-4 sm:p-5 transition-all duration-300 w-full min-w-0",
                         isSelectedTier
                           ? `${meta.borderClass} bg-neutral-900/95 ring-2 ring-[${meta.themeColor}]`
                           : "border-white/10 bg-white/[0.02] hover:border-white/30 hover:bg-white/[0.04]",
@@ -1053,11 +1097,11 @@ export default function BookingFlow({
                       {(() => {
                         const tierRows = tierSeatRowsMap.get(t._id) || generateDynamicTierRows(t, 0, [t]);
                         return (
-                          <div className="mt-4 pt-3 border-t border-white/10">
+                          <div className="mt-4 pt-3 border-t border-white/10 w-full min-w-0">
                             <div
                               className={cn(
-                                "flex flex-col gap-2 overflow-x-auto pb-1",
-                                tierRows.length > 4 && "max-h-[380px] overflow-y-auto pr-1.5 custom-scrollbar"
+                                "flex flex-col gap-2 overflow-x-auto pb-2 custom-scrollbar max-w-full",
+                                tierRows.length > 4 && "max-h-[380px] overflow-y-auto pr-1.5"
                               )}
                             >
                               {tierRows.map((row) => (
@@ -1186,15 +1230,15 @@ export default function BookingFlow({
 
             </div>
 
-            {/* ── RIGHT COLUMN: Date, Time, Type & Seat Legend (Exact match to reference) ── */}
-            <div className="flex flex-col gap-4">
+            {/* ── RIGHT COLUMN: Date, Time, Type & Seat Legend (Visible on xl+ screens) ── */}
+            <div className="hidden xl:flex flex-col gap-4 w-full max-w-[215px] 2xl:max-w-[235px] shrink-0 sticky top-24">
               <div className="rounded-2xl border border-white/10 bg-black/60 p-4 backdrop-blur-md">
                 
                 {/* Date Box */}
                 <span className="font-mono text-[11px] uppercase tracking-wider text-white/50 block">Date:</span>
-                <div className="mt-1.5 rounded-xl border border-white/20 bg-neutral-900/90 p-3.5 text-center shadow-inner">
-                  <span className="font-street text-3xl sm:text-4xl font-extrabold text-white block leading-none">{eventDay}</span>
-                  <span className="font-mono text-xs font-bold text-red-500 uppercase tracking-widest mt-1 block">{eventMonth}</span>
+                <div className="mt-1.5 rounded-xl border border-white/20 bg-neutral-900/90 p-3 text-center shadow-inner">
+                  <span className="font-street text-3xl font-extrabold text-white block leading-none">{eventDay}</span>
+                  <span className="font-mono text-xs font-bold text-red-500 uppercase tracking-widest mt-1 block">{eventMonth} {eventYear}</span>
                 </div>
 
                 {/* Time */}
@@ -1211,8 +1255,14 @@ export default function BookingFlow({
                   </span>
                 </div>
 
-                {/* Seating Legend (Exact Match to Reference Image) */}
-                <div className="mt-6 pt-4 border-t border-white/10 flex flex-col gap-2.5 text-xs font-mono">
+                {/* Live Arena Sync Status */}
+                <div className="mt-4 pt-3 border-t border-white/10 flex items-center gap-2 text-[10.5px] font-mono text-emerald-400">
+                  <span className="size-2 rounded-full bg-emerald-500 animate-pulse shrink-0" />
+                  <span>Real-time Seat Lock</span>
+                </div>
+
+                {/* Seating Legend */}
+                <div className="mt-4 pt-4 border-t border-white/10 flex flex-col gap-2.5 text-xs font-mono">
                   <div className="flex items-center gap-2.5">
                     <div className="size-4 rounded-t-sm rounded-b-xs bg-[#1c1f26] border border-white/30" />
                     <span className="text-white/60">Available</span>
