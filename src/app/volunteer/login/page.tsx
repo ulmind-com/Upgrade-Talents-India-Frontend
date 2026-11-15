@@ -42,6 +42,18 @@ export default function VolunteerLoginPage() {
     if (isVolunteer) router.replace("/volunteer");
   }, [isVolunteer, router]);
 
+  useEffect(() => {
+    if (typeof window !== "undefined") {
+      try {
+        const params = new URLSearchParams(window.location.search);
+        const emailParam = params.get("email");
+        if (emailParam) {
+          setEmail(emailParam.trim());
+        }
+      } catch {}
+    }
+  }, []);
+
   // ── Password Direct Login ──
   const submitPasswordLogin = async (e: React.FormEvent) => {
     e.preventDefault();

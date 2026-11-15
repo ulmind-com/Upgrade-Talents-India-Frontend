@@ -1346,11 +1346,13 @@ export const judgeCompetitionsApi = {
 
 export interface TicketScanVerifyResult {
   is_valid: boolean;
+  event_id?: string;
   ticket: {
     ticket_ref: string;
     holder_name: string;
     holder_names?: string[];
     holder_email: string;
+    user_phone?: string;
     ticket_type?: string;
     category?: string;
     quantity: number;
@@ -1385,15 +1387,15 @@ export const volunteerScannerApi = {
     }),
 
   /** Scan or enter QR token to verify ticket validity */
-  verifyTicket: (qr_token: string) =>
+  verifyTicket: (qr_token: string, event_id?: string) =>
     apiFetch<TicketScanVerifyResult>("/api/admin/tickets/verify", {
       method: "POST",
-      body: { qr_token },
+      body: { qr_token, event_id: event_id || undefined },
       auth: true,
     }),
 
   /** Atomically mark attendees on this ticket as checked in */
-  checkInTicket: (qr_token: string, admit_count?: number) =>
+  checkInTicket: (qr_token: string, admit_count?: number, event_id?: string) =>
     apiFetch<{
       message: string;
       ticket_ref: string;
@@ -1404,7 +1406,7 @@ export const volunteerScannerApi = {
       is_fully_used: boolean;
     }>("/api/admin/tickets/check-in", {
       method: "POST",
-      body: { qr_token, admit_count },
+      body: { qr_token, admit_count, event_id: event_id || undefined },
       auth: true,
     }),
 };
