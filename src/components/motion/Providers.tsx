@@ -80,12 +80,16 @@ export function usePageScrollLock(active: boolean, onEscape?: () => void) {
 export function SmoothScroll({ children }: { children: React.ReactNode }) {
   useEffect(() => {
     if (window.matchMedia("(prefers-reduced-motion: reduce)").matches) return;
+    // On touch/mobile devices, use native hardware-accelerated momentum scrolling.
+    // Lenis is only enabled for desktop mouse wheel devices so tap events are 100% instant.
+    const isTouch = window.matchMedia("(pointer: coarse)").matches || "ontouchstart" in window;
+    if (isTouch) return;
 
     const lenis = new Lenis({
       lerp: 0.11,
       smoothWheel: true,
       wheelMultiplier: 1,
-      touchMultiplier: 1.6,
+      touchMultiplier: 0,
     });
 
     lenisInstance = lenis;

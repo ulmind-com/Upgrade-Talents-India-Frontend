@@ -191,18 +191,26 @@ export default function CoverflowCarousel({
   const vel = useRef(0);
   const drag = useRef({ active: false, x: 0, t: 0, moved: 0 });
   const [height, setHeight] = useState(400);
+  const dimsRef = useRef({ bw: 1440, bh: 400, s: 1 });
+  const inViewRef = useRef(true);
 
-  /* reserve the row's height before anything paints */
+  /* reserve the row's height before anything paints & cache dimensions */
   useLayoutEffect(() => {
     const read = () => {
-      const w = hostRef.current?.clientWidth || window.innerWidth;
+      const host = hostRef.current;
+      const w = host?.clientWidth || window.innerWidth || 1440;
       const narrow = window.innerWidth <= 820;
       const s = narrow ? w / 640 : w / 1440;
-      // only a 640 unit window shows on phones, so the arch needs less room
-      setHeight(Math.max(230, Math.round((narrow ? 320 : BAND) * s)));
+      const h = Math.max(230, Math.round((narrow ? 320 : BAND) * s));
+      setHeight(h);
+      dimsRef.current = {
+        bw: w,
+        bh: h,
+        s: s || 1,
+      };
     };
     read();
-    window.addEventListener("resize", read);
+    window.addEventListener("resize", read, { passive: true });
     return () => window.removeEventListener("resize", read);
   }, []);
 
@@ -212,16 +220,9 @@ export default function CoverflowCarousel({
     if (!host) return;
     const reduce = window.matchMedia("(prefers-reduced-motion: reduce)").matches;
 
-    const scaleOf = () => {
-      const w = host.clientWidth || 1;
-      return window.innerWidth <= 820 ? w / 640 : w / 1440;
-    };
-
     const layout = () => {
-      const bw = host.clientWidth;
-      const bh = host.clientHeight;
-      if (!bw) return;
-      const s = scaleOf();
+      const { bw, bh, s } = dimsRef.current;
+      if (!bw || !inViewRef.current) return;
       const ox = bw / 2;
       const oy = bh / 2;
 
@@ -259,7 +260,7 @@ export default function CoverflowCarousel({
         const topPx = (topU - 687) * s + oy;
         const hPx = (botU - topU) * s;
 
-        el.style.transform = `translate(${r2(leftPx)}px, ${r2(topPx)}px)`;
+        el.style.transform = `translate3d(${r2(leftPx)}px, ${r2(topPx)}px, 0)`;
         el.style.width = `${r2(wPx)}px`;
         el.style.height = `${r2(hPx)}px`;
 
@@ -278,12 +279,15 @@ export default function CoverflowCarousel({
     };
 
     layout();
-    window.addEventListener("resize", layout);
-    if (reduce) return () => window.removeEventListener("resize", layout);
 
     let raf = 0;
     let last = performance.now();
     const tick = (now: number) => {
+      if (!inViewRef.current) {
+        // Paused when out of viewport to preserve 100% CPU and battery
+        raf = requestAnimationFrame(tick);
+        return;
+      }
       const dt = Math.min(0.05, (now - last) / 1000);
       last = now;
       if (!drag.current.active) {
@@ -294,24 +298,43 @@ export default function CoverflowCarousel({
       layout();
       raf = requestAnimationFrame(tick);
     };
-    raf = requestAnimationFrame(tick);
+
+    // Pause when off-screen using IntersectionObserver
+    let observer: IntersectionObserver | null = null;
+    if (typeof IntersectionObserver !== "undefined") {
+      observer = new IntersectionObserver(
+        ([entry]) => {
+          inViewRef.current = entry.isIntersecting;
+          if (entry.isIntersecting) {
+            last = performance.now();
+            layout();
+          }
+        },
+        { rootMargin: "200px" }
+      );
+      observer.observe(host);
+    }
+
+    if (!reduce) {
+      raf = requestAnimationFrame(tick);
+    }
+
     return () => {
       cancelAnimationFrame(raf);
-      window.removeEventListener("resize", layout);
+      observer?.disconnect();
     };
   }, [n, loop]);
 
   if (!n) return null;
 
   const unitsPerPx = () => {
-    const w = hostRef.current?.clientWidth || 1;
-    return 1 / ((window.innerWidth <= 820 ? w / 640 : w / 1440) || 1);
+    const s = dimsRef.current.s || 1;
+    return 1 / s;
   };
 
   const onDown = (e: React.PointerEvent) => {
     drag.current = { active: true, x: e.clientX, t: performance.now(), moved: 0 };
     vel.current = 0;
-    (e.currentTarget as HTMLElement).setPointerCapture(e.pointerId);
   };
   const onMove = (e: React.PointerEvent) => {
     if (!drag.current.active) return;
@@ -325,7 +348,9 @@ export default function CoverflowCarousel({
     scroll.current -= du;     // follows the pointer 1:1
     vel.current = -du / dt;   // carries the throw
   };
-  const onUp = () => { drag.current.active = false; };
+  const onUp = () => {
+    drag.current.active = false;
+  };
 
   return (
     <div
@@ -344,13 +369,19 @@ export default function CoverflowCarousel({
           <div
             key={p.key}
             ref={(el) => { cardRefs.current[i] = el; }}
-            className="absolute left-0 top-0 overflow-hidden bg-[var(--surface)]"
-            style={{ willChange: "transform, clip-path, width, height" }}
+            className="absolute left-0 top-0 overflow-hidden bg-[var(--surface)] select-none"
+            style={{ willChange: "transform" }}
           >
             <Link
               href={item.href}
               prefetch={true}
-              onClick={(e) => { if (drag.current.moved > 14) e.preventDefault(); }}
+              onClick={(e) => {
+                // Only suppress click if user intentionally dragged more than 35px
+                // Instant taps and quick clicks always execute without delay
+                if (drag.current.moved > 35) {
+                  e.preventDefault();
+                }
+              }}
               draggable={false}
               className="group relative block size-full cursor-pointer"
             >

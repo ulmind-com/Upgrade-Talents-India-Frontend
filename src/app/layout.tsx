@@ -1,9 +1,11 @@
 import type { Metadata, Viewport } from "next";
+import { Suspense } from "react";
 import "./globals.css";
 import { AuthProvider, SmoothScroll, ThemeProvider } from "@/components/motion/Providers";
 import { CartProvider } from "@/components/shop/CartProvider";
 import { NotificationProvider } from "@/components/notifications/NotificationProvider";
 import Shell from "@/components/layout/Shell";
+import TopProgressBar from "@/components/ui/TopProgressBar";
 import { publicApi, safe } from "@/lib/api";
 
 export const metadata: Metadata = {
@@ -28,6 +30,8 @@ export const viewport: Viewport = {
     { media: "(prefers-color-scheme: light)", color: "#e8eeff" },
   ],
 };
+
+export const revalidate = 60;
 
 const THEME_BOOT = `(function(){try{var t=localStorage.getItem('uti_theme');document.documentElement.setAttribute('data-theme',t==='blue'?'blue':'dark');}catch(e){document.documentElement.setAttribute('data-theme','dark');}})();`;
 
@@ -58,6 +62,9 @@ export default async function RootLayout({ children }: { children: React.ReactNo
         <style>{`:root{--font-display:'Cormorant Garamond',Georgia,serif;--font-sans:'Inter',system-ui,sans-serif;--font-mono:'JetBrains Mono',ui-monospace,monospace;--font-hero:'Cormorant Garamond',Georgia,serif;--font-street:'Anton',system-ui,sans-serif;--font-cond:'Oswald','Inter',system-ui,sans-serif;--font-marker:'Permanent Marker',cursive;--font-serif:'Playfair Display',Georgia,serif;}`}</style>
       </head>
       <body>
+        <Suspense fallback={null}>
+          <TopProgressBar />
+        </Suspense>
         <a
           href="#main"
           className="sr-only focus:not-sr-only focus:fixed focus:left-4 focus:top-4 focus:z-[200] focus:rounded-full focus:bg-[var(--accent)] focus:px-5 focus:py-3 focus:text-sm focus:font-semibold focus:text-[var(--on-accent)]"

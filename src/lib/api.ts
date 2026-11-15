@@ -100,6 +100,14 @@ type Opts = {
 /* Long enough for cloud cold starts, short enough to avoid indefinite hanging. */
 const READ_TIMEOUT_MS = 35_000;
 
+/* High-speed client-side memory cache: makes button clicks and tab switching instant (< 1ms) */
+type CacheEntry = { data: any; expiry: number };
+const clientMemoryCache = new Map<string, CacheEntry>();
+
+export function clearClientApiCache() {
+  clientMemoryCache.clear();
+}
+
 export async function apiFetch<T = any>(path: string, opts: Opts = {}): Promise<T> {
   const { method = "GET", body, auth, regAuth, form, query, cache, revalidate, headers: customHeaders, idempotencyKey } = opts;
 
@@ -111,6 +119,17 @@ export async function apiFetch<T = any>(path: string, opts: Opts = {}): Promise<
     });
     const s = qs.toString();
     if (s) url += `?${s}`;
+  }
+
+  const isPublicGet = method === "GET" && !auth && !regAuth && cache !== "no-store";
+  const ttlMs = revalidate ? revalidate * 1000 : 25_000;
+
+  // Serve instantly from client-side memory cache if valid (< 1ms response)
+  if (typeof window !== "undefined" && isPublicGet) {
+    const hit = clientMemoryCache.get(url);
+    if (hit && Date.now() < hit.expiry) {
+      return hit.data as T;
+    }
   }
 
   const headers: Record<string, string> = { ...(customHeaders || {}) };
@@ -129,14 +148,16 @@ export async function apiFetch<T = any>(path: string, opts: Opts = {}): Promise<
     headers["Idempotency-Key"] = idempotencyKey;
   }
 
+  // Next.js server caching: ensure Vercel Edge CDN caches public GETs for 30s
+  const effectiveRevalidate = isPublicGet ? (revalidate ?? 30) : undefined;
   const init: RequestInit & { next?: { revalidate: number } } = {
     method,
     headers,
     body: form ? form : body ? JSON.stringify(body) : undefined,
-    cache: cache || (revalidate !== undefined ? undefined : "no-store"),
+    cache: cache || (effectiveRevalidate !== undefined ? undefined : "no-store"),
   };
   if (cache) init.cache = cache;
-  if (revalidate !== undefined) init.next = { revalidate };
+  if (effectiveRevalidate !== undefined) init.next = { revalidate: effectiveRevalidate };
   /* A sleeping API instance must not hold a page render hostage — reads give
      up so the caller can fall back to its empty state. Writes are untouched:
      an order must never be abandoned mid-flight. */
@@ -159,6 +180,20 @@ export async function apiFetch<T = any>(path: string, opts: Opts = {}): Promise<
   try { data = text ? JSON.parse(text) : null; } catch { data = text; }
 
   if (!res.ok) throw new ApiError(extractDetail(data, `Request failed (${res.status})`), res.status);
+
+  // Store in client-side memory cache for repeat fast retrieval
+  if (typeof window !== "undefined" && isPublicGet && data) {
+    clientMemoryCache.set(url, { data, expiry: Date.now() + ttlMs });
+  }
+
+  // Invalidate client memory cache on mutations so user edits show up immediately
+  if (
+    typeof window !== "undefined" &&
+    (method === "POST" || method === "PUT" || method === "DELETE" || method === "PATCH")
+  ) {
+    clientMemoryCache.clear();
+  }
+
   return data as T;
 }
 
