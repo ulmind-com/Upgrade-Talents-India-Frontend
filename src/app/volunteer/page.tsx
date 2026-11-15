@@ -91,6 +91,9 @@ export default function VolunteerScannerPage() {
   const [cameraError, setCameraError] = useState<string | null>(null);
   const streamRef = useRef<MediaStream | null>(null);
   const animationFrameRef = useRef<number | null>(null);
+  const scanTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const detectorRef = useRef<any>(null);
+  const scanTickRef = useRef<() => void>(() => {});
   const [scanPulse, setScanPulse] = useState(false);
 
   // Verification & Checkin states
@@ -138,6 +141,10 @@ export default function VolunteerScannerPage() {
     if (animationFrameRef.current) {
       cancelAnimationFrame(animationFrameRef.current);
       animationFrameRef.current = null;
+    }
+    if (scanTimeoutRef.current) {
+      clearTimeout(scanTimeoutRef.current);
+      scanTimeoutRef.current = null;
     }
     if (streamRef.current) {
       streamRef.current.getTracks().forEach((t) => t.stop());
@@ -229,40 +236,69 @@ export default function VolunteerScannerPage() {
     [verifying, checkingIn, soundEnabled]
   );
 
-  // Scan frame loop using requestAnimationFrame + jsQR
-  const scanLoop = useCallback(() => {
+  // Throttled scan tick. Prefers the native BarcodeDetector (hardware-backed,
+  // near-instant on Android Chrome) and falls back to jsQR on a DOWNSCALED
+  // frame (≤640px longest side) at ~8 scans/sec. Decoding a full 1280×720
+  // frame every animation frame is what made scanning slow / miss codes on
+  // real phones; this keeps the main thread free so detection is instant.
+  const scanTick = useCallback(async () => {
+    const schedule = (ms: number) => {
+      if (!streamRef.current) return; // camera stopped — end the loop
+      if (scanTimeoutRef.current) clearTimeout(scanTimeoutRef.current);
+      scanTimeoutRef.current = setTimeout(() => scanTickRef.current(), ms);
+    };
+
     const video = videoRef.current;
-    const canvas = canvasRef.current;
-    if (!video || !canvas || video.readyState !== video.HAVE_ENOUGH_DATA) {
-      animationFrameRef.current = requestAnimationFrame(scanLoop);
+    if (!streamRef.current || !video || video.readyState !== video.HAVE_ENOUGH_DATA) {
+      schedule(150);
       return;
     }
 
-    const ctx = canvas.getContext("2d", { willReadFrequently: true });
-    if (!ctx) return;
+    let found: string | null = null;
 
-    canvas.width = video.videoWidth;
-    canvas.height = video.videoHeight;
-    ctx.drawImage(video, 0, 0, canvas.width, canvas.height);
-
-    const imageData = ctx.getImageData(0, 0, canvas.width, canvas.height);
-    const code = jsQR(imageData.data, imageData.width, imageData.height, {
-      inversionAttempts: "dontInvert",
-    });
-
-    if (code && code.data) {
-      processQrToken(code.data);
-      // Small pause before reading next
-      setTimeout(() => {
-        if (cameraActive) {
-          animationFrameRef.current = requestAnimationFrame(scanLoop);
-        }
-      }, 1200);
-      return;
+    // 1) Native detector — fastest, GPU-backed path.
+    const detector = detectorRef.current;
+    if (detector) {
+      try {
+        const codes = await detector.detect(video);
+        if (codes && codes.length) found = codes[0].rawValue || null;
+      } catch {
+        detectorRef.current = null; // detector failed; use jsQR from now on
+      }
     }
 
-    animationFrameRef.current = requestAnimationFrame(scanLoop);
-  }, [cameraActive, processQrToken]);
+    // 2) jsQR fallback on a downscaled frame.
+    if (!found) {
+      const canvas = canvasRef.current;
+      const ctx = canvas?.getContext("2d", { willReadFrequently: true });
+      const vw = video.videoWidth;
+      const vh = video.videoHeight;
+      if (canvas && ctx && vw && vh) {
+        const MAX = 640;
+        const scale = Math.min(1, MAX / Math.max(vw, vh));
+        const w = Math.max(1, Math.round(vw * scale));
+        const h = Math.max(1, Math.round(vh * scale));
+        canvas.width = w;
+        canvas.height = h;
+        ctx.drawImage(video, 0, 0, w, h);
+        const img = ctx.getImageData(0, 0, w, h);
+        const code = jsQR(img.data, w, h, { inversionAttempts: "dontInvert" });
+        if (code && code.data) found = code.data;
+      }
+    }
+
+    if (found) {
+      processQrToken(found);
+      schedule(1400); // cooldown after a hit so one pass isn't read twice
+      return;
+    }
+    schedule(120);
+  }, [processQrToken]);
+
+  // Keep the self-scheduling loop pointed at the latest tick (fresh closures).
+  useEffect(() => {
+    scanTickRef.current = scanTick;
+  }, [scanTick]);
 
   // Start Camera
   const startCamera = async (targetFacing?: "environment" | "user") => {
@@ -277,6 +313,8 @@ export default function VolunteerScannerPage() {
             facingMode: facing === "environment" ? { ideal: "environment" } : "user",
             width: { ideal: 1280 },
             height: { ideal: 720 },
+            // Continuous autofocus so codes lock sharp without tapping.
+            advanced: [{ focusMode: "continuous" } as any],
           },
         };
         stream = await navigator.mediaDevices.getUserMedia(constraints);
@@ -286,12 +324,27 @@ export default function VolunteerScannerPage() {
       }
 
       streamRef.current = stream;
+
+      // Initialise the native QR detector once (if the browser supports it).
+      if (!detectorRef.current && typeof (window as any).BarcodeDetector !== "undefined") {
+        try {
+          const BD = (window as any).BarcodeDetector;
+          const fmts = BD.getSupportedFormats ? await BD.getSupportedFormats() : null;
+          if (!fmts || fmts.includes("qr_code")) {
+            detectorRef.current = new BD({ formats: ["qr_code"] });
+          }
+        } catch {
+          detectorRef.current = null;
+        }
+      }
+
       if (videoRef.current) {
         videoRef.current.srcObject = stream;
         videoRef.current.setAttribute("playsinline", "true");
         await videoRef.current.play();
         setCameraActive(true);
-        animationFrameRef.current = requestAnimationFrame(scanLoop);
+        if (scanTimeoutRef.current) clearTimeout(scanTimeoutRef.current);
+        scanTimeoutRef.current = setTimeout(() => scanTickRef.current(), 100);
       }
     } catch {
       setCameraError("Camera permission denied or camera unavailable. Please allow camera or use manual input.");

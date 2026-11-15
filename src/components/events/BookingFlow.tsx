@@ -1,6 +1,6 @@
 "use client";
 
-import { useCallback, useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import Link from "next/link";
 import { useRouter, useSearchParams } from "next/navigation";
 import { AnimatePresence, motion } from "framer-motion";
@@ -432,6 +432,7 @@ export default function BookingFlow({
   // Interactive Selected Seats array (BookMyShow style)
   const [selectedSeats, setSelectedSeats] = useState<SelectedSeatInfo[]>([]);
   const [attendeeNames, setAttendeeNames] = useState<string[]>([]);
+  const attendeeInputRefs = useRef<(HTMLInputElement | null)[]>([]);
   const [paymentMethod, setPaymentMethod] = useState<"ONLINE" | "CASH">("ONLINE");
 
   const [submitting, setSubmitting] = useState(false);
@@ -666,6 +667,18 @@ export default function BookingFlow({
       return;
     }
 
+    // Every seat must carry a real attendee name so the single booking QR
+    // validates all members by name at the gate (no blank / "Guest" entries).
+    const missingIdx = selectedSeats.findIndex((_, i) => !(attendeeNames[i] || "").trim());
+    if (missingIdx !== -1) {
+      setStep(2);
+      setError(`Enter the full name for every attendee — seat ${selectedSeats[missingIdx].seatId} is missing a name.`);
+      requestAnimationFrame(() => {
+        attendeeInputRefs.current[missingIdx]?.focus();
+      });
+      return;
+    }
+
     const isExpired = isEventExpired(event.date, event.time);
     const isDeadlineOver = isDeadlinePassed(event.registration_deadline);
     if (isExpired) {
@@ -683,7 +696,7 @@ export default function BookingFlow({
 
     setSubmitting(true);
     try {
-      const holderNames = attendeeNames.map((n, i) => n.trim() || user?.name || `Guest ${i + 1}`);
+      const holderNames = selectedSeats.map((_, i) => (attendeeNames[i] || "").trim() || user?.name || `Guest ${i + 1}`);
       const primaryCategory = selectedSeats[0]?.tierName || event.categories?.[0]?.name || "General";
       const seatIds = selectedSeats.map((s) => s.seatId);
       const chosenPaymentMode = totalAmount > 0 ? paymentMethod : "ONLINE";
@@ -1326,9 +1339,12 @@ export default function BookingFlow({
 
               {/* Attendee Names Input */}
               <div className="mt-6">
-                <label className="font-mono text-xs uppercase tracking-wider text-white/70 block mb-2">
-                  Attendee Full Names:
+                <label className="font-mono text-xs uppercase tracking-wider text-white/70 block mb-1">
+                  Attendee Full Names <span className="text-red-400">*</span>
                 </label>
+                <p className="font-mono text-[11px] text-white/45 mb-2">
+                  Required for every seat — the single QR admits all {selectedSeats.length} by name at the gate.
+                </p>
                 <div className="space-y-2.5">
                   {selectedSeats.map((seat, i) => (
                     <div key={seat.seatId} className="flex items-center gap-3">
@@ -1336,7 +1352,12 @@ export default function BookingFlow({
                         {seat.seatId}
                       </span>
                       <input
+                        ref={(el) => { attendeeInputRefs.current[i] = el; }}
                         type="text"
+                        required
+                        aria-required="true"
+                        aria-label={`Full name for seat ${seat.seatId}`}
+                        autoComplete={i === 0 ? "name" : "off"}
                         value={attendeeNames[i] ?? ""}
                         onChange={(e) => {
                           const val = e.target.value;
@@ -1345,6 +1366,7 @@ export default function BookingFlow({
                             next[i] = val;
                             return next;
                           });
+                          if (error) setError(null);
                         }}
                         placeholder={i === 0 ? user?.name || "Primary Attendee Name" : `Guest ${i + 1} Name`}
                         className="h-11 flex-1 rounded-xl border border-white/15 bg-black/50 px-4 font-mono text-xs text-white placeholder-white/30 focus:border-red-500 focus:outline-none"
@@ -1463,6 +1485,21 @@ export default function BookingFlow({
                 <div className="flex justify-between border-b border-white/10 pb-2 mb-2">
                   <span className="text-white/50">Assigned Seats</span>
                   <span className="text-red-400 font-bold">{selectedSeats.map((s) => s.seatId).join(", ")}</span>
+                </div>
+                <div className="border-b border-white/10 pb-2 mb-2">
+                  <span className="text-white/50 block mb-1.5">
+                    Attendees on this QR ({selectedSeats.length})
+                  </span>
+                  <div className="space-y-1">
+                    {selectedSeats.map((s, i) => (
+                      <div key={s.seatId} className="flex items-center justify-between gap-3">
+                        <span className="text-white font-semibold truncate">
+                          {(attendeeNames[i] || "").trim() || `Guest ${i + 1}`}
+                        </span>
+                        <span className="text-white/50 shrink-0">{s.seatId} · {s.tierName}</span>
+                      </div>
+                    ))}
+                  </div>
                 </div>
                 <div className="flex justify-between border-b border-white/10 pb-2 mb-2">
                   <span className="text-white/50">Payment Status</span>

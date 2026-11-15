@@ -6,7 +6,7 @@ import { motion, AnimatePresence } from "framer-motion";
 import {
   Trophy, Crown, Medal, ArrowLeft, Download, Award, Star,
   Search, MessageSquare, Volume2, CheckCircle2, AlertCircle,
-  ExternalLink, Sparkles, UserCheck, ShieldCheck, Flame, Loader2, Play, Pause, Layers
+  ExternalLink, Sparkles, UserCheck, ShieldCheck, Flame, Loader2, Play, Pause, Layers, Radio
 } from "lucide-react";
 import { Reveal, StaggerGroup, StaggerItem } from "@/components/motion/Reveal";
 import { SectionLabel, Badge } from "@/components/ui/Primitives";
@@ -324,8 +324,13 @@ export default function CompetitionResults({
 
   if (!snapshot || !snapshot.is_published) {
     return (
-      <div className="container-x py-20 text-center">
-        <div className="mx-auto max-w-lg rounded-3xl border border-[var(--border)] bg-[var(--surface)] p-8 md:p-12 shadow-2xl">
+      <div className="container-x py-20">
+        {/* Live ticker still shows while results are being finalised — this is
+            exactly when the competition is on stage. */}
+        <div className="mx-auto mb-8 max-w-3xl">
+          <LiveOnStageTicker compId={compId} />
+        </div>
+        <div className="mx-auto max-w-lg rounded-3xl border border-[var(--border)] bg-[var(--surface)] p-8 md:p-12 shadow-2xl text-center">
           <div className="mx-auto grid size-16 place-items-center rounded-2xl bg-amber-500/10 text-amber-400">
             <Trophy className="size-8" />
           </div>
@@ -355,6 +360,9 @@ export default function CompetitionResults({
 
   return (
     <div className="container-x pb-24 pt-8">
+      {/* ── Live "On Stage Now" ticker (news-channel style, auto-updating) ── */}
+      <LiveOnStageTicker compId={compId} />
+
       {/* ── Breadcrumb & Back ── */}
       <div className="mb-6 flex items-center justify-between">
         <Link
@@ -850,6 +858,91 @@ export default function CompetitionResults({
           )}
         </div>
       </Reveal>
+    </div>
+  );
+}
+
+/* ═══════════════════════════════════════════════════════════════════
+   LIVE "ON STAGE NOW" TICKER — news-channel style, auto-updating.
+   Polls the public live-stage feed; shows the performer the admin has
+   pushed on stage right now, plus who is up next. Hides itself when no
+   one is live, and swaps to the next name the moment the admin advances
+   the stage (performance ends → judges score → next performer).
+   ═══════════════════════════════════════════════════════════════════ */
+function LiveOnStageTicker({ compId }: { compId: string }) {
+  const [stage, setStage] = useState<any | null>(null);
+
+  useEffect(() => {
+    if (!compId) return;
+    let alive = true;
+    const load = async () => {
+      try {
+        const data = await publicApi.liveStage(compId);
+        if (alive) setStage(data);
+      } catch {
+        if (alive) setStage(null); // stage not initialised / not live
+      }
+    };
+    load();
+    const id = setInterval(load, 6000); // live refresh
+    return () => {
+      alive = false;
+      clearInterval(id);
+    };
+  }, [compId]);
+
+  const perf = stage?.has_active_performer ? stage?.current_performer : null;
+
+  const upNext = useMemo(() => {
+    if (!perf || !Array.isArray(stage?.lineup)) return null;
+    const email = (perf.user_email || "").toLowerCase().trim();
+    const idx = stage.lineup.findIndex(
+      (p: any) => (p.user_email || "").toLowerCase().trim() === email
+    );
+    if (idx === -1) return null;
+    return (
+      stage.lineup.slice(idx + 1).find((p: any) => p.stage_status !== "COMPLETED") || null
+    );
+  }, [perf, stage]);
+
+  if (!perf) return null;
+
+  const name = perf.user_name || perf.participant_name || "On Stage";
+  const order = perf.stage_order;
+  const nextName = upNext?.user_name || upNext?.participant_name;
+
+  return (
+    <div className="mb-6" aria-live="polite">
+      <motion.div
+        initial={{ opacity: 0, y: -8 }}
+        animate={{ opacity: 1, y: 0 }}
+        className="relative overflow-hidden rounded-2xl border border-rose-500/40 bg-gradient-to-r from-rose-600/20 via-[var(--surface-2)] to-[var(--surface-2)] shadow-[0_0_30px_-8px_rgba(244,63,94,0.5)]"
+      >
+        <span aria-hidden className="absolute inset-y-0 left-0 w-1.5 bg-rose-500" />
+        <div className="flex flex-wrap items-center gap-x-4 gap-y-2 py-3 pl-5 pr-4">
+          <span className="inline-flex items-center gap-1.5 rounded-md bg-rose-600 px-2.5 py-1 text-[11px] font-black uppercase tracking-wider text-white">
+            <span className="size-2 rounded-full bg-white motion-safe:animate-pulse" aria-hidden /> Live
+          </span>
+          <span className="inline-flex items-center gap-1.5 text-[11px] font-bold uppercase tracking-wider text-rose-400">
+            <Radio className="size-3.5 motion-safe:animate-pulse" aria-hidden /> On Stage Now
+          </span>
+          <div className="flex min-w-0 items-center gap-2">
+            {order != null && (
+              <span className="shrink-0 rounded-md border border-white/15 bg-black/30 px-2 py-0.5 font-mono text-[11px] font-bold text-white/80">
+                #{order}
+              </span>
+            )}
+            <span className="truncate font-display text-base sm:text-lg font-extrabold text-[var(--fg)]">
+              {name}
+            </span>
+          </div>
+          {nextName && (
+            <span className="ml-auto inline-flex items-center gap-1.5 rounded-full border border-[var(--border)] bg-[var(--surface)] px-3 py-1 text-[11px] font-semibold text-[var(--fg-muted)]">
+              Up Next: <span className="font-bold text-[var(--fg)]">{nextName}</span>
+            </span>
+          )}
+        </div>
+      </motion.div>
     </div>
   );
 }
