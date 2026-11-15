@@ -436,6 +436,11 @@ export default function BookingFlow({
   const [paymentMethod, setPaymentMethod] = useState<"ONLINE" | "CASH">("ONLINE");
 
   const [submitting, setSubmitting] = useState(false);
+  // True during the short post-payment verification window (Razorpay captured →
+  // backend verify). Drives the full-screen "Please wait" loader and stops the
+  // checkout's ondismiss from flipping the button back to "Pay Now".
+  const [finalizing, setFinalizing] = useState(false);
+  const paymentCapturedRef = useRef(false);
   const [error, setError] = useState<string | null>(null);
   const [confirmedBooking, setConfirmedBooking] = useState<any | null>(null);
 
@@ -656,6 +661,7 @@ export default function BookingFlow({
   /* ── Booking Submission ── */
   const handleExecuteBooking = async () => {
     setError(null);
+    paymentCapturedRef.current = false;
 
     if (!user) {
       router.push(`/login?next=/events/${event._id}/book`);
@@ -737,11 +743,18 @@ export default function BookingFlow({
         theme: { color: "#e50914" },
         modal: {
           ondismiss: () => {
+            // Razorpay also fires ondismiss right after a successful payment as the
+            // sheet closes. Ignore it once payment is captured, otherwise the button
+            // would flash back to "Pay Now" while verification is still running.
+            if (paymentCapturedRef.current) return;
             setSubmitting(false);
             setError("Payment cancelled. Your seats are held briefly — retry to confirm.");
           },
         },
         handler: async (resp: any) => {
+          // Payment captured — hold the full-screen "Please wait" loader through verify.
+          paymentCapturedRef.current = true;
+          setFinalizing(true);
           try {
             await paymentsApi.verifyRazorpay({
               booking_id: booking.booking_id,
@@ -756,6 +769,7 @@ export default function BookingFlow({
           } catch (e: any) {
             setError(e?.message || "Payment captured but verification failed. Contact support with your booking reference.");
           } finally {
+            setFinalizing(false);
             setSubmitting(false);
           }
         },
@@ -780,6 +794,29 @@ export default function BookingFlow({
 
   return (
     <div className="relative min-h-screen bg-[#07080a] text-white overflow-x-clip">
+      {/* ── Post-payment verification loader (3–4s): keeps the user on a clear
+             "Please wait" state so they never see "Pay Now" again mid-verify ── */}
+      {finalizing && (
+        <div
+          className="fixed inset-0 z-[100] flex items-center justify-center bg-black/80 backdrop-blur-md px-6"
+          role="status"
+          aria-live="polite"
+        >
+          <div className="flex w-full max-w-sm flex-col items-center gap-4 rounded-3xl border border-white/15 bg-neutral-950 p-8 text-center shadow-2xl">
+            <Loader2 className="size-10 animate-spin text-red-500" />
+            <div>
+              <p className="font-display text-lg font-bold text-white">Please wait…</p>
+              <p className="mt-1 text-xs text-white/60">
+                Confirming your payment and issuing your passes. Do not close or refresh this page.
+              </p>
+            </div>
+            <div className="h-1 w-40 overflow-hidden rounded-full bg-white/10">
+              <span className="block h-full w-1/2 animate-pulse rounded-full bg-red-500" />
+            </div>
+          </div>
+        </div>
+      )}
+
       {/* ═══════════ CINEMATIC HERO BACKDROP & HEADING (From Admin Panel) ═══════════ */}
       <div className="relative w-full h-[280px] sm:h-[340px] md:h-[380px] overflow-hidden select-none border-b border-white/10">
         <img
