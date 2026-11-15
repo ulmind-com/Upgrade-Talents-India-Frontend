@@ -19,44 +19,80 @@ import {
 import { useAuth } from "@/components/motion/Providers";
 import { cn, formatINR } from "@/lib/utils";
 
-// Web Audio sound synthesizer for instant gate chimes
+// Web Audio sound synthesizer for instant ultra-premium gate chimes
 function playGateSound(type: "success" | "error" | "warning", enabled = true) {
   if (!enabled) return;
   try {
     const AudioContextClass = window.AudioContext || (window as any).webkitAudioContext;
     if (!AudioContextClass) return;
     const ctx = new AudioContextClass();
-    const osc = ctx.createOscillator();
-    const gain = ctx.createGain();
-    osc.connect(gain);
-    gain.connect(ctx.destination);
 
     if (type === "success") {
-      // Pleasant futuristic double-chime
-      osc.type = "sine";
-      osc.frequency.setValueAtTime(880, ctx.currentTime);
-      osc.frequency.exponentialRampToValueAtTime(1320, ctx.currentTime + 0.12);
-      gain.gain.setValueAtTime(0.25, ctx.currentTime);
-      gain.gain.linearRampToValueAtTime(0.01, ctx.currentTime + 0.28);
-      osc.start(ctx.currentTime);
-      osc.stop(ctx.currentTime + 0.28);
+      // ── Ultra-premium 4-tone harmonic crystal chime (Ascending VIP Gate Chime) ──
+      // Notes: C5 (523.25Hz), E5 (659.25Hz), G5 (783.99Hz), C6 (1046.50Hz) + C7 (2093Hz shimmer)
+      const notes = [
+        { freq: 523.25, time: 0, dur: 0.35, gain: 0.18 },
+        { freq: 659.25, time: 0.05, dur: 0.35, gain: 0.20 },
+        { freq: 783.99, time: 0.10, dur: 0.40, gain: 0.22 },
+        { freq: 1046.50, time: 0.16, dur: 0.55, gain: 0.26 },
+        { freq: 2093.00, time: 0.18, dur: 0.35, gain: 0.08 },
+      ];
+
+      notes.forEach(({ freq, time, dur, gain: targetGain }) => {
+        const osc = ctx.createOscillator();
+        const gainNode = ctx.createGain();
+        osc.type = "sine";
+        osc.frequency.setValueAtTime(freq, ctx.currentTime + time);
+
+        // Soft attack + exponential musical decay
+        gainNode.gain.setValueAtTime(0.0001, ctx.currentTime + time);
+        gainNode.gain.exponentialRampToValueAtTime(targetGain, ctx.currentTime + time + 0.015);
+        gainNode.gain.exponentialRampToValueAtTime(0.0001, ctx.currentTime + time + dur);
+
+        osc.connect(gainNode);
+        gainNode.connect(ctx.destination);
+
+        osc.start(ctx.currentTime + time);
+        osc.stop(ctx.currentTime + time + dur);
+      });
     } else if (type === "warning") {
-      // Distinct double warning buzz
-      osc.type = "sawtooth";
-      osc.frequency.setValueAtTime(360, ctx.currentTime);
-      osc.frequency.setValueAtTime(240, ctx.currentTime + 0.1);
-      gain.gain.setValueAtTime(0.25, ctx.currentTime);
-      gain.gain.linearRampToValueAtTime(0.01, ctx.currentTime + 0.35);
-      osc.start(ctx.currentTime);
-      osc.stop(ctx.currentTime + 0.35);
+      // Polite double alert chime (A4 -> E4)
+      const notes = [
+        { freq: 440, time: 0, dur: 0.18, gain: 0.2 },
+        { freq: 330, time: 0.12, dur: 0.25, gain: 0.2 },
+      ];
+      notes.forEach(({ freq, time, dur, gain: targetGain }) => {
+        const osc = ctx.createOscillator();
+        const gainNode = ctx.createGain();
+        osc.type = "triangle";
+        osc.frequency.setValueAtTime(freq, ctx.currentTime + time);
+        gainNode.gain.setValueAtTime(targetGain, ctx.currentTime + time);
+        gainNode.gain.exponentialRampToValueAtTime(0.001, ctx.currentTime + time + dur);
+        osc.connect(gainNode);
+        gainNode.connect(ctx.destination);
+        osc.start(ctx.currentTime + time);
+        osc.stop(ctx.currentTime + time + dur);
+      });
     } else {
-      // Deep error buzz
-      osc.type = "triangle";
-      osc.frequency.setValueAtTime(180, ctx.currentTime);
-      gain.gain.setValueAtTime(0.35, ctx.currentTime);
-      gain.gain.linearRampToValueAtTime(0.01, ctx.currentTime + 0.4);
-      osc.start(ctx.currentTime);
-      osc.stop(ctx.currentTime + 0.4);
+      // Low dual error buzz
+      const osc1 = ctx.createOscillator();
+      const osc2 = ctx.createOscillator();
+      const gainNode = ctx.createGain();
+      osc1.type = "sawtooth";
+      osc2.type = "triangle";
+      osc1.frequency.setValueAtTime(150, ctx.currentTime);
+      osc1.frequency.exponentialRampToValueAtTime(100, ctx.currentTime + 0.3);
+      osc2.frequency.setValueAtTime(154, ctx.currentTime);
+      osc2.frequency.exponentialRampToValueAtTime(102, ctx.currentTime + 0.3);
+      gainNode.gain.setValueAtTime(0.3, ctx.currentTime);
+      gainNode.gain.exponentialRampToValueAtTime(0.001, ctx.currentTime + 0.35);
+      osc1.connect(gainNode);
+      osc2.connect(gainNode);
+      gainNode.connect(ctx.destination);
+      osc1.start(ctx.currentTime);
+      osc2.start(ctx.currentTime);
+      osc1.stop(ctx.currentTime + 0.35);
+      osc2.stop(ctx.currentTime + 0.35);
     }
   } catch {}
 }
@@ -110,6 +146,35 @@ export default function VolunteerScannerPage() {
   // Stats & History
   const [history, setHistory] = useState<ScanHistoryItem[]>([]);
   const [stats, setStats] = useState({ total: 0, successful: 0, duplicate: 0 });
+
+  // Assigned Events for this Volunteer
+  const [assignedEvents, setAssignedEvents] = useState<any[]>([]);
+  const [selectedEventId, setSelectedEventId] = useState<string>("");
+  const [loadingEvents, setLoadingEvents] = useState<boolean>(true);
+
+  useEffect(() => {
+    let mounted = true;
+    volunteerScannerApi
+      .getAssignedEvents()
+      .then((evs) => {
+        if (!mounted) return;
+        const list = Array.isArray(evs) ? evs : [];
+        setAssignedEvents(list);
+        if (list.length > 0) {
+          setSelectedEventId(list[0].event_id || list[0].id || "");
+        }
+      })
+      .catch(() => {})
+      .finally(() => {
+        if (mounted) setLoadingEvents(false);
+      });
+    return () => {
+      mounted = false;
+    };
+  }, []);
+
+  const activeEvent =
+    assignedEvents.find((e) => (e.event_id || e.id) === selectedEventId) || assignedEvents[0];
 
   // Real-time ticking clock
   useEffect(() => {
@@ -566,6 +631,49 @@ export default function VolunteerScannerPage() {
           MAIN SCANNER OPERATING CONSOLE
          ═══════════════════════════════════════════════════════════════════ */}
       <main className="relative mx-auto max-w-7xl px-4 py-5 sm:px-6 sm:py-7">
+        {/* Assigned Event Strip & Selector */}
+        {activeEvent && (
+          <div className="mb-4 flex flex-wrap items-center justify-between gap-3 rounded-2xl border border-emerald-500/25 bg-emerald-950/15 p-3.5 sm:px-5 backdrop-blur-xl">
+            <div className="flex items-center gap-3">
+              <span className="grid size-9 place-items-center rounded-xl border border-emerald-500/30 bg-emerald-500/10 text-emerald-400 font-bold">
+                <ShieldCheck className="size-4" />
+              </span>
+              <div>
+                <div className="flex flex-wrap items-center gap-2">
+                  <span className="text-xs sm:text-sm font-bold text-white">
+                    {activeEvent.title}
+                  </span>
+                  <span className="rounded-full border border-emerald-500/30 bg-emerald-500/10 px-2 py-0.5 font-mono text-[10px] font-semibold text-emerald-300">
+                    {activeEvent.my_role || "Entrance Gate Scanner"}
+                  </span>
+                </div>
+                <p className="mt-0.5 text-[11px] text-zinc-400 font-mono">
+                  {activeEvent.date ? `${activeEvent.date}` : ""}{" "}
+                  {activeEvent.time ? `• ${activeEvent.time}` : ""}{" "}
+                  {activeEvent.venue ? `• ${activeEvent.venue}` : ""}
+                </p>
+              </div>
+            </div>
+
+            {assignedEvents.length > 1 && (
+              <div className="flex items-center gap-2">
+                <span className="text-[11px] text-zinc-400 font-mono">Switch Event:</span>
+                <select
+                  value={selectedEventId}
+                  onChange={(e) => setSelectedEventId(e.target.value)}
+                  className="rounded-xl border border-emerald-500/30 bg-zinc-900/90 px-3 py-1.5 text-xs font-semibold text-emerald-300 outline-none focus:border-emerald-400"
+                >
+                  {assignedEvents.map((ev) => (
+                    <option key={ev.event_id || ev.id} value={ev.event_id || ev.id}>
+                      {ev.title}
+                    </option>
+                  ))}
+                </select>
+              </div>
+            )}
+          </div>
+        )}
+
         {/* Metric Cards Ribbon */}
         <div className="grid grid-cols-3 gap-3 sm:gap-4">
           {/* Total Scanned */}

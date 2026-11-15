@@ -1377,6 +1377,13 @@ export interface TicketScanVerifyResult {
 }
 
 export const volunteerScannerApi = {
+  /** Fetch events assigned to this volunteer (or all active events if admin) */
+  getAssignedEvents: () =>
+    apiFetch<any[]>("/api/volunteer/tickets/assigned-events", {
+      auth: true,
+      cache: "no-store",
+    }),
+
   /** Scan or enter QR token to verify ticket validity */
   verifyTicket: (qr_token: string) =>
     apiFetch<TicketScanVerifyResult>("/api/admin/tickets/verify", {
