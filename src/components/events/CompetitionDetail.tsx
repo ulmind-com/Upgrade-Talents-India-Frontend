@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect, useMemo, useCallback } from "react";
+import { useState, useEffect, useMemo, useCallback, useRef } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { motion, AnimatePresence } from "framer-motion";
@@ -9,7 +9,7 @@ import {
   ShieldCheck, LogIn, Loader2, Heart, Crown, FileUp, Link2, Film, Music, X,
   Radio, ArrowRight, Award, ExternalLink, Sparkles, MessageSquare, Play, Pause,
   CreditCard, Banknote, Zap, Clock, Users, Mic, Youtube, HardDrive, Lock, Layers,
-  Share2, MapPin
+  Share2, MapPin, Search
 } from "lucide-react";
 import { Reveal, StaggerGroup, StaggerItem } from "@/components/motion/Reveal";
 import { SectionLabel, Badge } from "@/components/ui/Primitives";
@@ -415,6 +415,18 @@ export default function CompetitionDetail({
   const [stageData, setStageData] = useState<any | null>(null);
   const [showLineupModal, setShowLineupModal] = useState(false);
   const [lineupCategory, setLineupCategory] = useState<string>("ALL");
+  const [lineupSearch, setLineupSearch] = useState("");
+  const [lineupStatusFilter, setLineupStatusFilter] = useState<"ALL" | "PRESENT" | "WAITING">("ALL");
+  const myLineupRowRef = useRef<HTMLDivElement | null>(null);
+
+  const scrollToMyLineupRow = useCallback(() => {
+    setLineupSearch("");
+    setLineupStatusFilter("ALL");
+    setLineupCategory("ALL");
+    setTimeout(() => {
+      myLineupRowRef.current?.scrollIntoView({ behavior: "smooth", block: "center" });
+    }, 120);
+  }, []);
 
   const loadStageData = useCallback(async () => {
     if (!id) return;
@@ -444,6 +456,8 @@ export default function CompetitionDetail({
 
     const myEntry = lineup[myIndex];
     const myOrder = myEntry.order || myIndex + 1;
+    const isPresent = Boolean(myEntry.is_present || myEntry.attendance_status === "PRESENT");
+
     // When results are published / competition is over, no one is on stage anymore —
     // the lineup's stage_status can be stale, so force a concluded view.
     const concluded = Boolean(comp.results_published || comp.result_status === "PUBLISHED" || comp.judging_status === "CLOSED");
@@ -459,16 +473,23 @@ export default function CompetitionDetail({
     const aheadCount = currIdx >= 0 ? Math.max(0, myIndex - currIdx) : myIndex;
     const isNextUp = !isCurrent && !isCompleted && aheadCount === 1;
 
+    const presentCount = Number(stageData.present_count ?? lineup.filter((p: any) => p.is_present).length);
+    const totalParticipants = Number(stageData.total_participants ?? lineup.length);
+    const waitingCount = Math.max(0, totalParticipants - presentCount);
+
     return {
       entry: myEntry,
       order: myOrder,
+      isPresent,
       isCurrent,
       isNextUp,
       isCompleted,
       aheadCount,
-      totalParticipants: lineup.length,
+      totalParticipants,
+      presentCount,
+      waitingCount,
     };
-  }, [user?.email, stageData]);
+  }, [user?.email, stageData, comp]);
 
   const effectiveComp = useMemo(() => {
     const cr = roundsData?.current_round ?? (comp as any)?.current_round ?? 1;
@@ -1520,7 +1541,9 @@ export default function CompetitionDetail({
                         ? "bg-amber-500 text-black"
                         : userQueueInfo.isCompleted
                         ? "bg-emerald-500/20 text-emerald-300 border border-emerald-500/40"
-                        : "bg-sky-500/20 text-sky-300 border border-sky-500/40"
+                        : userQueueInfo.isPresent
+                        ? "bg-emerald-500/20 text-emerald-300 border border-emerald-500/40"
+                        : "bg-amber-500/20 text-amber-300 border border-amber-500/40"
                     )}>
                       {userQueueInfo.isCurrent
                         ? "🎤 You Are On Stage Now!"
@@ -1528,7 +1551,9 @@ export default function CompetitionDetail({
                         ? "⚡ You Are Next Up (Backstage Alert)"
                         : userQueueInfo.isCompleted
                         ? "✓ Performance Completed"
-                        : `Your Position: #${userQueueInfo.order} in Lineup`}
+                        : userQueueInfo.isPresent
+                        ? `✓ Checked In · Stage Position #${userQueueInfo.order}`
+                        : `⏳ Waiting Check-In · Queue #${userQueueInfo.order}`}
                     </span>
 
                     <span className="font-mono text-xs font-bold text-[var(--fg)]">
@@ -1547,17 +1572,23 @@ export default function CompetitionDetail({
                       ? "Please report backstage immediately with your music/props. You are about to take the stage!"
                       : userQueueInfo.isCompleted
                       ? "Your performance was successfully conducted and reviewed by the judges. Thank you!"
-                      : `You are queued as contestant #${userQueueInfo.order} of ${userQueueInfo.totalParticipants}. Please stay prepared near the backstage area.`}
+                      : userQueueInfo.isPresent
+                      ? `You are checked in and confirmed at #${userQueueInfo.order} in the live stage lineup (${userQueueInfo.aheadCount} performer${userQueueInfo.aheadCount === 1 ? "" : "s"} ahead of you). Please stay prepared near the backstage area.`
+                      : `You are registered and currently placed at queue position #${userQueueInfo.order} (${userQueueInfo.presentCount} contestant${userQueueInfo.presentCount === 1 ? "" : "s"} checked in ahead of you). Check in at the entrance desk when you reach the venue to confirm your stage spot!`}
                   </p>
                 </div>
               </div>
 
               <button
                 type="button"
-                onClick={() => setShowLineupModal(true)}
-                className="inline-flex cursor-pointer items-center justify-center gap-1.5 rounded-full border border-[var(--border)] bg-[var(--surface-2)] px-4 py-2 text-xs font-semibold text-[var(--fg)] hover:text-white transition-all shrink-0"
+                onClick={() => {
+                  setShowLineupModal(true);
+                  scrollToMyLineupRow();
+                }}
+                className="inline-flex cursor-pointer items-center justify-center gap-1.5 rounded-full border border-[var(--border)] bg-[var(--surface-2)] px-4 py-2 text-xs font-semibold text-[var(--fg)] hover:text-white transition-all shrink-0 hover:border-[var(--brand)]"
               >
-                <span>View Full Lineup ({userQueueInfo.totalParticipants})</span>
+                <Zap className="size-3.5 text-amber-400" />
+                <span>Jump to My Position ({userQueueInfo.order}/{userQueueInfo.totalParticipants})</span>
               </button>
             </div>
 
@@ -3202,7 +3233,7 @@ export default function CompetitionDetail({
             initial={{ opacity: 0 }}
             animate={{ opacity: 1 }}
             exit={{ opacity: 0 }}
-            className="fixed inset-0 z-50 flex items-center justify-center bg-black/80 p-4 backdrop-blur-md"
+            className="fixed inset-0 z-50 flex items-center justify-center bg-black/85 p-4 backdrop-blur-md"
             onClick={() => setShowLineupModal(false)}
           >
             <motion.div
@@ -3210,19 +3241,20 @@ export default function CompetitionDetail({
               animate={{ scale: 1, opacity: 1 }}
               exit={{ scale: 0.95, opacity: 0 }}
               onClick={(e) => e.stopPropagation()}
-              className="relative max-h-[85vh] w-full max-w-2xl overflow-hidden rounded-3xl border border-[var(--border)] bg-[var(--surface)] p-6 shadow-2xl flex flex-col"
+              className="relative max-h-[90vh] w-full max-w-2xl overflow-hidden rounded-3xl border border-[var(--border)] bg-[var(--surface)] p-5 sm:p-6 shadow-2xl flex flex-col"
             >
-              <div className="flex items-center justify-between border-b border-[var(--border)] pb-4">
+              {/* Header */}
+              <div className="flex items-center justify-between border-b border-[var(--border)] pb-3.5">
                 <div className="flex items-center gap-2.5">
                   <div className="grid size-9 place-items-center rounded-xl bg-[var(--brand)]/20 text-[var(--brand)]">
                     <Users className="size-5" />
                   </div>
                   <div>
                     <h3 className="font-display font-bold text-base text-white">
-                      Performance Lineup &amp; Sequence
+                      Live Stage Lineup &amp; Performance Queue
                     </h3>
                     <p className="text-xs text-[var(--fg-muted)]">
-                      Serial registration order for {comp.title || comp.name || "Competition"}
+                      {comp.title || comp.name || "Competition"} • Real-time Arrival Order
                     </p>
                   </div>
                 </div>
@@ -3235,175 +3267,276 @@ export default function CompetitionDetail({
                 </button>
               </div>
 
-              {/* Category Filter Bar */}
-              {(() => {
-                const cats = new Set<string>();
-                if (Array.isArray(stageData?.categories)) {
-                  stageData.categories.forEach((c: any) => {
-                    const name = typeof c === "string" ? c : c?.name;
-                    if (name && typeof name === "string" && name.trim()) cats.add(name.trim());
-                  });
-                }
-                (stageData?.lineup || []).forEach((p: any) => {
-                  const cName = ((typeof p.category === "string" ? p.category : p.category?.name || p.division) || "").trim();
-                  if (cName) cats.add(cName);
-                });
-                const catList = Array.from(cats);
-                if (!catList.length) return null;
-
-                return (
-                  <div className="mt-3 flex flex-wrap items-center gap-1.5 border-b border-[var(--border)] pb-3">
-                    <span className="text-[10px] font-bold uppercase tracking-wider text-[var(--fg-subtle)] mr-1 shrink-0">
-                      Category:
-                    </span>
-                    <button
-                      type="button"
-                      onClick={() => setLineupCategory("ALL")}
-                      className={cn(
-                        "cursor-pointer rounded-lg px-2.5 py-1 text-[11px] font-bold transition-all",
-                        lineupCategory === "ALL"
-                          ? "bg-violet-600 text-white shadow-sm font-black ring-1 ring-violet-400"
-                          : "border border-[var(--border)] bg-[var(--surface-2)] text-[var(--fg-muted)] hover:text-white"
-                      )}
-                    >
-                      All ({stageData?.lineup?.length || 0})
-                    </button>
-                    {catList.map((cat) => {
-                      const count = (stageData?.lineup || []).filter((p: any) => {
-                        const pCat = ((typeof p.category === "string" ? p.category : p.category?.name || p.division) || "General").trim().toLowerCase();
-                        return pCat === cat.trim().toLowerCase();
-                      }).length;
-                      const isActive = lineupCategory.trim().toLowerCase() === cat.trim().toLowerCase();
-                      return (
-                        <button
-                          key={cat}
-                          type="button"
-                          onClick={() => setLineupCategory(cat)}
-                          className={cn(
-                            "cursor-pointer rounded-lg px-2.5 py-1 text-[11px] font-bold transition-all",
-                            isActive
-                              ? "bg-violet-600 text-white shadow-sm font-black ring-1 ring-violet-400"
-                              : "border border-[var(--border)] bg-[var(--surface-2)] text-[var(--fg-muted)] hover:text-white"
-                          )}
-                        >
-                          {cat} ({count})
-                        </button>
-                      );
-                    })}
+              {/* Personalized User Position Banner */}
+              {userQueueInfo && (
+                <div className="mt-3.5 rounded-2xl border border-[var(--brand)]/40 bg-gradient-to-r from-[var(--brand)]/20 via-[var(--surface-2)] to-transparent p-3 sm:p-3.5 flex flex-wrap items-center justify-between gap-3 shadow-md">
+                  <div className="flex items-center gap-3 min-w-0">
+                    <div className="grid size-10 shrink-0 place-items-center rounded-xl bg-[var(--brand)] text-white font-extrabold font-mono text-sm shadow-[0_0_15px_rgba(239,68,68,0.4)]">
+                      #{userQueueInfo.order}
+                    </div>
+                    <div className="min-w-0">
+                      <div className="flex items-center gap-2 flex-wrap">
+                        <span className="font-bold text-white text-xs truncate">
+                          {userQueueInfo.isCurrent
+                            ? "You Are Performing on Stage Now!"
+                            : userQueueInfo.isNextUp
+                            ? "You Are Next Up! (Report Backstage)"
+                            : userQueueInfo.isCompleted
+                            ? "Your Performance is Completed"
+                            : userQueueInfo.isPresent
+                            ? `You Are #${userQueueInfo.order} in Confirmed Stage Lineup`
+                            : `Estimated Queue Position: #${userQueueInfo.order}`}
+                        </span>
+                        <span className={cn(
+                          "rounded-full px-2 py-0.5 text-[9.5px] font-extrabold uppercase tracking-wider",
+                          userQueueInfo.isPresent
+                            ? "bg-emerald-500/20 text-emerald-300 border border-emerald-500/40"
+                            : "bg-amber-500/20 text-amber-300 border border-amber-500/40"
+                        )}>
+                          {userQueueInfo.isPresent ? "✓ Venue Checked In" : "⏳ Check-In Pending"}
+                        </span>
+                      </div>
+                      <p className="text-[11px] text-[var(--fg-muted)] mt-0.5">
+                        {userQueueInfo.aheadCount > 0
+                          ? `${userQueueInfo.aheadCount} participant${userQueueInfo.aheadCount === 1 ? "" : "s"} ahead in sequence.`
+                          : "You are next in sequence to perform."}
+                        {!userQueueInfo.isPresent && " Check in at the venue entrance desk when you arrive!"}
+                      </p>
+                    </div>
                   </div>
-                );
-              })()}
+                  <button
+                    type="button"
+                    onClick={scrollToMyLineupRow}
+                    className="cursor-pointer inline-flex items-center gap-1.5 rounded-xl bg-[var(--brand)] hover:bg-[var(--brand)]/90 px-3 py-1.5 font-bold text-xs text-white shadow-sm transition-all shrink-0 hover:scale-102"
+                  >
+                    <Zap className="size-3.5" />
+                    <span>Jump to My Row</span>
+                  </button>
+                </div>
+              )}
 
-              <div className="mt-4 flex-1 overflow-y-auto pr-1">
-                {stageData?.lineup && stageData.lineup.length > 0 ? (
-                  <div className="divide-y divide-[var(--border)]/60">
-                    {(stageData.lineup || [])
-                      .filter((p: any) => {
-                        if (lineupCategory === "ALL") return true;
-                        const pCat = ((typeof p.category === "string" ? p.category : p.category?.name || p.division) || "General").trim().toLowerCase();
-                        return pCat === lineupCategory.trim().toLowerCase();
-                      })
-                      .map((p: any, idx: number) => {
-                      const isMe = user?.email && (p.user_email || "").toLowerCase() === user.email.toLowerCase();
-                      
-                      // Strict single-performer invariant: ONLY the true active performer can be "On Stage".
-                      // Never allow multiple people to show "On Stage" at the same time.
-                      const activePerformerEmail = (stageData?.has_active_performer && stageData?.current_performer?.user_email || "").toLowerCase().trim();
-                      const activePerformerSubId = String(stageData?.has_active_performer && stageData?.current_performer?.submission_id || "").trim();
-                      const activePerformerRegId = String(stageData?.has_active_performer && stageData?.current_performer?.registration_id || "").trim();
-
-                      const pEmail = (p.user_email || "").toLowerCase().trim();
-                      const pSubId = String(p.submission_id || p._id || "").trim();
-                      const pRegId = String(p.registration_id || p._id || "").trim();
-
-                      const matchesActivePerformer = Boolean(
-                        stageData?.has_active_performer && (
-                          (activePerformerEmail && pEmail === activePerformerEmail) ||
-                          (activePerformerRegId && pRegId === activePerformerRegId) ||
-                          (activePerformerSubId && pSubId === activePerformerSubId)
-                        )
-                      );
-
-                      const isOnStage = !stageConcluded && matchesActivePerformer;
-                      const isDone = !isOnStage && (p.stage_status === "COMPLETED" || stageConcluded || (!stageData?.has_active_performer && p.stage_status === "ON_STAGE"));
-
-                      return (
-                        <div
-                          key={p.registration_id || idx}
-                          className={cn(
-                            "flex items-center justify-between gap-3 py-3 px-3 rounded-xl transition-colors",
-                            isMe ? "bg-[var(--brand)]/10 border border-[var(--brand)]/30" : "",
-                            isOnStage ? "bg-rose-500/10 border border-rose-500/30" : ""
-                          )}
-                        >
-                          <div className="flex items-center gap-3 min-w-0">
-                            <span className="font-mono text-xs font-bold text-[var(--fg-muted)] w-6 text-center">
-                              #{p.order || idx + 1}
-                            </span>
-                            <div className="relative shrink-0">
-                              {p.avatar || p.user_photo ? (
-                                <img
-                                  src={imageFor(p.avatar || p.user_photo, 1)}
-                                  alt={p.participant_name}
-                                  className="size-8 rounded-full object-cover border border-[var(--border)]"
-                                />
-                              ) : (
-                                <div className="flex size-8 items-center justify-center rounded-full bg-[var(--surface-3)] text-xs font-bold text-[var(--fg-muted)]">
-                                  {((p.participant_name || p.user_name || "P")[0] || "P").toUpperCase()}
-                                </div>
-                              )}
-                              {(p.is_verified || p.verified_badge) && (
-                                <span className="absolute -bottom-1 -right-1">
-                                  <VerifiedBadge size="xs" />
-                                </span>
-                              )}
-                            </div>
-                            <div className="min-w-0">
-                              <div className="flex items-center gap-1.5">
-                                <p className="font-semibold text-xs text-white truncate">
-                                  {p.participant_name || p.user_name}
-                                  {isMe && <span className="text-[10px] text-[var(--brand)] ml-1 font-bold">(You)</span>}
-                                </p>
-                                {(p.is_verified || p.verified_badge) && <VerifiedBadge size="xs" />}
-                                {p.category && (
-                                  <span className="rounded-full border border-violet-500/30 bg-violet-500/10 px-2 py-0.2 text-[9px] font-bold text-violet-300">
-                                    {p.category}
-                                  </span>
-                                )}
-                              </div>
-                              <span className="block font-mono text-[10.5px] text-[var(--fg-subtle)] truncate">
-                                {p.registration_reference}
-                              </span>
-                            </div>
-                          </div>
-
-                          <div>
-                            {isOnStage ? (
-                              <span className="inline-flex items-center gap-1 rounded-full bg-rose-500/20 border border-rose-500/40 px-2.5 py-0.5 text-[10px] font-extrabold text-rose-300 animate-pulse whitespace-nowrap">
-                                <Radio className="size-2.5" /> On Stage
-                              </span>
-                            ) : isDone ? (
-                              <span className="inline-flex items-center gap-1 text-[10.5px] font-semibold text-emerald-400 whitespace-nowrap">
-                                <CheckCircle2 className="size-3" /> Completed
-                              </span>
-                            ) : (
-                              <span className="text-[10.5px] text-[var(--fg-subtle)] font-medium whitespace-nowrap">
-                                In Lineup
-                              </span>
-                            )}
-                          </div>
-                        </div>
-                      );
-                    })}
-                  </div>
-                ) : (
-                  <div className="py-12 text-center text-xs text-[var(--fg-muted)]">
-                    No participants registered yet for this competition.
-                  </div>
+              {/* Instant Search Bar */}
+              <div className="relative mt-3">
+                <Search className="absolute left-3.5 top-1/2 -translate-y-1/2 size-4 text-[var(--fg-subtle)]" />
+                <input
+                  type="text"
+                  value={lineupSearch}
+                  onChange={(e) => setLineupSearch(e.target.value)}
+                  placeholder="Search by contestant name, email, chest #, or CRG ref..."
+                  className="w-full rounded-xl border border-[var(--border)] bg-[var(--surface-2)] pl-10 pr-9 py-2 text-xs text-white placeholder-[var(--fg-subtle)] focus:border-[var(--brand)] focus:outline-none"
+                />
+                {lineupSearch && (
+                  <button
+                    type="button"
+                    onClick={() => setLineupSearch("")}
+                    className="absolute right-3 top-1/2 -translate-y-1/2 text-[var(--fg-subtle)] hover:text-white"
+                  >
+                    <X className="size-3.5" />
+                  </button>
                 )}
               </div>
 
-              <div className="mt-4 border-t border-[var(--border)] pt-3 text-right">
+              {/* Status & Category Filter Tabs */}
+              <div className="mt-2.5 flex flex-wrap items-center gap-1.5 pb-2.5 border-b border-[var(--border)] text-xs">
+                <button
+                  type="button"
+                  onClick={() => setLineupStatusFilter("ALL")}
+                  className={cn(
+                    "cursor-pointer rounded-lg px-2.5 py-1 text-[11px] font-bold transition-all",
+                    lineupStatusFilter === "ALL"
+                      ? "bg-[var(--brand)] text-white shadow-sm font-black"
+                      : "border border-[var(--border)] bg-[var(--surface-2)] text-[var(--fg-muted)] hover:text-white"
+                  )}
+                >
+                  All ({stageData?.total_participants || stageData?.lineup?.length || 0})
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setLineupStatusFilter("PRESENT")}
+                  className={cn(
+                    "cursor-pointer rounded-lg px-2.5 py-1 text-[11px] font-bold transition-all",
+                    lineupStatusFilter === "PRESENT"
+                      ? "bg-emerald-600 text-white shadow-sm font-black"
+                      : "border border-[var(--border)] bg-[var(--surface-2)] text-[var(--fg-muted)] hover:text-white"
+                  )}
+                >
+                  ✓ Checked In ({stageData?.present_count ?? (stageData?.lineup || []).filter((p: any) => p.is_present).length})
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setLineupStatusFilter("WAITING")}
+                  className={cn(
+                    "cursor-pointer rounded-lg px-2.5 py-1 text-[11px] font-bold transition-all",
+                    lineupStatusFilter === "WAITING"
+                      ? "bg-amber-600 text-white shadow-sm font-black"
+                      : "border border-[var(--border)] bg-[var(--surface-2)] text-[var(--fg-muted)] hover:text-white"
+                  )}
+                >
+                  ⏳ Waiting Check-In ({Math.max(0, (stageData?.total_participants || (stageData?.lineup || []).length) - (stageData?.present_count ?? (stageData?.lineup || []).filter((p: any) => p.is_present).length))})
+                </button>
+              </div>
+
+              {/* Scrollable Lineup List */}
+              <div className="mt-3 flex-1 overflow-y-auto pr-1 custom-scrollbar">
+                {(() => {
+                  let list: any[] = Array.isArray(stageData?.lineup) ? stageData.lineup : [];
+                  
+                  if (lineupCategory !== "ALL") {
+                    const catClean = lineupCategory.trim().toLowerCase();
+                    list = list.filter((p: any) => {
+                      const pCat = ((typeof p.category === "string" ? p.category : p.category?.name || p.division) || "General").trim().toLowerCase();
+                      return pCat === catClean;
+                    });
+                  }
+
+                  if (lineupStatusFilter === "PRESENT") {
+                    list = list.filter((p: any) => Boolean(p.is_present || p.attendance_status === "PRESENT" || p.stage_status === "ON_STAGE" || p.stage_status === "COMPLETED"));
+                  } else if (lineupStatusFilter === "WAITING") {
+                    list = list.filter((p: any) => !Boolean(p.is_present || p.attendance_status === "PRESENT" || p.stage_status === "ON_STAGE" || p.stage_status === "COMPLETED"));
+                  }
+
+                  const q = lineupSearch.trim().toLowerCase();
+                  if (q) {
+                    list = list.filter((p: any) => {
+                      const name = (p.participant_name || p.user_name || "").toLowerCase();
+                      const ref = (p.registration_reference || "").toLowerCase();
+                      const em = (p.user_email || "").toLowerCase();
+                      const ph = (p.user_phone || "").toLowerCase();
+                      return name.includes(q) || ref.includes(q) || em.includes(q) || ph.includes(q);
+                    });
+                  }
+
+                  if (list.length === 0) {
+                    return (
+                      <div className="py-12 text-center text-xs text-[var(--fg-muted)]">
+                        {lineupSearch ? `No contestant matches "${lineupSearch}".` : "No participants in this filter."}
+                      </div>
+                    );
+                  }
+
+                  return (
+                    <div className="divide-y divide-[var(--border)]/60">
+                      {list.map((p: any, idx: number) => {
+                        const isMe = user?.email && (p.user_email || "").toLowerCase() === user.email.toLowerCase();
+                        
+                        const activePerformerEmail = (stageData?.has_active_performer && stageData?.current_performer?.user_email || "").toLowerCase().trim();
+                        const activePerformerSubId = String(stageData?.has_active_performer && stageData?.current_performer?.submission_id || "").trim();
+                        const activePerformerRegId = String(stageData?.has_active_performer && stageData?.current_performer?.registration_id || "").trim();
+
+                        const pEmail = (p.user_email || "").toLowerCase().trim();
+                        const pSubId = String(p.submission_id || p._id || "").trim();
+                        const pRegId = String(p.registration_id || p._id || "").trim();
+
+                        const matchesActivePerformer = Boolean(
+                          stageData?.has_active_performer && (
+                            (activePerformerEmail && pEmail === activePerformerEmail) ||
+                            (activePerformerRegId && pRegId === activePerformerRegId) ||
+                            (activePerformerSubId && pSubId === activePerformerSubId)
+                          )
+                        );
+
+                        const isOnStage = !stageConcluded && matchesActivePerformer;
+                        const isDone = !isOnStage && (p.stage_status === "COMPLETED" || stageConcluded || (!stageData?.has_active_performer && p.stage_status === "ON_STAGE"));
+                        const isPresent = Boolean(p.is_present || p.attendance_status === "PRESENT");
+
+                        return (
+                          <div
+                            key={p.registration_id || idx}
+                            ref={isMe ? myLineupRowRef : null}
+                            className={cn(
+                              "flex items-center justify-between gap-3 py-3 px-3 rounded-xl transition-all",
+                              isMe ? "bg-[var(--brand)]/15 border-2 border-[var(--brand)] ring-2 ring-[var(--brand)]/40 shadow-lg" : "hover:bg-[var(--surface-2)]/60",
+                              isOnStage ? "bg-rose-500/10 border border-rose-500/40" : ""
+                            )}
+                          >
+                            <div className="flex items-center gap-3 min-w-0">
+                              <span className={cn(
+                                "font-mono text-xs font-bold w-7 text-center shrink-0 rounded-md py-0.5",
+                                isPresent ? "bg-emerald-500/20 text-emerald-300 font-extrabold" : "bg-neutral-800 text-[var(--fg-muted)]"
+                              )}>
+                                #{p.order || idx + 1}
+                              </span>
+                              <div className="relative shrink-0">
+                                {p.avatar || p.user_photo ? (
+                                  <img
+                                    src={imageFor(p.avatar || p.user_photo, 1)}
+                                    alt={p.participant_name}
+                                    className="size-8 rounded-full object-cover border border-[var(--border)]"
+                                  />
+                                ) : (
+                                  <div className="flex size-8 items-center justify-center rounded-full bg-[var(--surface-3)] text-xs font-bold text-[var(--fg-muted)]">
+                                    {((p.participant_name || p.user_name || "P")[0] || "P").toUpperCase()}
+                                  </div>
+                                )}
+                                {(p.is_verified || p.verified_badge) && (
+                                  <span className="absolute -bottom-1 -right-1">
+                                    <VerifiedBadge size="xs" />
+                                  </span>
+                                )}
+                              </div>
+                              <div className="min-w-0">
+                                <div className="flex items-center gap-1.5 flex-wrap">
+                                  <p className="font-semibold text-xs text-white truncate">
+                                    {p.participant_name || p.user_name}
+                                  </p>
+                                  {isMe && (
+                                    <span className="rounded bg-[var(--brand)] px-1.5 py-0.2 text-[9.5px] font-black text-white">
+                                      YOU
+                                    </span>
+                                  )}
+                                  {(p.is_verified || p.verified_badge) && <VerifiedBadge size="xs" />}
+                                  {p.category && (
+                                    <span className="rounded-full border border-violet-500/30 bg-violet-500/10 px-2 py-0.2 text-[9px] font-bold text-violet-300">
+                                      {p.category}
+                                    </span>
+                                  )}
+                                </div>
+                                <div className="flex items-center gap-2 mt-0.5 text-[10.5px] font-mono text-[var(--fg-subtle)]">
+                                  <span>{p.registration_reference}</span>
+                                  {p.attended_at && isPresent && (
+                                    <>
+                                      <span>•</span>
+                                      <span className="text-emerald-400 font-sans flex items-center gap-1">
+                                        <Clock className="size-2.5" /> Arrived {new Date(p.attended_at).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
+                                      </span>
+                                    </>
+                                  )}
+                                </div>
+                              </div>
+                            </div>
+
+                            <div className="shrink-0 text-right">
+                              {isOnStage ? (
+                                <span className="inline-flex items-center gap-1 rounded-full bg-rose-500/20 border border-rose-500/40 px-2.5 py-0.5 text-[10px] font-extrabold text-rose-300 animate-pulse whitespace-nowrap">
+                                  <Radio className="size-2.5" /> On Stage
+                                </span>
+                              ) : isDone ? (
+                                <span className="inline-flex items-center gap-1 text-[10.5px] font-semibold text-emerald-400 whitespace-nowrap">
+                                  <CheckCircle2 className="size-3" /> Completed
+                                </span>
+                              ) : isPresent ? (
+                                <span className="inline-flex items-center gap-1 rounded-full bg-emerald-500/15 border border-emerald-500/30 px-2 py-0.5 text-[10px] font-bold text-emerald-300 whitespace-nowrap">
+                                  <CheckCircle2 className="size-2.5" /> Checked In
+                                </span>
+                              ) : (
+                                <span className="inline-flex items-center gap-1 rounded-full bg-amber-500/10 border border-amber-500/25 px-2 py-0.5 text-[10px] font-medium text-amber-300/80 whitespace-nowrap">
+                                  <Clock className="size-2.5" /> Waiting Check-In
+                                </span>
+                              )}
+                            </div>
+                          </div>
+                        );
+                      })}
+                    </div>
+                  );
+                })()}
+              </div>
+
+              {/* Modal Footer */}
+              <div className="mt-3.5 border-t border-[var(--border)] pt-3 flex items-center justify-between text-xs font-mono text-[var(--fg-muted)]">
+                <span>
+                  Showing {stageData?.lineup?.length || 0} contestants in dynamic live queue
+                </span>
                 <button
                   type="button"
                   onClick={() => setShowLineupModal(false)}

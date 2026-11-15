@@ -129,7 +129,9 @@ export default function DashboardPage() {
     if (!q) return orderedLineup;
     return orderedLineup.filter((p: any) =>
       (p.participant_name || p.user_name || "").toLowerCase().includes(q) ||
-      (p.registration_reference || "").toLowerCase().includes(q)
+      (p.registration_reference || "").toLowerCase().includes(q) ||
+      (p.user_email || "").toLowerCase().includes(q) ||
+      (p.user_phone || "").toLowerCase().includes(q)
     );
   }, [orderedLineup, lineupSearch]);
 
@@ -2631,9 +2633,13 @@ export default function DashboardPage() {
                               <span className="inline-flex items-center gap-1 rounded-full bg-emerald-500/15 border border-emerald-500/30 px-2 py-0.5 text-[10px] font-bold text-emerald-400 whitespace-nowrap">
                                 <CheckCircle2 className="size-3" /> Completed
                               </span>
+                            ) : p.is_present || p.attendance_status === "PRESENT" ? (
+                              <span className="inline-flex items-center gap-1 rounded-full bg-emerald-500/15 border border-emerald-500/30 px-2 py-0.5 text-[10px] font-bold text-emerald-300 whitespace-nowrap">
+                                <CheckCircle2 className="size-2.5" /> Checked In
+                              </span>
                             ) : (
-                              <span className="text-[10px] font-mono text-white/40 font-semibold whitespace-nowrap">
-                                In Lineup
+                              <span className="inline-flex items-center gap-1 rounded-full bg-amber-500/10 border border-amber-500/25 px-2 py-0.5 text-[10px] font-medium text-amber-300/80 whitespace-nowrap">
+                                <Clock className="size-2.5" /> Waiting Check-In
                               </span>
                             )}
                           </div>
