@@ -74,6 +74,8 @@ export default function DashboardPage() {
   const [selectedCompForLineup, setSelectedCompForLineup] = useState<{ id: string; title: string } | null>(null);
   const [dashboardStageData, setDashboardStageData] = useState<any | null>(null);
   const [loadingDashboardStage, setLoadingDashboardStage] = useState(false);
+  const [lineupSearch, setLineupSearch] = useState("");
+  const myLineupRowRef = useRef<HTMLDivElement | null>(null);
 
   const handleOpenDashboardLineup = useCallback(async (compId: string, compTitle: string) => {
     setSelectedCompForLineup({ id: compId, title: compTitle });
@@ -100,17 +102,56 @@ export default function DashboardPage() {
     return () => clearInterval(interval);
   }, [lineupModalOpen, selectedCompForLineup?.id]);
 
+  // Canonical lineup order: venue check-in sequence. Earliest attendee = #1.
+  // We trust the backend `order` when present, else fall back to attended_at,
+  // so the queue is always correct and positions are contiguous (1..N) even
+  // for very large competitions. __pos is the stable displayed position.
+  const orderedLineup = useMemo(() => {
+    const list: any[] = Array.isArray(dashboardStageData?.lineup) ? [...dashboardStageData.lineup] : [];
+    const ts = (p: any) => {
+      const d = p?.attended_at ? new Date(p.attended_at).getTime() : NaN;
+      return Number.isNaN(d) ? Number.MAX_SAFE_INTEGER : d;
+    };
+    list.sort((a, b) => {
+      const ao = Number(a?.order);
+      const bo = Number(b?.order);
+      const aHas = Number.isFinite(ao);
+      const bHas = Number.isFinite(bo);
+      if (aHas && bHas && ao !== bo) return ao - bo;
+      if (aHas !== bHas) return aHas ? -1 : 1;
+      return ts(a) - ts(b);
+    });
+    return list.map((p, i) => ({ ...p, __pos: i + 1 }));
+  }, [dashboardStageData]);
+
+  const visibleLineup = useMemo(() => {
+    const q = lineupSearch.trim().toLowerCase();
+    if (!q) return orderedLineup;
+    return orderedLineup.filter((p: any) =>
+      (p.participant_name || p.user_name || "").toLowerCase().includes(q) ||
+      (p.registration_reference || "").toLowerCase().includes(q)
+    );
+  }, [orderedLineup, lineupSearch]);
+
+  const scrollToMyLineupRow = useCallback(() => {
+    setLineupSearch("");
+    // Let the unfiltered list paint, then center my row.
+    requestAnimationFrame(() => {
+      myLineupRowRef.current?.scrollIntoView({ behavior: "smooth", block: "center" });
+    });
+  }, []);
+
   const dashboardUserQueueInfo = useMemo(() => {
-    if (!user?.email || !dashboardStageData?.lineup) return null;
+    if (!user?.email || !orderedLineup.length) return null;
     const uEmail = user.email.toLowerCase().trim();
-    const lineup: any[] = dashboardStageData.lineup || [];
+    const lineup: any[] = orderedLineup;
     const myIndex = lineup.findIndex(
       (p: any) => (p.user_email || "").toLowerCase().trim() === uEmail
     );
     if (myIndex === -1) return null;
 
     const myEntry = lineup[myIndex];
-    const myOrder = myEntry.order || myIndex + 1;
+    const myOrder = myEntry.__pos || myEntry.order || myIndex + 1;
     const currentPerformer = dashboardStageData.current_performer;
     const currentEmail = (currentPerformer?.user_email || "").toLowerCase().trim();
     const isCurrent = Boolean(currentEmail && currentEmail === uEmail);
@@ -132,7 +173,21 @@ export default function DashboardPage() {
       aheadCount,
       totalParticipants: lineup.length,
     };
-  }, [user?.email, dashboardStageData]);
+  }, [user?.email, dashboardStageData, orderedLineup]);
+
+  // When the queue opens (or my position changes), reset the search and
+  // bring my own row into view so I never have to scroll a 400-long list.
+  useEffect(() => {
+    if (!lineupModalOpen) {
+      setLineupSearch("");
+      return;
+    }
+    if (!dashboardUserQueueInfo) return;
+    const id = requestAnimationFrame(() => {
+      myLineupRowRef.current?.scrollIntoView({ block: "center" });
+    });
+    return () => cancelAnimationFrame(id);
+  }, [lineupModalOpen, dashboardUserQueueInfo?.order]);
 
   // Profile Suite Calendar & Quick Actions
   const [calendarDate, setCalendarDate] = useState(() => new Date());
@@ -2456,10 +2511,45 @@ export default function DashboardPage() {
                         </p>
                       </div>
                     </div>
-                    <span className="font-mono text-sm font-black text-white/90">
-                      #{dashboardUserQueueInfo.order}
-                    </span>
+                    <div className="flex flex-col items-end gap-1.5 shrink-0">
+                      <span className="font-mono text-sm font-black text-white/90">
+                        #{dashboardUserQueueInfo.order}
+                      </span>
+                      <button
+                        type="button"
+                        onClick={scrollToMyLineupRow}
+                        className="rounded-full border border-white/20 bg-white/10 px-2.5 py-1 text-[10px] font-bold text-white hover:bg-white/20 transition-colors whitespace-nowrap"
+                      >
+                        Jump to me
+                      </button>
+                    </div>
                   </div>
+                </div>
+              )}
+
+              {/* Search — find any contestant / my own position fast in large lineups */}
+              {orderedLineup.length > 0 && (
+                <div className="relative mt-4">
+                  <Search className="pointer-events-none absolute left-3 top-1/2 size-4 -translate-y-1/2 text-white/40" aria-hidden />
+                  <input
+                    type="text"
+                    inputMode="search"
+                    value={lineupSearch}
+                    onChange={(e) => setLineupSearch(e.target.value)}
+                    placeholder="Search name or registration ref…"
+                    aria-label="Search the live lineup"
+                    className="w-full rounded-xl border border-white/15 bg-white/5 py-2.5 pl-10 pr-9 text-sm text-white placeholder:text-white/40 outline-none focus:border-rose-500/60 focus:ring-2 focus:ring-rose-500/30"
+                  />
+                  {lineupSearch && (
+                    <button
+                      type="button"
+                      onClick={() => setLineupSearch("")}
+                      aria-label="Clear search"
+                      className="absolute right-2.5 top-1/2 grid size-6 -translate-y-1/2 place-items-center rounded-full text-white/50 hover:bg-white/10 hover:text-white"
+                    >
+                      <X className="size-3.5" />
+                    </button>
+                  )}
                 </div>
               )}
 
@@ -2469,9 +2559,13 @@ export default function DashboardPage() {
                   <div className="flex min-h-[220px] items-center justify-center">
                     <Loader2 className="size-6 animate-spin text-rose-500" />
                   </div>
-                ) : dashboardStageData?.lineup && dashboardStageData.lineup.length > 0 ? (
+                ) : orderedLineup.length > 0 && visibleLineup.length === 0 ? (
+                  <div className="py-12 text-center text-xs text-white/50">
+                    No contestant matches “{lineupSearch}”.
+                  </div>
+                ) : visibleLineup.length > 0 ? (
                   <div className="divide-y divide-white/10">
-                    {dashboardStageData.lineup.map((p: any, idx: number) => {
+                    {visibleLineup.map((p: any, idx: number) => {
                       const isMe = user?.email && (p.user_email || "").toLowerCase() === user.email.toLowerCase();
                       const activePerformerEmail = (dashboardStageData?.has_active_performer && dashboardStageData?.current_performer?.user_email || "").toLowerCase().trim();
                       const pEmail = (p.user_email || "").toLowerCase().trim();
@@ -2483,9 +2577,10 @@ export default function DashboardPage() {
 
                       return (
                         <div
-                          key={p.registration_id || idx}
+                          key={p.registration_id || p.user_email || idx}
+                          ref={isMe ? myLineupRowRef : undefined}
                           className={cn(
-                            "flex items-center justify-between gap-3 py-3 px-3 rounded-2xl transition-colors",
+                            "flex items-center justify-between gap-3 py-3 px-3 rounded-2xl transition-colors scroll-mt-4",
                             isMe ? "bg-amber-500/10 border border-amber-500/30" : "",
                             isOnStage ? "bg-rose-500/15 border border-rose-500/30" : ""
                           )}
@@ -2495,7 +2590,7 @@ export default function DashboardPage() {
                               "font-mono text-xs font-black w-6 text-center",
                               isOnStage ? "text-rose-400" : isMe ? "text-amber-400" : "text-white/50"
                             )}>
-                              #{p.order || idx + 1}
+                              #{p.__pos ?? p.order ?? idx + 1}
                             </span>
                             <div className="relative shrink-0">
                               {p.avatar || p.user_photo ? (

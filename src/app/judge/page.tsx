@@ -1825,12 +1825,27 @@ export default function JudgeDashboardPage() {
                               }
                             }}
                             className={cn(
-                              "group relative cursor-pointer rounded-2xl border p-4 transition-all duration-200",
-                              isSelected
+                              "group relative cursor-pointer overflow-hidden rounded-2xl border p-4 transition-all duration-200",
+                              isScored
+                                ? "border-emerald-400/60 bg-[linear-gradient(135deg,#047857_0%,#059669_45%,#065f46_100%)] shadow-[0_0_0_1px_rgba(16,185,129,0.35),0_14px_40px_-12px_rgba(16,185,129,0.65)] ring-1 ring-emerald-300/40 hover:brightness-[1.08] hover:shadow-[0_0_0_1px_rgba(16,185,129,0.5),0_18px_48px_-12px_rgba(16,185,129,0.85)]"
+                                : isSelected
                                 ? "border-[var(--accent)] bg-[color-mix(in_srgb,var(--accent)_8%,var(--bg-elevated))] shadow-lg ring-1 ring-[var(--accent)]/50"
                                 : "border-[var(--border)] bg-[var(--bg-elevated)] hover:border-[var(--border-strong)] hover:bg-[var(--bg-subtle)]"
                             )}
                           >
+                            {/* Premium "scored/complete" treatment: accent bar + soft corner glow */}
+                            {isScored && (
+                              <>
+                                <span
+                                  aria-hidden
+                                  className="pointer-events-none absolute inset-x-0 top-0 h-[3px] bg-gradient-to-r from-white/0 via-white/80 to-white/0"
+                                />
+                                <span
+                                  aria-hidden
+                                  className="pointer-events-none absolute -right-10 -top-10 size-32 rounded-full bg-white/15 blur-2xl motion-safe:animate-pulse"
+                                />
+                              </>
+                            )}
                             <div className="flex items-start gap-3.5">
                               {/* Contestant Avatar */}
                               <div className="relative size-10 shrink-0 overflow-hidden rounded-full border border-[var(--border)] bg-[var(--surface-2)]">
@@ -1865,8 +1880,13 @@ export default function JudgeDashboardPage() {
                                         </span>
                                       )}
                                       {c.is_present || c.attendance_status === "PRESENT" ? (
-                                        <span className="inline-flex items-center gap-1 rounded-full bg-emerald-500/15 border border-emerald-500/30 px-2.5 py-0.5 text-xs font-bold text-emerald-400">
-                                          <span className="size-2 rounded-full bg-emerald-400 animate-pulse" />
+                                        <span className={cn(
+                                          "inline-flex items-center gap-1 rounded-full border px-2.5 py-0.5 text-xs font-bold",
+                                          isScored
+                                            ? "bg-white/20 border-white/40 text-white"
+                                            : "bg-emerald-500/15 border-emerald-500/30 text-emerald-400"
+                                        )}>
+                                          <span className={cn("size-2 rounded-full animate-pulse", isScored ? "bg-white" : "bg-emerald-400")} />
                                           ✓ Present (Entry #{index + 1})
                                         </span>
                                       ) : (
@@ -1884,13 +1904,22 @@ export default function JudgeDashboardPage() {
                                           </span>
                                         )}
                                     </div>
-                                    <p className="text-xs text-[var(--fg-subtle)] truncate font-medium">
+                                    <p className={cn(
+                                      "text-xs truncate font-medium",
+                                      isScored ? "text-emerald-50/80" : "text-[var(--fg-subtle)]"
+                                    )}>
                                       {c.user_email}
                                     </p>
                                   </div>
-                                  <Badge tone={isScored ? "success" : isSelected ? "brand" : "neutral"} className="shrink-0 text-xs">
-                                    {isScored ? "Scored" : c.status || "Submitted"}
-                                  </Badge>
+                                  {isScored ? (
+                                    <span className="shrink-0 inline-flex items-center gap-1 rounded-full border border-white/70 bg-white px-2.5 py-0.5 text-xs font-extrabold uppercase tracking-wide text-emerald-700 shadow-[0_2px_12px_-2px_rgba(0,0,0,0.35)]">
+                                      <CheckCircle2 className="size-3.5" /> Scored
+                                    </span>
+                                  ) : (
+                                    <Badge tone={isSelected ? "brand" : "neutral"} className="shrink-0 text-xs">
+                                      {c.status && c.status !== "Submitted" ? c.status : "Awaiting Score"}
+                                    </Badge>
+                                  )}
                                 </div>
 
                                 {/* Performance type tag */}
@@ -1914,16 +1943,19 @@ export default function JudgeDashboardPage() {
                               </div>
                             </div>
 
-                            <div className="mt-3 flex items-center justify-between border-t border-[var(--border)]/60 pt-3 text-xs text-[var(--fg-subtle)]">
+                            <div className={cn(
+                              "mt-3 flex items-center justify-between border-t pt-3 text-xs",
+                              isScored ? "border-white/20 text-emerald-50/75" : "border-[var(--border)]/60 text-[var(--fg-subtle)]"
+                            )}>
                               <span className="flex items-center gap-1.5">
                                 <Clock className="size-3.5" />
                                 {c.attended_at ? `Checked in: ${new Date(c.attended_at).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}` : c.submitted_at ? new Date(c.submitted_at).toLocaleDateString() : "Active Round"}
                               </span>
                               {isScored ? (
-                                <span className="inline-flex items-center gap-1.5 font-bold text-emerald-400 text-xs sm:text-sm">
-                                  <CheckCircle2 className="size-4 text-emerald-400" />
+                                <span className="inline-flex items-center gap-1.5 font-bold text-white text-xs sm:text-sm">
+                                  <CheckCircle2 className="size-4 text-white" />
                                   {c.my_score != null || c.total_score != null ? `${c.my_score ?? c.total_score} pts` : "Scored"}
-                                  <span className="text-xs text-[var(--fg-subtle)] font-normal">View</span>
+                                  <span className="text-xs text-emerald-50/70 font-normal">View</span>
                                   <ChevronRight className="size-3.5 transition-transform group-hover:translate-x-0.5" />
                                 </span>
                               ) : (
