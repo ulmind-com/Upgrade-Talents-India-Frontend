@@ -440,9 +440,30 @@ export default function CompetitionDetail({
 
   useEffect(() => {
     loadStageData();
-    const interval = setInterval(loadStageData, 7000);
+    // 3.5s real-time broadcast refresh when live or performer on stage, else 6s
+    const isCompLive = Boolean(stageData?.has_active_performer || comp.status === "ONGOING" || (comp as any).is_live);
+    const pollInterval = isCompLive ? 3500 : 6000;
+    const interval = setInterval(loadStageData, pollInterval);
     return () => clearInterval(interval);
-  }, [loadStageData]);
+  }, [loadStageData, stageData?.has_active_performer, comp.status, (comp as any).is_live]);
+
+  // Next performer waiting in wings for the live broadcast ticker
+  const nextInWings = useMemo(() => {
+    if (!stageData?.has_active_performer || !stageData?.current_performer || !Array.isArray(stageData?.lineup)) {
+      return null;
+    }
+    const currentEmail = (stageData.current_performer.user_email || "").toLowerCase().trim();
+    const currentRef = (stageData.current_performer.registration_reference || "").toLowerCase().trim();
+    const idx = stageData.lineup.findIndex((p: any) => {
+      const pEmail = (p.user_email || "").toLowerCase().trim();
+      const pRef = (p.registration_reference || "").toLowerCase().trim();
+      return (currentEmail && pEmail === currentEmail) || (currentRef && pRef === currentRef);
+    });
+    if (idx !== -1) {
+      return stageData.lineup.slice(idx + 1).find((p: any) => p.stage_status !== "COMPLETED") || null;
+    }
+    return stageData.lineup.find((p: any) => p.stage_status !== "COMPLETED" && p.stage_status !== "ON_STAGE") || null;
+  }, [stageData]);
 
   // User queue position in the performance lineup
   const userQueueInfo = useMemo(() => {
@@ -1397,66 +1418,116 @@ export default function CompetitionDetail({
           </motion.div>
         )}
 
-        {/* ── Public Live Stage Performer Announcement Banner ── */}
+        {/* ── Public Live Stage Performer Announcement Banner: TV News Broadcast Style ── */}
         {!stageConcluded && stageData?.has_active_performer && stageData?.current_performer ? (
           <motion.div
-            initial={{ opacity: 0, y: -10 }}
-            animate={{ opacity: 1, y: 0 }}
-            className="mb-8 relative overflow-hidden rounded-2xl border-2 border-rose-500/50 bg-gradient-to-r from-rose-950/40 via-[var(--surface)] to-rose-950/20 p-5 shadow-xl"
+            initial={{ opacity: 0, scale: 0.98 }}
+            animate={{ opacity: 1, scale: 1 }}
+            className="mb-8 relative overflow-hidden rounded-3xl border-2 border-rose-500/70 bg-gradient-to-r from-neutral-950 via-rose-950/40 to-neutral-950 p-5 sm:p-6 shadow-[0_0_40px_rgba(244,63,94,0.35)] backdrop-blur-xl"
           >
-            <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
-              <div className="flex items-center gap-3.5">
+            {/* Ambient Red Studio Spotlight Glow */}
+            <div className="absolute top-0 right-0 -mr-16 -mt-16 w-64 h-64 rounded-full bg-rose-600/20 blur-3xl pointer-events-none" />
+            <div className="absolute bottom-0 left-0 -ml-16 -mb-16 w-64 h-64 rounded-full bg-rose-600/15 blur-3xl pointer-events-none" />
+
+            {/* Top Broadcast Bar: ON AIR & Audio Wave Equalizer */}
+            <div className="flex flex-wrap items-center justify-between gap-3 border-b border-rose-500/30 pb-3 mb-4">
+              <div className="flex items-center gap-2 sm:gap-3">
+                <div className="flex items-center gap-2 rounded-full bg-rose-600 px-3.5 py-1 text-xs font-black uppercase tracking-widest text-white shadow-[0_0_20px_rgba(225,29,72,0.8)]">
+                  <span className="relative flex size-2">
+                    <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-white opacity-75" />
+                    <span className="relative inline-flex rounded-full size-2 bg-white" />
+                  </span>
+                  <span>LIVE ON STAGE • BREAKING BROADCAST</span>
+                </div>
+
+                {/* Animated Audio Waveform Bars */}
+                <div className="flex items-center gap-1 h-4 px-2 py-0.5 rounded-full bg-black/50 border border-white/10" title="Live Stage Audio Feed Active">
+                  <span className="w-1 bg-rose-400 rounded-full animate-[pulse_0.8s_ease-in-out_infinite] h-3" />
+                  <span className="w-1 bg-rose-400 rounded-full animate-[pulse_1.2s_ease-in-out_infinite] h-4" />
+                  <span className="w-1 bg-rose-400 rounded-full animate-[pulse_0.6s_ease-in-out_infinite] h-2" />
+                  <span className="w-1 bg-rose-400 rounded-full animate-[pulse_1.0s_ease-in-out_infinite] h-3.5" />
+                </div>
+              </div>
+
+              <div className="flex items-center gap-2">
+                <span className="rounded-lg bg-black/60 border border-rose-500/40 px-2.5 py-1 font-mono text-[11px] font-bold text-rose-300">
+                  STAGE ORDER #{stageData.current_performer.stage_order || 1}
+                </span>
+                <button
+                  type="button"
+                  onClick={() => setShowLineupModal(true)}
+                  className="inline-flex cursor-pointer items-center justify-center gap-1.5 rounded-lg border border-rose-500/40 bg-rose-500/20 hover:bg-rose-500/30 px-3 py-1 text-xs font-bold text-rose-200 transition-all shadow-md active:scale-95"
+                >
+                  <Users className="size-3.5" />
+                  <span>Lineup ({stageData.total_participants || stageData.lineup?.length || 0})</span>
+                </button>
+              </div>
+            </div>
+
+            {/* Main Stage Performer Spotlight */}
+            <div className="flex flex-col md:flex-row md:items-center justify-between gap-5">
+              <div className="flex items-center gap-4 min-w-0">
                 <div className="relative shrink-0">
                   {stageData.current_performer.avatar || stageData.current_performer.user_photo ? (
                     <img
                       src={imageFor(stageData.current_performer.avatar || stageData.current_performer.user_photo, 1)}
                       alt={stageData.current_performer.participant_name}
-                      className="size-14 rounded-2xl object-cover border-2 border-rose-500 shadow-md"
+                      className="size-16 sm:size-20 rounded-2xl object-cover border-2 border-rose-500 shadow-[0_0_25px_rgba(244,63,94,0.5)]"
                     />
                   ) : (
-                    <div className="grid size-14 place-items-center rounded-2xl border-2 border-rose-500 bg-rose-500/20 text-rose-300 font-black text-xl shadow-md">
+                    <div className="grid size-16 sm:size-20 place-items-center rounded-2xl border-2 border-rose-500 bg-rose-500/20 text-rose-200 font-black text-2xl shadow-[0_0_25px_rgba(244,63,94,0.5)]">
                       {((stageData.current_performer.participant_name || stageData.current_performer.user_name || "P")[0] || "P").toUpperCase()}
                     </div>
                   )}
                   {(stageData.current_performer.is_verified || stageData.current_performer.verified_badge) && (
-                    <span className="absolute -bottom-1 -right-1">
+                    <span className="absolute -bottom-1.5 -right-1.5 shadow-lg">
                       <VerifiedBadge size="sm" />
                     </span>
                   )}
                 </div>
 
-                <div>
+                <div className="min-w-0">
                   <div className="flex items-center gap-2">
-                    <span className="rounded-full bg-rose-500 px-2.5 py-0.5 text-[10px] font-extrabold uppercase tracking-wider text-white flex items-center gap-1 shadow-sm animate-pulse">
-                      <Radio className="size-3" /> Live on Stage Now
+                    <span className="rounded-full bg-white/10 px-2.5 py-0.5 text-[10px] font-mono font-bold uppercase tracking-wider text-rose-200 border border-white/15">
+                      {stageData.current_performer.category || "Main Division"}
                     </span>
-                    <span className="text-[11px] font-mono font-bold text-rose-300">
-                      Order #{stageData.current_performer.stage_order || 1}
-                    </span>
+                    {stageData.current_performer.registration_reference && (
+                      <span className="font-mono text-[11px] text-white/50">
+                        Ref: {stageData.current_performer.registration_reference}
+                      </span>
+                    )}
                   </div>
-                  <h3 className="mt-1 text-base font-extrabold text-[var(--fg)] flex items-center gap-1.5">
+                  <h3 className="mt-1 font-street text-xl sm:text-3xl font-extrabold uppercase tracking-tight text-white flex items-center gap-2 truncate">
                     <span>{stageData.current_performer.participant_name || stageData.current_performer.user_name}</span>
                     {(stageData.current_performer.is_verified || stageData.current_performer.verified_badge) && (
                       <VerifiedBadge size="sm" />
                     )}
                   </h3>
-                  <p className="text-xs text-[var(--fg-muted)]">
-                    {stageData.current_performer.entry_title || "Official Performance Entry"}
-                    {stageData.current_performer.registration_reference ? ` • Ref: ${stageData.current_performer.registration_reference}` : ""}
+                  <p className="mt-0.5 text-xs text-rose-200/80 font-medium truncate">
+                    🎵 {stageData.current_performer.entry_title || "Official Competition Performance"}
                   </p>
                 </div>
               </div>
+            </div>
 
-              <div className="flex items-center gap-2 shrink-0">
-                <button
-                  type="button"
-                  onClick={() => setShowLineupModal(true)}
-                  className="inline-flex cursor-pointer items-center justify-center gap-1.5 rounded-full border border-rose-500/40 bg-rose-500/20 px-4 py-2 text-xs font-bold text-rose-200 hover:bg-rose-500/30 transition-all shadow-md active:scale-95"
-                >
-                  <Users className="size-3.5" />
-                  <span>Performance Lineup ({stageData.total_participants || stageData.lineup?.length || 0})</span>
-                </button>
+            {/* Lower-Third Breaking News Crawl / Up Next in Wings Ticker */}
+            <div className="mt-4 flex flex-wrap items-center justify-between gap-3 rounded-2xl bg-black/60 border border-white/10 px-4 py-2.5 font-mono text-xs">
+              <div className="flex items-center gap-2 min-w-0">
+                <span className="inline-flex items-center gap-1 text-amber-400 font-black uppercase tracking-wider shrink-0">
+                  <Clock className="size-3.5 text-amber-400" /> UP NEXT IN WINGS:
+                </span>
+                <span className="text-white font-bold truncate">
+                  {nextInWings ? (nextInWings.participant_name || nextInWings.user_name || "Next Competitor") : "Preparing Next Contestant..."}
+                </span>
+                {nextInWings && (
+                  <span className="text-white/50 text-[11px] shrink-0">
+                    · Order #{nextInWings.stage_order || (stageData.current_performer.stage_order ? stageData.current_performer.stage_order + 1 : 2)}
+                  </span>
+                )}
               </div>
+              <span className="hidden sm:inline-flex text-[11px] text-white/40 uppercase tracking-widest font-semibold">
+                Live Judged Competition
+              </span>
             </div>
           </motion.div>
         ) : stageData?.lineup && stageData.lineup.length > 0 && lifecycle.isLive ? (
@@ -2189,56 +2260,123 @@ export default function CompetitionDetail({
             </div>
           ) : (
             <div className="mt-4 flex flex-col gap-3">
-              {/* Pinned Personal Rank & Standing Card for Competitor */}
+              {/* ── Prominent VIP Competitor Score Highlight Card (Pinned Exclusively for Scored Competitor) ── */}
               {selfLeaderboardRow && (
-                <div className="relative overflow-hidden rounded-2xl border-2 border-amber-400/60 bg-gradient-to-r from-amber-500/20 via-[var(--surface-2)] to-amber-500/10 p-4 shadow-lg backdrop-blur-md">
-                  <div className="absolute top-0 right-0 rounded-bl-xl bg-amber-400 px-3 py-0.5 text-[10px] font-black uppercase tracking-wider text-slate-950">
-                    Your Official Standing
+                <div className="relative overflow-hidden rounded-3xl border-2 border-amber-400/80 bg-gradient-to-r from-amber-950/50 via-neutral-900/90 to-amber-950/40 p-5 sm:p-6 shadow-[0_0_40px_rgba(251,191,36,0.35)] backdrop-blur-xl">
+                  {/* Luxury Background Glow */}
+                  <div className="absolute top-0 right-0 -mr-16 -mt-16 w-56 h-56 rounded-full bg-amber-400/15 blur-3xl pointer-events-none" />
+                  <div className="absolute bottom-0 left-0 -ml-16 -mb-16 w-56 h-56 rounded-full bg-amber-500/10 blur-3xl pointer-events-none" />
+
+                  {/* Header Strip */}
+                  <div className="flex flex-wrap items-center justify-between gap-3 border-b border-amber-400/30 pb-3 mb-4">
+                    <div className="flex items-center gap-2">
+                      <span className="inline-flex items-center gap-1.5 rounded-full bg-amber-400 px-3 py-1 text-xs font-black uppercase tracking-wider text-slate-950 shadow-md">
+                        <Trophy className="size-3.5 fill-current" /> YOUR OFFICIAL SCORE &amp; STANDING
+                      </span>
+                      <span className="hidden sm:inline-flex rounded-full bg-emerald-500/20 border border-emerald-500/40 px-2.5 py-0.5 text-[10px] font-bold uppercase tracking-wider text-emerald-300">
+                        Scored by Jury
+                      </span>
+                    </div>
+
+                    <div className="flex items-center gap-2 text-xs font-mono">
+                      <span className="rounded-lg bg-black/60 border border-amber-400/40 px-2.5 py-1 font-bold text-amber-300">
+                        CATEGORY #{selfLeaderboardRow.category_rank || selfLeaderboardRow.rank || 1}
+                      </span>
+                      <span className="rounded-lg bg-black/60 border border-white/15 px-2.5 py-1 text-white/70">
+                        OVERALL #{selfLeaderboardRow.rank ?? "—"}
+                      </span>
+                    </div>
                   </div>
-                  <div className="flex flex-wrap items-center justify-between gap-4 pt-1">
-                    <div className="flex items-center gap-3 min-w-0">
-                      <div className="grid size-12 shrink-0 place-items-center rounded-2xl bg-gradient-to-br from-amber-300 to-amber-500 text-slate-950 font-black text-xl shadow-md">
-                        #{selfLeaderboardRow.rank ?? "—"}
+
+                  {/* Main Competitor Profile & Big Score Display */}
+                  <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-5">
+                    {/* Competitor Identity */}
+                    <div className="flex items-center gap-4 min-w-0">
+                      <div className="relative shrink-0">
+                        {(selfLeaderboardRow as any).avatar || (selfLeaderboardRow as any).user_photo ? (
+                          <img
+                            src={imageFor((selfLeaderboardRow as any).avatar || (selfLeaderboardRow as any).user_photo, 1)}
+                            alt={selfLeaderboardRow.name || user?.name || "Competitor"}
+                            className="size-16 sm:size-20 rounded-2xl object-cover border-2 border-amber-400 shadow-[0_0_20px_rgba(251,191,36,0.4)]"
+                          />
+                        ) : (
+                          <div className="grid size-16 sm:size-20 place-items-center rounded-2xl border-2 border-amber-400 bg-gradient-to-br from-amber-400 to-amber-600 text-slate-950 font-black text-2xl shadow-[0_0_20px_rgba(251,191,36,0.4)]">
+                            {((selfLeaderboardRow.name || user?.name || "C")[0] || "C").toUpperCase()}
+                          </div>
+                        )}
+                        {((selfLeaderboardRow as any).is_verified || (selfLeaderboardRow as any).verified_badge || user?.is_verified) && (
+                          <span className="absolute -bottom-1 -right-1 shadow-md">
+                            <VerifiedBadge size="sm" />
+                          </span>
+                        )}
                       </div>
+
                       <div className="min-w-0">
                         <div className="flex items-center gap-2">
-                          <p className="font-bold text-sm text-white truncate">
+                          <p className="font-street text-xl sm:text-2xl font-extrabold uppercase text-white truncate">
                             {selfLeaderboardRow.name || user?.name || "You"}
                           </p>
                           {((selfLeaderboardRow as any).is_verified || (selfLeaderboardRow as any).verified_badge || user?.is_verified) && (
                             <VerifiedBadge size="xs" />
                           )}
                         </div>
-                        <p className="text-xs text-[var(--fg-muted)] truncate mt-0.5">
-                          Division: <strong className="text-amber-300 font-semibold">{selfLeaderboardRow.category || "General"}</strong>
-                          {(selfLeaderboardRow as any).registration_reference ? ` · Ref: ${(selfLeaderboardRow as any).registration_reference}` : ""}
-                        </p>
+
+                        <div className="mt-1 flex flex-wrap items-center gap-2 text-xs">
+                          <span className="rounded-md bg-amber-400/15 border border-amber-400/30 px-2 py-0.5 text-amber-300 font-bold">
+                            Division: {selfLeaderboardRow.category || "General"}
+                          </span>
+                          {(selfLeaderboardRow as any).registration_reference && (
+                            <span className="font-mono text-white/50">
+                              Ref: {(selfLeaderboardRow as any).registration_reference}
+                            </span>
+                          )}
+                        </div>
                       </div>
                     </div>
-                    <div className="flex items-center gap-4 ml-auto text-right">
+
+                    {/* Prominent Score Numbers */}
+                    <div className="flex flex-wrap items-center gap-4 sm:gap-6 bg-black/40 border border-amber-400/30 rounded-2xl p-4 sm:px-6">
                       {selfLeaderboardRow.judge_score != null && Number(selfLeaderboardRow.judge_score) > 0 && (
                         <div>
-                          <span className="block text-[10px] font-mono uppercase tracking-wider text-[var(--fg-subtle)]">Judge Score</span>
-                          <span className="font-street text-xl font-black text-amber-300">
-                            {Number(selfLeaderboardRow.judge_score).toFixed(1)} <span className="text-xs font-sans text-amber-400 font-bold">pts</span>
+                          <span className="block text-[10px] font-mono uppercase tracking-wider text-amber-300/80 font-bold">
+                            Official Jury Score
+                          </span>
+                          <span className="font-street text-3xl sm:text-4xl font-black text-amber-300 drop-shadow-[0_0_15px_rgba(251,191,36,0.5)]">
+                            ★ {Number(selfLeaderboardRow.judge_score).toFixed(1)}
+                            <span className="text-xs font-sans text-amber-400/80 font-bold ml-1">pts</span>
                           </span>
                         </div>
                       )}
-                      <div>
-                        <span className="block text-[10px] font-mono uppercase tracking-wider text-[var(--fg-subtle)]">Audience Votes</span>
-                        <span className="font-street text-xl font-black text-emerald-400">
-                          {nf(selfLeaderboardRow.audience_votes ?? 0)}
-                        </span>
-                      </div>
+
+                      {selfLeaderboardRow.audience_votes != null && Number(selfLeaderboardRow.audience_votes) > 0 && (
+                        <div className="border-l border-white/10 pl-4 sm:pl-6">
+                          <span className="block text-[10px] font-mono uppercase tracking-wider text-emerald-400/80 font-bold">
+                            Audience Votes
+                          </span>
+                          <span className="font-street text-2xl sm:text-3xl font-black text-emerald-400">
+                            {nf(selfLeaderboardRow.audience_votes)}
+                          </span>
+                        </div>
+                      )}
+
                       {(selfLeaderboardRow.final_score != null && Number(selfLeaderboardRow.final_score) > 0) && (
-                        <div className="pl-3 border-l border-white/10">
-                          <span className="block text-[10px] font-mono uppercase tracking-wider text-[var(--fg-subtle)]">Total Points</span>
-                          <span className="font-street text-2xl font-black text-white">
-                            {nf(selfLeaderboardRow.final_score)} <span className="text-xs font-sans text-amber-400 font-bold">pts</span>
+                        <div className="border-l border-white/10 pl-4 sm:pl-6">
+                          <span className="block text-[10px] font-mono uppercase tracking-wider text-white/60 font-bold">
+                            Grand Score
+                          </span>
+                          <span className="font-street text-3xl sm:text-4xl font-black text-white">
+                            {nf(selfLeaderboardRow.final_score)}
+                            <span className="text-xs font-sans text-amber-400 font-bold ml-1">total</span>
                           </span>
                         </div>
                       )}
                     </div>
+                  </div>
+
+                  {/* Footnote: Exclusively for Competitor */}
+                  <div className="mt-4 pt-3 border-t border-white/10 flex items-center justify-between text-[11px] font-mono text-white/50">
+                    <span>📌 Pinned exclusively for your account. Complete competition standings are listed below.</span>
+                    <span className="text-amber-400 font-bold">LIVE CERTIFIED</span>
                   </div>
                 </div>
               )}
@@ -2247,10 +2385,19 @@ export default function CompetitionDetail({
               {(showAllLeaderboard ? displayedRows : displayedRows.slice(0, 12)).map((r, i) => {
                 const pid = r.participant_id || r.email || "";
                 const top = (r.rank ?? i + 1) <= 3;
+                const uEm = (user?.email || "").toLowerCase().trim();
+                const uRef = (enrollmentInfo?.reference || "").toLowerCase().trim();
+                const rAny = r as any;
                 const isSelfRow =
-                  Boolean(user?.email) &&
-                  (r.email?.toLowerCase() === user?.email?.toLowerCase() ||
-                    r.participant_id?.toLowerCase() === user?.email?.toLowerCase());
+                  (uEm && (
+                    (r.email || "").toLowerCase().trim() === uEm ||
+                    (r.participant_id || "").toLowerCase().trim() === uEm ||
+                    (rAny.user_email || "").toLowerCase().trim() === uEm
+                  )) ||
+                  (uRef && (
+                    (rAny.registration_reference || "").toLowerCase().trim() === uRef ||
+                    (rAny.reference || "").toLowerCase().trim() === uRef
+                  ));
 
                 const isFinalist = leaderboardRound > 1 || Boolean(r.is_advancing || r.round_status === "QUALIFIED");
 

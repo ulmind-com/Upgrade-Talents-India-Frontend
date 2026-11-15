@@ -749,7 +749,7 @@ export default function BookingFlow({
             // Razorpay also fires ondismiss right after a successful payment as the
             // sheet closes. Ignore it once payment is captured, otherwise the button
             // would flash back to "Pay Now" while verification is still running.
-            if (paymentCapturedRef.current) return;
+            if (paymentCapturedRef.current || step === 3 || confirmedBooking) return;
             setSubmitting(false);
             setError("Payment cancelled. Your seats are held briefly — retry to confirm.");
           },
@@ -758,6 +758,9 @@ export default function BookingFlow({
           // Payment captured — hold the full-screen "Please wait" loader through verify.
           paymentCapturedRef.current = true;
           setFinalizing(true);
+          // Immediately switch step to 3 so Step 2 (Payment Form) is never visible again
+          setStep(3);
+
           const targetBookingId = (
             booking?.booking_id ||
             booking?._id ||
@@ -775,32 +778,43 @@ export default function BookingFlow({
               razorpay_signature: resp.razorpay_signature,
             });
             playSuccessChime();
-            setConfirmedBooking({
-              ...booking,
-              booking_reference: verifyRes?.booking_reference || booking.booking_reference,
+            const confirmedRef = verifyRes?.booking_reference || booking?.booking_reference || targetBookingId || "CONFIRMED";
+            const confirmedObj = {
+              ...(booking || {}),
+              booking_reference: confirmedRef,
               payment_status: "PAID",
               booking_status: "CONFIRMED",
-            });
-            setStep(3);
-            if (typeof window !== "undefined") {
-              window.scrollTo({ top: 120, behavior: "smooth" });
-            }
+              seats: booking?.seats || selectedSeats.map((s) => s.seatId),
+              holder_names: booking?.holder_names || attendeeNames,
+            };
+            setConfirmedBooking(confirmedObj);
+            setError(null);
             fetchBookedSeats();
+
+            // Auto-redirect to Dashboard tickets tab so the booking page closes cleanly
+            setTimeout(() => {
+              router.push(`/dashboard?tab=tickets&booking_ref=${encodeURIComponent(confirmedRef)}`);
+            }, 1800);
           } catch (e: any) {
             console.warn("Payment verification fallback:", e);
             // Payment was already captured by Razorpay. Never drop the user back to the checkout form.
             playSuccessChime();
-            setConfirmedBooking({
-              ...booking,
-              booking_reference: booking.booking_reference,
+            const confirmedRef = booking?.booking_reference || targetBookingId || "CONFIRMED";
+            const fallbackObj = {
+              ...(booking || {}),
+              booking_reference: confirmedRef,
               payment_status: "PAID",
               booking_status: "CONFIRMED",
-            });
-            setStep(3);
-            if (typeof window !== "undefined") {
-              window.scrollTo({ top: 120, behavior: "smooth" });
-            }
+              seats: booking?.seats || selectedSeats.map((s) => s.seatId),
+              holder_names: booking?.holder_names || attendeeNames,
+            };
+            setConfirmedBooking(fallbackObj);
+            setError(null);
             fetchBookedSeats();
+
+            setTimeout(() => {
+              router.push(`/dashboard?tab=tickets&booking_ref=${encodeURIComponent(confirmedRef)}`);
+            }, 2000);
           } finally {
             setFinalizing(false);
             setSubmitting(false);
@@ -910,11 +924,18 @@ export default function BookingFlow({
           <div
             className={cn(
               "flex items-center gap-2 pb-1 transition-all",
-              step === 3 ? "text-red-500 font-bold border-b-2 border-red-500" : "text-white/40"
+              step === 3 ? "text-emerald-400 font-bold border-b-2 border-emerald-400" : "text-white/40"
             )}
           >
-            <span className="grid size-5 place-items-center rounded-full bg-white/10 text-[10px]">3</span>
-            <span>TICKET</span>
+            <span
+              className={cn(
+                "grid size-5 place-items-center rounded-full text-[10px]",
+                step === 3 ? "bg-emerald-500/25 text-emerald-300 font-black" : "bg-white/10 text-white/50"
+              )}
+            >
+              {step === 3 ? "✓" : "3"}
+            </span>
+            <span>{step === 3 ? "TICKET CONFIRMED" : "TICKET"}</span>
           </div>
         </div>
       </div>
@@ -1547,6 +1568,11 @@ export default function BookingFlow({
                 Booking Reference: <span className="font-bold text-white text-sm">#{confirmedBooking.booking_reference}</span>
               </p>
 
+              <div className="mt-4 inline-flex items-center gap-2 rounded-full border border-emerald-400/40 bg-emerald-500/15 px-4 py-1.5 text-xs font-mono text-emerald-300">
+                <Loader2 className="size-3.5 animate-spin" />
+                <span>Redirecting to your passes in Dashboard...</span>
+              </div>
+
               <div className="mt-6 rounded-2xl border border-white/10 bg-black/50 p-4 text-xs font-mono text-left">
                 <div className="flex justify-between border-b border-white/10 pb-2 mb-2">
                   <span className="text-white/50">Event</span>
@@ -1554,21 +1580,37 @@ export default function BookingFlow({
                 </div>
                 <div className="flex justify-between border-b border-white/10 pb-2 mb-2">
                   <span className="text-white/50">Assigned Seats</span>
-                  <span className="text-red-400 font-bold">{selectedSeats.map((s) => s.seatId).join(", ")}</span>
+                  <span className="text-red-400 font-bold">
+                    {(confirmedBooking.seats && confirmedBooking.seats.length > 0
+                      ? confirmedBooking.seats
+                      : selectedSeats.map((s) => s.seatId)
+                    ).join(", ")}
+                  </span>
                 </div>
                 <div className="border-b border-white/10 pb-2 mb-2">
                   <span className="text-white/50 block mb-1.5">
-                    Attendees on this QR ({selectedSeats.length})
+                    Attendees on this QR ({
+                      (confirmedBooking.seats && confirmedBooking.seats.length > 0
+                        ? confirmedBooking.seats
+                        : selectedSeats
+                      ).length
+                    })
                   </span>
                   <div className="space-y-1">
-                    {selectedSeats.map((s, i) => (
-                      <div key={s.seatId} className="flex items-center justify-between gap-3">
-                        <span className="text-white font-semibold truncate">
-                          {(attendeeNames[i] || "").trim() || `Guest ${i + 1}`}
-                        </span>
-                        <span className="text-white/50 shrink-0">{s.seatId} · {s.tierName}</span>
-                      </div>
-                    ))}
+                    {(confirmedBooking.holder_names && confirmedBooking.holder_names.length > 0
+                      ? confirmedBooking.holder_names
+                      : attendeeNames
+                    ).map((name: string, i: number) => {
+                      const seatCode = (confirmedBooking.seats?.[i]) || selectedSeats[i]?.seatId || `Seat ${i + 1}`;
+                      return (
+                        <div key={i} className="flex items-center justify-between gap-3">
+                          <span className="text-white font-semibold truncate">
+                            {(name || "").trim() || `Guest ${i + 1}`}
+                          </span>
+                          <span className="text-white/50 shrink-0">{seatCode}</span>
+                        </div>
+                      );
+                    })}
                   </div>
                 </div>
                 <div className="flex justify-between border-b border-white/10 pb-2 mb-2">
@@ -1585,21 +1627,17 @@ export default function BookingFlow({
 
               <div className="mt-8 flex flex-col sm:flex-row items-center justify-center gap-3">
                 <Link
-                  href="/dashboard"
+                  href={`/dashboard?tab=tickets&booking_ref=${encodeURIComponent(confirmedBooking.booking_reference || "")}`}
                   className="h-11 px-8 rounded-xl bg-red-600 hover:bg-red-500 text-xs font-mono font-bold uppercase tracking-wider text-white shadow-lg flex items-center justify-center gap-2 w-full sm:w-auto"
                 >
                   <Ticket className="size-4" /> View Passes in Dashboard
                 </Link>
-                <button
-                  type="button"
-                  onClick={() => {
-                    setSelectedSeats([]);
-                    setStep(1);
-                  }}
-                  className="h-11 px-6 rounded-xl border border-white/20 text-xs font-mono uppercase tracking-wider text-white/70 hover:text-white w-full sm:w-auto"
+                <Link
+                  href="/events"
+                  className="h-11 px-6 rounded-xl border border-white/20 text-xs font-mono uppercase tracking-wider text-white/70 hover:text-white flex items-center justify-center w-full sm:w-auto"
                 >
-                  Book More Seats
-                </button>
+                  Back to All Events
+                </Link>
               </div>
             </div>
           </div>

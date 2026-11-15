@@ -1,7 +1,7 @@
 "use client";
 
 import Link from "next/link";
-import { useRouter } from "next/navigation";
+import { useRouter, useSearchParams } from "next/navigation";
 import { useEffect, useState, useCallback, useRef, useMemo } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import QRCode from "qrcode";
@@ -35,9 +35,22 @@ type Tab = "tickets" | "competitions" | "certificates" | "rewards" | "vip" | "ev
 
 export default function DashboardPage() {
   const router = useRouter();
+  const searchParams = useSearchParams();
   const { user, loading: authLoading, refresh: refreshAuth, logout, isJudge, isVolunteer } = useAuth();
 
-  const [tab, setTab] = useState<Tab>("profile");
+  const urlTab = searchParams.get("tab") as Tab | null;
+  const [tab, setTab] = useState<Tab>(() => {
+    if (urlTab && ["tickets", "competitions", "certificates", "rewards", "vip", "events", "orders", "profile"].includes(urlTab)) {
+      return urlTab;
+    }
+    return "profile";
+  });
+
+  useEffect(() => {
+    if (urlTab && ["tickets", "competitions", "certificates", "rewards", "vip", "events", "orders", "profile"].includes(urlTab)) {
+      setTab(urlTab);
+    }
+  }, [urlTab]);
   const [merchOrders, setMerchOrders] = useState<any[]>([]);
   const [tickets, setTickets] = useState<MyTicket[]>([]);
   const [bookings, setBookings] = useState<any[]>([]);
