@@ -234,19 +234,47 @@ export default function IntroAnimation({
     [cards],
   );
 
-  /* Render loop values */
-  const [morphValue, setMorphValue] = useState(0);
-  const [rotateValue, setRotateValue] = useState(0);
-  const [parallaxValue, setParallaxValue] = useState(0);
+  /* Render loop values — batched via RAF to eliminate continuous multi-state thrashing */
+  const [{ morphValue, rotateValue, parallaxValue }, setRenderValues] = useState({
+    morphValue: 0,
+    rotateValue: 0,
+    parallaxValue: 0,
+  });
+  const rafRef = useRef<number | null>(null);
+  const valsRef = useRef({ morph: 0, rotate: 0, parallax: 0 });
 
   useEffect(() => {
-    const unsubscribeMorph = smoothMorph.on("change", setMorphValue);
-    const unsubscribeRotate = smoothScrollRotate.on("change", setRotateValue);
-    const unsubscribeParallax = smoothMouseX.on("change", setParallaxValue);
+    const scheduleUpdate = () => {
+      if (rafRef.current != null) return;
+      rafRef.current = requestAnimationFrame(() => {
+        rafRef.current = null;
+        const v = valsRef.current;
+        setRenderValues({
+          morphValue: v.morph,
+          rotateValue: v.rotate,
+          parallaxValue: v.parallax,
+        });
+      });
+    };
+
+    const unsubscribeMorph = smoothMorph.on("change", (v) => {
+      valsRef.current.morph = v;
+      scheduleUpdate();
+    });
+    const unsubscribeRotate = smoothScrollRotate.on("change", (v) => {
+      valsRef.current.rotate = v;
+      scheduleUpdate();
+    });
+    const unsubscribeParallax = smoothMouseX.on("change", (v) => {
+      valsRef.current.parallax = v;
+      scheduleUpdate();
+    });
+
     return () => {
       unsubscribeMorph();
       unsubscribeRotate();
       unsubscribeParallax();
+      if (rafRef.current != null) cancelAnimationFrame(rafRef.current);
     };
   }, [smoothMorph, smoothScrollRotate, smoothMouseX]);
 

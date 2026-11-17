@@ -205,22 +205,27 @@ export default function Hero({
 
       {/* ── Performer gallery (left) ── */}
       <motion.figure
-        style={{ y: reduce ? 0 : figureY, x: reduce ? 0 : figX, translateY: reduce ? 0 : figY2 }}
-        className="absolute inset-y-0 left-0 -z-10 w-full lg:w-[56%] xl:w-[52%]"
+        style={{ y: reduce ? 0 : figureY }}
+        className="absolute inset-y-0 left-0 -z-10 w-full lg:w-[56%] xl:w-[52%] will-change-transform"
       >
-        {pool.map((shot, i) => (
-          <motion.img
-            key={shot.id}
-            src={imageFor(shot.src, i)}
-            alt=""
-            aria-hidden
-            className="stage-cutout absolute inset-0 size-full object-cover object-center mix-blend-luminosity lg:object-[35%_center]"
-            initial={false}
-            animate={{ opacity: i === index ? 0.92 : 0, scale: i === index ? 1 : 1.07 }}
-            transition={{ duration: 1.25, ease }}
-          />
-        ))}
-        <span aria-hidden className="stage-cutout stage-bg absolute inset-0 mix-blend-color" />
+        <motion.div
+          style={{ x: reduce ? 0 : figX, y: reduce ? 0 : figY2 }}
+          className="relative size-full will-change-transform"
+        >
+          {pool.map((shot, i) => (
+            <motion.img
+              key={shot.id}
+              src={imageFor(shot.src, i)}
+              alt=""
+              aria-hidden
+              className="stage-cutout absolute inset-0 size-full object-cover object-center mix-blend-luminosity lg:object-[35%_center]"
+              initial={false}
+              animate={{ opacity: i === index ? 0.92 : 0, scale: i === index ? 1 : 1.07 }}
+              transition={{ duration: 1.25, ease }}
+            />
+          ))}
+          <span aria-hidden className="stage-cutout stage-bg absolute inset-0 mix-blend-color" />
+        </motion.div>
       </motion.figure>
 
       {/* Small-screen scrim — the copy sits directly on the photo below lg */}
@@ -233,7 +238,7 @@ export default function Hero({
       {/* ── Copy column (right) ── */}
       <motion.div
         style={{ y: reduce ? 0 : copyY, opacity: fade }}
-        className="container-x relative z-10 flex flex-1 items-center justify-end pb-28 pt-28 md:pb-32 md:pt-32"
+        className="container-x relative z-10 flex flex-1 items-center justify-end pb-28 pt-28 md:pb-32 md:pt-32 will-change-transform"
       >
         <div className="flex w-full justify-end">
           <div className="w-full max-w-[560px] lg:w-[52%]">

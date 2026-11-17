@@ -2,7 +2,7 @@
 
 import Link from "next/link";
 import { useEffect, useRef, useState } from "react";
-import { motion, useMotionValueEvent, useReducedMotion, useScroll, useSpring, useTransform } from "framer-motion";
+import { motion, useReducedMotion, useScroll, useSpring, useTransform } from "framer-motion";
 import { ArrowRight, CalendarDays, MapPin } from "lucide-react";
 import { imageFor, splitDate, truncate } from "@/lib/utils";
 import type { EventItem } from "@/lib/api";
@@ -55,7 +55,6 @@ export default function StudioShowcase({ events = [] }: { events?: EventItem[] }
 
   const [slots] = useState(() => buildSlots(events));
   const [card, setCard] = useState({ w: 280, r: 400 });
-  const [spin, setSpin] = useState(0);
   const [isMobile, setIsMobile] = useState(false);
   const [trackVh, setTrackVh] = useState(380);
 
@@ -119,8 +118,6 @@ export default function StudioShowcase({ events = [] }: { events?: EventItem[] }
   const wipeOpacity = useTransform(p, [0.80, 0.84], [0, 1]);
   const wipeSpin = useTransform(p, [0.80, 1], [-25, 10]);
   const wipeTextOpacity = useTransform(p, [0.88, 0.96], [0, 1]);
-
-  useMotionValueEvent(rotation, "change", (v) => setSpin(v));
 
   /* Reduced motion: a plain, readable rail instead of the pinned choreography. */
   if (reduce) {
@@ -192,32 +189,23 @@ export default function StudioShowcase({ events = [] }: { events?: EventItem[] }
             style={{ rotateY: rotation, transformStyle: "preserve-3d" }}
             className="relative h-0 w-0 will-change-transform"
           >
-            {slots.map((s, i) => {
-              const angle = i * STEP + spin;
-              const facing = Math.cos((angle * Math.PI) / 180); // 1 = front, -1 = back
-              const dim = 0.34 + 0.66 * Math.max(0, (facing + 1) / 2);
-              return (
-                <Link
-                  key={s.id}
-                  href={s.href}
-                  tabIndex={facing > 0.6 ? 0 : -1}
-                  aria-hidden={facing <= 0.6}
-                  className="absolute block rounded-[22px] sm:rounded-[26px] outline-none focus-visible:ring-2 focus-visible:ring-[var(--accent)]"
-                  style={{
-                    width: card.w,
-                    height: card.w * 1.34,
-                    left: -card.w / 2,
-                    top: (-card.w * 1.34) / 2,
-                    transform: `rotateY(${i * STEP}deg) translateZ(${card.r}px)`,
-                    opacity: dim,
-                    filter: `brightness(${0.45 + 0.55 * dim})`,
-                    pointerEvents: facing > 0.6 ? "auto" : "none",
-                  }}
-                >
-                  <StudioCard slot={s} />
-                </Link>
-              );
-            })}
+            {slots.map((s, i) => (
+              <Link
+                key={s.id}
+                href={s.href}
+                className="absolute block rounded-[22px] sm:rounded-[26px] outline-none focus-visible:ring-2 focus-visible:ring-[var(--accent)] will-change-transform"
+                style={{
+                  width: card.w,
+                  height: card.w * 1.34,
+                  left: -card.w / 2,
+                  top: (-card.w * 1.34) / 2,
+                  transform: `rotateY(${i * STEP}deg) translateZ(${card.r}px)`,
+                  backfaceVisibility: "hidden",
+                }}
+              >
+                <StudioCard slot={s} />
+              </Link>
+            ))}
           </motion.div>
         </motion.div>
 

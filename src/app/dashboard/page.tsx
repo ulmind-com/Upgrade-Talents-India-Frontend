@@ -28,6 +28,7 @@ import { Reveal, SplitHeading } from "@/components/motion/Reveal";
 import { cn, formatEventDate, formatINR, isEventExpired, imageFor, FALLBACK_IMAGES, parseDate, istParts, IST_TZ } from "@/lib/utils";
 import { TicketPass } from "@/components/ticket/TicketPass";
 import VerifiedBadge from "@/components/ui/VerifiedBadge";
+import { useRealtimeSubscription } from "@/lib/realtime";
 
 declare global { interface Window { Razorpay?: any } }
 
@@ -403,6 +404,15 @@ export default function DashboardPage() {
   useEffect(() => {
     loadAll();
   }, [loadAll]);
+
+  // Real-time synchronization: automatically updates tickets, passes, and orders when updated
+  useRealtimeSubscription(
+    user?.email ? [`user:${user.email}`, "admin:events", "global"] : ["global"],
+    () => {
+      loadAll();
+    },
+    10000
+  );
 
   const formatCompDate = useCallback((dateVal?: string) => {
     if (!dateVal) return "Upcoming Season";

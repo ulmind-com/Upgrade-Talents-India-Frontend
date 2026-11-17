@@ -96,6 +96,7 @@ export default function GalleryReveal({
                 transition={{ duration: 0.8, ease: "easeOut", delay: c.delay }}
               >
                 <motion.div
+                  className="will-change-transform"
                   animate={reduce ? undefined : { y: [0, -10, 0] }}
                   transition={{ duration: c.dur, repeat: Infinity, ease: "easeInOut", delay: c.delay }}
                 >

@@ -33,6 +33,7 @@ import { activitiesApi, bookingsApi, paymentsApi, type EventItem, type TicketTie
 import { useAuth } from "@/components/motion/Providers";
 import FormattedDescription from "@/components/ui/FormattedDescription";
 import { EventCard } from "@/components/home/Sections";
+import { useRealtimeSubscription } from "@/lib/realtime";
 
 declare global {
   interface Window {
@@ -485,6 +486,15 @@ export default function BookingFlow({
   useEffect(() => {
     fetchBookedSeats();
   }, [fetchBookedSeats]);
+
+  // Real-time synchronization: automatically updates booked arena seats when other attendees book or get admitted
+  useRealtimeSubscription(
+    initialEvent._id ? [`event:${initialEvent._id}`, "admin:events", "global"] : ["global"],
+    () => {
+      fetchBookedSeats();
+    },
+    7000
+  );
 
   const bookedSeatSet = useMemo(() => new Set(bookedSeats), [bookedSeats]);
   const selectedSeatMap = useMemo(() => new Map(selectedSeats.map((s) => [s.seatId, s])), [selectedSeats]);

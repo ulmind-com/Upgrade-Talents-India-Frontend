@@ -220,6 +220,9 @@ export default function CoverflowCarousel({
     if (!host) return;
     const reduce = window.matchMedia("(prefers-reduced-motion: reduce)").matches;
 
+    // Pre-cache shade elements to eliminate querySelector during 60/120fps RAF loop
+    const shadeEls = cardRefs.current.map((el) => el?.querySelector<HTMLElement>("[data-shade]") || null);
+
     const layout = () => {
       const { bw, bh, s } = dimsRef.current;
       if (!bw || !inViewRef.current) return;
@@ -273,7 +276,7 @@ export default function CoverflowCarousel({
           RADIUS * s
         )}")`;
 
-        const shade = el.querySelector<HTMLElement>("[data-shade]");
+        const shade = shadeEls[i];
         if (shade) shade.style.opacity = String(Math.min(0.6, d * 0.52));
       }
     };
@@ -284,9 +287,7 @@ export default function CoverflowCarousel({
     let last = performance.now();
     const tick = (now: number) => {
       if (!inViewRef.current) {
-        // Paused when out of viewport to preserve 100% CPU and battery
-        raf = requestAnimationFrame(tick);
-        return;
+        return; // Complete stop when out of viewport — 0% CPU consumption
       }
       const dt = Math.min(0.05, (now - last) / 1000);
       last = now;
@@ -308,9 +309,13 @@ export default function CoverflowCarousel({
           if (entry.isIntersecting) {
             last = performance.now();
             layout();
+            cancelAnimationFrame(raf);
+            raf = requestAnimationFrame(tick);
+          } else {
+            cancelAnimationFrame(raf);
           }
         },
-        { rootMargin: "200px" }
+        { rootMargin: "50px" }
       );
       observer.observe(host);
     }
