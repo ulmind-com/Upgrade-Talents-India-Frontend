@@ -8,7 +8,7 @@ import {
   ScanLine, Camera, Flashlight, CheckCircle2, AlertTriangle, XCircle,
   RotateCw, ArrowLeft, LogOut, Search, Clock, User, QrCode, Sparkles,
   Volume2, VolumeX, ShieldCheck, ShieldAlert, Zap, X, ChevronRight,
-  Calendar, MapPin, Users, Ticket, ArrowRight, RefreshCw, Check
+  Calendar, MapPin, Users, Ticket, ArrowRight, RefreshCw, Check, Banknote
 } from "lucide-react";
 import jsQR from "jsqr";
 import {
@@ -98,6 +98,8 @@ interface ScanHistoryItem {
   name: string;
   time: string;
   status: "CHECKED_IN" | "ALREADY_CHECKED" | "INVALID";
+  isCash?: boolean;
+  amount?: number;
 }
 
 export default function VolunteerScannerPage() {
@@ -133,9 +135,12 @@ export default function VolunteerScannerPage() {
   const [verifyError, setVerifyError] = useState<string | null>(null);
   const [checkInSuccess, setCheckInSuccess] = useState<string | null>(null);
 
-  // History & Statistics
+  // Shift Statistics & History
   const [history, setHistory] = useState<ScanHistoryItem[]>([]);
   const [admittedCount, setAdmittedCount] = useState(0);
+  const [cashCollectedTotal, setCashCollectedTotal] = useState<number>(0);
+  const [cashCollectedCount, setCashCollectedCount] = useState<number>(0);
+  const [onlineCheckinsCount, setOnlineCheckinsCount] = useState<number>(0);
 
   // Assigned Events for this Volunteer
   const [assignedEvents, setAssignedEvents] = useState<any[]>([]);
@@ -149,6 +154,38 @@ export default function VolunteerScannerPage() {
     }
   }, [router]);
 
+  // Load Real-time Stats & Recent Check-in History from Server
+  const loadStatsAndHistory = useCallback(async (eventId?: string) => {
+    try {
+      const stats = await volunteerScannerApi.getStats(eventId || undefined);
+      if (stats) {
+        setAdmittedCount(stats.total_checkins || 0);
+        setOnlineCheckinsCount(stats.online_checkins_count || 0);
+        setCashCollectedCount(stats.cash_collected_count || 0);
+        setCashCollectedTotal(stats.total_cash_collected || 0);
+      }
+    } catch {}
+
+    try {
+      const hist = await volunteerScannerApi.getHistory(15, eventId || undefined);
+      if (Array.isArray(hist) && hist.length > 0) {
+        setHistory(
+          hist.map((h: any) => ({
+            id: h.ticket_ref || Math.random().toString(),
+            ticket_ref: h.ticket_ref || "",
+            name: h.holder_name || "Guest",
+            time: h.check_in_time
+              ? new Date(h.check_in_time).toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" })
+              : "Just now",
+            status: "CHECKED_IN",
+            isCash: Boolean(h.cash_collect_done || h.cash_status === "COLLECTED" || String(h.payment_method).toUpperCase() === "CASH"),
+            amount: h.cash_amount || h.total_amount,
+          }))
+        );
+      }
+    } catch {}
+  }, []);
+
   // Load Assigned Events
   useEffect(() => {
     let mounted = true;
@@ -159,17 +196,30 @@ export default function VolunteerScannerPage() {
         const list = Array.isArray(evs) ? evs : [];
         setAssignedEvents(list);
         if (list.length > 0) {
-          setSelectedEventId(list[0].event_id || list[0].id || "");
+          const initialId = list[0].event_id || list[0].id || "";
+          setSelectedEventId(initialId);
+          loadStatsAndHistory(initialId);
+        } else {
+          loadStatsAndHistory();
         }
       })
-      .catch(() => {})
+      .catch(() => {
+        loadStatsAndHistory();
+      })
       .finally(() => {
         if (mounted) setLoadingEvents(false);
       });
     return () => {
       mounted = false;
     };
-  }, []);
+  }, [loadStatsAndHistory]);
+
+  // Sync stats whenever selected event changes
+  useEffect(() => {
+    if (selectedEventId) {
+      loadStatsAndHistory(selectedEventId);
+    }
+  }, [selectedEventId, loadStatsAndHistory]);
 
   const activeEvent =
     assignedEvents.find((e) => (e.event_id || e.id) === selectedEventId) || assignedEvents[0];
@@ -384,25 +434,39 @@ export default function VolunteerScannerPage() {
     startCamera(next);
   };
 
-  // Perform Final Check-In (Admit Attendees)
-  const handleConfirmAdmission = async () => {
+  // Perform Final Check-In (Admit Attendees & Handle Cash Collection)
+  const handleConfirmAdmission = async (collectCash: boolean = false) => {
     if (!currentVerification) return;
     setCheckingIn(true);
     setVerifyError(null);
 
     const ticket = currentVerification.result.ticket;
     const quantity = ticket.quantity || 1;
+    const cashAmount = Number(ticket.total_amount || 0);
 
     try {
       const res = await volunteerScannerApi.checkInTicket(
         currentVerification.rawToken,
         quantity,
-        selectedEventId || undefined
+        selectedEventId || undefined,
+        collectCash
       );
 
       playGateSound("success", soundEnabled);
-      setCheckInSuccess(res.message || `Entry Confirmed! Admitted ${res.admitted_now} attendee(s).`);
-      setAdmittedCount((c) => c + (res.admitted_now || quantity));
+      const admittedNow = res.admitted_now || quantity;
+
+      if (collectCash) {
+        setCheckInSuccess(`✅ ₹${cashAmount.toLocaleString("en-IN")} Cash Collected & Admitted ${admittedNow} attendee(s)!`);
+        setCashCollectedTotal((prev) => prev + cashAmount);
+        setCashCollectedCount((prev) => prev + admittedNow);
+      } else {
+        setCheckInSuccess(res.message || `Entry Confirmed! Admitted ${admittedNow} attendee(s).`);
+        setOnlineCheckinsCount((prev) => prev + admittedNow);
+      }
+      setAdmittedCount((c) => c + admittedNow);
+
+      // Refresh shift stats in background
+      loadStatsAndHistory(selectedEventId);
 
       setHistory((h) => [
         {
@@ -411,21 +475,32 @@ export default function VolunteerScannerPage() {
           name: ticket.holder_name,
           time: new Date().toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" }),
           status: "CHECKED_IN",
+          isCash: collectCash || ticket.is_cash,
+          amount: collectCash ? cashAmount : undefined,
         },
         ...h.slice(0, 19),
       ]);
 
-      // Update current verification state to reflect admission
+      // Update current verification state to reflect admission and payment
       setCurrentVerification((prev) => {
         if (!prev) return null;
         return {
           ...prev,
           result: {
             ...prev.result,
+            is_cash_pending: false,
+            cash_collect_done: true,
+            cash_status: "COLLECTED",
+            cash_collected_display: "Cash Collect Done",
             ticket: {
               ...prev.result.ticket,
               is_checked_in: true,
               is_fully_used: true,
+              is_cash_pending: false,
+              cash_collect_done: true,
+              cash_status: "COLLECTED",
+              cash_collected_display: "Cash Collect Done",
+              payment_status: "PAID",
               admitted_count: res.total_admitted || quantity,
               remaining_count: 0,
               status: "USED",
@@ -628,25 +703,54 @@ export default function VolunteerScannerPage() {
                   </div>
                 )}
 
-                {/* Admission Counter Stat Pill */}
-                <div className="flex items-center justify-between p-3.5 rounded-xl bg-slate-900/60 border border-slate-800">
-                  <div className="flex items-center gap-2.5">
-                    <div className="w-8 h-8 rounded-lg bg-emerald-500/10 border border-emerald-500/20 flex items-center justify-center text-emerald-400">
-                      <CheckCircle2 className="w-4 h-4" />
+                {/* ── LIVE SHIFT DASHBOARD (Requirement: Cash & Check-in Tracking) ── */}
+                <div className="grid grid-cols-1 sm:grid-cols-3 gap-2.5">
+                  {/* Metric 1: Total Admitted */}
+                  <div className="flex items-center gap-3 p-3 rounded-xl bg-slate-900/80 border border-slate-800 shadow-sm">
+                    <div className="w-9 h-9 rounded-lg bg-emerald-500/15 border border-emerald-500/30 flex items-center justify-center text-emerald-400 shrink-0">
+                      <CheckCircle2 className="w-5 h-5" />
                     </div>
-                    <div>
-                      <div className="text-[11px] uppercase tracking-wider text-slate-400 font-semibold">
+                    <div className="min-w-0">
+                      <div className="text-[10px] uppercase tracking-wider text-slate-400 font-bold">
                         Admitted Today
                       </div>
-                      <div className="text-base font-bold text-white">
+                      <div className="text-sm sm:text-base font-extrabold text-white truncate">
                         {admittedCount} Attendee{admittedCount === 1 ? "" : "s"}
                       </div>
                     </div>
                   </div>
-                  <div className="text-right">
-                    <span className="text-[11px] text-emerald-400 font-bold bg-emerald-500/10 px-2 py-1 rounded-md border border-emerald-500/20">
-                      Scanner Ready
-                    </span>
+
+                  {/* Metric 2: Online Passes */}
+                  <div className="flex items-center gap-3 p-3 rounded-xl bg-slate-900/80 border border-slate-800 shadow-sm">
+                    <div className="w-9 h-9 rounded-lg bg-sky-500/15 border border-sky-500/30 flex items-center justify-center text-sky-400 shrink-0">
+                      <ShieldCheck className="w-5 h-5" />
+                    </div>
+                    <div className="min-w-0">
+                      <div className="text-[10px] uppercase tracking-wider text-slate-400 font-bold">
+                        Online Paid
+                      </div>
+                      <div className="text-sm sm:text-base font-extrabold text-white truncate">
+                        {onlineCheckinsCount} Pass{onlineCheckinsCount === 1 ? "" : "es"}
+                      </div>
+                    </div>
+                  </div>
+
+                  {/* Metric 3: Cash Collected Total */}
+                  <div className="flex items-center gap-3 p-3 rounded-xl bg-amber-500/10 border border-amber-500/30 shadow-sm">
+                    <div className="w-9 h-9 rounded-lg bg-amber-500/20 border border-amber-500/40 flex items-center justify-center text-amber-400 shrink-0">
+                      <Banknote className="w-5 h-5" />
+                    </div>
+                    <div className="min-w-0">
+                      <div className="text-[10px] uppercase tracking-wider text-amber-300 font-bold">
+                        Cash Collected
+                      </div>
+                      <div className="text-sm sm:text-base font-extrabold text-amber-300 truncate font-mono">
+                        ₹{cashCollectedTotal.toLocaleString("en-IN")}
+                      </div>
+                      <div className="text-[10px] text-amber-400/80 font-medium">
+                        {cashCollectedCount} Cash Pass{cashCollectedCount === 1 ? "" : "es"}
+                      </div>
+                    </div>
                   </div>
                 </div>
               </div>
@@ -737,6 +841,11 @@ export default function VolunteerScannerPage() {
                             <XCircle className="w-3.5 h-3.5 text-rose-400 flex-shrink-0" />
                           )}
                           <span className="font-medium text-slate-200 truncate">{item.name}</span>
+                          {item.isCash && (
+                            <span className="text-[10px] font-bold text-amber-300 bg-amber-500/15 border border-amber-500/30 px-1.5 py-0.2 rounded font-mono">
+                              Cash {item.amount ? `₹${item.amount.toLocaleString("en-IN")}` : ""}
+                            </span>
+                          )}
                         </div>
                         <span className="text-[10px] text-slate-400 font-mono ml-2 flex-shrink-0">
                           {item.time}
@@ -921,169 +1030,253 @@ export default function VolunteerScannerPage() {
                 </div>
               ) : currentVerification ? (
                 /* ── VERIFIED TICKET DETAILS CARD ── */
-                <div className="space-y-4">
-                  {/* Status Banner */}
-                  {currentVerification.result.ticket.is_checked_in ? (
-                    <div className="p-4 rounded-2xl bg-amber-500/15 border-2 border-amber-500/40 flex items-center gap-3">
-                      <div className="w-10 h-10 rounded-xl bg-amber-500/20 text-amber-400 flex items-center justify-center flex-shrink-0">
-                        <AlertTriangle className="w-6 h-6" />
-                      </div>
-                      <div>
-                        <div className="text-sm font-black text-amber-300 uppercase tracking-wide">
-                          Already Used Ticket
-                        </div>
-                        <div className="text-xs text-amber-200/80">
-                          {currentVerification.result.ticket.check_in_time
-                            ? `Checked in on ${new Date(currentVerification.result.ticket.check_in_time).toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" })}`
-                            : "This ticket has already been used for entry."}
-                        </div>
-                      </div>
-                    </div>
-                  ) : checkInSuccess ? (
-                    <div className="p-4 rounded-2xl bg-emerald-500/15 border-2 border-emerald-500/40 flex items-center gap-3 animate-in fade-in zoom-in-95 duration-200">
-                      <div className="w-10 h-10 rounded-xl bg-emerald-500/20 text-emerald-400 flex items-center justify-center flex-shrink-0">
-                        <CheckCircle2 className="w-6 h-6" />
-                      </div>
-                      <div>
-                        <div className="text-sm font-black text-emerald-300 uppercase tracking-wide">
-                          Entry Confirmed!
-                        </div>
-                        <div className="text-xs text-emerald-200/80">
-                          {checkInSuccess}
-                        </div>
-                      </div>
-                    </div>
-                  ) : (
-                    <div className="p-4 rounded-2xl bg-emerald-500/15 border-2 border-emerald-500/40 flex items-center gap-3">
-                      <div className="w-10 h-10 rounded-xl bg-emerald-500/20 text-emerald-400 flex items-center justify-center flex-shrink-0">
-                        <ShieldCheck className="w-6 h-6" />
-                      </div>
-                      <div>
-                        <div className="text-sm font-black text-emerald-400 uppercase tracking-wide">
-                          Valid Ticket — Ready to Admit
-                        </div>
-                        <div className="text-xs text-emerald-300/80">
-                          Pass matches this event. Please verify attendees below.
-                        </div>
-                      </div>
-                    </div>
-                  )}
+                (() => {
+                  const t = currentVerification.result.ticket;
+                  const isCash = Boolean(
+                    currentVerification.result.is_cash ||
+                    t.is_cash ||
+                    String(t.payment_method).toUpperCase() === "CASH" ||
+                    String(t.payment_method).toUpperCase() === "OFFLINE"
+                  );
+                  const isCashPending = Boolean(
+                    currentVerification.result.is_cash_pending ||
+                    t.is_cash_pending ||
+                    (isCash && !t.cash_collect_done && t.cash_status !== "COLLECTED")
+                  );
+                  const cashAmount = Number(t.total_amount || 0);
 
-                  {/* Event & Category Card */}
-                  <div className="p-4 rounded-2xl bg-slate-900 border border-slate-800 space-y-2">
-                    <div className="text-[10px] font-bold text-slate-400 uppercase tracking-wider">
-                      Event / Competition
-                    </div>
-                    <h3 className="text-lg font-black text-white leading-tight">
-                      {currentVerification.result.event_title || activeEvent?.title || "Event"}
-                    </h3>
-                    <div className="flex flex-wrap items-center gap-2 pt-1">
-                      <span className="px-2.5 py-1 rounded-md bg-emerald-500/20 border border-emerald-500/30 text-emerald-300 text-xs font-bold">
-                        {currentVerification.result.ticket.category || "General Admission"}
-                      </span>
-                      <span className="px-2.5 py-1 rounded-md bg-slate-800 border border-slate-700 text-slate-300 text-xs font-medium">
-                        {currentVerification.result.ticket.ticket_type || "Gate Entry"}
-                      </span>
-                      <span className="px-2.5 py-1 rounded-md bg-indigo-500/20 border border-indigo-500/30 text-indigo-300 text-xs font-bold">
-                        {attendeesList.length} Ticket{attendeesList.length === 1 ? "" : "s"}
-                      </span>
-                    </div>
-                  </div>
-
-                  {/* ── COMPLETE LIST OF PARTICIPANTS / ATTENDEES (Requirement #3) ── */}
-                  <div className="p-4 rounded-2xl bg-slate-900/90 border border-slate-800 space-y-3">
-                    <div className="flex items-center justify-between">
-                      <span className="text-xs font-bold text-slate-300 uppercase tracking-wider flex items-center gap-1.5">
-                        <Users className="w-4 h-4 text-emerald-400" />
-                        <span>All Attendees in Booking ({attendeesList.length})</span>
-                      </span>
-                      <span className="text-[11px] font-semibold text-emerald-400">
-                        Admit All
-                      </span>
-                    </div>
-
-                    <div className="space-y-2">
-                      {attendeesList.map((attendeeName, index) => (
-                        <div
-                          key={index}
-                          className="flex items-center gap-3 p-3 rounded-xl bg-slate-950/70 border border-slate-800/80"
-                        >
-                          <div className="w-7 h-7 rounded-full bg-emerald-500/20 border border-emerald-500/40 text-emerald-300 font-bold text-xs flex items-center justify-center flex-shrink-0">
-                            {index + 1}
+                  return (
+                    <div className="space-y-4">
+                      {/* Status Banner */}
+                      {t.is_checked_in ? (
+                        <div className="p-4 rounded-2xl bg-amber-500/15 border-2 border-amber-500/40 flex items-center gap-3">
+                          <div className="w-10 h-10 rounded-xl bg-amber-500/20 text-amber-400 flex items-center justify-center flex-shrink-0">
+                            <AlertTriangle className="w-6 h-6" />
                           </div>
-                          <div className="flex-1 min-w-0">
-                            <div className="font-bold text-white text-sm sm:text-base truncate">
-                              {attendeeName}
+                          <div>
+                            <div className="text-sm font-black text-amber-300 uppercase tracking-wide">
+                              Already Used Ticket
                             </div>
-                            <div className="text-[11px] text-slate-400">
-                              Attendee {index + 1} • {currentVerification.result.ticket.category || "General"}
+                            <div className="text-xs text-amber-200/80">
+                              {t.check_in_time
+                                ? `Checked in on ${new Date(t.check_in_time).toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" })}`
+                                : "This ticket has already been used for entry."}
                             </div>
                           </div>
-                          <Check className="w-4 h-4 text-emerald-400 flex-shrink-0" />
                         </div>
-                      ))}
-                    </div>
-                  </div>
-
-                  {/* Booking Contact Details */}
-                  <div className="p-3.5 rounded-xl bg-slate-900/50 border border-slate-800/60 text-xs text-slate-400 space-y-1.5">
-                    <div className="flex justify-between">
-                      <span>Booked By:</span>
-                      <span className="font-semibold text-slate-200">
-                        {currentVerification.result.ticket.holder_name}
-                      </span>
-                    </div>
-                    {currentVerification.result.ticket.holder_email && (
-                      <div className="flex justify-between">
-                        <span>Email:</span>
-                        <span className="font-mono text-slate-300 truncate max-w-[200px]">
-                          {currentVerification.result.ticket.holder_email}
-                        </span>
-                      </div>
-                    )}
-                    {currentVerification.result.booking_reference && (
-                      <div className="flex justify-between">
-                        <span>Booking Ref:</span>
-                        <span className="font-mono font-bold text-emerald-400">
-                          #{currentVerification.result.booking_reference}
-                        </span>
-                      </div>
-                    )}
-                  </div>
-
-                  {/* ── BIG ACTION BUTTON (Requirement #2 & #3) ── */}
-                  <div className="pt-2">
-                    {!currentVerification.result.ticket.is_checked_in && !checkInSuccess ? (
-                      <button
-                        type="button"
-                        onClick={handleConfirmAdmission}
-                        disabled={checkingIn}
-                        className="w-full py-5 px-6 rounded-2xl bg-gradient-to-r from-emerald-500 via-emerald-600 to-teal-600 hover:from-emerald-400 hover:to-teal-500 text-white font-black text-lg shadow-xl shadow-emerald-600/30 border border-emerald-400/40 flex items-center justify-center gap-2 active:scale-[0.98] transition-all disabled:opacity-60"
-                      >
-                        {checkingIn ? (
-                          <div className="flex items-center gap-2">
-                            <div className="w-5 h-5 border-2 border-white border-t-transparent rounded-full animate-spin" />
-                            <span>Confirming Entry…</span>
-                          </div>
-                        ) : (
-                          <>
+                      ) : checkInSuccess ? (
+                        <div className="p-4 rounded-2xl bg-emerald-500/15 border-2 border-emerald-500/40 flex items-center gap-3 animate-in fade-in zoom-in-95 duration-200">
+                          <div className="w-10 h-10 rounded-xl bg-emerald-500/20 text-emerald-400 flex items-center justify-center flex-shrink-0">
                             <CheckCircle2 className="w-6 h-6" />
-                            <span>Confirm Entry ({attendeesList.length} Person{attendeesList.length === 1 ? "" : "s"})</span>
-                          </>
+                          </div>
+                          <div>
+                            <div className="text-sm font-black text-emerald-300 uppercase tracking-wide">
+                              Entry Confirmed!
+                            </div>
+                            <div className="text-xs text-emerald-200/80">
+                              {checkInSuccess}
+                            </div>
+                          </div>
+                        </div>
+                      ) : isCashPending ? (
+                        /* ── HIGH VISIBILITY CASH PENDING ALERT ── */
+                        <div className="p-4 rounded-2xl bg-amber-500/15 border-2 border-amber-500/60 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3 shadow-lg shadow-amber-500/10">
+                          <div className="flex items-center gap-3">
+                            <div className="w-12 h-12 rounded-xl bg-amber-500/25 text-amber-300 flex items-center justify-center flex-shrink-0 border border-amber-400/40">
+                              <Banknote className="w-6 h-6" />
+                            </div>
+                            <div>
+                              <div className="flex items-center gap-2">
+                                <span className="text-[11px] font-black uppercase tracking-wider text-amber-300 bg-amber-500/20 px-2 py-0.5 rounded border border-amber-500/40">
+                                  ⚠️ CASH SPOT PASS — COLLECTION REQUIRED
+                                </span>
+                              </div>
+                              <div className="text-xs text-amber-200/90 mt-1 font-medium">
+                                Collect cash from attendee before admitting into venue.
+                              </div>
+                            </div>
+                          </div>
+                          <div className="sm:text-right self-end sm:self-auto bg-amber-500/20 px-3 py-1.5 rounded-xl border border-amber-500/40">
+                            <div className="text-[9px] uppercase font-bold text-amber-200">Amount Due</div>
+                            <div className="text-xl sm:text-2xl font-black text-amber-300 tracking-tight font-mono">
+                              ₹{cashAmount.toLocaleString("en-IN")}
+                            </div>
+                          </div>
+                        </div>
+                      ) : (
+                        <div className="p-4 rounded-2xl bg-emerald-500/15 border-2 border-emerald-500/40 flex items-center gap-3">
+                          <div className="w-10 h-10 rounded-xl bg-emerald-500/20 text-emerald-400 flex items-center justify-center flex-shrink-0">
+                            <ShieldCheck className="w-6 h-6" />
+                          </div>
+                          <div>
+                            <div className="text-sm font-black text-emerald-400 uppercase tracking-wide">
+                              {isCash ? "Cash Collected — Ready to Admit" : "Paid Online — Ready to Admit"}
+                            </div>
+                            <div className="text-xs text-emerald-300/80">
+                              Pass matches this event. Please verify attendees below.
+                            </div>
+                          </div>
+                        </div>
+                      )}
+
+                      {/* Event & Category Card */}
+                      <div className="p-4 rounded-2xl bg-slate-900 border border-slate-800 space-y-2">
+                        <div className="text-[10px] font-bold text-slate-400 uppercase tracking-wider">
+                          Event / Competition
+                        </div>
+                        <h3 className="text-lg font-black text-white leading-tight">
+                          {currentVerification.result.event_title || activeEvent?.title || "Event"}
+                        </h3>
+                        <div className="flex flex-wrap items-center gap-2 pt-1">
+                          <span className="px-2.5 py-1 rounded-md bg-emerald-500/20 border border-emerald-500/30 text-emerald-300 text-xs font-bold">
+                            {t.category || "General Admission"}
+                          </span>
+                          <span className="px-2.5 py-1 rounded-md bg-slate-800 border border-slate-700 text-slate-300 text-xs font-medium">
+                            {t.ticket_type || "Gate Entry"}
+                          </span>
+                          <span className="px-2.5 py-1 rounded-md bg-indigo-500/20 border border-indigo-500/30 text-indigo-300 text-xs font-bold">
+                            {attendeesList.length} Ticket{attendeesList.length === 1 ? "" : "s"}
+                          </span>
+                          {isCash && (
+                            <span className="px-2.5 py-1 rounded-md bg-amber-500/20 border border-amber-500/30 text-amber-300 text-xs font-bold">
+                              {isCashPending ? "Cash Pending" : "Cash Done"}
+                            </span>
+                          )}
+                        </div>
+                      </div>
+
+                      {/* ── COMPLETE LIST OF PARTICIPANTS / ATTENDEES (Requirement #3) ── */}
+                      <div className="p-4 rounded-2xl bg-slate-900/90 border border-slate-800 space-y-3">
+                        <div className="flex items-center justify-between">
+                          <span className="text-xs font-bold text-slate-300 uppercase tracking-wider flex items-center gap-1.5">
+                            <Users className="w-4 h-4 text-emerald-400" />
+                            <span>All Attendees in Booking ({attendeesList.length})</span>
+                          </span>
+                          <span className="text-[11px] font-semibold text-emerald-400">
+                            Admit All
+                          </span>
+                        </div>
+
+                        <div className="space-y-2">
+                          {attendeesList.map((attendeeName, index) => (
+                            <div
+                              key={index}
+                              className="flex items-center gap-3 p-3 rounded-xl bg-slate-950/70 border border-slate-800/80"
+                            >
+                              <div className="w-7 h-7 rounded-full bg-emerald-500/20 border border-emerald-500/40 text-emerald-300 font-bold text-xs flex items-center justify-center flex-shrink-0">
+                                {index + 1}
+                              </div>
+                              <div className="flex-1 min-w-0">
+                                <div className="font-bold text-white text-sm sm:text-base truncate">
+                                  {attendeeName}
+                                </div>
+                                <div className="text-[11px] text-slate-400">
+                                  Attendee {index + 1} • {t.category || "General"}
+                                </div>
+                              </div>
+                              <Check className="w-4 h-4 text-emerald-400 flex-shrink-0" />
+                            </div>
+                          ))}
+                        </div>
+                      </div>
+
+                      {/* Booking Contact Details */}
+                      <div className="p-3.5 rounded-xl bg-slate-900/50 border border-slate-800/60 text-xs text-slate-400 space-y-1.5">
+                        <div className="flex justify-between">
+                          <span>Booked By:</span>
+                          <span className="font-semibold text-slate-200">
+                            {t.holder_name}
+                          </span>
+                        </div>
+                        {t.holder_email && (
+                          <div className="flex justify-between">
+                            <span>Email:</span>
+                            <span className="font-mono text-slate-300 truncate max-w-[200px]">
+                              {t.holder_email}
+                            </span>
+                          </div>
                         )}
-                      </button>
-                    ) : (
-                      <button
-                        type="button"
-                        onClick={handleScanNext}
-                        className="w-full py-5 px-6 rounded-2xl bg-slate-800 hover:bg-slate-700 text-white font-extrabold text-base border border-slate-700 flex items-center justify-center gap-2 active:scale-[0.98] transition-all"
-                      >
-                        <Camera className="w-5 h-5 text-emerald-400" />
-                        <span>Scan Next Ticket</span>
-                      </button>
-                    )}
-                  </div>
-                </div>
+                        {currentVerification.result.booking_reference && (
+                          <div className="flex justify-between">
+                            <span>Booking Ref:</span>
+                            <span className="font-mono font-bold text-emerald-400">
+                              #{currentVerification.result.booking_reference}
+                            </span>
+                          </div>
+                        )}
+                        <div className="flex justify-between pt-1 border-t border-slate-800/60">
+                          <span>Payment Mode:</span>
+                          <span className={cn(
+                            "font-bold font-mono text-[11px] px-1.5 py-0.5 rounded",
+                            isCash ? "text-amber-300 bg-amber-500/15 border border-amber-500/30" : "text-sky-300 bg-sky-500/15 border border-sky-500/30"
+                          )}>
+                            {isCash ? "CASH SPOT PASS" : "ONLINE PAYMENT"}
+                          </span>
+                        </div>
+                        <div className="flex justify-between">
+                          <span>Total Amount:</span>
+                          <span className="font-bold text-white font-mono">
+                            ₹{cashAmount.toLocaleString("en-IN")}
+                          </span>
+                        </div>
+                      </div>
+
+                      {/* ── BIG ACTION BUTTON (Requirement #2 & #3 & Cash Collection) ── */}
+                      <div className="pt-2">
+                        {!t.is_checked_in && !checkInSuccess ? (
+                          isCashPending ? (
+                            <button
+                              type="button"
+                              onClick={() => handleConfirmAdmission(true)}
+                              disabled={checkingIn}
+                              className="w-full py-5 px-6 rounded-2xl bg-gradient-to-r from-amber-500 via-amber-600 to-yellow-600 hover:from-amber-400 hover:to-yellow-500 text-slate-950 font-black text-base sm:text-lg shadow-xl shadow-amber-600/30 border border-amber-300/60 flex items-center justify-center gap-2 active:scale-[0.98] transition-all disabled:opacity-60 ring-2 ring-amber-400/40"
+                            >
+                              {checkingIn ? (
+                                <div className="flex items-center gap-2">
+                                  <div className="w-5 h-5 border-2 border-slate-950 border-t-transparent rounded-full animate-spin" />
+                                  <span>Collecting Cash & Admitting…</span>
+                                </div>
+                              ) : (
+                                <>
+                                  <Banknote className="w-6 h-6 text-slate-950" />
+                                  <span>COLLECT ₹{cashAmount.toLocaleString("en-IN")} CASH & ADMIT ({attendeesList.length} Person{attendeesList.length === 1 ? "" : "s"})</span>
+                                </>
+                              )}
+                            </button>
+                          ) : (
+                            <button
+                              type="button"
+                              onClick={() => handleConfirmAdmission(false)}
+                              disabled={checkingIn}
+                              className="w-full py-5 px-6 rounded-2xl bg-gradient-to-r from-emerald-500 via-emerald-600 to-teal-600 hover:from-emerald-400 hover:to-teal-500 text-white font-black text-lg shadow-xl shadow-emerald-600/30 border border-emerald-400/40 flex items-center justify-center gap-2 active:scale-[0.98] transition-all disabled:opacity-60"
+                            >
+                              {checkingIn ? (
+                                <div className="flex items-center gap-2">
+                                  <div className="w-5 h-5 border-2 border-white border-t-transparent rounded-full animate-spin" />
+                                  <span>Confirming Entry…</span>
+                                </div>
+                              ) : (
+                                <>
+                                  <CheckCircle2 className="w-6 h-6" />
+                                  <span>Confirm Entry ({attendeesList.length} Person{attendeesList.length === 1 ? "" : "s"})</span>
+                                </>
+                              )}
+                            </button>
+                          )
+                        ) : (
+                          <button
+                            type="button"
+                            onClick={handleScanNext}
+                            className="w-full py-5 px-6 rounded-2xl bg-slate-800 hover:bg-slate-700 text-white font-extrabold text-base border border-slate-700 flex items-center justify-center gap-2 active:scale-[0.98] transition-all"
+                          >
+                            <Camera className="w-5 h-5 text-emerald-400" />
+                            <span>Scan Next Ticket</span>
+                          </button>
+                        )}
+                      </div>
+                    </div>
+                  );
+                })()
               ) : null}
             </motion.div>
           )}

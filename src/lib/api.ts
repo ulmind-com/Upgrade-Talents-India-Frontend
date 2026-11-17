@@ -1382,6 +1382,13 @@ export const judgeCompetitionsApi = {
 export interface TicketScanVerifyResult {
   is_valid: boolean;
   event_id?: string;
+  is_cash?: boolean;
+  is_cash_pending?: boolean;
+  cash_status?: string;
+  cash_collect_done?: boolean;
+  cash_collected_display?: string;
+  checked_in_by?: string;
+  checked_in_by_name?: string;
   ticket: {
     ticket_ref: string;
     holder_name: string;
@@ -1401,6 +1408,18 @@ export interface TicketScanVerifyResult {
     check_in_time: string | null;
     payment_method?: string;
     payment_status?: string;
+    is_cash?: boolean;
+    is_cash_pending?: boolean;
+    cash_status?: string;
+    cash_collected?: boolean;
+    cash_collect_done?: boolean;
+    cash_collected_display?: string;
+    cash_collected_by?: string;
+    cash_collected_by_name?: string;
+    cash_collected_at?: string;
+    checked_in_by?: string;
+    checked_in_by_name?: string;
+    checked_in_by_role?: string;
     total_amount?: number;
     unit_price?: number;
   };
@@ -1413,6 +1432,16 @@ export interface TicketScanVerifyResult {
   booking_status: string;
 }
 
+export interface VolunteerShiftStats {
+  volunteer_email?: string;
+  event_id?: string;
+  total_tickets_scanned: number;
+  total_checkins: number;
+  online_checkins_count: number;
+  cash_collected_count: number;
+  total_cash_collected: number;
+}
+
 export const volunteerScannerApi = {
   /** Fetch events assigned to this volunteer (or all active events if admin) */
   getAssignedEvents: () =>
@@ -1421,17 +1450,33 @@ export const volunteerScannerApi = {
       cache: "no-store",
     }),
 
+  /** Fetch live shift statistics for current volunteer */
+  getStats: (event_id?: string) =>
+    apiFetch<VolunteerShiftStats>(
+      event_id ? `/api/volunteer/tickets/stats?event_id=${encodeURIComponent(event_id)}` : "/api/volunteer/tickets/stats",
+      {
+        auth: true,
+        cache: "no-store",
+      }
+    ),
+
   /** Scan or enter QR token to verify ticket validity */
   verifyTicket: (qr_token: string, event_id?: string) =>
-    apiFetch<TicketScanVerifyResult>("/api/admin/tickets/verify", {
+    apiFetch<TicketScanVerifyResult>("/api/volunteer/tickets/verify", {
       method: "POST",
       body: { qr_token, event_id: event_id || undefined },
       auth: true,
     }),
 
-  /** Atomically mark attendees on this ticket as checked in */
-  checkInTicket: (qr_token: string, admit_count?: number, event_id?: string) =>
+  /** Atomically mark attendees on this ticket as checked in, with cash collection handling */
+  checkInTicket: (
+    qr_token: string,
+    admit_count?: number,
+    event_id?: string,
+    collect_cash?: boolean
+  ) =>
     apiFetch<{
+      success?: boolean;
       message: string;
       ticket_ref: string;
       admitted_now: number;
@@ -1439,11 +1484,33 @@ export const volunteerScannerApi = {
       total_quantity: number;
       remaining: number;
       is_fully_used: boolean;
-    }>("/api/admin/tickets/check-in", {
+      checked_in_by?: string;
+      checked_in_by_name?: string;
+      cash_status?: string;
+      cash_collect_done?: boolean;
+      cash_collected_display?: string;
+      cash_amount?: number;
+      payment_status?: string;
+    }>("/api/volunteer/tickets/check-in", {
       method: "POST",
-      body: { qr_token, admit_count, event_id: event_id || undefined },
+      body: {
+        qr_token,
+        admit_count,
+        event_id: event_id || undefined,
+        collect_cash: collect_cash ?? undefined,
+      },
       auth: true,
     }),
+
+  /** Fetch recent check-ins */
+  getHistory: (limit: number = 20, event_id?: string) =>
+    apiFetch<any[]>(
+      `/api/volunteer/tickets/checkin-history?limit=${limit}${event_id ? `&event_id=${encodeURIComponent(event_id)}` : ""}`,
+      {
+        auth: true,
+        cache: "no-store",
+      }
+    ),
 };
 
 /* ─────────────── EXTRAS ─────────────── */
