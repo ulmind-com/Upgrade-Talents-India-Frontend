@@ -1049,19 +1049,32 @@ export default function VolunteerScannerPage() {
                     <div className="space-y-4">
                       {/* Status Banner */}
                       {t.is_checked_in ? (
-                        <div className="p-4 rounded-2xl bg-amber-500/15 border-2 border-amber-500/40 flex items-center gap-3">
-                          <div className="w-10 h-10 rounded-xl bg-amber-500/20 text-amber-400 flex items-center justify-center flex-shrink-0">
-                            <AlertTriangle className="w-6 h-6" />
+                        <div className="p-4 sm:p-5 rounded-2xl bg-rose-500/20 border-2 border-rose-500/70 flex items-start sm:items-center gap-3.5 shadow-xl shadow-rose-950/40 animate-in fade-in">
+                          <div className="w-12 h-12 rounded-xl bg-rose-500/30 text-rose-300 flex items-center justify-center flex-shrink-0 border border-rose-400/50">
+                            <XCircle className="w-7 h-7" />
                           </div>
-                          <div>
-                            <div className="text-sm font-black text-amber-300 uppercase tracking-wide">
-                              Already Used Ticket
+                          <div className="flex-1 min-w-0">
+                            <div className="flex items-center gap-2 flex-wrap">
+                              <span className="text-sm sm:text-base font-black text-rose-300 uppercase tracking-wide">
+                                Already Checked In — Ticket Already Scanned
+                              </span>
+                              <span className="bg-rose-500/30 border border-rose-400/60 text-rose-200 text-[10px] font-mono font-bold px-2 py-0.5 rounded-full">
+                                DUPLICATE SCAN REJECTED
+                              </span>
                             </div>
-                            <div className="text-xs text-amber-200/80">
-                              {t.check_in_time
-                                ? `Checked in on ${new Date(t.check_in_time).toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" })}`
-                                : "This ticket has already been used for entry."}
+                            <div className="text-xs text-rose-200/90 mt-1 font-medium">
+                              This pass was already scanned and used for entry. Do not admit holder again.
                             </div>
+                            {(t.check_in_time || t.checked_in_by) && (
+                              <div className="mt-2 pt-2 border-t border-rose-500/30 flex flex-wrap items-center gap-x-4 gap-y-1 text-[11px] text-rose-200 font-mono">
+                                {t.check_in_time && (
+                                  <span>Admitted at: <strong>{new Date(t.check_in_time).toLocaleTimeString([], { hour: "2-digit", minute: "2-digit", second: "2-digit" })}</strong></span>
+                                )}
+                                {(t.checked_in_by_name || t.checked_in_by) && (
+                                  <span>Scanner: <strong>{t.checked_in_by_name || t.checked_in_by}</strong></span>
+                                )}
+                              </div>
+                            )}
                           </div>
                         </div>
                       ) : checkInSuccess ? (
@@ -1264,14 +1277,22 @@ export default function VolunteerScannerPage() {
                             </button>
                           )
                         ) : (
-                          <button
-                            type="button"
-                            onClick={handleScanNext}
-                            className="w-full py-5 px-6 rounded-2xl bg-slate-800 hover:bg-slate-700 text-white font-extrabold text-base border border-slate-700 flex items-center justify-center gap-2 active:scale-[0.98] transition-all"
-                          >
-                            <Camera className="w-5 h-5 text-emerald-400" />
-                            <span>Scan Next Ticket</span>
-                          </button>
+                          <div className="space-y-3">
+                            {t.is_checked_in && (
+                              <div className="w-full py-4 px-6 rounded-2xl bg-rose-500/20 border-2 border-rose-500/40 text-rose-300 font-black text-sm text-center flex items-center justify-center gap-2">
+                                <XCircle className="w-5 h-5 shrink-0" />
+                                <span>ENTRY REFUSED — ALREADY CHECKED IN</span>
+                              </div>
+                            )}
+                            <button
+                              type="button"
+                              onClick={handleScanNext}
+                              className="w-full py-5 px-6 rounded-2xl bg-slate-800 hover:bg-slate-700 text-white font-extrabold text-base border border-slate-700 flex items-center justify-center gap-2 active:scale-[0.98] transition-all cursor-pointer"
+                            >
+                              <Camera className="w-5 h-5 text-emerald-400" />
+                              <span>Scan Next Ticket</span>
+                            </button>
+                          </div>
                         )}
                       </div>
                     </div>
