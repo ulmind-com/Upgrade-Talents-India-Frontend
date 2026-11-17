@@ -724,6 +724,12 @@ export default function BookingFlow({
           window.scrollTo({ top: 120, behavior: "smooth" });
         }
         fetchBookedSeats();
+
+        // Auto-redirect to Dashboard tickets tab so the booking page closes cleanly
+        const confirmedRef = booking?.booking_reference || booking?.booking_id || "CONFIRMED";
+        setTimeout(() => {
+          router.push(`/dashboard?tab=tickets&booking_ref=${encodeURIComponent(confirmedRef)}`);
+        }, 2200);
         return;
       }
 
@@ -746,19 +752,19 @@ export default function BookingFlow({
         theme: { color: "#e50914" },
         modal: {
           ondismiss: () => {
-            // Razorpay also fires ondismiss right after a successful payment as the
-            // sheet closes. Ignore it once payment is captured, otherwise the button
-            // would flash back to "Pay Now" while verification is still running.
-            if (paymentCapturedRef.current || step === 3 || confirmedBooking) return;
-            setSubmitting(false);
-            setError("Payment cancelled. Your seats are held briefly — retry to confirm.");
+            // Razorpay fires ondismiss when the sheet closes. Delay check to let handler run if payment was captured.
+            setTimeout(() => {
+              if (paymentCapturedRef.current) return;
+              setSubmitting(false);
+              setError("Payment cancelled. Your seats are held briefly — retry to confirm.");
+            }, 350);
           },
         },
         handler: async (resp: any) => {
           // Payment captured — hold the full-screen "Please wait" loader through verify.
           paymentCapturedRef.current = true;
           setFinalizing(true);
-          // Immediately switch step to 3 so Step 2 (Payment Form) is never visible again
+          // Immediately switch step to 3 and seed confirmed booking so Step 2 is never shown again
           setStep(3);
 
           const targetBookingId = (
@@ -769,6 +775,16 @@ export default function BookingFlow({
             booking?.payment_info?.notes?.booking_id ||
             ""
           );
+
+          const initialConfirmedObj = {
+            ...(booking || {}),
+            booking_reference: booking?.booking_reference || targetBookingId || "CONFIRMED",
+            payment_status: "PAID",
+            booking_status: "CONFIRMED",
+            seats: booking?.seats || selectedSeats.map((s) => s.seatId),
+            holder_names: booking?.holder_names || attendeeNames,
+          };
+          setConfirmedBooking(initialConfirmedObj);
 
           try {
             const verifyRes = await paymentsApi.verifyRazorpay({
@@ -1523,7 +1539,12 @@ export default function BookingFlow({
                     type="button"
                     onClick={handleExecuteBooking}
                     disabled={submitting}
-                    className="w-full h-12 rounded-xl bg-red-600 hover:bg-red-500 text-white font-mono text-xs font-bold uppercase tracking-wider shadow-[0_0_25px_rgba(239,68,68,0.5)] transition-all flex items-center justify-center gap-2 cursor-pointer disabled:opacity-50"
+                    className={cn(
+                      "w-full h-12 rounded-xl font-mono text-xs font-bold uppercase tracking-wider transition-all flex items-center justify-center gap-2 cursor-pointer disabled:opacity-50",
+                      paymentMethod === "CASH" && totalAmount > 0
+                        ? "bg-amber-500 hover:bg-amber-400 text-neutral-950 shadow-[0_0_25px_rgba(251,191,36,0.4)]"
+                        : "bg-red-600 hover:bg-red-500 text-white shadow-[0_0_25px_rgba(239,68,68,0.5)]"
+                    )}
                   >
                     {submitting ? (
                       <>
@@ -1538,7 +1559,7 @@ export default function BookingFlow({
                             ? "Confirm Free Registration & Issue Passes"
                             : paymentMethod === "ONLINE"
                             ? `Confirm & Pay ${formatINR(totalAmount)}`
-                            : "Confirm Cash Spot Pass"}
+                            : `Confirm Cash Spot Pass (Pay ${formatINR(totalAmount)} at Gate)`}
                         </span>
                       </>
                     )}
