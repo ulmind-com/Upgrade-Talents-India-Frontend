@@ -18,6 +18,7 @@ import {
 } from "@/lib/api";
 import { useAuth } from "@/components/motion/Providers";
 import { cn } from "@/lib/utils";
+import { useRealtimeSubscription } from "@/lib/realtime";
 
 // Web Audio sound synthesizer for instant ultra-premium gate chimes
 function playGateSound(type: "success" | "error" | "warning", enabled = true) {
@@ -220,6 +221,17 @@ export default function VolunteerScannerPage() {
       loadStatsAndHistory(selectedEventId);
     }
   }, [selectedEventId, loadStatsAndHistory]);
+
+  // Real-time synchronization for volunteer check-ins and gate entries
+  useRealtimeSubscription(
+    selectedEventId
+      ? [`event:${selectedEventId}`, "admin:volunteers", "admin:events", "global"]
+      : ["admin:volunteers", "admin:events", "global"],
+    useCallback(() => {
+      loadStatsAndHistory(selectedEventId || undefined);
+    }, [selectedEventId, loadStatsAndHistory]),
+    8000
+  );
 
   const activeEvent =
     assignedEvents.find((e) => (e.event_id || e.id) === selectedEventId) || assignedEvents[0];

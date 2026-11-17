@@ -11,6 +11,7 @@ import { imageFor, cn } from "@/lib/utils";
 import Link from "next/link";
 import VerifiedBadge from "@/components/ui/VerifiedBadge";
 import { useAuth } from "@/components/motion/Providers";
+import { useRealtimeSubscription } from "@/lib/realtime";
 
 type Row = {
   rank?: number;
@@ -424,38 +425,47 @@ export default function LeaderboardView({
     }
   }, []);
 
-  // Real-time live scores via WebSocket
-  useEffect(() => {
-    if (!compId || typeof window === "undefined") return;
-    let ws: WebSocket | null = null;
-    try {
-      ws = new WebSocket(competeApi.socketUrl(compId));
-      ws.onmessage = (ev) => {
-        try {
-          const payload = JSON.parse(ev.data);
-          if (payload.type === "INITIAL_STATE" && Array.isArray(payload.leaderboard)) {
-            setRows(payload.leaderboard);
-            if (Array.isArray(payload.categories)) setCategories(payload.categories);
-            if (payload.category_leaderboards) setCategoryLeaderboards(payload.category_leaderboards);
-          } else if (
-            payload.type === "LEADERBOARD_UPDATED" ||
-            payload.type === "SCORE_SUBMITTED" ||
-            payload.type === "LIVE_SCORE_BROADCAST"
-          ) {
-            publicApi.leaderboard(compId).then((d) => {
-              if (Array.isArray(d?.leaderboard)) setRows(d.leaderboard);
-              if (Array.isArray(d?.categories)) setCategories(d.categories);
-              if (d?.category_leaderboards) setCategoryLeaderboards(d.category_leaderboards);
-            }).catch(() => {});
-          }
-        } catch {}
-      };
-    } catch {}
+  // Real-time live scores and leaderboard synchronization
+  useRealtimeSubscription(
+    compId ? [`competition:${compId}`, "admin:competitions", "global"] : ["global"],
+    useCallback((evt) => {
+      const data = evt.data || {};
+      const targetCid = String(data.competition_id || evt.channel?.replace("competition:", "") || "");
+      if (compId && targetCid && targetCid !== String(compId)) {
+        return;
+      }
 
-    return () => {
-      if (ws && ws.readyState === WebSocket.OPEN) ws.close();
-    };
-  }, [compId]);
+      // If the event provided full recalculated leaderboard in the broadcast payload:
+      if (Array.isArray(data.leaderboard) && data.leaderboard.length > 0) {
+        setRows(data.leaderboard);
+        if (data.categories && Array.isArray(data.categories)) {
+          setCategories(data.categories);
+        }
+        if (data.category_leaderboards && typeof data.category_leaderboards === "object") {
+          setCategoryLeaderboards(data.category_leaderboards);
+        }
+        if (data.score_visible_for_public !== undefined) {
+          setIsScorePublic(Boolean(data.score_visible_for_public));
+        }
+      } else {
+        // Fetch round leaderboard if active round is selected, otherwise general leaderboard
+        if (activeRoundNumber && activeRoundNumber > 1) {
+          publicApi.roundLeaderboard(compId, activeRoundNumber).then((d: any) => {
+            if (Array.isArray(d?.leaderboard)) setRows(d.leaderboard);
+            if (Array.isArray(d?.categories)) setCategories(d.categories);
+            if (d?.category_leaderboards) setCategoryLeaderboards(d.category_leaderboards);
+          }).catch(() => {});
+        } else {
+          publicApi.leaderboard(compId).then((d: any) => {
+            if (Array.isArray(d?.leaderboard)) setRows(d.leaderboard);
+            if (Array.isArray(d?.categories)) setCategories(d.categories);
+            if (d?.category_leaderboards) setCategoryLeaderboards(d.category_leaderboards);
+          }).catch(() => {});
+        }
+      }
+    }, [compId, activeRoundNumber]),
+    6000
+  );
 
   const handleSelectComp = (newId: string) => {
     if (!newId) return;

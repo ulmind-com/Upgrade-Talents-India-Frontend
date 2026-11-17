@@ -25,6 +25,7 @@ import { Badge, Button, Spotlights } from "@/components/ui/Primitives";
 import { cn, imageFor, formatEventDate } from "@/lib/utils";
 import { getCompetitionLifecycle } from "@/lib/competition-lifecycle";
 import VerifiedBadge from "@/components/ui/VerifiedBadge";
+import { useRealtimeSubscription } from "@/lib/realtime";
 
 const EASE = [0.16, 1, 0.3, 1] as const;
 
@@ -341,15 +342,25 @@ export default function JudgeDashboardPage() {
     }
   }, []);
 
-  // Poll real-time live stage performer every 6 seconds without resetting active evaluation
-  useEffect(() => {
-    if (!selectedComp?._id) return;
-    loadStagePerformer(selectedComp._id);
-    const interval = setInterval(() => {
+  // Real-time live stage, score, and competition updates
+  useRealtimeSubscription(
+    selectedComp?._id
+      ? [`competition:${selectedComp._id}`, "admin:competitions", "global"]
+      : ["global"],
+    useCallback((evt) => {
+      if (!selectedComp?._id) return;
+      const data = evt.data || {};
+      const targetCid = String(data.competition_id || evt.channel?.replace("competition:", "") || "");
+      if (targetCid && targetCid !== String(selectedComp._id)) {
+        return;
+      }
+      // Always refresh live stage performer
       loadStagePerformer(selectedComp._id);
-    }, 6000);
-    return () => clearInterval(interval);
-  }, [selectedComp?._id, loadStagePerformer]);
+      // Refresh contestants and standings in background
+      loadContestantsForComp(selectedComp._id, selectedRound);
+    }, [selectedComp?._id, selectedRound, loadStagePerformer, loadContestantsForComp]),
+    6000
+  );
 
   const handleScoreLivePerformer = (performer: any) => {
     if (!performer) return;

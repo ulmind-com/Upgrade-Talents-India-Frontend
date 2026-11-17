@@ -13,6 +13,7 @@ import { SectionLabel, Badge } from "@/components/ui/Primitives";
 import { useAuth } from "@/components/motion/Providers";
 import { publicApi, certificatesApi, profileApi } from "@/lib/api";
 import { imageFor, formatEventDate } from "@/lib/utils";
+import { useRealtimeSubscription } from "@/lib/realtime";
 
 type LeaderboardEntry = {
   rank?: number;
@@ -142,6 +143,36 @@ export default function CompetitionResults({
         .finally(() => setLoading(false));
     }
   }, [compId, initialSnapshot]);
+
+  // Live results and score synchronization
+  useRealtimeSubscription(
+    compId ? [`competition:${compId}`, "admin:competitions", "global"] : ["global"],
+    (evt) => {
+      const data = evt.data || {};
+      const targetCid = String(data.competition_id || evt.channel?.replace("competition:", "") || "");
+      if (compId && targetCid && targetCid !== String(compId)) {
+        return;
+      }
+      if (selectedRound) {
+        publicApi.roundLeaderboard(compId, selectedRound).then((res: any) => {
+          if (res) {
+            setSnapshot((prev) => ({
+              ...prev,
+              category: res.category,
+              categories: res.categories || prev?.categories,
+              category_leaderboards: res.category_leaderboards || prev?.category_leaderboards,
+              leaderboard: res.leaderboard || [],
+            }));
+          }
+        }).catch(() => {});
+      } else {
+        publicApi.results(compId).then((data) => {
+          if (data) setSnapshot(data);
+        }).catch(() => {});
+      }
+    },
+    8000
+  );
 
   // Check current user's enrollment/submission/certificate
   useEffect(() => {

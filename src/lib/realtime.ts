@@ -45,7 +45,7 @@ class WebsiteRealtimeClient {
         this.eventSource = null;
       }
 
-      const streamUrl = `${API_BASE}/api/realtime/stream?channels=global,admin:events,*`;
+      const streamUrl = `${API_BASE}/api/realtime/stream?channels=global,admin:events,admin:competitions,admin:volunteers,*`;
       const es = new EventSource(streamUrl);
 
       es.onopen = () => {
@@ -70,7 +70,15 @@ class WebsiteRealtimeClient {
         "CASH_COLLECTED",
         "STAGE_UPDATE",
         "COMPETITION_UPDATE",
-        "COMPETITION_REGISTRATION_CONFIRMED"
+        "COMPETITION_REGISTRATION_CONFIRMED",
+        "score_submitted",
+        "LEADERBOARD_UPDATED",
+        "round_advanced",
+        "results_published",
+        "scores_visibility_changed",
+        "VOLUNTEER_ASSIGNED",
+        "VOLUNTEER_REMOVED",
+        "VOLUNTEER_ENTRY"
       ];
 
       eventNames.forEach((evtName) => {
