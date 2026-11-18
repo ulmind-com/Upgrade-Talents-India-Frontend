@@ -230,7 +230,7 @@ export default function VolunteerScannerPage() {
     useCallback(() => {
       loadStatsAndHistory(selectedEventId || undefined);
     }, [selectedEventId, loadStatsAndHistory]),
-    8000
+    0
   );
 
   const activeEvent =
@@ -465,9 +465,9 @@ export default function VolunteerScannerPage() {
       );
 
       playGateSound("success", soundEnabled);
-      const admittedNow = res.admitted_now || quantity;
+      const admittedNow = res.admitted_now || (res as any).already_admitted ? (res.admitted_now || quantity) : quantity;
 
-      if (collectCash) {
+      if (collectCash || res.cash_collect_done) {
         setCheckInSuccess(`✅ ₹${cashAmount.toLocaleString("en-IN")} Cash Collected & Admitted ${admittedNow} attendee(s)!`);
         setCashCollectedTotal((prev) => prev + cashAmount);
         setCashCollectedCount((prev) => prev + admittedNow);
@@ -521,8 +521,31 @@ export default function VolunteerScannerPage() {
         };
       });
     } catch (err: any) {
+      const errMsg = String(err?.message || "");
+      // If error indicates ticket was already admitted or checked in:
+      if (
+        errMsg.toLowerCase().includes("already checked in") ||
+        errMsg.toLowerCase().includes("already scanned") ||
+        errMsg.toLowerCase().includes("already entered") ||
+        errMsg.toLowerCase().includes("already admitted")
+      ) {
+        // Re-check ticket state to verify if our admission actually landed in the database!
+        try {
+          const recheck = await volunteerScannerApi.verifyTicket(currentVerification.rawToken, selectedEventId || undefined);
+          if (recheck?.ticket?.is_checked_in) {
+            playGateSound("success", soundEnabled);
+            setCheckInSuccess(
+              collectCash
+                ? `✅ ₹${cashAmount.toLocaleString("en-IN")} Cash Collected & Admitted ${quantity} attendee(s)!`
+                : `✅ Entry Confirmed! All ${quantity} attendee(s) admitted.`
+            );
+            loadStatsAndHistory(selectedEventId);
+            return;
+          }
+        } catch {}
+      }
       playGateSound("error", soundEnabled);
-      setVerifyError(err?.message || "Check-in failed. Please verify with event supervisor.");
+      setVerifyError(errMsg || "Check-in failed. Please verify with event supervisor.");
     } finally {
       setCheckingIn(false);
     }

@@ -323,9 +323,9 @@ export default function DashboardPage() {
     }
   }, []);
 
-  const loadAll = useCallback(() => {
+  const loadAll = useCallback((isSilent = false) => {
     if (!user) return;
-    setLoading(true);
+    if (!isSilent) setLoading(true);
     Promise.allSettled([
       bookingsApi.myTickets(),
       bookingsApi.my(),
@@ -409,9 +409,9 @@ export default function DashboardPage() {
   useRealtimeSubscription(
     user?.email ? [`user:${user.email}`, "admin:events", "global"] : ["global"],
     () => {
-      loadAll();
+      loadAll(true);
     },
-    10000
+    0
   );
 
   const formatCompDate = useCallback((dateVal?: string) => {

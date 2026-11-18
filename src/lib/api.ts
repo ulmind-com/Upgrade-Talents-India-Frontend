@@ -165,14 +165,33 @@ export async function apiFetch<T = any>(path: string, opts: Opts = {}): Promise<
     init.signal = AbortSignal.timeout(READ_TIMEOUT_MS);
   }
 
-  let res: Response;
-  try {
-    res = await fetch(url, init);
-  } catch (e: any) {
-    if (e?.name === "TimeoutError" || e?.name === "AbortError") {
-      throw new ApiError("The server took too long to respond. Please try again.", 0);
+  let res: Response | null = null;
+  let lastError: any = null;
+  const maxAttempts = method === "GET" ? 1 : 2;
+
+  for (let attempt = 1; attempt <= maxAttempts; attempt++) {
+    try {
+      res = await fetch(url, init);
+      break;
+    } catch (e: any) {
+      lastError = e;
+      if (e?.name === "TimeoutError" || e?.name === "AbortError") {
+        throw new ApiError("The server took too long to respond. Please try again.", 0);
+      }
+      if (attempt < maxAttempts) {
+        await new Promise((r) => setTimeout(r, 600));
+        continue;
+      }
     }
-    throw new ApiError("Network unreachable. Check your connection and try again.", 0);
+  }
+
+  if (!res) {
+    throw new ApiError(
+      lastError?.message && !lastError.message.includes("Failed to fetch")
+        ? lastError.message
+        : "Network connection unreachable. Check your internet connection and try again.",
+      0
+    );
   }
 
   const text = await res.text();
