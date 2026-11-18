@@ -522,28 +522,29 @@ export default function VolunteerScannerPage() {
       });
     } catch (err: any) {
       const errMsg = String(err?.message || "");
-      // If error indicates ticket was already admitted or checked in:
-      if (
-        errMsg.toLowerCase().includes("already checked in") ||
-        errMsg.toLowerCase().includes("already scanned") ||
-        errMsg.toLowerCase().includes("already entered") ||
-        errMsg.toLowerCase().includes("already admitted")
-      ) {
-        // Re-check ticket state to verify if our admission actually landed in the database!
-        try {
-          const recheck = await volunteerScannerApi.verifyTicket(currentVerification.rawToken, selectedEventId || undefined);
-          if (recheck?.ticket?.is_checked_in) {
-            playGateSound("success", soundEnabled);
-            setCheckInSuccess(
-              collectCash
-                ? `✅ ₹${cashAmount.toLocaleString("en-IN")} Cash Collected & Admitted ${quantity} attendee(s)!`
-                : `✅ Entry Confirmed! All ${quantity} attendee(s) admitted.`
-            );
-            loadStatsAndHistory(selectedEventId);
-            return;
+      // Always re-check ticket status from the server to verify if check-in actually succeeded in DB
+      // (guards against network disconnects, gateway drops, or transient mobile network timeout)
+      try {
+        const recheck = await volunteerScannerApi.verifyTicket(currentVerification.rawToken, selectedEventId || undefined);
+        if (recheck?.ticket?.is_checked_in) {
+          playGateSound("success", soundEnabled);
+          setCheckInSuccess(
+            collectCash
+              ? `✅ ₹${cashAmount.toLocaleString("en-IN")} Cash Collected & Admitted ${quantity} attendee(s)!`
+              : `✅ Entry Confirmed! All ${quantity} attendee(s) admitted.`
+          );
+          setAdmittedCount((c) => c + quantity);
+          if (collectCash) {
+            setCashCollectedTotal((prev) => prev + cashAmount);
+            setCashCollectedCount((prev) => prev + quantity);
+          } else {
+            setOnlineCheckinsCount((prev) => prev + quantity);
           }
-        } catch {}
-      }
+          loadStatsAndHistory(selectedEventId);
+          return;
+        }
+      } catch {}
+
       playGateSound("error", soundEnabled);
       setVerifyError(errMsg || "Check-in failed. Please verify with event supervisor.");
     } finally {
@@ -1083,7 +1084,31 @@ export default function VolunteerScannerPage() {
                   return (
                     <div className="space-y-4">
                       {/* Status Banner */}
-                      {t.is_checked_in ? (
+                      {checkInSuccess ? (
+                        /* ── SUCCESSFUL ADMISSION BANNER (PRIORITY #1!) ── */
+                        <div className="p-5 rounded-2xl bg-gradient-to-r from-emerald-500/20 via-emerald-600/20 to-teal-500/20 border-2 border-emerald-500/60 shadow-xl shadow-emerald-950/40 animate-in fade-in zoom-in-95 space-y-3">
+                          <div className="flex items-center gap-3.5">
+                            <div className="w-12 h-12 rounded-xl bg-emerald-500/30 text-emerald-300 flex items-center justify-center flex-shrink-0 border border-emerald-400/50">
+                              <CheckCircle2 className="w-7 h-7" />
+                            </div>
+                            <div className="flex-1 min-w-0">
+                              <div className="text-base sm:text-lg font-black text-emerald-300 uppercase tracking-wide">
+                                {isCash ? "Cash Collected & Entry Confirmed!" : "Entry Confirmed!"}
+                              </div>
+                              <div className="text-xs sm:text-sm text-emerald-100 font-medium mt-0.5">
+                                {checkInSuccess}
+                              </div>
+                            </div>
+                          </div>
+                          {isCash && (
+                            <div className="p-3 rounded-xl bg-emerald-950/60 border border-emerald-500/40 flex items-center justify-between text-xs font-mono">
+                              <span className="text-emerald-200">Cash Received at Gate:</span>
+                              <span className="text-emerald-300 font-black text-base">₹{cashAmount.toLocaleString("en-IN")}</span>
+                            </div>
+                          )}
+                        </div>
+                      ) : t.is_checked_in ? (
+                        /* ── DUPLICATE SCAN BANNER (ONLY WHEN SCANNING AN ALREADY-CHECKED-IN TICKET!) ── */
                         <div className="p-4 sm:p-5 rounded-2xl bg-rose-500/20 border-2 border-rose-500/70 flex items-start sm:items-center gap-3.5 shadow-xl shadow-rose-950/40 animate-in fade-in">
                           <div className="w-12 h-12 rounded-xl bg-rose-500/30 text-rose-300 flex items-center justify-center flex-shrink-0 border border-rose-400/50">
                             <XCircle className="w-7 h-7" />
@@ -1110,20 +1135,6 @@ export default function VolunteerScannerPage() {
                                 )}
                               </div>
                             )}
-                          </div>
-                        </div>
-                      ) : checkInSuccess ? (
-                        <div className="p-4 rounded-2xl bg-emerald-500/15 border-2 border-emerald-500/40 flex items-center gap-3 animate-in fade-in zoom-in-95 duration-200">
-                          <div className="w-10 h-10 rounded-xl bg-emerald-500/20 text-emerald-400 flex items-center justify-center flex-shrink-0">
-                            <CheckCircle2 className="w-6 h-6" />
-                          </div>
-                          <div>
-                            <div className="text-sm font-black text-emerald-300 uppercase tracking-wide">
-                              Entry Confirmed!
-                            </div>
-                            <div className="text-xs text-emerald-200/80">
-                              {checkInSuccess}
-                            </div>
                           </div>
                         </div>
                       ) : isCashPending ? (
@@ -1158,10 +1169,10 @@ export default function VolunteerScannerPage() {
                           </div>
                           <div>
                             <div className="text-sm font-black text-emerald-400 uppercase tracking-wide">
-                              {isCash ? "Cash Collected — Ready to Admit" : "Paid Online — Ready to Admit"}
+                              Ticket Verified • Online Paid
                             </div>
                             <div className="text-xs text-emerald-300/80">
-                              Pass matches this event. Please verify attendees below.
+                              Payment confirmed online. Ready to admit attendee(s).
                             </div>
                           </div>
                         </div>
@@ -1186,8 +1197,15 @@ export default function VolunteerScannerPage() {
                             {attendeesList.length} Ticket{attendeesList.length === 1 ? "" : "s"}
                           </span>
                           {isCash && (
-                            <span className="px-2.5 py-1 rounded-md bg-amber-500/20 border border-amber-500/30 text-amber-300 text-xs font-bold">
-                              {isCashPending ? "Cash Pending" : "Cash Done"}
+                            <span className={cn(
+                              "px-2.5 py-1 rounded-md text-xs font-bold border",
+                              checkInSuccess
+                                ? "bg-emerald-500/20 border-emerald-500/30 text-emerald-300"
+                                : isCashPending
+                                ? "bg-amber-500/20 border-amber-500/30 text-amber-300"
+                                : "bg-emerald-500/20 border-emerald-500/30 text-emerald-300"
+                            )}>
+                              {checkInSuccess ? "Cash Collected & Admitted" : isCashPending ? "Cash Pending" : "Cash Collected"}
                             </span>
                           )}
                         </div>
@@ -1277,7 +1295,7 @@ export default function VolunteerScannerPage() {
                               type="button"
                               onClick={() => handleConfirmAdmission(true)}
                               disabled={checkingIn}
-                              className="w-full py-5 px-6 rounded-2xl bg-gradient-to-r from-amber-500 via-amber-600 to-yellow-600 hover:from-amber-400 hover:to-yellow-500 text-slate-950 font-black text-base sm:text-lg shadow-xl shadow-amber-600/30 border border-amber-300/60 flex items-center justify-center gap-2 active:scale-[0.98] transition-all disabled:opacity-60 ring-2 ring-amber-400/40"
+                              className="w-full py-5 px-6 rounded-2xl bg-gradient-to-r from-amber-500 via-amber-600 to-yellow-600 hover:from-amber-400 hover:to-yellow-500 text-slate-950 font-black text-base sm:text-lg shadow-xl shadow-amber-600/30 border border-amber-300/60 flex items-center justify-center gap-2 active:scale-[0.98] transition-all disabled:opacity-60 ring-2 ring-amber-400/40 cursor-pointer"
                             >
                               {checkingIn ? (
                                 <div className="flex items-center gap-2">
@@ -1296,7 +1314,7 @@ export default function VolunteerScannerPage() {
                               type="button"
                               onClick={() => handleConfirmAdmission(false)}
                               disabled={checkingIn}
-                              className="w-full py-5 px-6 rounded-2xl bg-gradient-to-r from-emerald-500 via-emerald-600 to-teal-600 hover:from-emerald-400 hover:to-teal-500 text-white font-black text-lg shadow-xl shadow-emerald-600/30 border border-emerald-400/40 flex items-center justify-center gap-2 active:scale-[0.98] transition-all disabled:opacity-60"
+                              className="w-full py-5 px-6 rounded-2xl bg-gradient-to-r from-emerald-500 via-emerald-600 to-teal-600 hover:from-emerald-400 hover:to-teal-500 text-white font-black text-lg shadow-xl shadow-emerald-600/30 border border-emerald-400/40 flex items-center justify-center gap-2 active:scale-[0.98] transition-all disabled:opacity-60 cursor-pointer"
                             >
                               {checkingIn ? (
                                 <div className="flex items-center gap-2">
@@ -1311,14 +1329,34 @@ export default function VolunteerScannerPage() {
                               )}
                             </button>
                           )
+                        ) : checkInSuccess ? (
+                          <div className="space-y-3">
+                            <button
+                              type="button"
+                              onClick={handleScanNext}
+                              className="w-full py-5 px-6 rounded-2xl bg-gradient-to-r from-emerald-500 via-emerald-600 to-teal-600 hover:from-emerald-400 hover:to-teal-500 text-slate-950 font-black text-base sm:text-lg shadow-xl shadow-emerald-600/30 border border-emerald-300/60 flex items-center justify-center gap-2 active:scale-[0.98] transition-all cursor-pointer ring-2 ring-emerald-400/40"
+                            >
+                              <Camera className="w-6 h-6 text-slate-950" />
+                              <span>Scan Next Ticket</span>
+                            </button>
+                            <button
+                              type="button"
+                              onClick={() => {
+                                setCurrentVerification(null);
+                                setCheckInSuccess(null);
+                                setScreen("home");
+                              }}
+                              className="w-full py-3.5 px-6 rounded-xl bg-slate-900/80 hover:bg-slate-800 text-slate-400 hover:text-white font-bold text-xs uppercase tracking-wider border border-slate-800 flex items-center justify-center gap-2 cursor-pointer transition-colors"
+                            >
+                              <span>Back to Shift Overview</span>
+                            </button>
+                          </div>
                         ) : (
                           <div className="space-y-3">
-                            {t.is_checked_in && (
-                              <div className="w-full py-4 px-6 rounded-2xl bg-rose-500/20 border-2 border-rose-500/40 text-rose-300 font-black text-sm text-center flex items-center justify-center gap-2">
-                                <XCircle className="w-5 h-5 shrink-0" />
-                                <span>ENTRY REFUSED — ALREADY CHECKED IN</span>
-                              </div>
-                            )}
+                            <div className="w-full py-4 px-6 rounded-2xl bg-rose-500/20 border-2 border-rose-500/40 text-rose-300 font-black text-sm text-center flex items-center justify-center gap-2">
+                              <XCircle className="w-5 h-5 shrink-0" />
+                              <span>ENTRY REFUSED — ALREADY CHECKED IN</span>
+                            </div>
                             <button
                               type="button"
                               onClick={handleScanNext}
