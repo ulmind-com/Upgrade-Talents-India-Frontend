@@ -341,7 +341,21 @@ export type HomepageStatItem = {
   icon?: string;
 };
 
+export interface HomepageSectionItem {
+  id: string;
+  name: string;
+  description?: string;
+  category?: string;
+  section_type: string;
+  is_enabled: boolean;
+  display_order: number;
+  badge?: string;
+  config?: Record<string, any>;
+}
+
 export type HomepagePayload = {
+  homepage_sections?: HomepageSectionItem[];
+  marquee_words?: string[];
   brand: {
     name?: string; logo?: string; favicon?: string;
     tagline?: string; title?: string; description?: string;
