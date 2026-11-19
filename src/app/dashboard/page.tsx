@@ -642,13 +642,27 @@ export default function DashboardPage() {
         {!loading && tab === "tickets" && (() => {
           const activeTicketsList = tickets.filter((t) => {
             const isExp = isEventExpired(t.event_date || t.issued_at, t.event_time);
-            const isUsed = Boolean(t.is_checked_in || t.status === "USED" || (t.quantity && t.admitted_count && t.admitted_count >= t.quantity));
+            const isUsed = Boolean(
+              t.is_checked_in ||
+              t.status === "USED" ||
+              (t as any).is_fully_used ||
+              (t as any).status_display === "ALREADY_USED" ||
+              (t as any).can_download === false ||
+              (t.quantity && t.admitted_count && t.admitted_count >= t.quantity && t.admitted_count > 0)
+            );
             return !isExp && !isUsed;
           });
 
           const usedTicketsList = tickets.filter((t) => {
             const isExp = isEventExpired(t.event_date || t.issued_at, t.event_time);
-            const isUsed = Boolean(t.is_checked_in || t.status === "USED" || (t.quantity && t.admitted_count && t.admitted_count >= t.quantity));
+            const isUsed = Boolean(
+              t.is_checked_in ||
+              t.status === "USED" ||
+              (t as any).is_fully_used ||
+              (t as any).status_display === "ALREADY_USED" ||
+              (t as any).can_download === false ||
+              (t.quantity && t.admitted_count && t.admitted_count >= t.quantity && t.admitted_count > 0)
+            );
             return isExp || isUsed;
           });
 
@@ -727,7 +741,7 @@ export default function DashboardPage() {
                           : "text-zinc-400 hover:text-rose-400"
                       )}
                     >
-                      Used / Past ({usedTicketsList.length})
+                      Already Used / Past ({usedTicketsList.length})
                     </button>
                   </div>
                 )}
@@ -808,7 +822,7 @@ export default function DashboardPage() {
                             <div className="flex items-center gap-2">
                               {isFullyCheckedIn ? (
                                 <span className="inline-flex items-center gap-1.5 rounded-full border border-rose-500/30 bg-rose-500/15 px-3 py-1 font-mono text-[11px] font-bold text-rose-300">
-                                  <CheckCircle2 className="size-3" /> Entry Completed ({bQty} Admitted)
+                                  <CheckCircle2 className="size-3" /> Already Used ({bQty} Admitted)
                                 </span>
                               ) : isConfirmed ? (
                                 <span className="inline-flex items-center gap-1.5 rounded-full border border-emerald-500/30 bg-emerald-500/15 px-3 py-1 font-mono text-[11px] font-bold text-emerald-300">
@@ -840,7 +854,7 @@ export default function DashboardPage() {
                                 {bQty} {bQty > 1 ? "Persons (Group Admission)" : "Person"}
                               </p>
                               <p className="text-[11px] text-zinc-400">
-                                {isFullyCheckedIn ? "All attendees admitted" : `${checkedInCount} / ${bQty} checked in`}
+                                {isFullyCheckedIn ? "Already Used — All attendees admitted" : `${checkedInCount} / ${bQty} checked in`}
                               </p>
                             </div>
 
@@ -856,9 +870,15 @@ export default function DashboardPage() {
                               <button
                                 type="button"
                                 onClick={() => setTicketSubView("passes")}
-                                className="inline-flex items-center gap-1.5 rounded-xl border border-white/10 bg-white/[0.05] px-3.5 py-2 font-mono text-xs font-semibold text-white hover:bg-white/10 transition-all cursor-pointer"
+                                className={cn(
+                                  "inline-flex items-center gap-1.5 rounded-xl border px-3.5 py-2 font-mono text-xs font-semibold transition-all cursor-pointer",
+                                  isFullyCheckedIn
+                                    ? "border-rose-500/30 bg-rose-500/10 text-rose-300 hover:bg-rose-500/20"
+                                    : "border-white/10 bg-white/[0.05] text-white hover:bg-white/10"
+                                )}
                               >
-                                <QrCode className="size-3.5 text-[var(--accent)]" /> View Pass
+                                <QrCode className={cn("size-3.5", isFullyCheckedIn ? "text-rose-400" : "text-[var(--accent)]")} />
+                                {isFullyCheckedIn ? "View Pass (Already Used)" : "View Pass"}
                               </button>
                             </div>
                           </div>

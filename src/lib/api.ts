@@ -448,6 +448,8 @@ export type MyTicket = {
   is_checked_in: boolean;
   is_fully_used?: boolean;
   status?: string;
+  status_display?: string;
+  can_download?: boolean;
   check_in_time?: string | null;
   issued_at: string;
   event_title?: string;

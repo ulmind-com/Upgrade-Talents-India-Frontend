@@ -269,7 +269,7 @@ export function TicketPass({ ticket, qrData, defaultVariant }: TicketPassProps) 
 
   // Download the ticket — and nothing but the ticket — as a PNG
   const handleDownload = async () => {
-    if (!ticketRef.current || downloading) return;
+    if (!ticketRef.current || downloading || isUsed) return;
     setDownloading(true);
     setDownloadSuccess(false);
 
@@ -422,7 +422,14 @@ export function TicketPass({ ticket, qrData, defaultVariant }: TicketPassProps) 
   const coverImage = coverBase64 || rawCover;
 
   const admittedCount = Number(ticket.admitted_count || (ticket.is_checked_in ? quantity : 0));
-  const isUsed = Boolean(ticket.is_checked_in || ticket.status === "USED" || (quantity > 0 && admittedCount >= quantity));
+  const isUsed = Boolean(
+    ticket.is_checked_in ||
+    ticket.status === "USED" ||
+    (ticket as any).is_fully_used ||
+    (ticket as any).status_display === "ALREADY_USED" ||
+    (ticket as any).can_download === false ||
+    (quantity > 0 && admittedCount >= quantity && admittedCount > 0)
+  );
   const isExpired = isEventExpired(ticket.event_date || ticket.issued_at, ticket.event_time);
   const isVoid = isUsed || isExpired;
 
@@ -433,10 +440,10 @@ export function TicketPass({ ticket, qrData, defaultVariant }: TicketPassProps) 
         <div className="flex items-center gap-2">
           {isUsed ? (
             <div className="flex items-center gap-2">
-              <span className="size-2 rounded-full bg-rose-500" />
+              <span className="size-2 rounded-full bg-rose-500 animate-pulse" />
               <span className="inline-flex items-center gap-1.5 rounded-full bg-rose-500/15 border border-rose-500/30 px-3 py-1 text-[11px] font-mono font-bold uppercase tracking-[0.15em] text-rose-400">
                 <TicketX className="size-3 text-rose-400" />
-                Ticket Used • Validity Ended ({admittedCount}/{quantity} Admitted)
+                Already Used • Gate Entry Completed ({admittedCount}/{quantity} Admitted)
               </span>
             </div>
           ) : isExpired ? (
@@ -461,80 +468,89 @@ export function TicketPass({ ticket, qrData, defaultVariant }: TicketPassProps) 
         </div>
 
         <div className="flex items-center gap-2">
-          <Button
-            onClick={handlePrint}
-            disabled={printing}
-            variant="outline"
-            size="sm"
-            className={cn("gap-2 text-xs", isVoid && "opacity-75")}
-          >
-            {printing ? (
-              <Loader2 className="size-3.5 animate-spin" />
-            ) : (
-              <Printer className="size-3.5" />
-            )}
-            <span>{printing ? "Preparing…" : isUsed ? "Print (Used Pass)" : isExpired ? "Print (Expired)" : "Print"}</span>
-          </Button>
+          {isUsed ? (
+            <div className="inline-flex items-center gap-2 rounded-full border border-rose-500/40 bg-rose-500/15 px-4 py-2 font-mono text-xs font-bold text-rose-300 shadow-md">
+              <TicketX className="size-4 text-rose-400" />
+              <span>Already Used — Download Disabled</span>
+            </div>
+          ) : (
+            <>
+              <Button
+                onClick={handlePrint}
+                disabled={printing}
+                variant="outline"
+                size="sm"
+                className={cn("gap-2 text-xs", isExpired && "opacity-75")}
+              >
+                {printing ? (
+                  <Loader2 className="size-3.5 animate-spin" />
+                ) : (
+                  <Printer className="size-3.5" />
+                )}
+                <span>{printing ? "Preparing…" : isExpired ? "Print (Expired)" : "Print"}</span>
+              </Button>
 
-          <Button
-            onClick={handleEmailTicket}
-            disabled={emailing}
-            variant="outline"
-            size="sm"
-            className={cn(
-              "gap-2 text-xs transition-colors",
-              emailSuccess && "border-emerald-500/50 text-emerald-400 bg-emerald-500/10",
-              emailError && "border-rose-500/50 text-rose-400 bg-rose-500/10"
-            )}
-          >
-            {emailing ? (
-              <Loader2 className="size-3.5 animate-spin" />
-            ) : emailSuccess ? (
-              <Check className="size-3.5 text-emerald-400" />
-            ) : (
-              <Mail className="size-3.5" />
-            )}
-            <span>
-              {emailing
-                ? "Sending…"
-                : emailSuccess
-                ? "Pass Emailed!"
-                : emailError
-                ? "Failed to send"
-                : "Email Pass"}
-            </span>
-          </Button>
+              <Button
+                onClick={handleEmailTicket}
+                disabled={emailing}
+                variant="outline"
+                size="sm"
+                className={cn(
+                  "gap-2 text-xs transition-colors",
+                  emailSuccess && "border-emerald-500/50 text-emerald-400 bg-emerald-500/10",
+                  emailError && "border-rose-500/50 text-rose-400 bg-rose-500/10"
+                )}
+              >
+                {emailing ? (
+                  <Loader2 className="size-3.5 animate-spin" />
+                ) : emailSuccess ? (
+                  <Check className="size-3.5 text-emerald-400" />
+                ) : (
+                  <Mail className="size-3.5" />
+                )}
+                <span>
+                  {emailing
+                    ? "Sending…"
+                    : emailSuccess
+                    ? "Pass Emailed!"
+                    : emailError
+                    ? "Failed to send"
+                    : "Email Pass"}
+                </span>
+              </Button>
 
-          <button
-            type="button"
-            onClick={handleDownload}
-            disabled={downloading}
-            className={cn(
-              "inline-flex items-center gap-2 rounded-full px-4 py-2 text-xs font-bold text-white shadow-lg transition-transform hover:scale-105 active:scale-95 disabled:opacity-50 cursor-pointer",
-              isVoid && "opacity-85"
-            )}
-            style={{
-              background: isVoid ? "linear-gradient(145deg, #4b5563 0%, #1f2937 100%)" : v.gradient,
-              boxShadow: isVoid ? "0 4px 14px rgba(0,0,0,0.3)" : `0 8px 24px ${v.primary}40`,
-            }}
-          >
-            {downloading ? (
-              <>
-                <Loader2 className="size-3.5 animate-spin" />
-                <span>Generating PNG…</span>
-              </>
-            ) : downloadSuccess ? (
-              <>
-                <CheckCircle2 className="size-3.5 text-white" />
-                <span>Downloaded!</span>
-              </>
-            ) : (
-              <>
-                <Download className="size-3.5" />
-                <span>{isUsed ? "Download Pass (Used)" : isExpired ? "Download Pass (Expired)" : "Download Ticket (PNG)"}</span>
-              </>
-            )}
-          </button>
+              <button
+                type="button"
+                onClick={handleDownload}
+                disabled={downloading}
+                className={cn(
+                  "inline-flex items-center gap-2 rounded-full px-4 py-2 text-xs font-bold text-white shadow-lg transition-transform hover:scale-105 active:scale-95 disabled:opacity-50 cursor-pointer",
+                  isExpired && "opacity-85"
+                )}
+                style={{
+                  background: isExpired ? "linear-gradient(145deg, #4b5563 0%, #1f2937 100%)" : v.gradient,
+                  boxShadow: isExpired ? "0 4px 14px rgba(0,0,0,0.3)" : `0 8px 24px ${v.primary}40`,
+                }}
+              >
+                {downloading ? (
+                  <>
+                    <Loader2 className="size-3.5 animate-spin" />
+                    <span>Generating PNG…</span>
+                  </>
+                ) : downloadSuccess ? (
+                  <>
+                    <CheckCircle2 className="size-3.5 text-white" />
+                    <span>Downloaded!</span>
+                  </>
+                ) : (
+                  <>
+                    <Download className="size-3.5" />
+                    <span>{isExpired ? "Download Pass (Expired)" : "Download Ticket (PNG)"}</span>
+                  </>
+                )}
+              </button>
+            </>
+          )}
         </div>
       </div>
 
@@ -845,10 +861,10 @@ export function TicketPass({ ticket, qrData, defaultVariant }: TicketPassProps) 
 
                   {/* Stamp overlay across QR code when used */}
                   {isUsed && (
-                    <div className="absolute inset-0 z-20 flex flex-col items-center justify-center bg-rose-950/30 backdrop-blur-[1px] p-1">
-                      <div className="rotate-[-14deg] rounded border-2 border-dashed border-red-600 bg-red-600 px-2 py-0.5 shadow-md">
-                        <span className="font-display text-[9px] font-black uppercase tracking-wider text-white">
-                          VOID • USED
+                    <div className="absolute inset-0 z-20 flex flex-col items-center justify-center bg-rose-950/40 backdrop-blur-[1px] p-1">
+                      <div className="rotate-[-12deg] rounded border-2 border-dashed border-red-600 bg-red-600/95 px-2.5 py-1 shadow-md">
+                        <span className="font-display text-[10px] font-black uppercase tracking-wider text-white">
+                          ALREADY USED
                         </span>
                       </div>
                       <span className="mt-1 font-mono text-[7.5px] font-extrabold text-red-700 bg-white/95 px-1.5 py-0.5 rounded shadow-sm">
@@ -873,7 +889,7 @@ export function TicketPass({ ticket, qrData, defaultVariant }: TicketPassProps) 
                     {isUsed ? (
                       <>
                         <TicketX className="size-2.5 text-red-400" />
-                        <span>Entry Used ({admittedCount}/{quantity})</span>
+                        <span>Already Used ({admittedCount}/{quantity})</span>
                       </>
                     ) : isExpired ? (
                       <>
@@ -893,21 +909,30 @@ export function TicketPass({ ticket, qrData, defaultVariant }: TicketPassProps) 
             {/* ── END INNER WRAPPER ── */}
             </div>
 
-            {/* ── USED BADGE / WATERMARK OVERLAY (CAPTURED IN DOWNLOAD PNG) ── */}
+            {/* ── ALREADY USED BADGE / OFFICIAL INK STAMP OVERLAY ── */}
             {isUsed && (
               <div className="absolute inset-0 z-40 flex flex-col items-center justify-center p-6 pointer-events-none select-none">
-                <div className="flex flex-col items-center justify-center gap-1.5 rounded-2xl border-2 border-red-500 bg-zinc-950/95 px-8 py-5 shadow-[0_0_50px_rgba(239,68,68,0.7)] backdrop-blur-md transform -rotate-2">
-                  <div className="flex items-center gap-2.5">
-                    <TicketX className="size-8 text-red-500" />
-                    <span className="font-display text-3xl md:text-4xl font-black uppercase tracking-[0.25em] text-red-500 drop-shadow">
-                      ENTRY USED
-                    </span>
+                <div className="flex flex-col items-center justify-center gap-2 rounded-2xl border-[3.5px] border-dashed border-red-500 bg-zinc-950/95 px-10 py-6 shadow-[0_0_60px_rgba(239,68,68,0.75)] backdrop-blur-md transform -rotate-3 transition-transform">
+                  <div className="flex items-center gap-3">
+                    <div className="rounded-full bg-red-500/20 p-2 border border-red-500/50">
+                      <TicketX className="size-8 text-red-500" />
+                    </div>
+                    <div className="flex flex-col items-center">
+                      <span className="font-display text-3xl md:text-5xl font-black uppercase tracking-[0.25em] text-red-500 drop-shadow-[0_2px_10px_rgba(239,68,68,0.6)]">
+                        ALREADY USED
+                      </span>
+                      <span className="text-[10px] font-mono font-bold tracking-[0.3em] uppercase text-red-300">
+                        OFFICIAL VENUE ADMISSION STAMP
+                      </span>
+                    </div>
                   </div>
-                  <p className="font-mono text-xs font-bold uppercase tracking-wider text-red-200">
-                    Validity Ended • {admittedCount} of {quantity} Person(s) Admitted
-                  </p>
-                  <span className="inline-flex items-center gap-1 rounded-full bg-red-500/20 px-3 py-1 font-mono text-[9.5px] font-bold uppercase tracking-widest text-red-300">
-                    Ticket Expired • Cannot be reused for gate entry
+                  <div className="flex flex-wrap items-center justify-center gap-3 mt-1">
+                    <p className="font-mono text-xs font-bold uppercase tracking-wider text-red-200 bg-red-950/70 border border-red-500/40 px-3 py-1 rounded-full">
+                      Gate Entry Completed • {admittedCount} of {quantity} Person(s) Admitted
+                    </p>
+                  </div>
+                  <span className="inline-flex items-center gap-1.5 rounded-full bg-red-500/20 border border-red-500/40 px-3.5 py-1 font-mono text-[10px] font-bold uppercase tracking-widest text-red-300">
+                    Pass Inactivated • Download & Re-entry Strictly Prohibited
                   </span>
                 </div>
               </div>
