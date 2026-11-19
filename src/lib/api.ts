@@ -396,6 +396,20 @@ export type HomepagePayload = {
   sponsor_popup?: GrandSponsorPopupConfig;
 };
 
+export type SponsorBannerCard = {
+  id: string;
+  sponsor_name?: string;
+  badge_text?: string;
+  title?: string;
+  subtitle?: string;
+  banner_image_url: string;
+  mobile_image_url?: string;
+  cta_text?: string;
+  cta_link?: string;
+  is_active?: boolean;
+  display_order?: number;
+};
+
 export type GrandSponsorPopupConfig = {
   is_enabled: boolean;
   sponsor_name?: string;
@@ -408,6 +422,9 @@ export type GrandSponsorPopupConfig = {
   cta_link?: string;
   show_mode?: "always" | "once_per_session" | "once_per_day" | string;
   auto_close_seconds?: number;
+  auto_scroll_enabled?: boolean;
+  auto_scroll_interval?: number;
+  banners?: SponsorBannerCard[];
 };
 
 export type PartnerItem = {
