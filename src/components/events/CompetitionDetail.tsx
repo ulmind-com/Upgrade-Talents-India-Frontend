@@ -109,13 +109,28 @@ const ALLOWED_AUDIO_EXTENSIONS = [
 ];
 
 function parseAgeRange(cat: any): { minAge: number | null; maxAge: number | null; label: string } {
-  if (!cat) return { minAge: null, maxAge: null, label: "Open" };
-  let minAge: number | null = cat.min_age != null && cat.min_age !== "" ? Number(cat.min_age) : null;
-  let maxAge: number | null = cat.max_age != null && cat.max_age !== "" ? Number(cat.max_age) : null;
+  if (!cat) return { minAge: null, maxAge: null, label: "Open for all ages" };
+  const catName = String(cat?.name || (typeof cat === "string" ? cat : "")).trim();
+  let minAge: number | null = cat.min_age != null && cat.min_age !== "" && !isNaN(Number(cat.min_age)) ? Number(cat.min_age) : null;
+  let maxAge: number | null = cat.max_age != null && cat.max_age !== "" && !isNaN(Number(cat.max_age)) ? Number(cat.max_age) : null;
 
-  const ageLimitStr = cat.age_limit || cat.age_range || (typeof cat === "string" ? cat : "");
+  const ageLimitStr = String(cat.age_limit || cat.age_range || (typeof cat === "string" ? cat : "")).trim();
+
+  // Explicit open age markers
+  if (ageLimitStr && /open|all\s*ages?|any/i.test(ageLimitStr)) {
+    return { minAge: null, maxAge: null, label: "Open for all ages" };
+  }
+
+  // Detect legacy default bug where Group was mistakenly assigned 8-14
+  const isGroup = catName.toLowerCase() === "group";
+  const desc = String(cat.description || "").trim();
+  const descIsGroupSize = desc && (/^\s*\d+\s*-\s*\d+\s*$/.test(desc) || /members|contestants|performers/i.test(desc));
+  if (isGroup && (descIsGroupSize || (minAge === 8 && maxAge === 14 && !/years|yrs|age/i.test(desc)))) {
+    return { minAge: null, maxAge: null, label: "Open for all ages" };
+  }
+
   if ((minAge == null || maxAge == null) && ageLimitStr) {
-    const s = String(ageLimitStr).trim().toLowerCase();
+    const s = ageLimitStr.toLowerCase();
     const m = s.match(/(\d{1,2})\s*(?:-|to|\.\.|and)\s*(\d{1,2})/);
     if (m) {
       const v1 = parseInt(m[1], 10);
@@ -189,7 +204,7 @@ function checkEligibility(cat: any, dobStr: string): {
   if (minAge == null && maxAge == null) {
     return {
       eligible: true,
-      age,
+      age: age >= 0 ? age : 0,
       minAge: null,
       maxAge: null,
       label,
@@ -944,7 +959,7 @@ export default function CompetitionDetail({
     setBusy(true);
     setMsg(null);
     try {
-      const chosenCat = selectedCategory || availableCategories[0]?.name || "Junior";
+      const chosenCat = selectedCategory || availableCategories[0]?.name || "General";
       const dobParam = participantDob.trim() || undefined;
 
       const el = await competeApi.eligibility(id, chosenCat, dobParam);
@@ -2727,14 +2742,20 @@ export default function CompetitionDetail({
                               <span className="mt-0.5 text-[10.5px] text-[var(--fg-muted)]">
                                 {catRange.label}
                               </span>
-                              {participantDob && hasAgeLimit && (
-                                <span className={cn(
-                                  "mt-1.5 rounded px-1.5 py-0.5 text-[9px] font-bold tracking-wide",
-                                  catEl.eligible
-                                    ? "bg-emerald-500/20 text-emerald-400 border border-emerald-500/30"
-                                    : "bg-rose-500/20 text-rose-300 border border-rose-500/30"
-                                )}>
-                                  {catEl.eligible ? "✓ Eligible" : `✕ Age ${catEl.age}`}
+                              {hasAgeLimit ? (
+                                participantDob ? (
+                                  <span className={cn(
+                                    "mt-1.5 rounded px-1.5 py-0.5 text-[9px] font-bold tracking-wide",
+                                    catEl.eligible
+                                      ? "bg-emerald-500/20 text-emerald-400 border border-emerald-500/30"
+                                      : "bg-rose-500/20 text-rose-300 border border-rose-500/30"
+                                  )}>
+                                    {catEl.eligible ? "✓ Eligible" : `✕ Age ${catEl.age}`}
+                                  </span>
+                                ) : null
+                              ) : (
+                                <span className="mt-1.5 rounded px-1.5 py-0.5 text-[9px] font-bold tracking-wide bg-sky-500/20 text-sky-300 border border-sky-500/30">
+                                  ✓ Open Age
                                 </span>
                               )}
                             </button>
