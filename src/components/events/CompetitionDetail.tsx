@@ -9,7 +9,7 @@ import {
   ShieldCheck, LogIn, Loader2, Heart, Crown, FileUp, Link2, Film, Music, X,
   Radio, ArrowRight, Award, ExternalLink, Sparkles, MessageSquare, Play, Pause,
   CreditCard, Banknote, Zap, Clock, Users, Mic, Youtube, HardDrive, Lock, Layers,
-  Share2, MapPin, Search, ChevronDown, ChevronUp, Ticket
+  Share2, MapPin, Search, Ticket
 } from "lucide-react";
 import { Reveal, StaggerGroup, StaggerItem } from "@/components/motion/Reveal";
 import { SectionLabel, Badge } from "@/components/ui/Primitives";
@@ -269,7 +269,6 @@ export default function CompetitionDetail({
   const { user, loading } = useAuth();
   const router = useRouter();
   const [shareOpen, setShareOpen] = useState(false);
-  const [isAboutExpanded, setIsAboutExpanded] = useState(false);
 
   useEffect(() => {
     const cid = ssrComp._id || ssrComp.id;
@@ -2061,37 +2060,7 @@ export default function CompetitionDetail({
           <Reveal className="mt-8">
             <SectionLabel>About</SectionLabel>
             <div className="mt-4">
-              <div
-                className={cn(
-                  "relative transition-all duration-500 ease-in-out",
-                  !isAboutExpanded && (comp.description.length > 250)
-                    ? "max-h-[220px] sm:max-h-[240px] overflow-hidden"
-                    : "max-h-none"
-                )}
-              >
-                <FormattedDescription content={comp.description} />
-                {!isAboutExpanded && (comp.description.length > 250) && (
-                  <div className="pointer-events-none absolute inset-x-0 bottom-0 h-24 bg-gradient-to-t from-[var(--bg)] via-[var(--bg)]/85 to-transparent" />
-                )}
-              </div>
-
-              {comp.description.length > 250 && (
-                <div className="mt-3 flex justify-center">
-                  <button
-                    type="button"
-                    onClick={() => setIsAboutExpanded(!isAboutExpanded)}
-                    className="inline-flex items-center gap-2 rounded-full border border-amber-400/40 bg-[var(--surface-2)]/90 px-5 py-2 text-xs font-bold text-amber-300 shadow-md backdrop-blur-sm transition-all hover:border-amber-400 hover:bg-amber-500/15 hover:text-amber-200 active:scale-95 group cursor-pointer"
-                  >
-                    <span>{isAboutExpanded ? "See Less" : "See More"}</span>
-                    <ChevronDown
-                      className={cn(
-                        "size-4 text-amber-400 transition-transform duration-300 group-hover:translate-y-0.5",
-                        isAboutExpanded && "rotate-180 group-hover:-translate-y-0.5"
-                      )}
-                    />
-                  </button>
-                </div>
-              )}
+              <FormattedDescription content={comp.description} collapsible={true} />
             </div>
           </Reveal>
         )}
