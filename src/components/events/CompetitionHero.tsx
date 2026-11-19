@@ -231,7 +231,7 @@ export default function CompetitionHero({ comp }: CompetitionHeroProps) {
             <div className="flex items-center gap-2">
               <Ticket className="size-4 text-emerald-400" />
               <span>
-                Entry Fee: <strong className="font-semibold text-white">{fee > 0 ? formatINR(fee) : "Free Entry"}</strong>
+                Entry Fee: <strong className="font-extrabold text-amber-300 text-sm tracking-wide">{fee > 0 ? formatINR(fee) : "Free Entry"}</strong>
               </span>
             </div>
 

@@ -9,14 +9,14 @@ import {
   ShieldCheck, LogIn, Loader2, Heart, Crown, FileUp, Link2, Film, Music, X,
   Radio, ArrowRight, Award, ExternalLink, Sparkles, MessageSquare, Play, Pause,
   CreditCard, Banknote, Zap, Clock, Users, Mic, Youtube, HardDrive, Lock, Layers,
-  Share2, MapPin, Search
+  Share2, MapPin, Search, ChevronDown, ChevronUp, Ticket
 } from "lucide-react";
 import { Reveal, StaggerGroup, StaggerItem } from "@/components/motion/Reveal";
 import { SectionLabel, Badge } from "@/components/ui/Primitives";
 import { useAuth } from "@/components/motion/Providers";
 import FormattedDescription from "@/components/ui/FormattedDescription";
 import { competeApi, profileApi, publicApi, certificatesApi } from "@/lib/api";
-import { imageFor, formatEventDate, cn } from "@/lib/utils";
+import { imageFor, formatEventDate, formatINR, cn } from "@/lib/utils";
 import { getCompetitionLifecycle } from "@/lib/competition-lifecycle";
 import VerifiedBadge from "@/components/ui/VerifiedBadge";
 import ShareCompetitionModal from "@/components/events/ShareCompetitionModal";
@@ -269,6 +269,7 @@ export default function CompetitionDetail({
   const { user, loading } = useAuth();
   const router = useRouter();
   const [shareOpen, setShareOpen] = useState(false);
+  const [isAboutExpanded, setIsAboutExpanded] = useState(false);
 
   useEffect(() => {
     const cid = ssrComp._id || ssrComp.id;
@@ -2060,7 +2061,37 @@ export default function CompetitionDetail({
           <Reveal className="mt-8">
             <SectionLabel>About</SectionLabel>
             <div className="mt-4">
-              <FormattedDescription content={comp.description} />
+              <div
+                className={cn(
+                  "relative transition-all duration-500 ease-in-out",
+                  !isAboutExpanded && (comp.description.length > 250)
+                    ? "max-h-[220px] sm:max-h-[240px] overflow-hidden"
+                    : "max-h-none"
+                )}
+              >
+                <FormattedDescription content={comp.description} />
+                {!isAboutExpanded && (comp.description.length > 250) && (
+                  <div className="pointer-events-none absolute inset-x-0 bottom-0 h-24 bg-gradient-to-t from-[var(--bg)] via-[var(--bg)]/85 to-transparent" />
+                )}
+              </div>
+
+              {comp.description.length > 250 && (
+                <div className="mt-3 flex justify-center">
+                  <button
+                    type="button"
+                    onClick={() => setIsAboutExpanded(!isAboutExpanded)}
+                    className="inline-flex items-center gap-2 rounded-full border border-amber-400/40 bg-[var(--surface-2)]/90 px-5 py-2 text-xs font-bold text-amber-300 shadow-md backdrop-blur-sm transition-all hover:border-amber-400 hover:bg-amber-500/15 hover:text-amber-200 active:scale-95 group cursor-pointer"
+                  >
+                    <span>{isAboutExpanded ? "See Less" : "See More"}</span>
+                    <ChevronDown
+                      className={cn(
+                        "size-4 text-amber-400 transition-transform duration-300 group-hover:translate-y-0.5",
+                        isAboutExpanded && "rotate-180 group-hover:-translate-y-0.5"
+                      )}
+                    />
+                  </button>
+                </div>
+              )}
             </div>
           </Reveal>
         )}
@@ -2836,10 +2867,15 @@ export default function CompetitionDetail({
 
                   {!!(comp.participation_fee || comp.fee) && (
                     <div className="mb-4 space-y-3">
-                      <div className="flex items-center justify-between rounded-xl border border-[var(--border)] bg-[var(--surface-2)] p-3">
-                        <span className="text-[12.5px] font-medium text-[var(--fg-muted)]">Entry Fee</span>
-                        <span className="font-display text-base font-bold text-[var(--accent)]">
-                          ₹{comp.participation_fee || comp.fee}
+                      <div className="flex items-center justify-between rounded-2xl border border-[var(--border)] bg-[var(--surface-2)]/90 px-4 py-3.5 shadow-sm">
+                        <div className="flex items-center gap-2">
+                          <Ticket className="size-4.5 text-amber-400" />
+                          <span className="text-xs sm:text-[13px] font-bold uppercase tracking-wider text-[var(--fg-muted)]">
+                            Entry Fee
+                          </span>
+                        </div>
+                        <span className="font-sans text-xl sm:text-2xl font-black tracking-tight text-amber-400">
+                          {formatINR(comp.participation_fee || comp.fee)}
                         </span>
                       </div>
 
@@ -2954,7 +2990,7 @@ export default function CompetitionDetail({
                             Cash on Spot (Venue Payment)
                           </p>
                           <p className="mt-1 text-[11px] text-amber-200/90 leading-relaxed">
-                            Your participation slot is reserved immediately. You can upload your audition entry now and deposit ₹{comp.participation_fee || comp.fee} cash at the venue counter on event day.
+                            Your participation slot is reserved immediately. You can upload your audition entry now and deposit {formatINR(comp.participation_fee || comp.fee)} cash at the venue counter on event day.
                           </p>
                         </div>
                       )}
@@ -3015,8 +3051,8 @@ export default function CompetitionDetail({
                         : `Enter Birthdate for ${selectedCategory}`
                       : (comp.participation_fee || comp.fee)
                         ? paymentMode === "CASH"
-                          ? `Confirm Entry & Pay ₹${comp.participation_fee || comp.fee} Cash at Venue`
-                          : `Pay ₹${comp.participation_fee || comp.fee} Online & Register`
+                          ? `Confirm Entry & Pay ${formatINR(comp.participation_fee || comp.fee)} Cash at Venue`
+                          : `Pay ${formatINR(comp.participation_fee || comp.fee)} Online & Register`
                         : `Register in ${selectedCategory || "Competition"}`}
                   </button>
                 </>
