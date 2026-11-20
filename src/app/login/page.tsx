@@ -5,7 +5,7 @@ import { useRouter, useSearchParams } from "next/navigation";
 import { Suspense, useState, useEffect } from "react";
 import { motion, type Variants } from "framer-motion";
 import { Eye, EyeOff, ArrowRight, Ticket, ShieldCheck, Sparkles, Gavel, ScanLine, AlertCircle, Loader2, Fingerprint } from "lucide-react";
-import { authApi, tokenStore } from "@/lib/api";
+import { authApi, tokenStore, publicApi } from "@/lib/api";
 import * as passkey from "@/lib/passkey";
 import { useAuth } from "@/components/motion/Providers";
 import { AuthShell, Field, FormAlert, Input } from "@/components/ui/Form";
@@ -52,6 +52,18 @@ function LoginForm() {
   const [googleLoading, setGoogleLoading] = useState(false);
   const [googleUser, setGoogleUser] = useState<{ name?: string | null; email?: string | null; photo?: string | null } | null>(null);
   const [authProcessing, setAuthProcessing] = useState(false);
+  const [userLoginImg, setUserLoginImg] = useState<string | null>(null);
+
+  useEffect(() => {
+    publicApi
+      .settings()
+      .then((s) => {
+        if (s?.user_login_image_url) {
+          setUserLoginImg(s.user_login_image_url);
+        }
+      })
+      .catch(() => {});
+  }, []);
 
   /* ── Fingerprint / passkey sign-in ── */
   // null until the check resolves, so the button does not flash in and out.
@@ -220,7 +232,7 @@ function LoginForm() {
           transition={{ duration: 0.85, ease: EASE }}
           className="relative aspect-[4/5] overflow-hidden rounded-[var(--radius-2xl)] border border-[var(--border)]"
         >
-          <img src={imageFor(null, 1)} alt="" className="size-full object-cover" />
+          <img src={userLoginImg || imageFor(null, 1)} alt="Upgrade Talents Dance" className="size-full object-cover" />
           <div className="absolute inset-0" style={{ background: "linear-gradient(200deg, transparent, var(--bg) 92%)" }} aria-hidden />
           <ul className="absolute inset-x-8 bottom-8 flex flex-col gap-4">
             {[

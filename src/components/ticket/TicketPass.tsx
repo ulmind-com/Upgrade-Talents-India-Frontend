@@ -2,13 +2,26 @@
 
 import { useRef, useState, useEffect } from "react";
 import {
-  Download, Printer, Calendar, MapPin,
-  Clock, User, Sparkles, ShieldCheck, Loader2, CheckCircle2, TicketX, Mail, Check
+  Download,
+  Printer,
+  Calendar,
+  MapPin,
+  Clock,
+  User,
+  Sparkles,
+  ShieldCheck,
+  Loader2,
+  CheckCircle2,
+  TicketX,
+  Mail,
+  Check,
+  Ban,
+  ChevronRight,
 } from "lucide-react";
 import QRCode from "qrcode";
 import { toPng } from "html-to-image";
 import { type MyTicket, bookingsApi } from "@/lib/api";
-import { formatEventDate, formatINR, cn, imageFor, isUsableImageUrl, isEventExpired } from "@/lib/utils";
+import { formatEventDate, formatINR, cn, isUsableImageUrl, isEventExpired } from "@/lib/utils";
 import { Button } from "@/components/ui/Primitives";
 
 import { TICKET_DANCER_BASE64 } from "./ticketDancerBase64";
@@ -30,13 +43,32 @@ export interface TicketVariantConfig {
   pillText: string;
 }
 
+/* ── Five authentic colourways matching the Mobile App deterministically ── */
+export const WAYS: {
+  key: TicketVariantKey;
+  name: string;
+  grad: [string, string];
+  stub: [string, string];
+  pillBg: string;
+  pillText: string;
+}[] = [
+  { key: "magenta", name: "Neon Magenta", grad: ["#d91a7a", "#a21caf"], stub: ["#f0407e", "#a21caf"], pillBg: "#fdf2f8", pillText: "#be185d" },
+  { key: "blue", name: "Electric Blue", grad: ["#0284c7", "#1d4ed8"], stub: ["#38bdf8", "#1d4ed8"], pillBg: "#f0f9ff", pillText: "#0369a1" },
+  { key: "emerald", name: "Cyber Mint", grad: ["#059669", "#0f766e"], stub: ["#34d399", "#0f766e"], pillBg: "#ecfdf5", pillText: "#047857" },
+  { key: "amber", name: "Sunset Coral", grad: ["#f59e0b", "#ea580c"], stub: ["#fbbf24", "#ea580c"], pillBg: "#fff7ed", pillText: "#c2410c" },
+  { key: "purple", name: "Imperial Violet", grad: ["#8b5cf6", "#6d28d9"], stub: ["#a78bfa", "#6d28d9"], pillBg: "#f5f3ff", pillText: "#6d28d9" },
+];
+
+export const ticketWay = (seed: string) =>
+  WAYS[Math.abs([...String(seed)].reduce((a, ch) => a + ch.charCodeAt(0), 0)) % WAYS.length];
+
 export const TICKET_VARIANTS: Record<TicketVariantKey, TicketVariantConfig> = {
   magenta: {
     key: "magenta",
     name: "Neon Magenta",
     primary: "#d91a7a",
-    primaryDark: "#9d1154",
-    gradient: "linear-gradient(145deg, #d91a7a 0%, #a21caf 100%)",
+    primaryDark: "#a21caf",
+    gradient: "linear-gradient(135deg, #d91a7a 0%, #a21caf 100%)",
     softBg: "rgba(217, 26, 122, 0.08)",
     badgeBorder: "#d91a7a",
     textColor: "#d91a7a",
@@ -48,12 +80,12 @@ export const TICKET_VARIANTS: Record<TicketVariantKey, TicketVariantConfig> = {
   blue: {
     key: "blue",
     name: "Electric Blue",
-    primary: "#0066cc",
-    primaryDark: "#0047ab",
-    gradient: "linear-gradient(145deg, #0284c7 0%, #1d4ed8 100%)",
+    primary: "#0284c7",
+    primaryDark: "#1d4ed8",
+    gradient: "linear-gradient(135deg, #0284c7 0%, #1d4ed8 100%)",
     softBg: "rgba(0, 102, 204, 0.08)",
-    badgeBorder: "#0066cc",
-    textColor: "#0066cc",
+    badgeBorder: "#0284c7",
+    textColor: "#0284c7",
     stubTextColor: "#ffffff",
     ringColor: "#38bdf8",
     pillBg: "#f0f9ff",
@@ -63,8 +95,8 @@ export const TICKET_VARIANTS: Record<TicketVariantKey, TicketVariantConfig> = {
     key: "emerald",
     name: "Cyber Mint",
     primary: "#059669",
-    primaryDark: "#047857",
-    gradient: "linear-gradient(145deg, #059669 0%, #0f766e 100%)",
+    primaryDark: "#0f766e",
+    gradient: "linear-gradient(135deg, #059669 0%, #0f766e 100%)",
     softBg: "rgba(5, 150, 105, 0.08)",
     badgeBorder: "#059669",
     textColor: "#059669",
@@ -77,8 +109,8 @@ export const TICKET_VARIANTS: Record<TicketVariantKey, TicketVariantConfig> = {
     key: "amber",
     name: "Sunset Coral",
     primary: "#ea580c",
-    primaryDark: "#c2410c",
-    gradient: "linear-gradient(145deg, #f59e0b 0%, #ea580c 100%)",
+    primaryDark: "#ea580c",
+    gradient: "linear-gradient(135deg, #f59e0b 0%, #ea580c 100%)",
     softBg: "rgba(234, 88, 12, 0.08)",
     badgeBorder: "#ea580c",
     textColor: "#ea580c",
@@ -90,14 +122,14 @@ export const TICKET_VARIANTS: Record<TicketVariantKey, TicketVariantConfig> = {
   purple: {
     key: "purple",
     name: "Imperial Violet",
-    primary: "#7c3aed",
-    primaryDark: "#5b21b6",
-    gradient: "linear-gradient(145deg, #8b5cf6 0%, #6d28d9 100%)",
+    primary: "#8b5cf6",
+    primaryDark: "#6d28d9",
+    gradient: "linear-gradient(135deg, #8b5cf6 0%, #6d28d9 100%)",
     softBg: "rgba(124, 58, 237, 0.08)",
-    badgeBorder: "#7c3aed",
-    textColor: "#7c3aed",
+    badgeBorder: "#8b5cf6",
+    textColor: "#8b5cf6",
     stubTextColor: "#ffffff",
-    ringColor: "#c084fc",
+    ringColor: "#a78bfa",
     pillBg: "#f5f3ff",
     pillText: "#6d28d9",
   },
@@ -108,20 +140,13 @@ export function getVariantForTicket(
   userEmail?: string,
   holderName?: string
 ): TicketVariantKey {
-  const str = (userEmail || holderName || ticketRef || "").toLowerCase().trim();
-  let hash = 0;
-  for (let i = 0; i < str.length; i++) {
-    hash = (hash * 37 + str.charCodeAt(i)) >>> 0;
-  }
-  const keys: TicketVariantKey[] = ["magenta", "emerald", "blue", "purple", "amber"];
-  return keys[hash % keys.length];
+  return ticketWay(ticketRef || userEmail || holderName || "x").key;
 }
 
 /** Converts any image URL to a local base64 Data URL to guarantee zero canvas tainting */
 async function toBase64DataUrl(url: string): Promise<string> {
   if (!url || url.startsWith("data:")) return url;
 
-  // Method 1: Try proxy route if remote
   const targetUrl = url.startsWith("http")
     ? `/api/proxy-image?url=${encodeURIComponent(url)}`
     : url;
@@ -138,7 +163,7 @@ async function toBase64DataUrl(url: string): Promise<string> {
       reader.onerror = () => resolve(url);
       reader.readAsDataURL(blob);
     });
-  } catch (err) {
+  } catch {
     return url;
   }
 }
@@ -150,7 +175,9 @@ interface TicketPassProps {
 }
 
 export function TicketPass({ ticket, qrData, defaultVariant }: TicketPassProps) {
-  const variant = defaultVariant || getVariantForTicket(ticket.ticket_ref, ticket.holder_email, ticket.holder_name);
+  const seed = ticket.ticket_ref || ticket.event_id || ticket.holder_name || "x";
+  const way = defaultVariant ? (WAYS.find((w) => w.key === defaultVariant) || WAYS[0]) : ticketWay(seed);
+
   const [downloading, setDownloading] = useState(false);
   const [printing, setPrinting] = useState(false);
   const [downloadSuccess, setDownloadSuccess] = useState(false);
@@ -160,8 +187,6 @@ export function TicketPass({ ticket, qrData, defaultVariant }: TicketPassProps) 
   const [qrDataUrl, setQrDataUrl] = useState<string | null>(null);
   const [coverBase64, setCoverBase64] = useState<string | null>(null);
   const ticketRef = useRef<HTMLDivElement>(null);
-
-  const v = TICKET_VARIANTS[variant] || TICKET_VARIANTS.magenta;
 
   // Generate CORS-safe local QR code data URL
   useEffect(() => {
@@ -184,7 +209,7 @@ export function TicketPass({ ticket, qrData, defaultVariant }: TicketPassProps) 
     };
   }, [ticket, qrData]);
 
-  // Priority: 1) local base64 if fetched, 2) event_cover / event_image / card_image_url if valid, 3) guaranteed embedded dancer base64
+  // Image source resolution
   const defaultCover = TICKET_DANCER_BASE64;
   const candidateCover =
     ticket.event_cover ||
@@ -195,6 +220,7 @@ export function TicketPass({ ticket, qrData, defaultVariant }: TicketPassProps) 
     (ticket as any).banner_image_url ||
     (ticket as any).cover_image;
   const rawCover = isUsableImageUrl(candidateCover) ? candidateCover : defaultCover;
+
   useEffect(() => {
     let cancelled = false;
     if (rawCover.startsWith("data:")) {
@@ -209,21 +235,15 @@ export function TicketPass({ ticket, qrData, defaultVariant }: TicketPassProps) 
     };
   }, [rawCover]);
 
-  // ── Exact ticket geometry (must stay in sync with the ticket box below) ──
-  const TICKET_W = 920;
-  const TICKET_H = 290;
+  // ── Exact Boarding Pass Geometry (synced with mobile layout proportions) ──
+  const TICKET_W = 860;
+  const TICKET_H = 260;
+  const STUB_W = 210;
 
-  /**
-   * Render ONLY the ticket node to a transparent PNG data URL.
-   * Uses html-to-image (SVG foreignObject) so the browser itself paints the
-   * node — modern CSS used by Tailwind v4 (oklch colours, gradients, backdrop
-   * filters) comes out exactly as it looks on screen, at the exact 920×290 box.
-   */
   const renderTicketPng = async (pixelRatio = 3): Promise<string> => {
     const node = ticketRef.current;
     if (!node) throw new Error("Ticket node not mounted");
 
-    // 1. Make sure the QR code exists as a local data URL
     if (!qrDataUrl) {
       const token = qrData?.qr_token || qrData?.token || ticket.qr_token || ticket.ticket_ref;
       const url = await QRCode.toDataURL(String(token), {
@@ -234,7 +254,6 @@ export function TicketPass({ ticket, qrData, defaultVariant }: TicketPassProps) 
       setQrDataUrl(url);
     }
 
-    // 2. Make sure the cover image in the DOM is a data URL (never taint the canvas)
     const imgEl = node.querySelector("img") as HTMLImageElement | null;
     if (imgEl && imgEl.src && !imgEl.src.startsWith("data:")) {
       try {
@@ -245,11 +264,10 @@ export function TicketPass({ ticket, qrData, defaultVariant }: TicketPassProps) 
       }
     }
 
-    // 3. Wait for webfonts + a paint tick so the capture matches the screen 1:1
     try {
       await (document as any).fonts?.ready;
     } catch {
-      /* fonts API unavailable — carry on */
+      /* fonts API unavailable */
     }
     await new Promise((r) => setTimeout(r, 80));
 
@@ -258,16 +276,14 @@ export function TicketPass({ ticket, qrData, defaultVariant }: TicketPassProps) 
       height: TICKET_H,
       pixelRatio,
       cacheBust: true,
-      backgroundColor: undefined, // fully transparent outside the ticket
+      backgroundColor: undefined,
       style: { margin: "0", transform: "none", transformOrigin: "top left" },
     };
 
-    // The first pass warms the embedded fonts/images cache; the second is clean.
     await toPng(node, options as any);
     return await toPng(node, options as any);
   };
 
-  // Download the ticket — and nothing but the ticket — as a PNG
   const handleDownload = async () => {
     if (!ticketRef.current || downloading || isUsed) return;
     setDownloading(true);
@@ -290,7 +306,6 @@ export function TicketPass({ ticket, qrData, defaultVariant }: TicketPassProps) 
   };
 
   const triggerDataUrlDownload = (dataUrl: string, filename: string) => {
-    // Blob URLs keep working for large PNGs where a data: href can be refused
     let href = dataUrl;
     let blobUrl: string | null = null;
     try {
@@ -302,7 +317,7 @@ export function TicketPass({ ticket, qrData, defaultVariant }: TicketPassProps) 
       blobUrl = URL.createObjectURL(new Blob([bytes], { type: mime }));
       href = blobUrl;
     } catch {
-      /* fall back to the data URL as-is */
+      /* fall back to data URL */
     }
 
     const link = document.createElement("a");
@@ -320,7 +335,6 @@ export function TicketPass({ ticket, qrData, defaultVariant }: TicketPassProps) 
     setTimeout(() => setDownloadSuccess(false), 3000);
   };
 
-  // Print EXACTLY one page: a page sized to the ticket, holding the ticket image
   const handlePrint = async () => {
     if (printing || !ticketRef.current) return;
     setPrinting(true);
@@ -344,7 +358,6 @@ export function TicketPass({ ticket, qrData, defaultVariant }: TicketPassProps) 
         return;
       }
 
-      // Paper is the ticket: 920×290 CSS px at 96dpi → 243.42mm × 76.73mm
       const pageW = ((TICKET_W / 96) * 25.4).toFixed(2);
       const pageH = ((TICKET_H / 96) * 25.4).toFixed(2);
 
@@ -406,7 +419,7 @@ export function TicketPass({ ticket, qrData, defaultVariant }: TicketPassProps) 
   const dateFormatted = ticket.event_date ? formatEventDate(ticket.event_date) : formatEventDate(ticket.issued_at);
   const time = ticket.event_time || "10:00 PM";
   const venue = ticket.event_venue || "Kolkata";
-  const tierName = ticket.category || ticket.ticket_type || "General Access";
+  const tierName = ticket.category || ticket.ticket_type || "Pass";
   const quantity = Number(ticket.quantity || 1);
   const totalAmount =
     ticket.total_booking_amount ??
@@ -415,9 +428,6 @@ export function TicketPass({ ticket, qrData, defaultVariant }: TicketPassProps) 
     (quantity > 1 && ticket.price ? ticket.price * quantity : ticket.price) ??
     ticket.base_price ??
     0;
-  const unitPrice =
-    ticket.unit_price ??
-    (totalAmount && quantity > 0 ? totalAmount / quantity : totalAmount);
   const priceAmount = totalAmount;
   const coverImage = coverBase64 || rawCover;
 
@@ -430,20 +440,20 @@ export function TicketPass({ ticket, qrData, defaultVariant }: TicketPassProps) 
     (ticket as any).can_download === false ||
     (quantity > 0 && admittedCount >= quantity && admittedCount > 0)
   );
-  const isExpired = isEventExpired(ticket.event_date || ticket.issued_at, ticket.event_time);
+  const isExpired = !isUsed && isEventExpired(ticket.event_date || ticket.issued_at, ticket.event_time);
   const isVoid = isUsed || isExpired;
 
   return (
     <div className="w-full flex flex-col items-center">
-      {/* ── TOOLBAR: Official Pass Indicator & Actions (Print / Download) ── */}
-      <div className="w-full max-w-[920px] mb-4 flex flex-wrap items-center justify-between gap-3 px-1">
+      {/* ── TOOLBAR: Status Indicator & Action Buttons ── */}
+      <div className="w-full max-w-[860px] mb-4 flex flex-wrap items-center justify-between gap-3 px-1">
         <div className="flex items-center gap-2">
           {isUsed ? (
             <div className="flex items-center gap-2">
-              <span className="size-2 rounded-full bg-rose-500 animate-pulse" />
-              <span className="inline-flex items-center gap-1.5 rounded-full bg-rose-500/15 border border-rose-500/30 px-3 py-1 text-[11px] font-mono font-bold uppercase tracking-[0.15em] text-rose-400">
-                <TicketX className="size-3 text-rose-400" />
-                Already Used • Gate Entry Completed ({admittedCount}/{quantity} Admitted)
+              <span className="size-2 rounded-full bg-emerald-400" />
+              <span className="inline-flex items-center gap-1.5 rounded-full bg-emerald-500/15 border border-emerald-500/30 px-3 py-1 text-[11px] font-mono font-bold uppercase tracking-[0.15em] text-emerald-400">
+                <CheckCircle2 className="size-3 text-emerald-400" />
+                Gate Entry Completed ({admittedCount}/{quantity} Admitted)
               </span>
             </div>
           ) : isExpired ? (
@@ -458,10 +468,10 @@ export function TicketPass({ ticket, qrData, defaultVariant }: TicketPassProps) 
             <div className="flex items-center gap-2">
               <span
                 className="size-2 rounded-full animate-pulse"
-                style={{ background: v.primary }}
+                style={{ background: way.grad[0] }}
               />
               <span className="text-[11px] font-mono uppercase tracking-[0.2em] text-[var(--fg-muted)]">
-                Official Pass • {v.name} • {quantity > 1 ? `Group Admission (${quantity} Persons)` : "Admit 1 Person"}
+                Official Boarding Pass • {way.name} • {quantity > 1 ? `Group (${quantity}P)` : "Admit 1"}
               </span>
             </div>
           )}
@@ -469,9 +479,9 @@ export function TicketPass({ ticket, qrData, defaultVariant }: TicketPassProps) 
 
         <div className="flex items-center gap-2">
           {isUsed ? (
-            <div className="inline-flex items-center gap-2 rounded-full border border-rose-500/40 bg-rose-500/15 px-4 py-2 font-mono text-xs font-bold text-rose-300 shadow-md">
-              <TicketX className="size-4 text-rose-400" />
-              <span>Already Used — Download Disabled</span>
+            <div className="inline-flex items-center gap-2 rounded-full border border-emerald-500/40 bg-emerald-500/15 px-4 py-2 font-mono text-xs font-bold text-emerald-300 shadow-md">
+              <CheckCircle2 className="size-4 text-emerald-400" />
+              <span>Gate Checked In</span>
             </div>
           ) : (
             <>
@@ -528,8 +538,10 @@ export function TicketPass({ ticket, qrData, defaultVariant }: TicketPassProps) 
                   isExpired && "opacity-85"
                 )}
                 style={{
-                  background: isExpired ? "linear-gradient(145deg, #4b5563 0%, #1f2937 100%)" : v.gradient,
-                  boxShadow: isExpired ? "0 4px 14px rgba(0,0,0,0.3)" : `0 8px 24px ${v.primary}40`,
+                  background: isExpired
+                    ? "linear-gradient(135deg, #4b5563 0%, #1f2937 100%)"
+                    : `linear-gradient(135deg, ${way.grad[0]} 0%, ${way.grad[1]} 100%)`,
+                  boxShadow: isExpired ? "0 4px 14px rgba(0,0,0,0.3)" : `0 8px 24px ${way.grad[1]}50`,
                 }}
               >
                 {downloading ? (
@@ -554,36 +566,39 @@ export function TicketPass({ ticket, qrData, defaultVariant }: TicketPassProps) 
         </div>
       </div>
 
-      {/* ── SCROLL WRAPPER FOR MOBILE / DESKTOP PREVIEW ── */}
+      {/* ── SCROLL WRAPPER FOR PREVIEW ── */}
       <div className="w-full overflow-x-auto pb-4 pt-1 flex justify-center">
-        {/* Outer UI Card Container: provides the shadow & border for the web page dashboard ONLY */}
-        <div className="relative rounded-[26px] shadow-[0_25px_60px_rgba(0,0,0,0.5)] border border-white/10 shrink-0">
-          {/* ── THE TICKET CARD ITSELF (CAPTURED FOR DOWNLOAD) ── */}
+        {/* Outer UI Card Container */}
+        <div
+          className="relative rounded-[24px] shadow-[0_24px_64px_rgba(0,0,0,0.55)] border border-white/10 shrink-0"
+          style={{
+            boxShadow: `0 20px 60px ${isExpired ? "rgba(0,0,0,0.6)" : way.grad[1] + "40"}`,
+          }}
+        >
+          {/* ── THE TICKET CARD ITSELF (CAPTURED FOR DOWNLOAD & PRINT) ── */}
           <div
             ref={ticketRef}
             id="printable-ticket"
-            className="relative flex text-zinc-900 select-none overflow-hidden rounded-[26px]"
+            className="relative flex select-none overflow-hidden rounded-[24px]"
             style={{
-              width: "920px",
-              height: "290px",
-              minWidth: "920px",
-              maxWidth: "920px",
-              minHeight: "290px",
-              maxHeight: "290px",
+              width: `${TICKET_W}px`,
+              height: `${TICKET_H}px`,
+              minWidth: `${TICKET_W}px`,
+              maxWidth: `${TICKET_W}px`,
+              minHeight: `${TICKET_H}px`,
+              maxHeight: `${TICKET_H}px`,
               background: "transparent",
-              boxShadow: "none",
-              border: "none",
             }}
           >
-            {/* ── INNER WRAPPER: BLURRED WHEN USED OR EXPIRED ── */}
+            {/* ══════════ MAIN PASS BODY (LEFT) ══════════ */}
             <div
-              className={cn(
-                "relative flex size-full transition-all duration-300",
-                isVoid && "filter blur-[2.5px] opacity-60 grayscale-[30%]"
-              )}
+              className="relative h-full rounded-l-[24px] overflow-hidden"
+              style={{
+                width: `${TICKET_W - STUB_W}px`,
+                background: `linear-gradient(135deg, ${way.grad[0]} 0%, ${way.grad[1]} 100%)`,
+              }}
             >
-              {/* ══════════ LEFT SECTION: EVENT PHOTO WITH ORGANIC WAVE ══════════ */}
-            <div className="relative w-[280px] h-[290px] shrink-0 rounded-l-[26px] overflow-hidden bg-zinc-900">
+              {/* Background Cover Image Overlay */}
               <img
                 src={coverImage}
                 alt={eventTitle}
@@ -592,266 +607,147 @@ export function TicketPass({ ticket, qrData, defaultVariant }: TicketPassProps) 
                   const target = e.currentTarget;
                   if (!target.dataset.fallbackApplied) {
                     target.dataset.fallbackApplied = "1";
-                    target.src = "/images/ticket-dancer.jpg";
+                    target.src = TICKET_DANCER_BASE64;
                   }
                 }}
-                className="size-full object-cover brightness-95 saturate-125"
+                className="absolute inset-0 size-full object-cover opacity-35 mix-blend-overlay pointer-events-none"
               />
-              <div className="absolute inset-0 bg-gradient-to-t from-black/80 via-black/20 to-black/30 pointer-events-none" />
 
-              {/* Badge overlay on top-left of image */}
-              <div className="absolute left-4 top-4 z-10 flex items-center gap-1.5 rounded-full bg-black/50 px-3 py-1 backdrop-blur-md border border-white/10">
-                <Sparkles className="size-3 text-amber-400" />
-                <span className="text-[10px] font-black uppercase tracking-widest text-white">
-                  Upgrade Talents India
-                </span>
-              </div>
-
-              {/* Bottom-left branding on image */}
-              <div className="absolute bottom-4 left-4 z-10">
-                <p className="text-[10px] font-black uppercase tracking-wider text-white/90 drop-shadow">
-                  Official Entry Voucher
-                </p>
-              </div>
-
-              {/* ── ORGANIC SVG WAVE SEAM (Single crisp curve with primary color stroke) ── */}
-              <svg
-                viewBox="0 0 60 290"
-                preserveAspectRatio="none"
-                className="pointer-events-none absolute right-0 top-0 h-full w-[60px] z-20"
-              >
-                <path
-                  d="M 15,0 C 55,70 55,220 15,290 L 60,290 L 60,0 Z"
-                  fill="#ffffff"
-                />
-                <path
-                  d="M 15,0 C 55,70 55,220 15,290"
-                  fill="none"
-                  stroke={v.primary}
-                  strokeWidth="3.5"
-                />
-              </svg>
-            </div>
-
-            {/* ── FLOATING CIRCULAR PRICE BADGE (DOUBLE RING, 100% UNCUT) ── */}
-            <div
-              className="absolute z-30 pointer-events-none"
-              style={{ left: "280px", top: "145px", transform: "translate(-50%, -50%)" }}
-            >
+              {/* Scrim Gradient */}
               <div
-                className="size-20 rounded-full p-[3px] flex items-center justify-center shadow-[0_8px_25px_rgba(0,0,0,0.22)]"
-                style={{ background: v.primary }}
-              >
-                {/* White spacer */}
-                <div className="size-full rounded-full bg-white p-[2px] flex items-center justify-center">
-                  {/* Inner colored ring & white core */}
-                  <div
-                    className="size-full rounded-full border-2 bg-white flex flex-col items-center justify-center px-1"
-                    style={{ borderColor: v.primary }}
-                  >
-                    <span
-                      className={cn(
-                        "font-black tracking-tight leading-none text-center",
-                        formatINR(totalAmount).length > 7
-                          ? "text-[11px]"
-                          : formatINR(totalAmount).length > 5
-                          ? "text-[13px]"
-                          : "text-base"
-                      )}
-                      style={{ color: v.primary }}
-                    >
-                      {totalAmount === 0 ? "FREE" : formatINR(totalAmount)}
-                    </span>
-                    <span className="text-[7.5px] font-extrabold uppercase tracking-[0.14em] text-zinc-400 mt-0.5 text-center leading-tight">
-                      {quantity > 1 ? `Total (${quantity}P)` : "Price"}
-                    </span>
-                  </div>
-                </div>
-              </div>
-            </div>
+                className="absolute inset-0 pointer-events-none"
+                style={{
+                  background: "linear-gradient(180deg, rgba(0,0,0,0.18) 0%, rgba(0,0,0,0.55) 100%)",
+                }}
+              />
 
-            {/* ══════════ MIDDLE SECTION: MAIN EVENT DETAILS WITH 45° CHAMFER NOTCHES ══════════ */}
-            <div className="relative w-[430px] h-[290px] shrink-0">
-              {/* White background path with 45° chamfer cutouts at top-right & bottom-right */}
-              <svg
-                viewBox="0 0 430 290"
-                preserveAspectRatio="none"
-                className="absolute inset-0 size-full pointer-events-none"
-              >
-                <path
-                  d="M 0,0 L 416,0 L 430,14 L 430,276 L 416,290 L 0,290 Z"
-                  fill="#ffffff"
-                />
-              </svg>
-
-              {/* Content sitting above the background */}
-              <div className="relative z-10 size-full flex flex-col justify-between pl-14 pr-5 pt-4 pb-3">
-                {/* Slanted Watermark Stamp on Ticket Body when Fully Used */}
-                {isUsed && (
-                  <div className="pointer-events-none absolute inset-0 z-30 flex items-center justify-center overflow-hidden">
-                    <div className="rotate-[-14deg] rounded-2xl border-4 border-dashed border-red-600/85 bg-red-600/15 px-6 py-2.5 shadow-2xl backdrop-blur-[1.5px]">
-                      <p className="font-display text-xl sm:text-2xl font-black uppercase tracking-[0.16em] text-red-600 text-center">
-                        TICKET VALIDITY EXPIRED
-                      </p>
-                      <p className="font-mono text-[10.5px] font-bold text-center uppercase tracking-widest text-red-600 mt-0.5">
-                        All {quantity} Person(s) Admitted • Cannot Be Re-used
-                      </p>
-                    </div>
-                  </div>
-                )}
-                <div>
-                  {/* Header Eyebrow */}
-                  <div className="flex items-center justify-between gap-2">
-                    <span className="text-[10px] font-extrabold uppercase tracking-[0.24em] text-zinc-400">
-                      2026 Special Live Event
-                    </span>
-                    <span
-                      className="rounded-full px-2.5 py-0.5 text-[10px] font-bold uppercase tracking-wider shrink-0"
-                      style={{
-                        background: isExpired ? "#fee2e2" : v.pillBg,
-                        color: isExpired ? "#dc2626" : v.pillText,
-                      }}
-                    >
-                      {isExpired ? "Expired" : ticket.is_checked_in ? "Used Pass" : "Verified Ticket"}
-                    </span>
-                  </div>
-
-                  {/* Event Name */}
-                  <h2
-                    className="mt-0.5 font-display text-xl font-black uppercase leading-tight tracking-tight line-clamp-1"
-                    style={{ color: v.primary }}
-                  >
-                    {eventTitle}
-                  </h2>
-
-                  {/* Key metadata grid */}
-                  <div className="mt-2.5 grid grid-cols-2 gap-y-2 gap-x-3.5 border-t border-zinc-100 pt-2.5">
-                    {/* Holder */}
-                    <div>
-                      <span className="text-[9px] font-bold uppercase tracking-[0.16em] text-zinc-400">
-                        Attendee / Holder
-                      </span>
-                      <p className="mt-0.5 text-xs font-bold text-zinc-900 truncate flex items-center gap-1">
-                        <User className="size-3 text-zinc-400 shrink-0" />
-                        {ticket.holder_name || "Guest Attendee"}
-                      </p>
-                    </div>
-
-                    {/* Tier */}
-                    <div>
-                      <span className="text-[9px] font-bold uppercase tracking-[0.16em] text-zinc-400">
-                        Access Tier
-                      </span>
-                      <p className="mt-0.5 text-xs font-bold text-zinc-900 truncate">
-                        {tierName}
-                      </p>
-                    </div>
-
-                    {/* Date & Time */}
-                    <div>
-                      <span className="text-[9px] font-bold uppercase tracking-[0.16em] text-zinc-400">
-                        Event Date &amp; Time
-                      </span>
-                      <p className="mt-0.5 text-xs font-bold text-zinc-900 flex items-center gap-1 truncate">
-                        <Calendar className="size-3 text-zinc-400 shrink-0" />
-                        <span>{dateFormatted}</span>
-                        {time && <span className="text-zinc-500 font-semibold">• {time}</span>}
-                      </p>
-                    </div>
-
-                    {/* Assigned Seats or Gate Time */}
-                    <div>
-                      <span className="text-[9px] font-bold uppercase tracking-[0.16em] text-zinc-400">
-                        {ticket.seats && ticket.seats.length > 0 ? "Assigned Seats" : "Gate Entry Time"}
-                      </span>
-                      {ticket.seats && ticket.seats.length > 0 ? (
-                        <p className="mt-0.5 text-[11px] font-mono font-bold text-amber-800 bg-amber-50/90 border border-amber-200/80 px-2 py-0.5 rounded-md truncate inline-block max-w-full">
-                          {ticket.seats.join(", ")}
-                        </p>
-                      ) : (
-                        <p className="mt-0.5 text-xs font-bold text-zinc-900 flex items-center gap-1 truncate">
-                          <Clock className="size-3 text-zinc-400 shrink-0" />
-                          <span>{time}</span>
-                        </p>
-                      )}
-                    </div>
-                  </div>
-                </div>
-
-                {/* Bottom Venue & Pills Bar */}
-                <div className="border-t border-zinc-100 pt-2 shrink-0">
-                  <div className="flex items-center gap-1.5 text-[10.5px] font-semibold text-zinc-600 truncate">
-                    <MapPin className="size-3 text-zinc-400 shrink-0" />
-                    <span className="truncate">{venue}</span>
-                  </div>
-
-                  <div className="mt-1.5 flex items-center gap-1.5">
-                    <span
-                      className="rounded-md px-2 py-0.5 text-[8.5px] font-bold uppercase tracking-wider shrink-0"
-                      style={{ background: v.pillBg, color: v.pillText }}
-                    >
-                      {quantity > 1 ? `Admit ${quantity} Persons` : "Admit One"}
+              {/* Main Pass Content */}
+              <div className="relative z-10 flex flex-col justify-between size-full p-6 text-white">
+                {/* Top Row: Pass Type & Status Badge */}
+                <div className="flex items-center justify-between gap-3">
+                  <div className="flex items-center gap-2">
+                    <span className="rounded-full bg-white/25 backdrop-blur-md px-3 py-1 text-[10.5px] font-black uppercase tracking-wider text-white shadow-sm border border-white/15">
+                      {tierName}
                     </span>
                     {quantity > 1 && (
-                      <span className="rounded-md bg-amber-100 px-2 py-0.5 text-[8.5px] font-bold uppercase tracking-wider text-amber-800 shrink-0">
-                        Group Pass
+                      <span className="rounded-full bg-black/40 backdrop-blur-md px-2.5 py-1 text-[10px] font-mono font-bold text-amber-300 border border-amber-400/30">
+                        {quantity} Persons Group
                       </span>
                     )}
-                    <span className="rounded-md bg-zinc-100 px-2 py-0.5 text-[8.5px] font-bold uppercase tracking-wider text-zinc-600 shrink-0">
-                      Non-Transferable
-                    </span>
-                    <span className="ml-auto font-mono text-[9.5px] font-bold text-zinc-400 truncate pl-1">
-                      {ticket.ticket_ref}
-                    </span>
                   </div>
+
+                  {isUsed ? (
+                    <div className="flex items-center gap-1.5 rounded-full bg-black/40 backdrop-blur-md px-3 py-1 border border-emerald-400/40 text-emerald-400 shadow-sm">
+                      <CheckCircle2 className="size-3.5 text-emerald-400" />
+                      <span className="text-[10px] font-mono font-bold uppercase tracking-wider">USED</span>
+                    </div>
+                  ) : isExpired ? (
+                    <div className="flex items-center gap-1.5 rounded-full bg-black/50 backdrop-blur-md px-3 py-1 border border-rose-400/40 text-rose-300 shadow-sm">
+                      <Clock className="size-3.5 text-rose-400" />
+                      <span className="text-[10px] font-mono font-bold uppercase tracking-wider">EXPIRED</span>
+                    </div>
+                  ) : (
+                    <div className="flex items-center gap-1.5 rounded-full bg-white/20 backdrop-blur-md px-3 py-1 border border-white/25 text-white shadow-sm">
+                      <ShieldCheck className="size-3.5 text-emerald-300" />
+                      <span className="text-[9.5px] font-mono font-bold uppercase tracking-widest">VALID PASS</span>
+                    </div>
+                  )}
                 </div>
-              </div>
-            </div>
 
-            {/* ── VERTICAL DASHED TEAR LINE ── */}
-            <div
-              className="absolute top-[14px] bottom-[14px] z-20 pointer-events-none border-l-2 border-dashed border-zinc-200"
-              style={{ left: "710px" }}
-            />
-
-            {/* ══════════ RIGHT SECTION: STUB WITH 45° CHAMFER NOTCHES & REAL QR CODE ══════════ */}
-            <div className="relative w-[210px] h-[290px] shrink-0">
-              {/* Gradient background with 45° chamfers and rounded right corners */}
-              <svg
-                viewBox="0 0 210 290"
-                preserveAspectRatio="none"
-                className="absolute inset-0 size-full pointer-events-none"
-              >
-                <defs>
-                  <linearGradient id={`stub-grad-${variant}`} x1="0%" y1="0%" x2="100%" y2="100%">
-                    <stop offset="0%" stopColor={v.primary} />
-                    <stop offset="100%" stopColor={v.primaryDark || v.primary} />
-                  </linearGradient>
-                </defs>
-                <path
-                  d="M 14,0 L 184,0 A 26 26 0 0 1 210,26 L 210,264 A 26 26 0 0 1 184,290 L 14,290 L 0,276 L 0,14 Z"
-                  fill={`url(#stub-grad-${variant})`}
-                />
-              </svg>
-
-              {/* Stub Content */}
-              <div className="relative z-10 size-full p-4 flex flex-col items-center justify-between text-center">
+                {/* Middle: Event Title & Subtitle */}
                 <div>
-                  <span className="text-[9px] font-black uppercase tracking-[0.2em] text-white/90">
-                    Gate Entry Pass
-                  </span>
-                  <p className="mt-0.5 text-xs font-black uppercase tracking-wider text-white truncate px-1">
-                    {tierName} {quantity > 1 ? `(${quantity}P)` : ""}
+                  <h2 className="font-display text-2xl sm:text-[28px] font-black uppercase text-white tracking-tight leading-[1.1] line-clamp-2 drop-shadow-md">
+                    {eventTitle}
+                  </h2>
+                  <p className="mt-1 text-xs sm:text-[13px] font-medium text-white/90 truncate drop-shadow-sm flex items-center gap-2">
+                    <span className="font-semibold">{dateFormatted}</span>
+                    {time && <span>• {time}</span>}
+                    {venue && <span className="opacity-90">• {venue}</span>}
                   </p>
                 </div>
 
-                {/* ── THE CRISP QR CODE CONTAINER (NO OVERLAP, CORS-SAFE) ── */}
-                <div className="relative my-1 rounded-2xl bg-white p-2 shadow-sm flex flex-col items-center justify-center overflow-hidden">
+                {/* Bottom Row: Holder & Floating Price Pill */}
+                <div className="flex items-end justify-between gap-4">
+                  <div>
+                    <span className="block font-mono text-[9px] font-bold uppercase tracking-[0.2em] text-white/70">
+                      HOLDER
+                    </span>
+                    <span className="font-display text-base sm:text-lg font-black text-white tracking-tight leading-tight truncate block max-w-[340px]">
+                      {ticket.holder_name || "Guest Attendee"}
+                    </span>
+                  </div>
+
+                  <div className="rounded-full bg-white px-4 py-1.5 shadow-[0_4px_16px_rgba(0,0,0,0.25)] flex items-center justify-center shrink-0">
+                    <span
+                      className="font-display text-sm sm:text-base font-black tracking-tight"
+                      style={{ color: way.grad[1] }}
+                    >
+                      {priceAmount === 0 ? "FREE" : formatINR(priceAmount)}
+                    </span>
+                  </div>
+                </div>
+              </div>
+            </div>
+
+            {/* ══════════ PERFORATION NOTCHES & VERTICAL SEAM ══════════ */}
+            {/* Top Cutout Notch */}
+            <div
+              className="absolute top-[-11px] size-[22px] rounded-full z-20 pointer-events-none"
+              style={{
+                right: `${STUB_W - 11}px`,
+                backgroundColor: "var(--bg, #080c18)",
+              }}
+            />
+            {/* Bottom Cutout Notch */}
+            <div
+              className="absolute bottom-[-11px] size-[22px] rounded-full z-20 pointer-events-none"
+              style={{
+                right: `${STUB_W - 11}px`,
+                backgroundColor: "var(--bg, #080c18)",
+              }}
+            />
+            {/* Vertical Perforation Dashed Line */}
+            <div
+              className="absolute top-[14px] bottom-[14px] w-[2px] z-20 pointer-events-none flex flex-col justify-between"
+              style={{ right: `${STUB_W - 1}px` }}
+            >
+              {Array.from({ length: 13 }).map((_, i) => (
+                <span
+                  key={i}
+                  className="w-[2px] h-[8px] rounded-full bg-white/75"
+                />
+              ))}
+            </div>
+
+            {/* ══════════ STUB SECTION (RIGHT) ══════════ */}
+            <div
+              className="relative h-full rounded-r-[24px] overflow-hidden"
+              style={{
+                width: `${STUB_W}px`,
+                background: `linear-gradient(135deg, ${way.stub[0]} 0%, ${way.stub[1]} 100%)`,
+              }}
+            >
+              <div className="relative z-10 flex flex-col items-center justify-between size-full p-4 text-center">
+                {/* Stub Header */}
+                <div className="flex flex-col items-center">
+                  <span className="font-mono text-[9px] font-black uppercase tracking-[0.22em] text-white/90">
+                    UPGRADE TALENTS
+                  </span>
+                  <span className="text-[11px] font-black uppercase tracking-wider text-white truncate max-w-[170px]">
+                    {tierName}
+                  </span>
+                </div>
+
+                {/* Crisp White QR Card */}
+                <div className="relative my-auto rounded-2xl bg-white p-2.5 shadow-[0_6px_20px_rgba(0,0,0,0.22)] flex flex-col items-center justify-center">
                   {qrDataUrl ? (
                     <img
                       src={qrDataUrl}
-                      alt={`QR for ${ticket.ticket_ref}`}
-                      className={cn("size-24 object-contain block transition-all", isUsed && "opacity-20 grayscale blur-[0.5px]")}
+                      alt={`QR ${ticket.ticket_ref}`}
+                      className={cn(
+                        "size-24 object-contain block transition-all",
+                        isVoid && "opacity-25 grayscale"
+                      )}
                     />
                   ) : (
                     <div className="size-24 grid place-items-center bg-zinc-50">
@@ -859,101 +755,68 @@ export function TicketPass({ ticket, qrData, defaultVariant }: TicketPassProps) 
                     </div>
                   )}
 
-                  {/* Stamp overlay across QR code when used */}
                   {isUsed && (
-                    <div className="absolute inset-0 z-20 flex flex-col items-center justify-center bg-rose-950/40 backdrop-blur-[1px] p-1">
-                      <div className="rotate-[-12deg] rounded border-2 border-dashed border-red-600 bg-red-600/95 px-2.5 py-1 shadow-md">
-                        <span className="font-display text-[10px] font-black uppercase tracking-wider text-white">
+                    <div className="absolute inset-0 z-20 flex flex-col items-center justify-center bg-rose-950/70 rounded-2xl p-1 backdrop-blur-[1px]">
+                      <div className="rotate-[-12deg] rounded border border-rose-500 bg-rose-600 px-2 py-0.5 shadow-md">
+                        <span className="font-display text-[9px] font-black uppercase tracking-wider text-white">
                           ALREADY USED
                         </span>
                       </div>
-                      <span className="mt-1 font-mono text-[7.5px] font-extrabold text-red-700 bg-white/95 px-1.5 py-0.5 rounded shadow-sm">
+                      <span className="mt-1 font-mono text-[8px] font-extrabold text-rose-200 bg-rose-900/80 px-1.5 py-0.2 rounded">
                         {admittedCount}/{quantity} Admitted
                       </span>
                     </div>
                   )}
 
-                  <span className="mt-1 font-mono text-[9px] font-black tracking-wider text-zinc-800">
-                    {ticket.ticket_ref}
-                  </span>
+                  {isExpired && !isUsed && (
+                    <div className="absolute inset-0 z-20 flex flex-col items-center justify-center bg-zinc-950/80 rounded-2xl p-1 backdrop-blur-[1px]">
+                      <Ban className="size-7 text-rose-400 mb-0.5" />
+                      <span className="font-display text-[9px] font-black uppercase tracking-wider text-rose-300">
+                        EXPIRED
+                      </span>
+                    </div>
+                  )}
                 </div>
 
                 {/* Stub Footer */}
-                <div>
-                  <div
-                    className={cn(
-                      "inline-flex items-center gap-1 rounded-full px-2.5 py-0.5 text-[8.5px] font-bold text-white shadow-sm",
-                      isVoid ? "bg-red-950/80 text-red-200 border border-red-500/40" : "bg-black/25"
-                    )}
-                  >
-                    {isUsed ? (
-                      <>
-                        <TicketX className="size-2.5 text-red-400" />
-                        <span>Already Used ({admittedCount}/{quantity})</span>
-                      </>
-                    ) : isExpired ? (
-                      <>
-                        <TicketX className="size-2.5 text-red-400" />
-                        <span>Pass expired</span>
-                      </>
-                    ) : (
-                      <>
-                        <ShieldCheck className="size-2.5 text-emerald-300" />
-                        <span>{quantity > 1 ? `Valid for ${quantity} Attendees` : "Scan for gate check-in"}</span>
-                      </>
-                    )}
-                  </div>
+                <div className="flex flex-col items-center gap-0.5">
+                  <span className="font-mono text-[10.5px] font-black tracking-widest text-white/95 uppercase">
+                    {ticket.ticket_ref}
+                  </span>
+                  <span className="text-[8.5px] font-semibold text-white/80 uppercase tracking-wider">
+                    {isExpired ? "Pass Concluded" : "Scan at Gate • One Pass"}
+                  </span>
                 </div>
               </div>
             </div>
-            {/* ── END INNER WRAPPER ── */}
-            </div>
 
-            {/* ── ALREADY USED BADGE / OFFICIAL INK STAMP OVERLAY ── */}
-            {isUsed && (
-              <div className="absolute inset-0 z-40 flex flex-col items-center justify-center p-6 pointer-events-none select-none">
-                <div className="flex flex-col items-center justify-center gap-2 rounded-2xl border-[3.5px] border-dashed border-red-500 bg-zinc-950/95 px-10 py-6 shadow-[0_0_60px_rgba(239,68,68,0.75)] backdrop-blur-md transform -rotate-3 transition-transform">
-                  <div className="flex items-center gap-3">
-                    <div className="rounded-full bg-red-500/20 p-2 border border-red-500/50">
-                      <TicketX className="size-8 text-red-500" />
-                    </div>
-                    <div className="flex flex-col items-center">
-                      <span className="font-display text-3xl md:text-5xl font-black uppercase tracking-[0.25em] text-red-500 drop-shadow-[0_2px_10px_rgba(239,68,68,0.6)]">
-                        ALREADY USED
-                      </span>
-                      <span className="text-[10px] font-mono font-bold tracking-[0.3em] uppercase text-red-300">
-                        OFFICIAL VENUE ADMISSION STAMP
-                      </span>
-                    </div>
+            {/* ══════════ EXPIRED WATERMARK STAMP OVERLAY ══════════ */}
+            {!isUsed && isExpired && (
+              <div className="absolute inset-0 z-30 pointer-events-none flex items-center justify-center bg-black/45 backdrop-blur-[0.5px]">
+                <div className="rotate-[-7deg] rounded-full border-2 border-red-500/80 bg-black/85 px-6 py-2 shadow-[0_0_40px_rgba(239,68,68,0.5)]">
+                  <div className="flex items-center gap-2">
+                    <Clock className="size-4 text-red-400" />
+                    <span className="font-display text-base font-black uppercase tracking-[0.25em] text-red-400">
+                      EXPIRED PASS
+                    </span>
                   </div>
-                  <div className="flex flex-wrap items-center justify-center gap-3 mt-1">
-                    <p className="font-mono text-xs font-bold uppercase tracking-wider text-red-200 bg-red-950/70 border border-red-500/40 px-3 py-1 rounded-full">
-                      Gate Entry Completed • {admittedCount} of {quantity} Person(s) Admitted
-                    </p>
-                  </div>
-                  <span className="inline-flex items-center gap-1.5 rounded-full bg-red-500/20 border border-red-500/40 px-3.5 py-1 font-mono text-[10px] font-bold uppercase tracking-widest text-red-300">
-                    Pass Inactivated • Download & Re-entry Strictly Prohibited
-                  </span>
                 </div>
               </div>
             )}
 
-            {/* ── EXPIRED BADGE / WATERMARK OVERLAY (CAPTURED IN DOWNLOAD PNG) ── */}
-            {!isUsed && isExpired && (
-              <div className="absolute inset-0 z-40 flex flex-col items-center justify-center p-6 pointer-events-none select-none">
-                <div className="flex flex-col items-center justify-center gap-1.5 rounded-2xl border-2 border-red-500/90 bg-zinc-950/92 px-8 py-4 shadow-[0_0_50px_rgba(239,68,68,0.55)] backdrop-blur-md transform -rotate-2">
-                  <div className="flex items-center gap-2.5">
+            {/* ══════════ ALREADY USED INK STAMP OVERLAY ══════════ */}
+            {isUsed && (
+              <div className="absolute inset-0 z-30 pointer-events-none flex items-center justify-center bg-black/50 backdrop-blur-[0.5px]">
+                <div className="rotate-[-6deg] rounded-2xl border-4 border-dashed border-red-600 bg-zinc-950/95 px-8 py-4 shadow-[0_0_50px_rgba(239,68,68,0.7)] text-center">
+                  <div className="flex items-center justify-center gap-2.5">
                     <TicketX className="size-6 text-red-500" />
-                    <span className="font-display text-3xl md:text-4xl font-black uppercase tracking-[0.28em] text-red-500 drop-shadow">
-                      EXPIRED
+                    <span className="font-display text-2xl font-black uppercase tracking-[0.25em] text-red-500">
+                      ALREADY USED
                     </span>
                   </div>
-                  <p className="font-mono text-[11px] font-bold uppercase tracking-wider text-red-200">
-                    Event Concluded ({dateFormatted})
+                  <p className="font-mono text-[11px] font-bold uppercase tracking-wider text-red-200 mt-1">
+                    Gate Entry Completed • {admittedCount} of {quantity} Admitted
                   </p>
-                  <span className="inline-flex items-center rounded-full bg-red-500/20 px-2.5 py-0.5 font-mono text-[9px] font-bold uppercase tracking-widest text-red-300">
-                    Void for gate admission
-                  </span>
                 </div>
               </div>
             )}
@@ -963,4 +826,3 @@ export function TicketPass({ ticket, qrData, defaultVariant }: TicketPassProps) 
     </div>
   );
 }
-

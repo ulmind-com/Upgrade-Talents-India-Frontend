@@ -27,7 +27,7 @@ import {
   Lock,
   ShieldCheck,
 } from "lucide-react";
-import { authApi, tokenStore, rewardsApi } from "@/lib/api";
+import { authApi, tokenStore, rewardsApi, publicApi } from "@/lib/api";
 import { useAuth } from "@/components/motion/Providers";
 import { AuthShell, Field, FormAlert, Input, DateInput } from "@/components/ui/Form";
 import { OtpVerify } from "@/components/ui/OtpVerify";
@@ -48,6 +48,18 @@ export default function RegisterPage() {
   const [step, setStep] = useState(1);
   const [loading, setLoading] = useState(false);
   const [googleLoading, setGoogleLoading] = useState(false);
+  const [userLoginImg, setUserLoginImg] = useState<string | null>(null);
+
+  useEffect(() => {
+    publicApi
+      .settings()
+      .then((s) => {
+        if (s?.user_login_image_url) {
+          setUserLoginImg(s.user_login_image_url);
+        }
+      })
+      .catch(() => {});
+  }, []);
   const [googleUser, setGoogleUser] = useState<{ name?: string | null; email?: string | null; photo?: string | null } | null>(null);
   const [authProcessing, setAuthProcessing] = useState(false);
   const [formError, setFormError] = useState<string | null>(null);
@@ -293,7 +305,7 @@ export default function RegisterPage() {
       }
       aside={
         <div className="relative aspect-[4/5] overflow-hidden rounded-[var(--radius-2xl)] border border-[var(--border)]">
-          <img src={imageFor(null, 3)} alt="" className="size-full object-cover" />
+          <img src={userLoginImg || imageFor(null, 3)} alt="Upgrade Talents Dance" className="size-full object-cover" />
           <div className="absolute inset-0" style={{ background: "linear-gradient(200deg, transparent, var(--bg) 92%)" }} aria-hidden />
         </div>
       }
