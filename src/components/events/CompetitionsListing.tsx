@@ -5,7 +5,7 @@ import Link from "next/link";
 import { Search, Trophy, Calendar, ArrowRight, Sparkles, Share2 } from "lucide-react";
 import { Reveal, StaggerGroup, StaggerItem } from "@/components/motion/Reveal";
 import { SectionLabel } from "@/components/ui/Primitives";
-import { imageFor, formatEventDate, truncate } from "@/lib/utils";
+import { imageFor, formatEventDate, truncate, formatINR } from "@/lib/utils";
 import { getCompetitionLifecycle } from "@/lib/competition-lifecycle";
 import LinkPending from "@/components/ui/LinkPending";
 import ShareCompetitionModal from "@/components/events/ShareCompetitionModal";
@@ -14,6 +14,9 @@ type Comp = {
   _id?: string; id?: string;
   title?: string; name?: string;
   description?: string; prize?: string;
+  category?: string;
+  categories?: any[];
+  participation_fee?: number; fee?: number;
   image_url?: string;
   start_date?: string; end_date?: string;
   registration_start_date?: string; registration_deadline?: string;
@@ -156,6 +159,33 @@ export default function CompetitionsListing({ items }: { items: Comp[] }) {
                       <p className="mt-2 text-[13px] leading-relaxed text-[var(--fg-muted)] line-clamp-2">
                         {truncate(c.description, 96)}
                       </p>
+                    )}
+
+                    {Array.isArray(c.categories) && c.categories.length > 0 && (
+                      <div className="mt-3 flex flex-wrap items-center gap-1.5">
+                        {c.categories.slice(0, 3).map((cat: any, cIdx: number) => {
+                          const catName = typeof cat === "string" ? cat : cat?.name;
+                          const catPrice = cat?.price !== undefined && cat?.price !== null && !isNaN(Number(cat.price))
+                            ? Number(cat.price)
+                            : (c.participation_fee ?? c.fee ?? 0);
+                          return (
+                            <span
+                              key={cIdx}
+                              className="inline-flex items-center gap-1 rounded-md border border-amber-500/25 bg-amber-500/10 px-2 py-0.5 text-[10.5px] font-semibold text-amber-300"
+                            >
+                              <span>{catName}</span>
+                              <span className="font-mono font-bold text-amber-200">
+                                {catPrice === 0 ? "Free" : `₹${catPrice}`}
+                              </span>
+                            </span>
+                          );
+                        })}
+                        {c.categories.length > 3 && (
+                          <span className="text-[10px] text-[var(--fg-muted)] font-medium">
+                            +{c.categories.length - 3} more
+                          </span>
+                        )}
+                      </div>
                     )}
 
                     {/* Footer Info & Grand Eye-Catching Button */}

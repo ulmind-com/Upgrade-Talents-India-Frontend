@@ -398,6 +398,18 @@ export default function CompetitionDetail({
     return availableCategories.find((c: any) => checkEligibility(c, participantDob).eligible) || null;
   }, [availableCategories, participantDob]);
 
+  const activeCategoryFee = useMemo(() => {
+    if (
+      selectedCatObj &&
+      selectedCatObj.price !== undefined &&
+      selectedCatObj.price !== null &&
+      !isNaN(Number(selectedCatObj.price))
+    ) {
+      return Math.max(0, Number(selectedCatObj.price));
+    }
+    return Math.max(0, Number(comp.participation_fee ?? comp.fee ?? 0));
+  }, [selectedCatObj, comp.participation_fee, comp.fee]);
+
   const [entryModes, setEntryModes] = useState<Record<string, "file" | "link">>({});
   const [files, setFiles] = useState<Record<string, File | null>>({});
   const [links, setLinks] = useState<Record<string, string>>({});
@@ -969,7 +981,7 @@ export default function CompetitionDetail({
         return;
       }
 
-      const fee = comp.participation_fee || comp.fee || 0;
+      const fee = activeCategoryFee;
       const chosenMode = fee > 0 ? paymentMode : "ONLINE";
 
       const regRes = await competeApi.register(id, true, chosenMode, chosenCat, dobParam);
@@ -1018,7 +1030,7 @@ export default function CompetitionDetail({
         return;
       }
 
-      const feeAmount = comp.participation_fee || comp.fee || (checkout.amount ? checkout.amount / 100 : 0);
+      const feeAmount = (checkout.amount ? checkout.amount / 100 : 0) || activeCategoryFee;
 
       const rzp = new (window as any).Razorpay({
         key: keyId,
@@ -2056,6 +2068,96 @@ export default function CompetitionDetail({
           </StaggerItem>
         </StaggerGroup>
 
+        {/* ── Category Divisions & Category-Wise Pricing Matrix ── */}
+        {availableCategories.length > 0 && (
+          <Reveal className="mt-8">
+            <div className="flex flex-wrap items-center justify-between gap-2">
+              <SectionLabel>Divisions &amp; Pricing</SectionLabel>
+              <span className="text-[11.5px] text-[var(--fg-muted)] font-medium">
+                Choose a division below to pre-select for registration
+              </span>
+            </div>
+            <div className="mt-3 grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
+              {availableCategories.map((c: any, i: number) => {
+                const cName = c.name || c;
+                const cRange = parseAgeRange(c);
+                const cPrice = c?.price !== undefined && c?.price !== null && !isNaN(Number(c.price))
+                  ? Number(c.price)
+                  : (comp.participation_fee ?? comp.fee ?? 0);
+                const isSelected = selectedCategory === cName;
+
+                return (
+                  <div
+                    key={i}
+                    role="button"
+                    tabIndex={0}
+                    onClick={() => {
+                      setSelectedCategory(cName);
+                      const regBox = document.getElementById("register-box") || document.getElementById("register") || document.getElementById("registration-section");
+                      if (regBox) regBox.scrollIntoView({ behavior: "smooth", block: "center" });
+                    }}
+                    className={cn(
+                      "cursor-pointer group relative flex flex-col justify-between rounded-2xl border p-4 transition-all duration-300 hover:-translate-y-0.5 hover:shadow-lg",
+                      isSelected
+                        ? "border-amber-400 bg-amber-500/10 ring-1 ring-amber-400 shadow-md"
+                        : "border-[var(--border)] bg-[var(--surface)] hover:border-amber-400/50 hover:bg-[var(--surface-2)]/80"
+                    )}
+                  >
+                    <div>
+                      <div className="flex items-start justify-between gap-2">
+                        <div className="flex items-center gap-2">
+                          <span className="grid size-7 place-items-center rounded-xl bg-amber-500/15 text-amber-400 text-xs font-bold">
+                            #{i + 1}
+                          </span>
+                          <h4 className="font-display text-[15px] font-bold text-[var(--fg)] group-hover:text-amber-300 transition-colors">
+                            {cName}
+                          </h4>
+                        </div>
+                        <span className={cn(
+                          "rounded-lg px-2.5 py-1 text-xs font-mono font-black tracking-tight shadow-xs",
+                          cPrice === 0
+                            ? "bg-emerald-500/20 text-emerald-400 border border-emerald-500/40"
+                            : "bg-amber-400 text-black"
+                        )}>
+                          {cPrice === 0 ? "FREE" : formatINR(cPrice)}
+                        </span>
+                      </div>
+
+                      <div className="mt-3 flex flex-wrap items-center gap-1.5">
+                        <span className="inline-flex items-center gap-1 rounded-md bg-[var(--surface-2)] px-2 py-0.5 text-[11px] font-medium text-[var(--fg-muted)] border border-[var(--border)]">
+                          🎯 {cRange.label}
+                        </span>
+                        {c.min_age == null && c.max_age == null && (
+                          <span className="inline-flex items-center rounded-md bg-sky-500/15 px-2 py-0.5 text-[10.5px] font-semibold text-sky-400">
+                            Open Age
+                          </span>
+                        )}
+                      </div>
+
+                      {c.description && (
+                        <p className="mt-2.5 text-[12px] text-[var(--fg-subtle)] leading-relaxed line-clamp-2">
+                          {c.description}
+                        </p>
+                      )}
+                    </div>
+
+                    <div className="mt-4 flex items-center justify-between border-t border-[var(--border)]/60 pt-2.5 text-[11.5px]">
+                      <span className="font-semibold text-amber-400 group-hover:underline inline-flex items-center gap-1">
+                        Select &amp; Register <ArrowRight className="size-3 transition-transform group-hover:translate-x-0.5" />
+                      </span>
+                      {isSelected && (
+                        <span className="rounded-full bg-amber-400/20 px-2 py-0.5 text-[10px] font-bold text-amber-300">
+                          Selected
+                        </span>
+                      )}
+                    </div>
+                  </div>
+                );
+              })}
+            </div>
+          </Reveal>
+        )}
+
         {comp.description && (
           <Reveal className="mt-8">
             <SectionLabel>About</SectionLabel>
@@ -2705,6 +2807,10 @@ export default function CompetitionDetail({
                           const catRange = parseAgeRange(cat);
                           const catEl = checkEligibility(cat, participantDob);
                           const hasAgeLimit = catRange.minAge != null || catRange.maxAge != null;
+                          const catPrice = cat?.price !== undefined && cat?.price !== null && !isNaN(Number(cat.price))
+                            ? Number(cat.price)
+                            : (comp.participation_fee ?? comp.fee ?? 0);
+                          const isFree = catPrice === 0;
 
                           return (
                             <button
@@ -2739,9 +2845,21 @@ export default function CompetitionDetail({
                                   )} />
                                 )}
                               </div>
-                              <span className="mt-0.5 text-[10.5px] text-[var(--fg-muted)]">
-                                {catRange.label}
-                              </span>
+                              <div className="mt-1 flex w-full items-center justify-between gap-1">
+                                <span className="text-[10.5px] text-[var(--fg-muted)] truncate">
+                                  {catRange.label}
+                                </span>
+                                <span className={cn(
+                                  "shrink-0 rounded px-1.5 py-0.5 text-[10px] font-mono font-extrabold",
+                                  isFree
+                                    ? "bg-emerald-500/20 text-emerald-400 border border-emerald-500/30"
+                                    : isSelected
+                                    ? "bg-amber-400 text-black shadow-xs"
+                                    : "bg-amber-500/20 text-amber-300 border border-amber-500/30"
+                                )}>
+                                  {isFree ? "FREE" : `₹${catPrice}`}
+                                </span>
+                              </div>
                               {hasAgeLimit ? (
                                 participantDob ? (
                                   <span className={cn(
@@ -2834,17 +2952,24 @@ export default function CompetitionDetail({
                     </div>
                   )}
 
-                  {!!(comp.participation_fee || comp.fee) && (
+                  {activeCategoryFee > 0 ? (
                     <div className="mb-4 space-y-3">
                       <div className="flex items-center justify-between rounded-2xl border border-[var(--border)] bg-[var(--surface-2)]/90 px-4 py-3.5 shadow-sm">
                         <div className="flex items-center gap-2">
                           <Ticket className="size-4.5 text-amber-400" />
-                          <span className="text-xs sm:text-[13px] font-bold uppercase tracking-wider text-[var(--fg-muted)]">
-                            Entry Fee
-                          </span>
+                          <div>
+                            <span className="text-xs sm:text-[13px] font-bold uppercase tracking-wider text-[var(--fg-muted)]">
+                              Entry Fee
+                            </span>
+                            {selectedCategory && (
+                              <span className="ml-2 inline-flex items-center rounded-md bg-amber-500/15 px-2 py-0.5 text-[11px] font-bold text-amber-300 border border-amber-500/30">
+                                {selectedCategory}
+                              </span>
+                            )}
+                          </div>
                         </div>
                         <span className="font-sans text-xl sm:text-2xl font-black tracking-tight text-amber-400">
-                          {formatINR(comp.participation_fee || comp.fee)}
+                          {formatINR(activeCategoryFee)}
                         </span>
                       </div>
 
@@ -2889,7 +3014,7 @@ export default function CompetitionDetail({
                                   paymentMode === "ONLINE"
                                     ? "border-[var(--accent)] bg-[var(--accent)]"
                                     : "border-[var(--border-strong)] bg-transparent"
-                                )}
+                                  )}
                               >
                                 {paymentMode === "ONLINE" && <span className="size-1.5 rounded-full bg-black" />}
                               </span>
@@ -2959,10 +3084,29 @@ export default function CompetitionDetail({
                             Cash on Spot (Venue Payment)
                           </p>
                           <p className="mt-1 text-[11px] text-amber-200/90 leading-relaxed">
-                            Your participation slot is reserved immediately. You can upload your audition entry now and deposit {formatINR(comp.participation_fee || comp.fee)} cash at the venue counter on event day.
+                            Your participation slot is reserved immediately. You can upload your audition entry now and deposit {formatINR(activeCategoryFee)} cash at the venue counter on event day.
                           </p>
                         </div>
                       )}
+                    </div>
+                  ) : (
+                    <div className="mb-4 flex items-center justify-between rounded-2xl border border-emerald-500/30 bg-emerald-500/10 px-4 py-3.5 shadow-sm">
+                      <div className="flex items-center gap-2">
+                        <Sparkles className="size-4.5 text-emerald-400" />
+                        <div>
+                          <span className="text-xs sm:text-[13px] font-bold uppercase tracking-wider text-emerald-300">
+                            Free Registration
+                          </span>
+                          {selectedCategory && (
+                            <span className="ml-2 inline-flex items-center rounded-md bg-emerald-500/20 px-2 py-0.5 text-[11px] font-bold text-emerald-300 border border-emerald-500/30">
+                              {selectedCategory}
+                            </span>
+                          )}
+                        </div>
+                      </div>
+                      <span className="rounded-full bg-emerald-400 px-3 py-1 text-xs font-black text-black">
+                        100% FREE
+                      </span>
                     </div>
                   )}
 
@@ -3018,11 +3162,11 @@ export default function CompetitionDetail({
                       ? selectedCatEligibility.age >= 0
                         ? `Ineligible for ${selectedCategory} (Age: ${selectedCatEligibility.age} yrs)`
                         : `Enter Birthdate for ${selectedCategory}`
-                      : (comp.participation_fee || comp.fee)
+                      : activeCategoryFee > 0
                         ? paymentMode === "CASH"
-                          ? `Confirm Entry & Pay ${formatINR(comp.participation_fee || comp.fee)} Cash at Venue`
-                          : `Pay ${formatINR(comp.participation_fee || comp.fee)} Online & Register`
-                        : `Register in ${selectedCategory || "Competition"}`}
+                          ? `Confirm Entry & Pay ${formatINR(activeCategoryFee)} Cash at Venue`
+                          : `Pay ${formatINR(activeCategoryFee)} Online & Register`
+                        : `Confirm Free Registration in ${selectedCategory || "Competition"}`}
                   </button>
                 </>
               )

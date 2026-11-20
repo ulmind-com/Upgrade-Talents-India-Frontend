@@ -19,6 +19,7 @@ interface CompetitionHeroProps {
     name?: string;
     description?: string;
     category?: string;
+    categories?: any[];
     type?: string;
     prize?: string;
     participation_fee?: number;
@@ -66,6 +67,26 @@ export default function CompetitionHero({ comp }: CompetitionHeroProps) {
   const category = comp.category || comp.type || "Official Contest";
   const fee = comp.participation_fee ?? comp.fee ?? 0;
   const isResultsPublished = lifecycle.isResultsOut;
+
+  const categoryPrices = useMemo(() => {
+    const cats = (comp as any)?.categories;
+    if (!Array.isArray(cats)) return [];
+    return cats
+      .map((c: any) => (c?.price != null && !isNaN(Number(c.price)) ? Number(c.price) : null))
+      .filter((p: any): p is number => p !== null);
+  }, [(comp as any)?.categories]);
+
+  const priceDisplay = useMemo(() => {
+    if (categoryPrices.length > 0) {
+      const minP = Math.min(...categoryPrices);
+      const maxP = Math.max(...categoryPrices);
+      if (minP === maxP) {
+        return minP > 0 ? formatINR(minP) : "Free Entry";
+      }
+      return `${formatINR(minP)} – ${formatINR(maxP)}`;
+    }
+    return fee > 0 ? formatINR(fee) : "Free Entry";
+  }, [categoryPrices, fee]);
 
   // Dynamic 16:9 (Desktop/Card) and 9:16 (Mobile/Banner) image sources
   const desktopImg = comp.card_image_url || comp.image_url || "";
@@ -231,7 +252,12 @@ export default function CompetitionHero({ comp }: CompetitionHeroProps) {
             <div className="flex items-center gap-2">
               <Ticket className="size-4 text-emerald-400" />
               <span>
-                Entry Fee: <strong className="font-extrabold text-amber-300 text-sm tracking-wide">{fee > 0 ? formatINR(fee) : "Free Entry"}</strong>
+                Entry Fee: <strong className="font-extrabold text-amber-300 text-sm tracking-wide">{priceDisplay}</strong>
+                {categoryPrices.length > 1 && (
+                  <span className="ml-1 text-[10.5px] font-normal text-neutral-300">
+                    (category-wise)
+                  </span>
+                )}
               </span>
             </div>
 
@@ -250,6 +276,37 @@ export default function CompetitionHero({ comp }: CompetitionHeroProps) {
               </div>
             )}
           </motion.div>
+
+          {/* ── Category Division Badges Strip ── */}
+          {Array.isArray((comp as any)?.categories) && (comp as any).categories.length > 0 && (
+            <motion.div
+              initial={{ opacity: 0, y: 15 }}
+              animate={{ opacity: 1, y: 0 }}
+              transition={{ duration: 0.6, delay: 0.22 }}
+              className="mt-3.5 flex flex-wrap items-center gap-2"
+            >
+              <span className="text-[11px] font-bold text-neutral-400 uppercase tracking-wider mr-1">
+                Divisions:
+              </span>
+              {(comp as any).categories.map((cat: any, idx: number) => {
+                const cName = typeof cat === "string" ? cat : cat?.name;
+                const cPrice = cat?.price !== undefined && cat?.price !== null && !isNaN(Number(cat.price))
+                  ? Number(cat.price)
+                  : (comp.participation_fee ?? comp.fee ?? 0);
+                return (
+                  <span
+                    key={idx}
+                    className="inline-flex items-center gap-1.5 rounded-full border border-white/15 bg-white/10 px-3 py-1 text-xs font-semibold text-white backdrop-blur-md shadow-xs"
+                  >
+                    <span>{cName}</span>
+                    <span className="rounded-full bg-amber-400/25 px-1.5 py-0.2 font-mono text-[11px] font-bold text-amber-300">
+                      {cPrice === 0 ? "Free" : formatINR(cPrice)}
+                    </span>
+                  </span>
+                );
+              })}
+            </motion.div>
+          )}
 
           {/* ── Action Navigation Pills ── */}
           <motion.div
