@@ -798,10 +798,20 @@ export const activitiesApi = {
       query: { event_id, limit: p.limit ?? 20, skip: p.skip ?? 0 },
       cache: "no-store",
     }),
-  eventBookedSeats: (eventId: string) =>
+  eventBookedSeats: (eventId: string, holdToken?: string) =>
     apiFetch<{ event_id: string; booked_seats: string[]; count: number }>(
       `/api/activities/events/${eventId}/booked-seats`,
-      { cache: "no-store" }
+      { query: holdToken ? { hold_token: holdToken } : undefined, cache: "no-store" }
+    ),
+  holdSeats: (eventId: string, data: { seats: string[]; hold_token?: string; user_email?: string }) =>
+    apiFetch<{ success: boolean; hold_token: string; held_seats: string[]; expires_in: number; expires_at: string }>(
+      `/api/activities/events/${eventId}/hold-seats`,
+      { method: "POST", body: JSON.stringify(data) }
+    ),
+  releaseSeats: (eventId: string, data: { hold_token: string; seats?: string[] }) =>
+    apiFetch<{ success: boolean; released_count: number }>(
+      `/api/activities/events/${eventId}/release-seats`,
+      { method: "POST", body: JSON.stringify(data) }
     ),
   competitions: (p: { skip?: number; limit?: number; search?: string } = {}) =>
     apiFetch<any[]>("/api/activities/competitions", { query: p, cache: "no-store" }),

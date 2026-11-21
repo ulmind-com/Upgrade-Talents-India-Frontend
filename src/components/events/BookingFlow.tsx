@@ -430,6 +430,22 @@ export default function BookingFlow({
   const [bookedSeats, setBookedSeats] = useState<string[]>([]);
   const [loadingBookedSeats, setLoadingBookedSeats] = useState(true);
 
+  // BookMyShow 5-Minute Seat Hold & Reservation State
+  const [holdToken] = useState<string>(() => {
+    if (typeof window !== "undefined") {
+      const stored = sessionStorage.getItem(`uti_hold_token_${initialEvent._id}`);
+      if (stored) return stored;
+      const gen = typeof crypto !== "undefined" && crypto.randomUUID ? crypto.randomUUID() : `ht-${Date.now()}-${Math.random().toString(36).slice(2, 9)}`;
+      try {
+        sessionStorage.setItem(`uti_hold_token_${initialEvent._id}`, gen);
+      } catch {}
+      return gen;
+    }
+    return `ht-${Date.now()}`;
+  });
+  const [holdExpiresAt, setHoldExpiresAt] = useState<number | null>(null);
+  const [holdSecondsLeft, setHoldSecondsLeft] = useState<number | null>(null);
+
   // Interactive Selected Seats array (BookMyShow style)
   const [selectedSeats, setSelectedSeats] = useState<SelectedSeatInfo[]>([]);
   const [attendeeNames, setAttendeeNames] = useState<string[]>([]);
@@ -468,11 +484,11 @@ export default function BookingFlow({
     };
   }, [initialEvent._id]);
 
-  // Load live booked seats
+  // Load live booked seats (excluding seats held by caller's holdToken so caller can manage them)
   const fetchBookedSeats = useCallback(async () => {
     try {
       setLoadingBookedSeats(true);
-      const res = await activitiesApi.eventBookedSeats(initialEvent._id);
+      const res = await activitiesApi.eventBookedSeats(initialEvent._id, holdToken);
       if (res && Array.isArray(res.booked_seats)) {
         setBookedSeats(res.booked_seats.map((s) => String(s).toUpperCase()));
       }
@@ -481,7 +497,7 @@ export default function BookingFlow({
     } finally {
       setLoadingBookedSeats(false);
     }
-  }, [initialEvent._id]);
+  }, [initialEvent._id, holdToken]);
 
   useEffect(() => {
     fetchBookedSeats();
@@ -495,6 +511,76 @@ export default function BookingFlow({
     },
     7000
   );
+
+  // Synchronize seat holds with backend for BookMyShow temporary 5-minute reservation
+  const syncHoldWithBackend = useCallback(
+    async (seatsList: SelectedSeatInfo[]) => {
+      if (!holdToken) return;
+      const seatIds = seatsList.map((s) => s.seatId);
+      if (seatIds.length === 0) {
+        setHoldExpiresAt(null);
+        setHoldSecondsLeft(null);
+        try {
+          await activitiesApi.releaseSeats(initialEvent._id, { hold_token: holdToken });
+        } catch {}
+        fetchBookedSeats();
+        return;
+      }
+
+      try {
+        const res = await activitiesApi.holdSeats(initialEvent._id, {
+          seats: seatIds,
+          hold_token: holdToken,
+          user_email: user?.email,
+        });
+        if (res && res.expires_in) {
+          const expTime = Date.now() + res.expires_in * 1000;
+          setHoldExpiresAt(expTime);
+          setHoldSecondsLeft(res.expires_in);
+        }
+      } catch (err: any) {
+        const msg = err?.message || "Seat is already reserved by another attendee. Please choose another seat.";
+        setError(msg);
+        fetchBookedSeats();
+      }
+    },
+    [holdToken, initialEvent._id, user?.email, fetchBookedSeats]
+  );
+
+  // BookMyShow 5-Minute Timer Countdown & Auto-Release on Expiry
+  useEffect(() => {
+    if (!holdExpiresAt || selectedSeats.length === 0) {
+      setHoldSecondsLeft(null);
+      return;
+    }
+
+    const timer = setInterval(() => {
+      const remaining = Math.max(0, Math.round((holdExpiresAt - Date.now()) / 1000));
+      setHoldSecondsLeft(remaining);
+      if (remaining <= 0) {
+        clearInterval(timer);
+        setSelectedSeats([]);
+        setHoldExpiresAt(null);
+        setHoldSecondsLeft(null);
+        setError("Your 5-minute seat reservation has expired. Please select your seats again.");
+        if (holdToken) {
+          activitiesApi.releaseSeats(initialEvent._id, { hold_token: holdToken }).catch(() => {});
+        }
+        fetchBookedSeats();
+      }
+    }, 1000);
+
+    return () => clearInterval(timer);
+  }, [holdExpiresAt, selectedSeats.length, holdToken, initialEvent._id, fetchBookedSeats]);
+
+  // Clean up held seats when user leaves booking page before completing
+  useEffect(() => {
+    return () => {
+      if (holdToken && !confirmedBooking && selectedSeats.length > 0) {
+        activitiesApi.releaseSeats(initialEvent._id, { hold_token: holdToken }).catch(() => {});
+      }
+    };
+  }, [holdToken, initialEvent._id, confirmedBooking, selectedSeats.length]);
 
   const bookedSeatSet = useMemo(() => new Set(bookedSeats), [bookedSeats]);
   const selectedSeatMap = useMemo(() => new Map(selectedSeats.map((s) => [s.seatId, s])), [selectedSeats]);
@@ -629,24 +715,23 @@ export default function BookingFlow({
     }
   }, [event.date]);
 
-  // Handle seat click (Toggle selection)
+  // Handle seat click (Toggle selection) with BookMyShow 5-minute atomic reservation
   const handleToggleSeat = (seatId: string, rowCode: string, seatNum: number, tierItem: TicketTier) => {
     setError(null);
     if (bookedSeatSet.has(seatId)) return;
 
-    setSelectedSeats((prev) => {
-      const exists = prev.some((s) => s.seatId === seatId);
-      if (exists) {
-        return prev.filter((s) => s.seatId !== seatId);
-      }
-      if (prev.length >= MAX_QTY) {
+    const exists = selectedSeats.some((s) => s.seatId === seatId);
+    let nextList: SelectedSeatInfo[];
+    if (exists) {
+      nextList = selectedSeats.filter((s) => s.seatId !== seatId);
+    } else {
+      if (selectedSeats.length >= MAX_QTY) {
         setError(`Maximum ${MAX_QTY} seats can be selected per booking.`);
-        return prev;
+        return;
       }
       setSelectedTierId(tierItem._id);
-
-      return [
-        ...prev,
+      nextList = [
+        ...selectedSeats,
         {
           seatId,
           rowCode,
@@ -656,16 +741,21 @@ export default function BookingFlow({
           price: Number(tierItem.price || 0),
         },
       ];
-    });
+    }
+    setSelectedSeats(nextList);
+    syncHoldWithBackend(nextList);
   };
 
   const removeSeat = (seatId: string) => {
-    setSelectedSeats((prev) => prev.filter((s) => s.seatId !== seatId));
+    const nextList = selectedSeats.filter((s) => s.seatId !== seatId);
+    setSelectedSeats(nextList);
+    syncHoldWithBackend(nextList);
   };
 
   const clearAllSeats = () => {
     setSelectedSeats([]);
     setError(null);
+    syncHoldWithBackend([]);
   };
 
   /* ── Booking Submission ── */
@@ -1021,6 +1111,18 @@ export default function BookingFlow({
 
               {/* Selected Seats Cart (Exact Match to Reference Image) */}
               <div className="mt-4 rounded-2xl border border-white/10 bg-black/60 p-4 backdrop-blur-md">
+                {/* BookMyShow 5-Minute Hold Timer Banner */}
+                {holdSecondsLeft !== null && holdSecondsLeft > 0 && selectedSeats.length > 0 && (
+                  <div className="mb-3 rounded-xl border border-red-500/50 bg-red-950/40 p-2.5 backdrop-blur-md flex items-center justify-between text-xs font-semibold text-white/90 shadow-md animate-pulse">
+                    <span className="flex items-center gap-1.5 text-[11px] font-bold text-red-300">
+                      <Clock className="size-3.5 text-red-400" />
+                      Seats held for:
+                    </span>
+                    <span className="font-mono text-xs font-black text-amber-300">
+                      {String(Math.floor(holdSecondsLeft / 60)).padStart(2, "0")}:{String(holdSecondsLeft % 60).padStart(2, "0")}
+                    </span>
+                  </div>
+                )}
                 <div className="flex items-center justify-between border-b border-white/10 pb-2 mb-3">
                   <span className="font-mono text-xs uppercase tracking-wider text-white/70">
                     Selected Seats ({selectedSeats.length})
@@ -1108,6 +1210,16 @@ export default function BookingFlow({
             {/* ── CENTER COLUMN: Stage & Category-wise Seating Grid ── */}
             <div className="flex flex-col items-center w-full min-w-0 overflow-hidden">
               
+              {/* BookMyShow 5-Minute Active Hold Notification */}
+              {holdSecondsLeft !== null && holdSecondsLeft > 0 && selectedSeats.length > 0 && (
+                <div className="mb-4 inline-flex items-center gap-2.5 px-4 py-1.5 rounded-full border border-red-500/50 bg-red-950/60 backdrop-blur-md shadow-[0_0_15px_rgba(239,68,68,0.35)] animate-pulse">
+                  <Clock className="size-3.5 text-red-400 shrink-0" />
+                  <span className="text-xs font-bold text-white">
+                    BookMyShow Seat Hold: <span className="font-mono text-amber-300 font-black">{String(Math.floor(holdSecondsLeft / 60)).padStart(2, "0")}:{String(holdSecondsLeft % 60).padStart(2, "0")}</span> remaining
+                  </span>
+                </div>
+              )}
+
               {/* 3D Trapezoid Stage Perspective */}
               <div className="relative mx-auto mb-6 w-full max-w-lg text-center">
                 <div
@@ -1436,6 +1548,19 @@ export default function BookingFlow({
                   </span>
                 </div>
               </div>
+
+              {/* BookMyShow 5-Minute Hold Countdown Banner */}
+              {holdSecondsLeft !== null && holdSecondsLeft > 0 && (
+                <div className="mt-4 rounded-2xl border border-red-500/40 bg-gradient-to-r from-red-950/40 via-neutral-900 to-red-950/40 p-3.5 flex items-center justify-between text-xs sm:text-sm font-semibold text-white/90 shadow-md">
+                  <div className="flex items-center gap-2">
+                    <Clock className="size-4 text-red-400 shrink-0 animate-pulse" />
+                    <span>Seats reserved for checkout:</span>
+                  </div>
+                  <div className="flex items-center gap-1.5 bg-red-600/20 border border-red-500/50 px-3 py-1 rounded-full font-mono text-xs sm:text-sm font-black text-amber-300">
+                    ⏱️ {String(Math.floor(holdSecondsLeft / 60)).padStart(2, "0")}:{String(holdSecondsLeft % 60).padStart(2, "0")}
+                  </div>
+                </div>
+              )}
 
               {/* Selected Seats Review */}
               <div className="mt-6 rounded-2xl border border-white/10 bg-black/40 p-4">

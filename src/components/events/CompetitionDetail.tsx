@@ -645,11 +645,6 @@ export default function CompetitionDetail({
         if (name && typeof name === "string" && name.trim()) set.add(name.trim());
       });
     }
-    if (set.size === 0) {
-      set.add("Sub-Junior");
-      set.add("Junior");
-      set.add("Senior");
-    }
     return Array.from(set);
   }, [categoryLeaderboards, rows, comp]);
 

@@ -33,17 +33,6 @@ type Row = {
 
 type Comp = { _id?: string; id?: string; title?: string; name?: string };
 
-const DEMO: Row[] = [
-  { rank: 1, name: "Riya Sharma", email: "riya@upgradetalentsindia.in", audience_votes: 3045, judge_score: 92, final_score: 98.4, category: "Junior" },
-  { rank: 2, name: "Arjun Mehta", email: "arjun@upgradetalentsindia.in", audience_votes: 2774, judge_score: 88, final_score: 94.1, category: "Senior" },
-  { rank: 3, name: "Neha Kapoor", email: "neha@upgradetalentsindia.in", audience_votes: 1988, judge_score: 90, final_score: 91.7, category: "Sub-Junior" },
-  { rank: 4, name: "Kabir Rao", email: "kabir@upgradetalentsindia.in", audience_votes: 1589, judge_score: 84, final_score: 86.0, category: "Junior" },
-  { rank: 5, name: "Ananya Das", email: "ananya@upgradetalentsindia.in", audience_votes: 1021, judge_score: 82, final_score: 80.2, category: "Senior" },
-  { rank: 6, name: "Dev Patel", email: "dev@upgradetalentsindia.in", audience_votes: 1000, judge_score: 79, final_score: 77.9, category: "Sub-Junior" },
-  { rank: 7, name: "Simran Gill", email: "simran@upgradetalentsindia.in", audience_votes: 842, judge_score: 76, final_score: 72.4, category: "Junior" },
-  { rank: 8, name: "Ved Nair", email: "ved@upgradetalentsindia.in", audience_votes: 640, judge_score: 71, final_score: 66.8, category: "Senior" },
-];
-
 const handle = (r: Row) => "@" + ((r.email || r.participant_id || r.name || "player").split("@")[0].replace(/\s+/g, "_").toLowerCase());
 const nf = (n?: number) => new Intl.NumberFormat("en-IN").format(Math.round(Number(n ?? 0)));
 
@@ -506,17 +495,11 @@ export default function LeaderboardView({
         if (name && typeof name === "string" && name.trim()) set.add(name.trim());
       }
     }
-    // Default divisions to guarantee tabs are present if competition has no custom categories defined
-    if (set.size === 0) {
-      set.add("Junior");
-      set.add("Sub-Junior");
-      set.add("Senior");
-    }
     return Array.from(set);
   }, [categories, categoryLeaderboards, rows, activeComp]);
 
   const allNormalizedRows = useMemo(() => {
-    const rawList = rows.length ? rows : preview ? DEMO : [];
+    const rawList = rows.length ? rows : [];
 
     // Filter to only contestants who have actually been scored, voted, or evaluated
     // Un-evaluated or un-scored registered contestants are not shown on public 1st/2nd/3rd standings
@@ -528,7 +511,7 @@ export default function LeaderboardView({
       return effectivePoints > 0 || Boolean(r.is_scored || r.has_scored);
     });
 
-    const targetList = scoredList.length > 0 ? scoredList : (preview ? DEMO : []);
+    const targetList = scoredList;
 
     // Sort descending by points
     targetList.sort((a: any, b: any) => {
