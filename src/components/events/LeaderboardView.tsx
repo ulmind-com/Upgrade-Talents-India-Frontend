@@ -970,6 +970,38 @@ export default function LeaderboardView({
 
           {/* Table */}
           <Reveal className="mt-12">
+            {/* VIP Competitor Personal Highlight Card */}
+            {userContestantRow && (
+              <div className="mb-6 overflow-hidden rounded-2xl border-2 border-amber-400/80 bg-gradient-to-r from-amber-950/40 via-[var(--surface)] to-amber-950/30 p-4 sm:p-5 shadow-lg backdrop-blur-md">
+                <div className="flex flex-wrap items-center justify-between gap-3">
+                  <div className="flex items-center gap-3">
+                    <div className="grid size-12 place-items-center rounded-xl bg-amber-400 text-slate-950 font-black text-lg shadow-md shrink-0">
+                      #{userContestantRow.rank ?? "—"}
+                    </div>
+                    <div>
+                      <span className="inline-flex items-center gap-1 rounded-full bg-amber-400/20 px-2 py-0.5 text-[10px] font-bold text-amber-300">
+                        <Trophy className="size-3" /> YOUR STANDING IN THIS COMPETITION
+                      </span>
+                      <p className="font-bold text-base text-white">{userContestantRow.name || user?.name}</p>
+                      <span className="text-xs text-[var(--fg-muted)]">Division: {userContestantRow.category || "General"}</span>
+                    </div>
+                  </div>
+                  <div className="flex items-center gap-4 text-right">
+                    {userContestantRow.judge_score != null && Number(userContestantRow.judge_score) > 0 && (
+                      <div>
+                        <span className="text-[10px] font-mono uppercase text-amber-300/80 block">Judge Marks</span>
+                        <span className="font-street text-xl font-black text-amber-300">★ {nf(userContestantRow.judge_score)}</span>
+                      </div>
+                    )}
+                    <div>
+                      <span className="text-[10px] font-mono uppercase text-[var(--fg-subtle)] block">Total Score</span>
+                      <span className="font-street text-xl font-black text-white">{nf(userContestantRow.points ?? userContestantRow.final_score ?? userContestantRow.judge_score)}</span>
+                    </div>
+                  </div>
+                </div>
+              </div>
+            )}
+
             <div className="overflow-hidden rounded-[var(--radius-xl)] border border-[var(--border)] bg-[var(--surface)]">
               <div className="flex items-center justify-between gap-4 border-b border-[var(--border)] p-4 md:p-5">
                 <p className="flex items-center gap-2 font-display text-lg font-bold">
@@ -999,11 +1031,18 @@ export default function LeaderboardView({
                   </thead>
                   <tbody>
                     {filtered.map((r) => {
+                      const uEmail = (user?.email || "").trim().toLowerCase();
+                      const rEmail = (r.email || r.participant_id || "").trim().toLowerCase();
+                      const isMe = Boolean(uEmail && rEmail && uEmail === rEmail);
+
                       return (
                         <motion.tr
                           key={(r.rank ?? 0) + (r.email || r.name || "")}
                           whileHover={{ backgroundColor: "var(--surface-2)" }}
-                          className="border-t border-[var(--border)] text-sm"
+                          className={cn(
+                            "border-t border-[var(--border)] text-sm transition-colors",
+                            isMe ? "bg-amber-500/15 border-y-2 border-amber-400 ring-2 ring-amber-400/40 relative z-10 font-bold shadow-md" : ""
+                          )}
                         >
                           <td className="px-5 py-3.5">
                             {r.rank === 1 ? (
@@ -1030,6 +1069,11 @@ export default function LeaderboardView({
                               <div className="min-w-0">
                                 <p className="truncate font-bold text-sm sm:text-base leading-tight flex items-center gap-1.5">
                                   <span>{r.name || "—"}</span>
+                                  {isMe && (
+                                    <span className="rounded bg-amber-400 px-1.5 py-0.5 text-[9.5px] font-black text-slate-950 uppercase">
+                                      YOU
+                                    </span>
+                                  )}
                                   {(r.is_verified || r.verified_badge) && <VerifiedBadge size="xs" />}
                                 </p>
                                 <div className="flex flex-wrap items-center gap-1.5 mt-0.5">

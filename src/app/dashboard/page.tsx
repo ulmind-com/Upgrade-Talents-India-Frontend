@@ -1046,6 +1046,24 @@ export default function DashboardPage() {
                             </div>
                           )}
 
+                          {(c.rank != null || c.score != null) && (
+                            <div className="mt-3 rounded-2xl border border-amber-400/50 bg-gradient-to-r from-amber-500/15 via-amber-400/5 to-transparent p-3 shadow-sm">
+                              <div className="flex items-center justify-between gap-2">
+                                <span className="inline-flex items-center gap-1.5 text-[11px] font-black uppercase tracking-wider text-amber-400">
+                                  <Trophy className="size-3.5 text-amber-400" />
+                                  Official Score &amp; Ranking
+                                </span>
+                                <span className="rounded-full bg-amber-400/20 border border-amber-400/50 px-2 py-0.5 font-mono text-[11px] font-black text-amber-300">
+                                  {c.rank ? `Rank #${c.rank}` : "Scored by Jury"}
+                                </span>
+                              </div>
+                              <div className="mt-1 flex items-center justify-between text-xs">
+                                <span className="text-[var(--fg-muted)]">Official Jury Points:</span>
+                                <span className="font-mono font-black text-amber-300 text-sm">★ {c.score ?? "—"} pts</span>
+                              </div>
+                            </div>
+                          )}
+
                           {c.current_performer && (
                             <div className="mt-3 rounded-2xl border border-rose-500/30 bg-rose-500/10 p-2.5">
                               <div className="flex items-center justify-between gap-2">
