@@ -1012,12 +1012,37 @@ export default function DashboardPage() {
                             )}
                           </div>
 
-                          {(c.is_present || c.attendance_status === "PRESENT") && (
-                            <div className="flex items-center gap-2 pt-0.5">
-                              <span className="text-[var(--fg-subtle)]">Venue Attendance:</span>
-                              <span className="inline-flex items-center gap-1 font-semibold text-emerald-400">
-                                <CheckCircle2 className="size-3.5" /> Present (Confirmed at Venue)
-                              </span>
+                          {(c.is_present || c.attendance_status === "PRESENT") ? (
+                            <div className="mt-3 rounded-2xl border border-emerald-500/40 bg-gradient-to-r from-emerald-500/15 via-emerald-500/5 to-transparent p-3 shadow-sm">
+                              <div className="flex items-center justify-between gap-2">
+                                <span className="inline-flex items-center gap-1.5 text-[11px] font-black uppercase tracking-wider text-emerald-400">
+                                  <CheckCircle2 className="size-3.5 text-emerald-400" />
+                                  Checked In &amp; In Lineup
+                                </span>
+                                <span className="rounded-full bg-emerald-500/20 border border-emerald-500/40 px-2 py-0.5 font-mono text-[11px] font-black text-emerald-300">
+                                  {c.stage_status === "ON_STAGE" ? "LIVE ON STAGE" : c.stage_status === "COMPLETED" ? "PERFORMANCE COMPLETED" : c.stage_order ? `Lineup #${c.stage_order}` : "In Queue"}
+                                </span>
+                              </div>
+                              <p className="mt-1 text-xs text-emerald-200/90 font-medium">
+                                {c.stage_status === "ON_STAGE"
+                                  ? "🎤 It's your turn! You are currently performing on the live stage."
+                                  : c.stage_status === "COMPLETED"
+                                  ? "✅ Your performance has ended. Scores and judge feedback will be announced shortly."
+                                  : "You are confirmed present at the venue. Your entry is in the active performance lineup."}
+                              </p>
+                            </div>
+                          ) : (
+                            <div className="mt-3 rounded-2xl border border-amber-500/30 bg-amber-500/10 p-2.5">
+                              <div className="flex items-center justify-between gap-2">
+                                <span className="inline-flex items-center gap-1.5 text-[10.5px] font-bold text-amber-400">
+                                  <Clock className="size-3 text-amber-400" />
+                                  Venue Check-In Required
+                                </span>
+                                <span className="text-[10px] text-amber-300 font-mono font-bold">Awaiting Check-In</span>
+                              </div>
+                              <p className="mt-0.5 text-[11px] text-[var(--fg-subtle)]">
+                                Please mark attendance at the venue registration desk to receive your live stage performance number.
+                              </p>
                             </div>
                           )}
 
