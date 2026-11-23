@@ -190,6 +190,8 @@ export default function CoverflowCarousel({
   const scroll = useRef(0);
   const vel = useRef(0);
   const drag = useRef({ active: false, x: 0, t: 0, moved: 0 });
+  const dragStart = useRef({ x: 0, y: 0 });
+  const isHovered = useRef(false);
   const [height, setHeight] = useState(400);
   const dimsRef = useRef({ bw: 1440, bh: 400, s: 1 });
   const inViewRef = useRef(true);
@@ -291,7 +293,7 @@ export default function CoverflowCarousel({
       }
       const dt = Math.min(0.05, (now - last) / 1000);
       last = now;
-      if (!drag.current.active) {
+      if (!drag.current.active && !isHovered.current) {
         scroll.current += (SPEED + vel.current) * dt;
         vel.current *= Math.pow(DECAY, dt);
         if (Math.abs(vel.current) < 0.5) vel.current = 0;
@@ -338,20 +340,27 @@ export default function CoverflowCarousel({
   };
 
   const onDown = (e: React.PointerEvent) => {
+    isHovered.current = true;
     drag.current = { active: true, x: e.clientX, t: performance.now(), moved: 0 };
+    dragStart.current = { x: e.clientX, y: e.clientY };
     vel.current = 0;
   };
   const onMove = (e: React.PointerEvent) => {
     if (!drag.current.active) return;
     const now = performance.now();
     const dx = e.clientX - drag.current.x;
-    const dt = Math.max(1 / 240, (now - drag.current.t) / 1000);
-    drag.current.x = e.clientX;
-    drag.current.t = now;
-    drag.current.moved += Math.abs(dx);
-    const du = dx * unitsPerPx();
-    scroll.current -= du;     // follows the pointer 1:1
-    vel.current = -du / dt;   // carries the throw
+    const totalDist = Math.hypot(e.clientX - dragStart.current.x, e.clientY - dragStart.current.y);
+
+    // Only initiate horizontal scrub if finger/pointer moves beyond 10px jitter
+    if (totalDist > 10) {
+      const dt = Math.max(1 / 240, (now - drag.current.t) / 1000);
+      drag.current.x = e.clientX;
+      drag.current.t = now;
+      drag.current.moved += Math.abs(dx);
+      const du = dx * unitsPerPx();
+      scroll.current -= du;     // follows the pointer 1:1
+      vel.current = -du / dt;   // carries the throw
+    }
   };
   const onUp = () => {
     drag.current.active = false;
@@ -366,6 +375,8 @@ export default function CoverflowCarousel({
       onPointerMove={onMove}
       onPointerUp={onUp}
       onPointerCancel={onUp}
+      onMouseEnter={() => { isHovered.current = true; }}
+      onMouseLeave={() => { isHovered.current = false; drag.current.active = false; }}
     >
       {panels.map((p, i) => {
         const item = p.item;
@@ -381,14 +392,14 @@ export default function CoverflowCarousel({
               href={item.href}
               prefetch={true}
               onClick={(e) => {
-                // Only suppress click if user intentionally dragged more than 35px
-                // Instant taps and quick clicks always execute without delay
-                if (drag.current.moved > 35) {
+                // Only suppress click if user intentionally dragged horizontally more than 25px
+                // Normal taps and clicks on mobile or desktop navigate immediately
+                if (drag.current.moved > 25) {
                   e.preventDefault();
                 }
               }}
               draggable={false}
-              className="group relative block size-full cursor-pointer"
+              className="group relative block size-full cursor-pointer touch-manipulation"
             >
               <img
                 src={imageFor(item.image_url, p.idx)}
@@ -399,13 +410,13 @@ export default function CoverflowCarousel({
               {/* distance shade — panels darken towards the edges of the arch */}
               <span data-shade aria-hidden className="absolute inset-0 bg-[#04050c]" style={{ opacity: 0 }} />
 
-              {/* details ride in on hover so the arch stays pure image at rest */}
+              {/* details overlay: visible on mobile/touch, reveals on hover on desktop */}
               <span
                 aria-hidden
-                className="absolute inset-0 opacity-0 transition-opacity duration-300 group-hover:opacity-100"
+                className="absolute inset-0 opacity-80 sm:opacity-0 transition-opacity duration-300 sm:group-hover:opacity-100"
                 style={{ background: "linear-gradient(180deg, rgba(4,5,12,0) 25%, rgba(4,5,12,0.85) 72%, rgba(4,5,12,0.98) 100%)" }}
               />
-              <div className="absolute inset-x-0 bottom-0 translate-y-3 p-3.5 text-white opacity-0 transition-all duration-300 group-hover:translate-y-0 group-hover:opacity-100">
+              <div className="absolute inset-x-0 bottom-0 p-3 sm:p-3.5 text-white opacity-100 sm:opacity-0 transition-all duration-300 sm:translate-y-3 sm:group-hover:translate-y-0 sm:group-hover:opacity-100">
                 <div className="flex items-center justify-between gap-1">
                   <p className="font-mono text-[10px] uppercase tracking-[0.2em] text-[var(--accent)] font-semibold">
                     {sd.month ? `${sd.month} ${sd.day}` : "Upcoming"}
@@ -416,7 +427,7 @@ export default function CoverflowCarousel({
                     </span>
                   )}
                 </div>
-                <h3 className="mt-1 font-display text-[0.98rem] font-bold leading-tight line-clamp-2">{item.title}</h3>
+                <h3 className="mt-1 font-display text-[0.98rem] font-bold leading-tight line-clamp-2 drop-shadow">{item.title}</h3>
                 <p className="mt-1 flex items-center gap-1.5 text-[11px] text-white/70">
                   {item.isCompetition ? (
                     <>
@@ -430,7 +441,7 @@ export default function CoverflowCarousel({
                     </>
                   )}
                 </p>
-                <span className="mt-2.5 inline-flex items-center gap-1.5 rounded-full px-3 py-1.5 text-[11px] font-bold text-[var(--on-accent)] shadow-md" style={{ background: "var(--grad-brand)" }}>
+                <span className="mt-2.5 inline-flex items-center gap-1.5 rounded-full px-3 py-1.5 text-[11px] font-bold text-[var(--on-accent)] shadow-md transition-transform active:scale-95" style={{ background: "var(--grad-brand)" }}>
                   {item.isCompetition ? <Trophy className="size-3.5" aria-hidden /> : <Ticket className="size-3.5" aria-hidden />}
                   {item.ctaText || (item.isCompetition ? "Enter competition" : "Book tickets")}
                 </span>

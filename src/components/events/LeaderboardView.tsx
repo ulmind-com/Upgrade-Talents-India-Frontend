@@ -1,9 +1,31 @@
 "use client";
 
-import { useEffect, useMemo, useState, useCallback } from "react";
+import { useEffect, useMemo, useState, useCallback, useRef } from "react";
 import { useSearchParams, useRouter, usePathname } from "next/navigation";
 import { motion } from "framer-motion";
-import { Crown, Medal, Trophy, Flame, Search, ChevronDown, Users, Sparkles, Vote, Gavel, ExternalLink, Layers, Lock, Eye, EyeOff, CheckCircle2 } from "lucide-react";
+import {
+  Crown,
+  Medal,
+  Trophy,
+  Flame,
+  Search,
+  ChevronDown,
+  Users,
+  Sparkles,
+  Vote,
+  Gavel,
+  ExternalLink,
+  Layers,
+  Lock,
+  Eye,
+  EyeOff,
+  CheckCircle2,
+  Heart,
+  Loader2,
+  Clock,
+  ShieldCheck,
+  Share2,
+} from "lucide-react";
 import { Reveal, StaggerGroup, StaggerItem } from "@/components/motion/Reveal";
 import { SectionLabel } from "@/components/ui/Primitives";
 import { publicApi, competeApi } from "@/lib/api";
@@ -12,6 +34,7 @@ import Link from "next/link";
 import VerifiedBadge from "@/components/ui/VerifiedBadge";
 import { useAuth } from "@/components/motion/Providers";
 import { useRealtimeSubscription } from "@/lib/realtime";
+import { Podium3D, LaurelWreath, type PodiumContestant } from "@/components/events/Podium3D";
 
 type Row = {
   rank?: number;
@@ -20,7 +43,9 @@ type Row = {
   email?: string;
   profile_photo?: string;
   audience_votes?: number;
+  raw_audience_votes?: number;
   judge_score?: number;
+  raw_judge_score?: number;
   final_score?: number;
   points?: number;
   category?: string;
@@ -31,212 +56,66 @@ type Row = {
   is_present?: boolean;
 };
 
-type Comp = { _id?: string; id?: string; title?: string; name?: string };
+type Comp = {
+  _id?: string;
+  id?: string;
+  title?: string;
+  name?: string;
+  prize?: string;
+  prize_pool?: string;
+  total_prize?: string;
+  voting_end?: string;
+  submission_deadline?: string;
+  registration_deadline?: string;
+  end_date?: string;
+  audience_voting_enabled?: boolean;
+  voting_status?: string;
+};
 
-const handle = (r: Row) => "@" + ((r.email || r.participant_id || r.name || "player").split("@")[0].replace(/\s+/g, "_").toLowerCase());
-const nf = (n?: number) => new Intl.NumberFormat("en-IN").format(Math.round(Number(n ?? 0)));
+const handle = (r: Row) =>
+  "@" +
+  ((r.email || r.participant_id || r.name || "player")
+    .split("@")[0]
+    .replace(/\s+/g, "_")
+    .toLowerCase());
 
-const TIERS = [
-  // 1st Place - GOLD CHAMPION
-  {
-    place: 0,
-    rank: 1,
-    title: "1st Place - Grand Champion",
-    label: "1st Place • Champion",
-    tierName: "🥇 1st Place - Gold Champion",
-    badgeLabel: "1st",
-    TagIcon: Crown,
-    cardWrapper:
-      "border-2 border-amber-400 dark:border-amber-400/90 shadow-[0_16px_50px_-10px_rgba(245,158,11,0.35),0_0_30px_rgba(245,158,11,0.22)] bg-gradient-to-b from-amber-500/[0.14] via-amber-400/[0.04] to-[var(--surface)] dark:from-amber-500/25 dark:via-amber-950/25 dark:to-[var(--surface)] sm:-translate-y-6 sm:scale-[1.03] z-10",
-    badgeBg:
-      "bg-gradient-to-br from-amber-300 via-amber-500 to-yellow-600 text-slate-950 shadow-[0_0_22px_rgba(245,158,11,0.7)] ring-4 ring-amber-400/40",
-    ribbonClass:
-      "bg-gradient-to-r from-amber-500 via-yellow-400 to-amber-500 text-slate-950 shadow-md font-black ring-1 ring-amber-300",
-    avatarSize: 96,
-    avatarRing: "from-amber-300 via-yellow-400 to-amber-600",
-    avatarOuterRing: "ring-4 ring-amber-400/35",
-    avatarGlow: "shadow-[0_0_28px_rgba(245,158,11,0.45)]",
-    scoreText:
-      "text-transparent bg-clip-text bg-gradient-to-r from-amber-500 via-yellow-500 to-amber-600 dark:from-amber-300 dark:via-yellow-300 dark:to-amber-500",
-    statBorder: "border-amber-400/35 bg-amber-500/10 dark:bg-amber-500/15 text-amber-950 dark:text-amber-200",
-    cornerIconColor: "text-amber-500 drop-shadow-[0_0_8px_rgba(245,158,11,0.6)]",
-    pedestalBorder: "border-t border-amber-400/30",
-    pedestalText: "text-amber-600 dark:text-amber-400",
-  },
-  // 2nd Place - SILVER RUNNER-UP
-  {
-    place: 1,
-    rank: 2,
-    title: "2nd Place - Runner-Up",
-    label: "2nd Place • Runner-Up",
-    tierName: "🥈 2nd Place - Silver Runner-Up",
-    badgeLabel: "2nd",
-    TagIcon: Medal,
-    cardWrapper:
-      "border-2 border-slate-300 dark:border-slate-500/70 shadow-[0_10px_35px_-8px_rgba(148,163,184,0.32),0_0_20px_rgba(203,213,225,0.18)] bg-gradient-to-b from-slate-200/30 via-slate-100/5 to-[var(--surface)] dark:from-slate-400/15 dark:via-slate-800/20 dark:to-[var(--surface)] sm:-translate-y-1.5",
-    badgeBg:
-      "bg-gradient-to-br from-slate-100 via-slate-300 to-slate-400 text-slate-900 shadow-[0_0_18px_rgba(203,213,225,0.6)] ring-4 ring-slate-300/35",
-    ribbonClass:
-      "bg-slate-200/95 dark:bg-slate-700/90 text-slate-800 dark:text-slate-100 font-bold border border-slate-300 dark:border-slate-500 shadow-sm",
-    avatarSize: 84,
-    avatarRing: "from-slate-200 via-slate-400 to-slate-200",
-    avatarOuterRing: "ring-4 ring-slate-300/30",
-    avatarGlow: "shadow-[0_0_20px_rgba(148,163,184,0.35)]",
-    scoreText: "text-slate-800 dark:text-slate-100",
-    statBorder: "border-slate-300/50 bg-slate-100/70 dark:bg-slate-800/40 text-slate-800 dark:text-slate-200",
-    cornerIconColor: "text-slate-400 drop-shadow-[0_0_8px_rgba(148,163,184,0.4)]",
-    pedestalBorder: "border-t border-slate-300/30 dark:border-slate-600/30",
-    pedestalText: "text-slate-600 dark:text-slate-400",
-  },
-  // 3rd Place - BRONZE 2ND RUNNER-UP
-  {
-    place: 2,
-    rank: 3,
-    title: "3rd Place - 2nd Runner-Up",
-    label: "3rd Place • 2nd Runner-Up",
-    tierName: "🥉 3rd Place - Bronze 2nd Runner-Up",
-    badgeLabel: "3rd",
-    TagIcon: Medal,
-    cardWrapper:
-      "border-2 border-amber-700/60 dark:border-amber-600/60 shadow-[0_10px_35px_-8px_rgba(180,83,9,0.28),0_0_20px_rgba(180,83,9,0.15)] bg-gradient-to-b from-amber-700/15 via-orange-950/5 to-[var(--surface)] dark:from-amber-700/20 dark:via-amber-950/25 dark:to-[var(--surface)] sm:translate-y-1",
-    badgeBg:
-      "bg-gradient-to-br from-amber-600 via-orange-700 to-amber-900 text-amber-50 shadow-[0_0_18px_rgba(180,83,9,0.5)] ring-4 ring-amber-700/35",
-    ribbonClass:
-      "bg-amber-100/90 dark:bg-amber-950/80 text-amber-900 dark:text-amber-200 font-bold border border-amber-300/70 dark:border-amber-700 shadow-sm",
-    avatarSize: 84,
-    avatarRing: "from-amber-600 via-amber-700 to-amber-900",
-    avatarOuterRing: "ring-4 ring-amber-700/30",
-    avatarGlow: "shadow-[0_0_20px_rgba(180,83,9,0.35)]",
-    scoreText: "text-amber-800 dark:text-amber-300",
-    statBorder: "border-amber-700/35 bg-amber-700/10 dark:bg-amber-900/30 text-amber-950 dark:text-amber-200",
-    cornerIconColor: "text-amber-700 drop-shadow-[0_0_8px_rgba(180,83,9,0.4)]",
-    pedestalBorder: "border-t border-amber-700/30 dark:border-amber-800/30",
-    pedestalText: "text-amber-700 dark:text-amber-400",
-  },
-];
+const nf = (n?: number) =>
+  new Intl.NumberFormat("en-IN").format(Math.round(Number(n ?? 0)));
 
-function Avatar({ row, size = 72, ring }: { row: Row; size?: number; ring?: string }) {
+function useCountdown(target?: string | null): string | null {
+  const [now, setNow] = useState(() => Date.now());
+  useEffect(() => {
+    if (!target) return;
+    const t = setInterval(() => setNow(Date.now()), 1000);
+    return () => clearInterval(t);
+  }, [target]);
+  if (!target) return null;
+  const end = new Date(target).getTime();
+  if (!Number.isFinite(end)) return null;
+  const ms = end - now;
+  if (ms <= 0) return "Voting Ended";
+  const total = Math.floor(ms / 1000);
+  const d = Math.floor(total / 86400);
+  const h = Math.floor((total % 86400) / 3600);
+  const m = Math.floor((total % 3600) / 60);
+  const sec = total % 60;
+  if (d > 0) return `${d}d ${h}h ${m}m ${sec}s`;
+  return `${h}h ${m}m ${sec}s`;
+}
+
+function Avatar({ row, size = 44 }: { row: Row; size?: number }) {
   return (
     <span
-      className="relative grid shrink-0 place-items-center rounded-full"
-      style={{ width: size, height: size, background: ring ? `linear-gradient(140deg, ${ring}, transparent 70%)` : "var(--surface-2)", padding: 2.5 }}
+      className="relative grid shrink-0 place-items-center rounded-full bg-[var(--surface-2)] border border-[var(--border)] overflow-hidden shadow-xs"
+      style={{ width: size, height: size }}
     >
       <img
         src={imageFor(row.profile_photo, row.rank ?? 0)}
         alt=""
         className="size-full rounded-full object-cover"
-        style={{ width: size - 5, height: size - 5 }}
+        loading="lazy"
       />
     </span>
-  );
-}
-
-function PodiumCard({ row, place }: { row: Row; place: 0 | 1 | 2 }) {
-  const tier = TIERS[place] || TIERS[0];
-  const TagIcon = tier.TagIcon;
-
-  return (
-    <div
-      className={`relative flex flex-col items-center rounded-3xl ${tier.cardWrapper} px-5 pb-6 pt-9 text-center transition-all duration-500 hover:-translate-y-1.5`}
-    >
-      {/* Top Floating Rank Disc */}
-      <span
-        className={`absolute -top-5 grid size-11 place-items-center rounded-full text-[14px] font-black ${tier.badgeBg}`}
-      >
-        {place === 0 ? "1st" : place === 1 ? "2nd" : "3rd"}
-      </span>
-
-      {/* Top right corner medal/crown */}
-      <TagIcon className={`absolute right-4 top-4 size-5 ${tier.cornerIconColor}`} aria-hidden />
-
-      {/* Prominent Header Banner (Ensures 1st, 2nd, 3rd are unmistakable on phones & desktops) */}
-      <div className={`mb-3.5 w-full rounded-xl py-2 px-3.5 flex items-center justify-center gap-2 font-black uppercase tracking-wider text-xs sm:text-sm shadow-sm ${
-        place === 0
-          ? "bg-gradient-to-r from-amber-500 via-yellow-400 to-amber-500 text-slate-950 ring-2 ring-amber-300"
-          : place === 1
-          ? "bg-gradient-to-r from-slate-200 via-slate-300 to-slate-200 dark:from-slate-700 dark:via-slate-600 dark:to-slate-700 text-slate-900 dark:text-slate-100 ring-1 ring-slate-400/40"
-          : "bg-gradient-to-r from-amber-700 via-orange-800 to-amber-900 text-amber-50 ring-1 ring-amber-600/40"
-      }`}>
-        <TagIcon className="size-4 shrink-0 fill-current" />
-        <span>
-          {place === 0 ? "🥇 1ST PLACE • CHAMPION" : place === 1 ? "🥈 2ND PLACE • RUNNER-UP" : "🥉 3RD PLACE • 2ND RUNNER-UP"}
-        </span>
-      </div>
-
-      {/* Avatar with customized metallic frame & floating crown/medal */}
-      <div className="relative mt-1">
-        {place === 0 && (
-          <Crown
-            className="absolute -top-5 left-1/2 -translate-x-1/2 size-7 text-amber-400 drop-shadow-[0_0_10px_rgba(245,158,11,0.85)] z-10 animate-bounce"
-            style={{ animationDuration: "3s" }}
-          />
-        )}
-        <div
-          className={`grid place-items-center rounded-full p-[3px] bg-gradient-to-tr ${tier.avatarRing} ${tier.avatarOuterRing} ${tier.avatarGlow}`}
-          style={{ width: tier.avatarSize, height: tier.avatarSize }}
-        >
-          <img
-            src={imageFor(row.profile_photo, row.rank ?? place + 1)}
-            alt={row.name || "Contestant"}
-            className="size-full rounded-full object-cover bg-[var(--surface-2)]"
-          />
-        </div>
-        {place > 0 && (
-          <div className="absolute -bottom-1 -right-1 grid size-6 place-items-center rounded-full bg-[var(--surface)] shadow-md border border-[var(--border)]">
-            <TagIcon className={`size-3.5 ${tier.cornerIconColor}`} />
-          </div>
-        )}
-      </div>
-
-      {/* Name & verification */}
-      <p className="mt-3.5 line-clamp-1 font-display text-[clamp(1.15rem,2.5vw,1.4rem)] font-bold leading-tight flex items-center justify-center gap-1.5">
-        <span>{row.name || "—"}</span>
-        {(row.is_verified || row.verified_badge) && <VerifiedBadge size="sm" />}
-      </p>
-      <p className="text-xs sm:text-sm text-[var(--fg-subtle)] truncate max-w-full font-medium">{handle(row)}</p>
-
-      {/* Points with tier-specific styling */}
-      <div className="mt-3">
-        <p className={`font-display text-[clamp(2rem,4.5vw,2.6rem)] font-black leading-none tabular-nums ${tier.scoreText}`}>
-          {nf(row.points ?? row.final_score ?? row.audience_votes)}
-        </p>
-        <p className="mt-1 text-xs font-bold uppercase tracking-[0.2em] text-[var(--fg-subtle)]">
-          Total Points
-        </p>
-      </div>
-
-      {/* Stat pills (Votes & Judge) */}
-      <div className="mt-4 grid w-full grid-cols-2 gap-2">
-        <div className={`rounded-xl border ${tier.statBorder} py-2.5 px-3`}>
-          <p className="font-display text-base sm:text-lg font-bold tabular-nums">{nf(row.audience_votes)}</p>
-          <p className="text-xs font-semibold uppercase tracking-wider text-[var(--fg-subtle)]">Votes</p>
-        </div>
-        <div className={`rounded-xl border ${tier.statBorder} py-2.5 px-3`}>
-          <p className="font-display text-base sm:text-lg font-bold tabular-nums">{nf(row.judge_score)}</p>
-          <p className="text-xs font-semibold uppercase tracking-wider text-[var(--fg-subtle)]">Judge</p>
-        </div>
-      </div>
-
-      {/* Podium Pedestal Footer Bar */}
-      <div className={`mt-4 w-full pt-2.5 ${tier.pedestalBorder} flex items-center justify-between text-xs font-bold tracking-wider uppercase ${tier.pedestalText}`}>
-        <span>Rank {place === 0 ? "1st" : place === 1 ? "2nd" : "3rd"}</span>
-        <span>{tier.tierName}</span>
-      </div>
-    </div>
-  );
-}
-
-function StatCard({ Icon, value, label }: { Icon: typeof Users; value: string; label: string }) {
-  return (
-    <div className="flex items-center gap-4 rounded-[var(--radius-lg)] border border-[var(--border)] bg-[var(--surface)] p-5">
-      <span className="grid size-12 shrink-0 place-items-center rounded-2xl text-[var(--on-accent)]" style={{ background: "var(--grad-brand)" }}>
-        <Icon className="size-5" aria-hidden />
-      </span>
-      <div>
-        <p className="font-display text-[clamp(1.5rem,3vw,2rem)] font-bold leading-none tabular-nums">{value}</p>
-        <p className="mt-1 text-[12px] font-medium text-[var(--fg-muted)]">{label}</p>
-      </div>
-    </div>
   );
 }
 
@@ -263,7 +142,6 @@ export default function LeaderboardView({
     searchParams?.get("id") ||
     "";
 
-  // Prioritize URL query param, then initialCompId prop, then first competition
   const effectiveInitialId =
     urlCompId ||
     initialCompId ||
@@ -277,13 +155,133 @@ export default function LeaderboardView({
   const [rows, setRows] = useState<Row[]>(initialRows || []);
   const [activeCategory, setActiveCategory] = useState<string>("ALL");
   const [categories, setCategories] = useState<string[]>(initialCategories || []);
-  const [categoryLeaderboards, setCategoryLeaderboards] = useState<Record<string, Row[]>>(initialCategoryLeaderboards || {});
+  const [categoryLeaderboards, setCategoryLeaderboards] = useState<Record<string, Row[]>>(
+    initialCategoryLeaderboards || {}
+  );
   const [loading, setLoading] = useState(false);
   const [q, setQ] = useState("");
-  const [preview, setPreview] = useState(false);
   const [roundsData, setRoundsData] = useState<any | null>(null);
   const [activeRoundNumber, setActiveRoundNumber] = useState<number | null>(null);
   const [isScorePublic, setIsScorePublic] = useState<boolean>(true);
+
+  /* ── Interactive Voting State ── */
+  const [votingId, setVotingId] = useState<string | null>(null);
+  const [voteToast, setVoteToast] = useState<{ tone: "success" | "error"; msg: string } | null>(null);
+  const [bump, setBump] = useState<Record<string, number>>({});
+  const [voted, setVoted] = useState<Set<string>>(new Set());
+
+  const activeComp = useMemo(() => {
+    return compList.find((c) => (c._id || c.id) === compId);
+  }, [compList, compId]);
+
+  const isVotingOpen = Boolean(
+    activeComp?.audience_voting_enabled !== false &&
+    activeComp?.voting_status !== "CLOSED"
+  );
+
+  const userEmail = user?.email?.toLowerCase().trim();
+  const userVoteKey = userEmail ? `uti_votes_${userEmail}` : null;
+  const isMultiRound = Boolean(roundsData && roundsData.rounds && roundsData.rounds.length > 1);
+  const currentRoundNum = activeRoundNumber ?? roundsData?.current_round ?? 1;
+  const voteScope = isMultiRound && currentRoundNum ? `${compId}#r${currentRoundNum}` : String(compId);
+
+  // Restore stored votes for user
+  useEffect(() => {
+    if (!compId || !userVoteKey) {
+      setVoted(new Set());
+      setBump({});
+      return;
+    }
+    try {
+      const stored = localStorage.getItem(userVoteKey);
+      if (stored) {
+        const parsed = JSON.parse(stored);
+        setVoted(new Set<string>(parsed[voteScope] || []));
+      }
+    } catch {
+      setVoted(new Set());
+    }
+  }, [compId, userVoteKey, voteScope]);
+
+  const rememberVote = (pid: string) => {
+    if (!userVoteKey || !compId) return;
+    try {
+      const stored = localStorage.getItem(userVoteKey);
+      const all = stored ? JSON.parse(stored) : {};
+      const mine: string[] = all[voteScope] || [];
+      if (!mine.includes(pid)) {
+        all[voteScope] = [...mine, pid];
+        localStorage.setItem(userVoteKey, JSON.stringify(all));
+      }
+    } catch {}
+  };
+
+  const pidOf = (r: Row | PodiumContestant) => r.participant_id || r.email || "";
+
+  const handleVote = async (r: Row | PodiumContestant) => {
+    const pId = pidOf(r);
+    const who = r.name || "the contestant";
+    if (!pId || !compId) return;
+
+    if (!user) {
+      router.push(`/login?next=${encodeURIComponent(`${pathname}?competition=${compId}`)}`);
+      return;
+    }
+
+    if (voted.has(pId)) {
+      setVoteToast({ tone: "success", msg: `Your vote for ${who} is already in.` });
+      setTimeout(() => setVoteToast(null), 3500);
+      return;
+    }
+
+    // Prevent self-vote
+    const uEmail = user.email?.toLowerCase().trim();
+    const rEmail = (r.email || r.participant_id || "").toLowerCase().trim();
+    if (uEmail && rEmail && uEmail === rEmail) {
+      setVoteToast({ tone: "error", msg: "Contestants cannot vote for their own entry." });
+      setTimeout(() => setVoteToast(null), 3500);
+      return;
+    }
+
+    setVoted((prev) => new Set(prev).add(pId));
+    setBump((b) => ({ ...b, [pId]: (b[pId] || 0) + 1 }));
+    setVotingId(pId);
+
+    try {
+      await competeApi.vote(compId, pId, "WEBSITE");
+      rememberVote(pId);
+      setVoteToast({ tone: "success", msg: `★ Vote Counted! You backed ${who}. Rankings update live.` });
+      setTimeout(() => setVoteToast(null), 4000);
+
+      // Refresh standings
+      if (activeRoundNumber && activeRoundNumber > 1) {
+        publicApi.roundLeaderboard(compId, activeRoundNumber).then((d: any) => {
+          if (Array.isArray(d?.leaderboard)) setRows(d.leaderboard);
+        }).catch(() => {});
+      } else {
+        publicApi.leaderboard(compId).then((d: any) => {
+          if (Array.isArray(d?.leaderboard)) setRows(d.leaderboard);
+        }).catch(() => {});
+      }
+    } catch (e: any) {
+      const msg = e?.message || "Could not submit vote right now.";
+      if (/already voted/i.test(msg)) {
+        rememberVote(pId);
+        setVoteToast({ tone: "success", msg: `Your vote for ${who} is already recorded.` });
+      } else {
+        setVoted((prev) => {
+          const next = new Set(prev);
+          next.delete(pId);
+          return next;
+        });
+        setBump((b) => ({ ...b, [pId]: Math.max(0, (b[pId] || 1) - 1) }));
+        setVoteToast({ tone: "error", msg });
+      }
+      setTimeout(() => setVoteToast(null), 4000);
+    } finally {
+      setVotingId(null);
+    }
+  };
 
   const pick = useCallback(async (id: string, targetRound?: number) => {
     if (!id) return;
@@ -312,9 +310,16 @@ export default function LeaderboardView({
       }
 
       const activeCompObj = compList.find((c: any) => (c._id || c.id) === id);
-      const isPub = d?.score_visible_for_public !== undefined
-        ? Boolean(d.score_visible_for_public)
-        : (d?.is_published !== undefined ? Boolean(d.is_published) : Boolean((activeCompObj as any)?.score_visible_for_public ?? (activeCompObj as any)?.results_published ?? true));
+      const isPub =
+        d?.score_visible_for_public !== undefined
+          ? Boolean(d.score_visible_for_public)
+          : d?.is_published !== undefined
+          ? Boolean(d.is_published)
+          : Boolean(
+              (activeCompObj as any)?.score_visible_for_public ??
+                (activeCompObj as any)?.results_published ??
+                true
+            );
       setIsScorePublic(isPub);
 
       setRows(Array.isArray(d?.leaderboard) ? d.leaderboard : []);
@@ -329,7 +334,7 @@ export default function LeaderboardView({
     } finally {
       setLoading(false);
     }
-  }, []);
+  }, [compList]);
 
   const handleSelectRound = async (roundNum: number) => {
     if (!compId) return;
@@ -338,9 +343,16 @@ export default function LeaderboardView({
     try {
       const d: any = await publicApi.roundLeaderboard(compId, roundNum);
       const activeCompObj = compList.find((c: any) => (c._id || c.id) === compId);
-      const isPub = d?.score_visible_for_public !== undefined
-        ? Boolean(d.score_visible_for_public)
-        : (d?.is_published !== undefined ? Boolean(d.is_published) : Boolean((activeCompObj as any)?.score_visible_for_public ?? (activeCompObj as any)?.results_published ?? true));
+      const isPub =
+        d?.score_visible_for_public !== undefined
+          ? Boolean(d.score_visible_for_public)
+          : d?.is_published !== undefined
+          ? Boolean(d.is_published)
+          : Boolean(
+              (activeCompObj as any)?.score_visible_for_public ??
+                (activeCompObj as any)?.results_published ??
+                true
+            );
       setIsScorePublic(isPub);
       setRows(Array.isArray(d?.leaderboard) ? d.leaderboard : []);
       if (Array.isArray(d?.categories)) {
@@ -356,7 +368,6 @@ export default function LeaderboardView({
     }
   };
 
-  // Sync competition list when competitions prop updates
   useEffect(() => {
     if (Array.isArray(competitions) && competitions.length > 0) {
       setCompList((prev) => {
@@ -374,22 +385,23 @@ export default function LeaderboardView({
     }
   }, [competitions]);
 
-  // If active compId is not present in dropdown list, fetch single competition details
   useEffect(() => {
     if (compId && !compList.some((c) => (c._id || c.id) === compId)) {
-      publicApi.competition(compId).then((single) => {
-        if (single && (single._id || single.id)) {
-          setCompList((prev) => {
-            const sid = single._id || single.id;
-            if (prev.some((c) => (c._id || c.id) === sid)) return prev;
-            return [single, ...prev];
-          });
-        }
-      }).catch(() => {});
+      publicApi
+        .competition(compId)
+        .then((single) => {
+          if (single && (single._id || single.id)) {
+            setCompList((prev) => {
+              const sid = single._id || single.id;
+              if (prev.some((c) => (c._id || c.id) === sid)) return prev;
+              return [single, ...prev];
+            });
+          }
+        })
+        .catch(() => {});
     }
   }, [compId, compList]);
 
-  // Detect URL search param change (e.g. user navigation or browser back/forward)
   useEffect(() => {
     if (urlCompId && urlCompId !== compId) {
       setCompId(urlCompId);
@@ -397,7 +409,6 @@ export default function LeaderboardView({
     }
   }, [urlCompId, compId, pick]);
 
-  // Sync server initial props if initialCompId changed and no conflicting urlCompId
   useEffect(() => {
     if (initialCompId && initialCompId !== compId && !urlCompId) {
       setCompId(initialCompId);
@@ -407,52 +418,45 @@ export default function LeaderboardView({
     }
   }, [initialCompId, initialRows, initialCategories, initialCategoryLeaderboards, compId, urlCompId]);
 
-  // Preview query check
-  useEffect(() => {
-    if (typeof window !== "undefined" && new URLSearchParams(window.location.search).has("preview")) {
-      setPreview(true);
-    }
-  }, []);
-
-  // Real-time live scores and leaderboard synchronization
   useRealtimeSubscription(
     compId ? [`competition:${compId}`, "admin:competitions", "global"] : ["global"],
-    useCallback((evt) => {
-      const data = evt.data || {};
-      const targetCid = String(data.competition_id || evt.channel?.replace("competition:", "") || "");
-      if (compId && targetCid && targetCid !== String(compId)) {
-        return;
-      }
+    useCallback(
+      (evt) => {
+        const data = evt.data || {};
+        const targetCid = String(data.competition_id || evt.channel?.replace("competition:", "") || "");
+        if (compId && targetCid && targetCid !== String(compId)) {
+          return;
+        }
 
-      // If the event provided full recalculated leaderboard in the broadcast payload:
-      if (Array.isArray(data.leaderboard) && data.leaderboard.length > 0) {
-        setRows(data.leaderboard);
-        if (data.categories && Array.isArray(data.categories)) {
-          setCategories(data.categories);
-        }
-        if (data.category_leaderboards && typeof data.category_leaderboards === "object") {
-          setCategoryLeaderboards(data.category_leaderboards);
-        }
-        if (data.score_visible_for_public !== undefined) {
-          setIsScorePublic(Boolean(data.score_visible_for_public));
-        }
-      } else {
-        // Fetch round leaderboard if active round is selected, otherwise general leaderboard
-        if (activeRoundNumber && activeRoundNumber > 1) {
-          publicApi.roundLeaderboard(compId, activeRoundNumber).then((d: any) => {
-            if (Array.isArray(d?.leaderboard)) setRows(d.leaderboard);
-            if (Array.isArray(d?.categories)) setCategories(d.categories);
-            if (d?.category_leaderboards) setCategoryLeaderboards(d.category_leaderboards);
-          }).catch(() => {});
+        if (Array.isArray(data.leaderboard) && data.leaderboard.length > 0) {
+          setRows(data.leaderboard);
+          if (data.categories && Array.isArray(data.categories)) {
+            setCategories(data.categories);
+          }
+          if (data.category_leaderboards && typeof data.category_leaderboards === "object") {
+            setCategoryLeaderboards(data.category_leaderboards);
+          }
+          if (data.score_visible_for_public !== undefined) {
+            setIsScorePublic(Boolean(data.score_visible_for_public));
+          }
         } else {
-          publicApi.leaderboard(compId).then((d: any) => {
-            if (Array.isArray(d?.leaderboard)) setRows(d.leaderboard);
-            if (Array.isArray(d?.categories)) setCategories(d.categories);
-            if (d?.category_leaderboards) setCategoryLeaderboards(d.category_leaderboards);
-          }).catch(() => {});
+          if (activeRoundNumber && activeRoundNumber > 1) {
+            publicApi.roundLeaderboard(compId, activeRoundNumber).then((d: any) => {
+              if (Array.isArray(d?.leaderboard)) setRows(d.leaderboard);
+              if (Array.isArray(d?.categories)) setCategories(d.categories);
+              if (d?.category_leaderboards) setCategoryLeaderboards(d.category_leaderboards);
+            }).catch(() => {});
+          } else {
+            publicApi.leaderboard(compId).then((d: any) => {
+              if (Array.isArray(d?.leaderboard)) setRows(d.leaderboard);
+              if (Array.isArray(d?.categories)) setCategories(d.categories);
+              if (d?.category_leaderboards) setCategoryLeaderboards(d.category_leaderboards);
+            }).catch(() => {});
+          }
         }
-      }
-    }, [compId, activeRoundNumber]),
+      },
+      [compId, activeRoundNumber]
+    ),
     6000
   );
 
@@ -460,17 +464,11 @@ export default function LeaderboardView({
     if (!newId) return;
     setCompId(newId);
     pick(newId);
-    // Sync browser URL query string without reloading page
     const params = new URLSearchParams(searchParams?.toString() || "");
     params.set("competition", newId);
     router.replace(`${pathname}?${params.toString()}`, { scroll: false });
   };
 
-  const activeComp = useMemo(() => {
-    return compList.find((c) => (c._id || c.id) === compId);
-  }, [compList, compId]);
-
-  // Available categories derived dynamically from backend metadata or participant entries
   const availableCategories = useMemo(() => {
     const set = new Set<string>();
     if (Array.isArray(categories)) {
@@ -501,30 +499,33 @@ export default function LeaderboardView({
   const allNormalizedRows = useMemo(() => {
     const rawList = rows.length ? rows : [];
 
-    // Filter to only contestants who have actually been scored, voted, or evaluated
-    // Un-evaluated or un-scored registered contestants are not shown on public 1st/2nd/3rd standings
     const scoredList = rawList.filter((r: any) => {
+      const pid = pidOf(r);
       const rawFinal = r.final_score ?? r.total_score ?? r.score ?? r.points;
-      const votes = Number(r.audience_votes ?? r.raw_audience_votes ?? 0);
+      const votes = Number(r.audience_votes ?? r.raw_audience_votes ?? 0) + (bump[pid] || 0);
       const judge = Number(r.judge_score ?? r.raw_judge_score ?? 0);
-      const effectivePoints = (rawFinal != null && rawFinal > 0) ? rawFinal : (judge > 0 ? judge : votes);
+      const effectivePoints = rawFinal != null && rawFinal > 0 ? rawFinal : judge > 0 ? judge : votes;
       return effectivePoints > 0 || Boolean(r.is_scored || r.has_scored);
     });
 
-    const targetList = scoredList;
+    const targetList = [...scoredList];
 
-    // Sort descending by points
     targetList.sort((a: any, b: any) => {
-      const aPts = (a.final_score ?? a.total_score ?? a.score ?? a.points ?? a.judge_score ?? a.audience_votes ?? 0);
-      const bPts = (b.final_score ?? b.total_score ?? b.score ?? b.points ?? b.judge_score ?? b.audience_votes ?? 0);
+      const aPid = pidOf(a);
+      const bPid = pidOf(b);
+      const aVotes = Number(a.audience_votes ?? a.raw_audience_votes ?? 0) + (bump[aPid] || 0);
+      const bVotes = Number(b.audience_votes ?? b.raw_audience_votes ?? 0) + (bump[bPid] || 0);
+      const aPts = a.final_score ?? a.total_score ?? a.score ?? a.points ?? a.judge_score ?? aVotes;
+      const bPts = b.final_score ?? b.total_score ?? b.score ?? b.points ?? b.judge_score ?? bVotes;
       return Number(bPts) - Number(aPts);
     });
 
     return targetList.map((r: any, i) => {
+      const pid = pidOf(r);
       const rawFinal = r.final_score ?? r.total_score ?? r.score ?? r.points;
-      const votes = Number(r.audience_votes ?? r.raw_audience_votes ?? 0);
+      const votes = Number(r.audience_votes ?? r.raw_audience_votes ?? 0) + (bump[pid] || 0);
       const judge = Number(r.judge_score ?? r.raw_judge_score ?? 0);
-      const effectivePoints = (rawFinal != null && rawFinal > 0) ? rawFinal : (judge > 0 ? judge : votes);
+      const effectivePoints = rawFinal != null && rawFinal > 0 ? rawFinal : judge > 0 ? judge : votes;
       return {
         ...r,
         rank: i + 1,
@@ -534,9 +535,8 @@ export default function LeaderboardView({
         points: effectivePoints,
       };
     });
-  }, [rows, preview]);
+  }, [rows, bump]);
 
-  // Recalculates category-specific ranks: when a category tab is selected, rank 1, 2, 3 reflect the top 3 of that category!
   const categoryRows = useMemo(() => {
     if (activeCategory === "ALL") return allNormalizedRows;
 
@@ -546,17 +546,19 @@ export default function LeaderboardView({
     const precalc = precalcKey ? categoryLeaderboards[precalcKey] : undefined;
     if (Array.isArray(precalc) && precalc.length > 0) {
       const scoredPrecalc = precalc.filter((r: any) => {
+        const pid = pidOf(r);
         const rawFinal = r.final_score ?? r.total_score ?? r.score ?? r.points;
-        const votes = Number(r.audience_votes ?? r.raw_audience_votes ?? 0);
+        const votes = Number(r.audience_votes ?? r.raw_audience_votes ?? 0) + (bump[pid] || 0);
         const judge = Number(r.judge_score ?? r.raw_judge_score ?? 0);
         return (rawFinal != null && rawFinal > 0) || votes > 0 || judge > 0 || Boolean(r.is_scored || r.has_scored);
       });
 
       return scoredPrecalc.map((r: any, i) => {
+        const pid = pidOf(r);
         const rawFinal = r.final_score ?? r.total_score ?? r.score ?? r.points;
-        const votes = Number(r.audience_votes ?? r.raw_audience_votes ?? 0);
+        const votes = Number(r.audience_votes ?? r.raw_audience_votes ?? 0) + (bump[pid] || 0);
         const judge = Number(r.judge_score ?? r.raw_judge_score ?? 0);
-        const effectivePoints = (rawFinal != null && rawFinal > 0) ? rawFinal : (judge > 0 ? judge : votes);
+        const effectivePoints = rawFinal != null && rawFinal > 0 ? rawFinal : judge > 0 ? judge : votes;
         return {
           ...r,
           rank: i + 1,
@@ -576,9 +578,8 @@ export default function LeaderboardView({
       ...r,
       rank: idx + 1,
     }));
-  }, [activeCategory, allNormalizedRows, categoryLeaderboards]);
+  }, [activeCategory, allNormalizedRows, categoryLeaderboards, bump]);
 
-  // Dynamic counts per category for the tab indicators
   const categoryCounts = useMemo(() => {
     const counts: Record<string, number> = {};
     for (const cat of availableCategories) {
@@ -597,7 +598,9 @@ export default function LeaderboardView({
   }, [availableCategories, categoryLeaderboards, allNormalizedRows]);
 
   const data = categoryRows;
-  const podium = useMemo(() => categoryRows.slice(0, 3), [categoryRows]);
+  const top1 = data[0] || null;
+  const top2 = data[1] || null;
+  const top3 = data[2] || null;
 
   const userContestantRow = useMemo(() => {
     if (!user?.email) return null;
@@ -619,42 +622,84 @@ export default function LeaderboardView({
     [data, q]
   );
 
+  const deadline =
+    activeComp?.voting_end ||
+    activeComp?.submission_deadline ||
+    activeComp?.registration_deadline ||
+    activeComp?.end_date ||
+    null;
+  const timeLeft = useCountdown(deadline);
+
+  const prizeRaw = String(
+    activeComp?.prize ?? activeComp?.prize_pool ?? activeComp?.total_prize ?? ""
+  ).trim();
+  const prizeTitle = prizeRaw
+    ? /prize/i.test(prizeRaw)
+      ? prizeRaw
+      : `${prizeRaw} Championship Prize Pool`
+    : activeComp?.title || activeComp?.name || "Official Championship Leaderboard";
+
   return (
-    <section className="container-x relative pb-24 pt-14 md:pt-20">
-      {/* Controls */}
+    <section className="container-x relative pb-24 pt-8 md:pt-14">
+      {/* Toast alert for voting */}
+      {voteToast && (
+        <div className="fixed top-24 left-1/2 -translate-x-1/2 z-50 max-w-md w-[92vw] pointer-events-none">
+          <div
+            className={cn(
+              "p-3.5 rounded-2xl shadow-2xl backdrop-blur-xl border flex items-center gap-3 text-xs sm:text-sm font-bold animate-in fade-in slide-in-from-top duration-300",
+              voteToast.tone === "success"
+                ? "bg-slate-950/90 border-emerald-500/50 text-emerald-300 shadow-emerald-500/20"
+                : "bg-slate-950/90 border-rose-500/50 text-rose-300 shadow-rose-500/20"
+            )}
+          >
+            {voteToast.tone === "success" ? (
+              <CheckCircle2 className="size-5 shrink-0 text-emerald-400" />
+            ) : (
+              <ShieldCheck className="size-5 shrink-0 text-rose-400" />
+            )}
+            <span>{voteToast.msg}</span>
+          </div>
+        </div>
+      )}
+
+      {/* Header Controls */}
       <Reveal>
         <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
           <div>
-            <SectionLabel>Live rankings</SectionLabel>
-            <h2 className="mt-2 font-display text-[clamp(1.8rem,4.5vw,3rem)] font-bold leading-[0.95]">
-              {activeComp?.title || activeComp?.name || "Global Ranking"}
+            <SectionLabel>Live Championship Standings</SectionLabel>
+            <h2 className="mt-2 font-display text-[clamp(1.8rem,4.5vw,3rem)] font-extrabold leading-[0.98] text-[var(--fg)]">
+              {activeComp?.title || activeComp?.name || "Competition Leaderboard"}
             </h2>
             {compId && (
               <div className="mt-2 flex flex-wrap items-center gap-3 text-xs text-[var(--fg-subtle)]">
-                <span>Official Live Standings</span>
+                <span className="font-semibold text-emerald-700 dark:text-emerald-400 flex items-center gap-1">
+                  <span className="size-2 rounded-full bg-emerald-500 animate-pulse" />
+                  Live Official Standings
+                </span>
                 <span>•</span>
                 <Link
                   href={`/competitions/${compId}`}
                   className="font-medium text-[var(--accent)] hover:underline inline-flex items-center gap-1"
                 >
-                  Competition info <ExternalLink className="size-3" />
+                  Competition Overview <ExternalLink className="size-3" />
                 </Link>
                 <Link
                   href={`/competitions/${compId}/results`}
                   className="font-medium text-[var(--fg-muted)] hover:text-[var(--accent)] hover:underline inline-flex items-center gap-1"
                 >
-                  Results &amp; winners →
+                  Results &amp; Hall of Fame →
                 </Link>
               </div>
             )}
           </div>
+
           {compList.length > 0 && (
             <div className="relative">
               <select
                 value={compId}
                 onChange={(e) => handleSelectComp(e.target.value)}
                 aria-label="Choose competition"
-                className="appearance-none rounded-full border border-[var(--border)] bg-[var(--surface)] py-2.5 pl-5 pr-11 text-[13.5px] font-semibold text-[var(--fg)] outline-none transition-colors hover:border-[var(--border-strong)] focus-visible:ring-2 focus-visible:ring-[var(--ring)]"
+                className="appearance-none rounded-full border border-[var(--border)] bg-[var(--surface)] py-2.5 pl-5 pr-11 text-[13.5px] font-bold text-[var(--fg)] outline-none transition-colors hover:border-[var(--border-strong)] focus-visible:ring-2 focus-visible:ring-[var(--ring)] shadow-sm"
               >
                 {compList.map((c) => (
                   <option key={c._id || c.id} value={c._id || c.id}>
@@ -662,9 +707,49 @@ export default function LeaderboardView({
                   </option>
                 ))}
               </select>
-              <ChevronDown className="pointer-events-none absolute right-4 top-1/2 size-4 -translate-y-1/2 text-[var(--fg-subtle)]" aria-hidden />
+              <ChevronDown
+                className="pointer-events-none absolute right-4 top-1/2 size-4 -translate-y-1/2 text-[var(--fg-subtle)]"
+                aria-hidden
+              />
             </div>
           )}
+        </div>
+      </Reveal>
+
+      {/* ── Spotlight Prize Pool Banner with Live Countdown (Matched 1:1 with Mobile) ── */}
+      <Reveal className="mt-7">
+        <div className="relative overflow-hidden rounded-2xl sm:rounded-3xl border border-amber-500/40 bg-gradient-to-r from-amber-500/15 via-[var(--surface)] to-amber-500/10 p-4 sm:p-6 shadow-xl flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
+          <div className="flex items-center gap-3.5">
+            <div className="grid size-12 sm:size-14 place-items-center rounded-2xl bg-amber-500/20 border border-amber-500/40 text-amber-500 dark:text-amber-300 text-2xl shadow-inner shrink-0">
+              🏆
+            </div>
+            <div>
+              <span className="text-[11px] sm:text-xs font-mono font-bold uppercase tracking-wider text-amber-800 dark:text-amber-300/80 block">
+                Championship Rewards
+              </span>
+              <h3 className="text-xl sm:text-2xl font-black text-amber-900 dark:text-amber-200 tracking-tight">
+                {prizeTitle}
+              </h3>
+            </div>
+          </div>
+
+          <div className="flex items-center gap-3 self-start sm:self-auto flex-wrap">
+            {timeLeft && (
+              <div className="flex items-center gap-2 rounded-full bg-[var(--surface-2)] border border-amber-500/30 px-3.5 py-1.5 shadow-xs">
+                <Clock className="size-4 text-amber-500 animate-pulse" />
+                <span className="text-xs font-bold text-[var(--fg-muted)] uppercase tracking-wider">
+                  Closes in:
+                </span>
+                <span className="font-mono text-xs sm:text-sm font-extrabold text-amber-800 dark:text-amber-300">
+                  {timeLeft}
+                </span>
+              </div>
+            )}
+            <div className="rounded-full bg-emerald-500/15 border border-emerald-500/30 px-3 py-1 text-xs font-extrabold text-emerald-800 dark:text-emerald-300 flex items-center gap-1.5">
+              <Vote className="size-3.5 text-emerald-500" />
+              <span>Audience Voting Live</span>
+            </div>
+          </div>
         </div>
       </Reveal>
 
@@ -678,13 +763,15 @@ export default function LeaderboardView({
                 Competition Stages &amp; Knockout Rounds
               </span>
               <span className="text-xs text-[var(--fg-muted)]">
-                Stage {activeRoundNumber ?? roundsData.current_round ?? 1} of {roundsData.total_rounds ?? roundsData.rounds.length}
+                Stage {activeRoundNumber ?? roundsData.current_round ?? 1} of{" "}
+                {roundsData.total_rounds ?? roundsData.rounds.length}
               </span>
             </div>
 
             <div className="grid grid-cols-1 sm:grid-cols-3 gap-2.5">
               {roundsData.rounds.map((rd: any) => {
-                const isSelected = (activeRoundNumber ?? roundsData.current_round ?? 1) === rd.round_number;
+                const isSelected =
+                  (activeRoundNumber ?? roundsData.current_round ?? 1) === rd.round_number;
                 const isActive = rd.status === "ACTIVE";
                 const isCompleted = rd.status === "COMPLETED";
 
@@ -708,10 +795,10 @@ export default function LeaderboardView({
                         className={cn(
                           "rounded-full px-2 py-0.5 text-[10px] font-extrabold uppercase",
                           isActive
-                            ? "bg-emerald-500/20 text-emerald-400 border border-emerald-500/30"
+                            ? "bg-emerald-500/20 text-emerald-800 dark:text-emerald-400 border border-emerald-500/30"
                             : isCompleted
-                            ? "bg-slate-500/20 text-slate-300 border border-slate-500/30"
-                            : "bg-amber-500/10 text-amber-300 border border-amber-500/20"
+                            ? "bg-slate-500/20 text-slate-700 dark:text-slate-300 border border-slate-500/30"
+                            : "bg-amber-500/10 text-amber-800 dark:text-amber-300 border border-amber-500/20"
                         )}
                       >
                         {isActive ? "Active Stage" : isCompleted ? "Completed" : "Upcoming"}
@@ -721,12 +808,12 @@ export default function LeaderboardView({
                       <p className="line-clamp-1 text-[11px] text-[var(--fg-muted)]">{rd.description}</p>
                     )}
                     {rd.advancing_count && !rd.is_final_round && (
-                      <span className="text-[10.5px] font-bold text-amber-400">
+                      <span className="text-[10.5px] font-bold text-amber-700 dark:text-amber-400">
                         Top {rd.advancing_count} advance to next stage
                       </span>
                     )}
                     {rd.is_final_round && (
-                      <span className="text-[10.5px] font-bold text-yellow-400 flex items-center gap-1">
+                      <span className="text-[10.5px] font-bold text-amber-800 dark:text-yellow-400 flex items-center gap-1">
                         👑 Grand Finale Championship
                       </span>
                     )}
@@ -738,19 +825,19 @@ export default function LeaderboardView({
         </Reveal>
       )}
 
-      {/* Category Tabs (Junior, Sub-Junior, Senior) */}
+      {/* Category Tabs (Sub-Junior, Junior, Senior, Open, etc.) */}
       {availableCategories.length > 0 && (
         <Reveal className="mt-6">
           <div className="flex flex-col gap-2.5 rounded-2xl border border-[var(--border)] bg-[var(--surface)] p-3.5 shadow-sm">
             <div className="flex flex-wrap items-center justify-between gap-2">
               <span className="text-[11.5px] font-bold uppercase tracking-wider text-[var(--fg-muted)] flex items-center gap-1.5">
-                <Sparkles className="size-3.5 text-amber-400" />
+                <Sparkles className="size-3.5 text-amber-500" />
                 Select Competition Category
               </span>
               <span className="text-[11.5px] text-[var(--fg-subtle)] font-medium">
                 {activeCategory === "ALL"
                   ? `Showing all ${allNormalizedRows.length} ranked contestants`
-                  : `${activeCategory} Category: Showing ${categoryRows.length} contestants • Top 3 Podium below`}
+                  : `${activeCategory} Division: Showing ${categoryRows.length} contestants • Top 3 Podium below`}
               </span>
             </div>
 
@@ -762,14 +849,16 @@ export default function LeaderboardView({
                   "cursor-pointer rounded-full px-4 py-2 text-xs font-bold transition-all flex items-center gap-2 whitespace-nowrap",
                   activeCategory === "ALL"
                     ? "bg-gradient-to-r from-amber-500 via-yellow-400 to-amber-500 text-slate-950 shadow-[0_0_20px_rgba(245,158,11,0.45)] ring-2 ring-amber-400/50 font-black"
-                    : "border border-[var(--border)] bg-[var(--surface-2)] text-[var(--fg-muted)] hover:text-white hover:border-[var(--border-strong)]"
+                    : "border border-[var(--border)] bg-[var(--surface-2)] text-[var(--fg-muted)] hover:text-[var(--fg)] hover:border-[var(--border-strong)]"
                 )}
               >
                 <span>All Categories</span>
                 <span
                   className={cn(
                     "rounded-full px-2 py-0.5 text-[10.5px] font-extrabold tabular-nums",
-                    activeCategory === "ALL" ? "bg-black/25 text-black" : "bg-[var(--surface)] text-[var(--fg-subtle)]"
+                    activeCategory === "ALL"
+                      ? "bg-black/25 text-black"
+                      : "bg-[var(--surface)] text-[var(--fg-subtle)]"
                   )}
                 >
                   {allNormalizedRows.length}
@@ -788,14 +877,16 @@ export default function LeaderboardView({
                       "cursor-pointer rounded-full px-4 py-2 text-xs font-bold transition-all flex items-center gap-2 whitespace-nowrap",
                       isActive
                         ? "bg-gradient-to-r from-amber-500 via-yellow-400 to-amber-500 text-slate-950 shadow-[0_0_20px_rgba(245,158,11,0.45)] ring-2 ring-amber-400/50 font-black"
-                        : "border border-[var(--border)] bg-[var(--surface-2)] text-[var(--fg-muted)] hover:text-white hover:border-[var(--border-strong)]"
+                        : "border border-[var(--border)] bg-[var(--surface-2)] text-[var(--fg-muted)] hover:text-[var(--fg)] hover:border-[var(--border-strong)]"
                     )}
                   >
                     <span>{cat}</span>
                     <span
                       className={cn(
                         "rounded-full px-2 py-0.5 text-[10.5px] font-extrabold tabular-nums",
-                        isActive ? "bg-black/25 text-black" : "bg-[var(--surface)] text-[var(--fg-subtle)]"
+                        isActive
+                          ? "bg-black/25 text-black"
+                          : "bg-[var(--surface)] text-[var(--fg-subtle)]"
                       )}
                     >
                       {count}
@@ -808,20 +899,25 @@ export default function LeaderboardView({
         </Reveal>
       )}
 
+      {/* Empty State */}
       {data.length === 0 ? (
         <Reveal>
           <div className="mt-10 grid place-items-center rounded-[var(--radius-xl)] border border-dashed border-[var(--border-strong)] bg-[var(--surface)] px-6 py-20 text-center">
             <span className="grid size-16 place-items-center rounded-full bg-[var(--surface-2)]">
               <Trophy className="size-7 text-[var(--fg-subtle)]" aria-hidden />
             </span>
-            <p className="mt-5 font-display text-xl font-bold">No rankings yet</p>
+            <p className="mt-5 font-display text-xl font-bold text-[var(--fg)]">No rankings yet</p>
             <p className="mt-1.5 max-w-sm text-sm text-[var(--fg-muted)]">
-              Rankings for <span className="font-semibold text-[var(--fg)]">{activeComp?.title || "this competition"}</span> appear here once contestants are scored or audience votes begin.
+              Rankings for{" "}
+              <span className="font-semibold text-[var(--fg)]">
+                {activeComp?.title || "this competition"}
+              </span>{" "}
+              appear here once contestants are scored or audience votes begin.
             </p>
             {compId && (
               <Link
                 href={`/competitions/${compId}`}
-                className="mt-5 inline-flex items-center justify-center gap-2 rounded-full border border-[var(--border)] px-5 py-2.5 text-xs font-semibold hover:border-[var(--border-strong)] transition-colors"
+                className="mt-5 inline-flex items-center justify-center gap-2 rounded-full border border-[var(--border)] px-5 py-2.5 text-xs font-semibold hover:border-[var(--border-strong)] transition-colors text-[var(--fg)]"
               >
                 View Competition &amp; Submit Entry
               </Link>
@@ -829,10 +925,9 @@ export default function LeaderboardView({
           </div>
         </Reveal>
       ) : !isScorePublic ? (
-        /* ── PRIVATE SCORE MODE (Score visible for public: OFF) ── */
+        /* Private Score Mode */
         <Reveal className="mt-8">
           <div className="flex flex-col gap-6">
-            {/* Contestant-Only Verified Scorecard */}
             {userContestantRow && (
               <div className="rounded-3xl border-2 border-amber-500/40 bg-gradient-to-br from-amber-500/15 via-[var(--surface-2)] to-[var(--surface)] p-6 md:p-8 shadow-xl">
                 <div className="flex flex-col md:flex-row md:items-center justify-between gap-6">
@@ -844,40 +939,48 @@ export default function LeaderboardView({
                     />
                     <div>
                       <div className="flex flex-wrap items-center gap-2">
-                        <span className="inline-flex items-center gap-1 rounded-full bg-emerald-500/15 border border-emerald-500/30 px-2.5 py-0.5 text-xs font-bold text-emerald-400">
+                        <span className="inline-flex items-center gap-1 rounded-full bg-emerald-500/15 border border-emerald-500/30 px-2.5 py-0.5 text-xs font-bold text-emerald-800 dark:text-emerald-400">
                           <CheckCircle2 className="size-3.5" /> Your Verified Scorecard
                         </span>
-                        <span className="rounded-full bg-slate-700/40 border border-slate-600/40 px-2.5 py-0.5 text-xs font-mono text-slate-300">
+                        <span className="rounded-full bg-slate-700/40 border border-slate-600/40 px-2.5 py-0.5 text-xs font-mono text-slate-800 dark:text-slate-300">
                           {userContestantRow.category || "General"}
                         </span>
                       </div>
-                      <h4 className="mt-1 font-display text-xl sm:text-2xl font-bold text-white flex items-center gap-2">
+                      <h4 className="mt-1 font-display text-xl sm:text-2xl font-bold text-[var(--fg)] flex items-center gap-2">
                         <span>{userContestantRow.name}</span>
-                        {(userContestantRow.is_verified || userContestantRow.verified_badge) && <VerifiedBadge size="sm" />}
+                        {(userContestantRow.is_verified || userContestantRow.verified_badge) && (
+                          <VerifiedBadge size="sm" />
+                        )}
                       </h4>
                       <p className="text-xs sm:text-sm text-[var(--fg-subtle)] font-medium">
-                        Your performance score is confidential and visible only to you until the public leaderboard is officially published.
+                        Your performance score is confidential and visible only to you until the official public leaderboard is published.
                       </p>
                     </div>
                   </div>
 
-                  <div className="flex items-center justify-around gap-4 bg-[var(--surface)]/90 rounded-2xl p-4 border border-[var(--border)] shadow-inner">
+                  <div className="flex items-center justify-around gap-4 bg-[var(--surface)] rounded-2xl p-4 border border-[var(--border)] shadow-inner">
                     <div className="text-center px-3 border-r border-[var(--border)]">
-                      <p className="text-xs font-semibold uppercase tracking-wider text-[var(--fg-subtle)]">Judge Score</p>
-                      <p className="text-2xl font-black text-amber-400 tabular-nums">
+                      <p className="text-xs font-semibold uppercase tracking-wider text-[var(--fg-subtle)]">
+                        Judge Score
+                      </p>
+                      <p className="text-2xl font-black text-amber-800 dark:text-amber-400 tabular-nums">
                         {nf(userContestantRow.judge_score)}
                       </p>
                     </div>
                     <div className="text-center px-3 border-r border-[var(--border)]">
-                      <p className="text-xs font-semibold uppercase tracking-wider text-[var(--fg-subtle)]">Audience Votes</p>
-                      <p className="text-2xl font-black text-sky-400 tabular-nums">
+                      <p className="text-xs font-semibold uppercase tracking-wider text-[var(--fg-subtle)]">
+                        Audience Votes
+                      </p>
+                      <p className="text-2xl font-black text-sky-800 dark:text-sky-400 tabular-nums">
                         {nf(userContestantRow.audience_votes)}
                       </p>
                     </div>
                     <div className="text-center px-3">
-                      <p className="text-xs font-semibold uppercase tracking-wider text-[var(--fg-subtle)]">Total Points</p>
-                      <p className="text-2xl font-black text-emerald-400 tabular-nums">
-                        {nf(userContestantRow.points ?? userContestantRow.final_score ?? userContestantRow.judge_score)}
+                      <p className="text-xs font-semibold uppercase tracking-wider text-[var(--fg-subtle)]">
+                        Total Points
+                      </p>
+                      <p className="text-2xl font-black text-[var(--accent)] tabular-nums">
+                        {nf(userContestantRow.points ?? userContestantRow.final_score)}
                       </p>
                     </div>
                   </div>
@@ -885,228 +988,248 @@ export default function LeaderboardView({
               </div>
             )}
 
-            {/* Public Scores Private Notice Card */}
-            <div className="rounded-3xl border border-amber-500/30 bg-gradient-to-b from-amber-500/10 via-[var(--surface-2)] to-[var(--surface)] p-8 sm:p-12 text-center shadow-xl">
-              <div className="mx-auto grid size-16 place-items-center rounded-2xl bg-amber-500/15 text-amber-400 ring-4 ring-amber-500/10 shadow-md">
-                <Lock className="size-8" />
-              </div>
-              <h3 className="mt-5 font-display text-2xl sm:text-3xl font-bold text-[var(--fg)]">
-                Leaderboard Scores are Set to Private
-              </h3>
-              <p className="mt-3 text-sm sm:text-base text-[var(--fg-muted)] max-w-xl mx-auto leading-relaxed">
-                Live contestant points and rankings for <strong className="text-white font-semibold">{activeComp?.title || "this competition"}</strong> are held in private mode by the administrators while judging rounds are underway.
+            <div className="flex flex-col items-center justify-center p-8 text-center rounded-3xl border border-amber-500/30 bg-[var(--surface)] shadow-lg">
+              <Lock className="size-10 text-amber-500 mb-3" />
+              <h3 className="font-display text-xl font-bold text-[var(--fg)]">Public Standings Hidden</h3>
+              <p className="text-xs sm:text-sm text-[var(--fg-muted)] max-w-md mt-1">
+                Auditions are currently in progress. Final rankings will be revealed once the judging panel completes evaluations.
               </p>
-              <div className="mt-6 flex flex-wrap items-center justify-center gap-3">
-                {user ? (
-                  <div className="inline-flex items-center gap-2 rounded-full border border-emerald-500/40 bg-emerald-500/15 px-5 py-2 text-xs sm:text-sm font-bold text-emerald-300 shadow-sm">
-                    <CheckCircle2 className="size-4 text-emerald-400" />
-                    Signed in as {user.name || user.email} {userContestantRow ? "• Your score is displayed above" : "• No competition entry found for this account"}
-                  </div>
-                ) : (
-                  <Link
-                    href={`/login?next=/leaderboard?competition=${compId}`}
-                    className="inline-flex items-center gap-2 rounded-full py-2.5 px-6 text-xs sm:text-sm font-black text-slate-950 shadow-md hover:scale-[1.02] transition-transform"
-                    style={{ background: "var(--grad-brand)" }}
-                  >
-                    <Users className="size-4" /> Contestant Sign In to View Your Score
-                  </Link>
-                )}
-              </div>
             </div>
           </div>
         </Reveal>
       ) : (
-        /* ── PUBLIC LEADERBOARD (Score visible for public: ON) ── */
         <>
-          {/* Stats */}
-          <StaggerGroup className="mt-8 grid gap-4 sm:grid-cols-3">
-            <StaggerItem><StatCard Icon={Users} value={nf(data.length)} label="Contestants ranked" /></StaggerItem>
-            <StaggerItem><StatCard Icon={Vote} value={nf(data.reduce((a, r) => a + Number(r.audience_votes || 0), 0))} label="Total audience votes" /></StaggerItem>
-            <StaggerItem><StatCard Icon={Flame} value={nf(data[0]?.final_score ?? data[0]?.audience_votes)} label="Top score" /></StaggerItem>
-          </StaggerGroup>
+          {/* ── 3D PODIUM (Matched 1:1 with Mobile App: Blocks, Wreaths, Crown & Floating Rings) ── */}
+          <Reveal className="mt-8">
+            <Podium3D
+              first={top1}
+              second={top2}
+              third={top3}
+              onVote={handleVote}
+              votedIds={voted}
+              votingId={votingId}
+              isVotingOpen={isVotingOpen}
+            />
+          </Reveal>
 
-          {/* Podium */}
-          <div className="mt-12">
-            <div className="mb-6 text-center">
-              <span className="inline-flex items-center gap-2 rounded-full border border-amber-400/40 bg-gradient-to-r from-amber-500/15 via-yellow-500/10 to-amber-500/15 px-4 py-2 text-xs sm:text-sm font-extrabold text-amber-300 shadow-sm">
-                <Trophy className="size-4 text-amber-400" />
-                <span>
-                  {activeCategory === "ALL" ? "Official Top 3 Podium" : `${activeCategory} Category • Official Top 3 Podium`}
-                </span>
-              </span>
-            </div>
-
-            {/* Responsive Podium Cards:
-                - On Mobile: 1st Place (Gold Champion 🥇) is rendered FIRST in DOM and visual top (order-1) so 1st and 2nd are completely unmistakable!
-                - On Desktop (sm+): Classic 3-column Olympic layout (2nd Silver on left sm:order-1, 1st elevated Gold in center sm:order-2, 3rd Bronze on right sm:order-3)
-            */}
-            <StaggerGroup className="grid grid-cols-1 items-end gap-6 sm:grid-cols-3">
-              {podium[0] && (
-                <StaggerItem
-                  key={podium[0].participant_id || podium[0].email || "podium-1"}
-                  className="order-1 sm:order-2 w-full"
-                >
-                  <PodiumCard row={podium[0]} place={0} />
-                </StaggerItem>
-              )}
-              {podium[1] && (
-                <StaggerItem
-                  key={podium[1].participant_id || podium[1].email || "podium-2"}
-                  className="order-2 sm:order-1 w-full"
-                >
-                  <PodiumCard row={podium[1]} place={1} />
-                </StaggerItem>
-              )}
-              {podium[2] && (
-                <StaggerItem
-                  key={podium[2].participant_id || podium[2].email || "podium-3"}
-                  className="order-3 sm:order-3 w-full"
-                >
-                  <PodiumCard row={podium[2]} place={2} />
-                </StaggerItem>
-              )}
-            </StaggerGroup>
-          </div>
-
-          {/* Table */}
+          {/* ── CHAMPIONSHIP TABLE WITH VOTING ── */}
           <Reveal className="mt-12">
-            {/* VIP Competitor Personal Highlight Card */}
+            {/* Pinned Logged-in Contestant Standing Card */}
             {userContestantRow && (
-              <div className="mb-6 overflow-hidden rounded-2xl border-2 border-amber-400/80 bg-gradient-to-r from-amber-950/40 via-[var(--surface)] to-amber-950/30 p-4 sm:p-5 shadow-lg backdrop-blur-md">
+              <div className="mb-4 rounded-2xl border-2 border-amber-400/60 bg-gradient-to-r from-amber-500/20 via-amber-500/10 to-transparent p-4 shadow-lg">
                 <div className="flex flex-wrap items-center justify-between gap-3">
                   <div className="flex items-center gap-3">
-                    <div className="grid size-12 place-items-center rounded-xl bg-amber-400 text-slate-950 font-black text-lg shadow-md shrink-0">
+                    <div className="grid size-9 place-items-center rounded-xl bg-amber-400 text-slate-950 font-black text-base shadow-sm shrink-0">
                       #{userContestantRow.rank ?? "—"}
                     </div>
                     <div>
-                      <span className="inline-flex items-center gap-1 rounded-full bg-amber-400/20 px-2 py-0.5 text-[10px] font-bold text-amber-300">
+                      <span className="inline-flex items-center gap-1 rounded-full bg-amber-400/25 px-2 py-0.5 text-[10px] font-bold text-amber-900 dark:text-amber-300">
                         <Trophy className="size-3" /> YOUR STANDING IN THIS COMPETITION
                       </span>
-                      <p className="font-bold text-base text-white">{userContestantRow.name || user?.name}</p>
-                      <span className="text-xs text-[var(--fg-muted)]">Division: {userContestantRow.category || "General"}</span>
+                      <p className="font-bold text-sm sm:text-base text-[var(--fg)]">
+                        {userContestantRow.name || user?.name}
+                      </p>
+                      <span className="text-xs text-[var(--fg-muted)]">
+                        Division: {userContestantRow.category || "General"}
+                      </span>
                     </div>
                   </div>
+
                   <div className="flex items-center gap-4 text-right">
-                    {userContestantRow.judge_score != null && Number(userContestantRow.judge_score) > 0 && (
-                      <div>
-                        <span className="text-[10px] font-mono uppercase text-amber-300/80 block">Judge Marks</span>
-                        <span className="font-street text-xl font-black text-amber-300">★ {nf(userContestantRow.judge_score)}</span>
-                      </div>
-                    )}
                     <div>
-                      <span className="text-[10px] font-mono uppercase text-[var(--fg-subtle)] block">Total Score</span>
-                      <span className="font-street text-xl font-black text-white">{nf(userContestantRow.points ?? userContestantRow.final_score ?? userContestantRow.judge_score)}</span>
+                      <span className="text-[10px] font-mono uppercase text-emerald-700 dark:text-emerald-400 block font-bold">
+                        Audience Votes
+                      </span>
+                      <span className="font-display text-lg font-black text-emerald-800 dark:text-emerald-300">
+                        {nf(userContestantRow.audience_votes)}
+                      </span>
+                    </div>
+                    <div>
+                      <span className="text-[10px] font-mono uppercase text-[var(--fg-subtle)] block font-bold">
+                        Total Score
+                      </span>
+                      <span className="font-display text-xl font-black text-amber-800 dark:text-amber-300">
+                        {nf(userContestantRow.points ?? userContestantRow.final_score)}
+                      </span>
                     </div>
                   </div>
                 </div>
               </div>
             )}
 
-            <div className="overflow-hidden rounded-[var(--radius-xl)] border border-[var(--border)] bg-[var(--surface)]">
-              <div className="flex items-center justify-between gap-4 border-b border-[var(--border)] p-4 md:p-5">
-                <p className="flex items-center gap-2 font-display text-lg font-bold">
-                  <Gavel className="size-4 text-[var(--accent)]" aria-hidden />
-                  {activeCategory === "ALL" ? "Full standings" : `${activeCategory} standings`}
-                </p>
-                <div className="relative w-full max-w-[240px]">
-                  <Search className="pointer-events-none absolute left-3.5 top-1/2 size-4 -translate-y-1/2 text-[var(--fg-subtle)]" aria-hidden />
+            {/* Championship Table Card */}
+            <div className="overflow-hidden rounded-2xl sm:rounded-3xl border border-[var(--border)] bg-[var(--surface)] shadow-xl">
+              <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 border-b border-[var(--border)] p-4 md:p-5">
+                <div className="flex items-center gap-2">
+                  <Gavel className="size-5 text-[var(--accent)]" aria-hidden />
+                  <p className="font-display text-lg font-bold text-[var(--fg)]">
+                    {activeCategory === "ALL" ? "Championship Standings" : `${activeCategory} Standings`}
+                  </p>
+                  <span className="rounded-full bg-[var(--surface-2)] border border-[var(--border)] px-2 py-0.5 text-[11px] font-mono font-bold text-[var(--fg-muted)]">
+                    {filtered.length} players
+                  </span>
+                </div>
+
+                <div className="relative w-full sm:max-w-[260px]">
+                  <Search
+                    className="pointer-events-none absolute left-3.5 top-1/2 size-4 -translate-y-1/2 text-[var(--fg-subtle)]"
+                    aria-hidden
+                  />
                   <input
-                    value={q} onChange={(e) => setQ(e.target.value)} placeholder="Search players"
-                    className="w-full rounded-full border border-[var(--border)] bg-[var(--surface-2)] py-2 pl-10 pr-4 text-xs sm:text-sm outline-none focus-visible:ring-2 focus-visible:ring-[var(--ring)]"
+                    value={q}
+                    onChange={(e) => setQ(e.target.value)}
+                    placeholder="Search player or handle..."
+                    className="w-full rounded-full border border-[var(--border)] bg-[var(--surface-2)] py-2 pl-10 pr-4 text-xs sm:text-sm text-[var(--fg)] outline-none focus-visible:ring-2 focus-visible:ring-[var(--ring)] shadow-xs"
                   />
                 </div>
               </div>
 
               <div className="overflow-x-auto">
-                <table className="w-full min-w-[640px] text-left">
+                <table className="w-full min-w-[700px] text-left">
                   <thead>
-                    <tr className="text-xs font-extrabold uppercase tracking-[0.12em] text-[var(--fg-subtle)]">
-                      <th className="px-5 py-3 font-bold">Rank</th>
-                      <th className="px-3 py-3 font-bold">Player</th>
-                      <th className="px-3 py-3 font-bold">Category</th>
-                      <th className="px-3 py-3 text-right font-bold">Votes</th>
-                      <th className="px-3 py-3 text-right font-bold">Judge</th>
-                      <th className="px-5 py-3 text-right font-bold">Points</th>
+                    <tr className="border-b border-[var(--border)] text-xs font-extrabold uppercase tracking-[0.12em] text-[var(--fg-subtle)] bg-[var(--surface-2)]/40">
+                      <th className="px-5 py-3.5 font-bold">Rank</th>
+                      <th className="px-3 py-3.5 font-bold">Performer</th>
+                      <th className="px-3 py-3.5 font-bold">Category</th>
+                      <th className="px-3 py-3.5 text-right font-bold">Votes</th>
+                      <th className="px-3 py-3.5 text-right font-bold">Judge</th>
+                      <th className="px-5 py-3.5 text-right font-bold">Points</th>
+                      {isVotingOpen && <th className="px-5 py-3.5 text-center font-bold">Vote</th>}
                     </tr>
                   </thead>
                   <tbody>
-                    {filtered.map((r) => {
+                    {filtered.map((r, idx) => {
                       const uEmail = (user?.email || "").trim().toLowerCase();
                       const rEmail = (r.email || r.participant_id || "").trim().toLowerCase();
                       const isMe = Boolean(uEmail && rEmail && uEmail === rEmail);
+                      const pid = pidOf(r);
+                      const hasVoted = voted.has(pid);
+                      const isVotingThis = votingId === pid;
+                      const rankNum = r.rank ?? idx + 1;
 
                       return (
                         <motion.tr
-                          key={(r.rank ?? 0) + (r.email || r.name || "")}
+                          key={pid + rankNum}
                           whileHover={{ backgroundColor: "var(--surface-2)" }}
                           className={cn(
                             "border-t border-[var(--border)] text-sm transition-colors",
-                            isMe ? "bg-amber-500/15 border-y-2 border-amber-400 ring-2 ring-amber-400/40 relative z-10 font-bold shadow-md" : ""
+                            isMe
+                              ? "bg-amber-500/15 border-y-2 border-amber-400 font-bold shadow-sm"
+                              : ""
                           )}
                         >
-                          <td className="px-5 py-3.5">
-                            {r.rank === 1 ? (
-                              <span className="grid size-8 place-items-center rounded-full bg-gradient-to-br from-amber-300 via-amber-500 to-yellow-600 text-slate-950 font-black text-xs shadow-[0_0_10px_rgba(245,158,11,0.5)] ring-2 ring-amber-400/30">
-                                1
-                              </span>
-                            ) : r.rank === 2 ? (
-                              <span className="grid size-8 place-items-center rounded-full bg-gradient-to-br from-slate-100 via-slate-300 to-slate-400 text-slate-900 font-bold text-xs shadow-[0_0_8px_rgba(203,213,225,0.4)] ring-2 ring-slate-300/30">
-                                2
-                              </span>
-                            ) : r.rank === 3 ? (
-                              <span className="grid size-8 place-items-center rounded-full bg-gradient-to-br from-amber-600 via-orange-700 to-amber-900 text-amber-50 font-bold text-xs shadow-[0_0_8px_rgba(180,83,9,0.35)] ring-2 ring-amber-700/30">
-                                3
-                              </span>
+                          {/* Rank Column with Laurel Wreath for Top 3 */}
+                          <td className="px-5 py-3.5 whitespace-nowrap">
+                            {rankNum === 1 ? (
+                              <LaurelWreath rank={1} size={42} />
+                            ) : rankNum === 2 ? (
+                              <LaurelWreath rank={2} size={40} />
+                            ) : rankNum === 3 ? (
+                              <LaurelWreath rank={3} size={38} />
                             ) : (
-                              <span className="grid size-8 place-items-center rounded-full bg-[var(--surface-2)] text-[var(--fg-muted)] font-semibold text-xs">
-                                {r.rank}
+                              <span className="grid size-8 place-items-center rounded-full bg-[var(--surface-2)] border border-[var(--border)] text-[var(--fg-muted)] font-extrabold text-xs shadow-xs">
+                                {rankNum}
                               </span>
                             )}
                           </td>
+
+                          {/* Player Info Column */}
                           <td className="px-3 py-3.5">
                             <div className="flex items-center gap-3">
                               <Avatar row={r} size={42} />
                               <div className="min-w-0">
-                                <p className="truncate font-bold text-sm sm:text-base leading-tight flex items-center gap-1.5">
+                                <p className="truncate font-bold text-sm sm:text-base leading-tight flex items-center gap-1.5 text-[var(--fg)]">
                                   <span>{r.name || "—"}</span>
                                   {isMe && (
-                                    <span className="rounded bg-amber-400 px-1.5 py-0.5 text-[9.5px] font-black text-slate-950 uppercase">
+                                    <span className="rounded bg-amber-400 px-1.5 py-0.5 text-[9.5px] font-black text-slate-950 uppercase shadow-xs">
                                       YOU
                                     </span>
                                   )}
                                   {(r.is_verified || r.verified_badge) && <VerifiedBadge size="xs" />}
                                 </p>
                                 <div className="flex flex-wrap items-center gap-1.5 mt-0.5">
-                                  <p className="truncate text-xs text-[var(--fg-subtle)] font-medium">{handle(r)}</p>
+                                  <p className="truncate text-xs text-[var(--fg-subtle)] font-medium">
+                                    {handle(r)}
+                                  </p>
                                   {r.is_advancing && (
-                                    <span className="inline-flex items-center gap-1 rounded-full border border-emerald-500/40 bg-emerald-500/10 px-2 py-0.5 text-xs font-extrabold text-emerald-400">
-                                      <Sparkles className="size-3" /> Qualifies
-                                    </span>
-                                  )}
-                                  {r.round_status === "ELIMINATED" && (
-                                    <span className="inline-flex items-center rounded-full border border-rose-500/30 bg-rose-500/10 px-2 py-0.5 text-xs font-bold text-rose-400">
-                                      Eliminated
+                                    <span className="inline-flex items-center gap-1 rounded-full border border-emerald-500/40 bg-emerald-500/10 px-2 py-0.2 text-[10.5px] font-extrabold text-emerald-800 dark:text-emerald-400">
+                                      <Sparkles className="size-3" /> Advances
                                     </span>
                                   )}
                                 </div>
                               </div>
                             </div>
                           </td>
+
+                          {/* Category Column */}
                           <td className="px-3 py-3.5 whitespace-nowrap">
-                            <span className="inline-flex items-center rounded-full border border-violet-500/30 bg-violet-500/10 px-2.5 py-0.5 text-xs font-bold text-violet-300">
+                            <span className="inline-flex items-center rounded-full border border-violet-500/30 bg-violet-500/10 px-2.5 py-0.5 text-xs font-bold text-violet-800 dark:text-violet-300">
                               {r.category || "General"}
                             </span>
                           </td>
-                          <td className="px-3 py-3.5 text-right tabular-nums text-sm font-semibold text-[var(--fg-muted)]">{nf(r.audience_votes)}</td>
-                          <td className="px-3 py-3.5 text-right tabular-nums text-sm font-semibold text-[var(--fg-muted)]">{nf(r.judge_score)}</td>
-                          <td className="px-5 py-3.5 text-right font-display text-sm sm:text-base font-black tabular-nums">{nf(r.points ?? r.final_score ?? r.audience_votes)}</td>
+
+                          {/* Votes Column */}
+                          <td className="px-3 py-3.5 text-right tabular-nums text-sm font-bold text-emerald-800 dark:text-emerald-400">
+                            {nf(r.audience_votes)}
+                          </td>
+
+                          {/* Judge Score Column */}
+                          <td className="px-3 py-3.5 text-right tabular-nums text-sm font-bold text-amber-800 dark:text-amber-400">
+                            {r.judge_score != null && Number(r.judge_score) > 0 ? (
+                              <span>★ {nf(r.judge_score)}</span>
+                            ) : (
+                              <span className="text-[var(--fg-subtle)] font-normal">—</span>
+                            )}
+                          </td>
+
+                          {/* Total Score Column */}
+                          <td className="px-5 py-3.5 text-right font-display text-base sm:text-lg font-black tabular-nums text-[var(--fg)]">
+                            {nf(r.points ?? r.final_score ?? r.audience_votes)}
+                          </td>
+
+                          {/* Interactive Vote Button Column */}
+                          {isVotingOpen && (
+                            <td className="px-5 py-3.5 text-center whitespace-nowrap">
+                              {isMe ? (
+                                <span className="inline-flex items-center rounded-full bg-amber-400/20 border border-amber-400/40 px-2.5 py-1 text-[11px] font-bold text-amber-900 dark:text-amber-300">
+                                  Your Entry
+                                </span>
+                              ) : (
+                                <button
+                                  type="button"
+                                  onClick={() => handleVote(r)}
+                                  disabled={hasVoted || isVotingThis}
+                                  className={cn(
+                                    "inline-flex items-center gap-1.5 rounded-full px-3.5 py-1.5 text-xs font-bold transition-all shadow-xs cursor-pointer active:scale-95",
+                                    hasVoted
+                                      ? "bg-rose-500/20 border border-rose-500/40 text-rose-300 cursor-default"
+                                      : "border border-rose-500/50 bg-rose-500/10 text-rose-800 dark:text-rose-300 hover:bg-rose-500 hover:text-white"
+                                  )}
+                                  aria-label={`Vote for ${r.name || "contestant"}`}
+                                >
+                                  {isVotingThis ? (
+                                    <Loader2 className="size-3.5 animate-spin" />
+                                  ) : (
+                                    <Heart
+                                      className={cn("size-3.5", hasVoted ? "fill-rose-500 text-rose-500" : "")}
+                                    />
+                                  )}
+                                  <span>{hasVoted ? "Voted" : "Vote"}</span>
+                                </button>
+                              )}
+                            </td>
+                          )}
                         </motion.tr>
                       );
                     })}
                   </tbody>
                 </table>
               </div>
-              {loading && <div className="border-t border-[var(--border)] p-4 text-center text-xs text-[var(--fg-subtle)]">Updating…</div>}
+              {loading && (
+                <div className="border-t border-[var(--border)] p-4 text-center text-xs text-[var(--fg-subtle)]">
+                  Updating standings in real time…
+                </div>
+              )}
             </div>
           </Reveal>
         </>

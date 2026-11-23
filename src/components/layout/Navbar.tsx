@@ -79,7 +79,7 @@ export default function Navbar({ brandName = "UPGRADE TALENTS INDIA", logo }: { 
     setMounted(true);
   }, []);
 
-  const isLight = mounted && theme === "blue";
+  const isLight = mounted && (theme === "blue" || theme === "light");
   const logoSrc = isLight ? "/logo-dark-mode.png" : "/logo-white-mode.png";
 
   const brandHref = isJudge ? "/judge" : isVolunteer ? "/volunteer" : "/";
@@ -151,8 +151,9 @@ export default function Navbar({ brandName = "UPGRADE TALENTS INDIA", logo }: { 
             scrolled ? "opacity-0" : "opacity-100"
           )}
           style={{
-            background:
-              "linear-gradient(180deg, rgba(0,0,0,0.62) 0%, rgba(0,0,0,0.34) 45%, transparent 100%)",
+            background: isLight
+              ? "linear-gradient(180deg, rgba(255,255,255,0.85) 0%, rgba(255,255,255,0.3) 45%, transparent 100%)"
+              : "linear-gradient(180deg, rgba(0,0,0,0.62) 0%, rgba(0,0,0,0.34) 45%, transparent 100%)",
           }}
         />
 
@@ -163,7 +164,9 @@ export default function Navbar({ brandName = "UPGRADE TALENTS INDIA", logo }: { 
               "flex items-center justify-between gap-2.5 sm:gap-4 xl:gap-5 rounded-full px-3.5 py-2 transition-all duration-300 sm:px-4 md:px-5 md:py-2.5",
               scrolled
                 ? "bg-[var(--surface-2)]/90 backdrop-blur-2xl border border-[var(--border-strong)] shadow-[0_16px_40px_-20px_rgba(0,0,0,0.8)]"
-                : "on-media border border-white/10 bg-black/25 backdrop-blur-md"
+                : isLight
+                ? "border border-black/10 bg-white/90 backdrop-blur-md shadow-md text-slate-900"
+                : "on-media border border-white/10 bg-black/25 backdrop-blur-md text-white"
             )}
           >
             {/* Brand */}

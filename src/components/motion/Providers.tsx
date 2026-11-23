@@ -6,7 +6,7 @@ import { authApi, tokenStore } from "@/lib/api";
 
 /* ─────────────── THEME ─────────────── */
 
-type Theme = "dark" | "blue";
+type Theme = "dark" | "blue" | "light";
 const ThemeCtx = createContext<{ theme: Theme; toggle: () => void }>({ theme: "dark", toggle: () => {} });
 export const useTheme = () => useContext(ThemeCtx);
 
@@ -16,7 +16,7 @@ export function ThemeProvider({ children }: { children: React.ReactNode }) {
   useEffect(() => {
     let stored: Theme | null = null;
     try { stored = localStorage.getItem("uti_theme") as Theme | null; } catch {}
-    const next: Theme = stored === "blue" || stored === "dark" ? stored : "dark";
+    const next: Theme = stored === "blue" || stored === "light" || stored === "dark" ? stored : "dark";
     setTheme(next);
     document.documentElement.setAttribute("data-theme", next);
   }, []);

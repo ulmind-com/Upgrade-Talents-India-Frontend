@@ -32,19 +32,17 @@ function isPrizePoolLine(text: string): boolean {
  * Phone/WhatsApp numbers -> click-to-chat links
  */
 function parseInline(text: string): React.ReactNode[] {
-  // Tokenize bold, italic, phone numbers, and URLs
   const tokens: React.ReactNode[] = [];
   let remaining = text;
   let keyIdx = 0;
 
-  // Regex to match *bold*, _italic_, ~strike~, URLs, and 10-digit/WA phone numbers
-  const inlineRegex = /(\*\*([^*]+)\*\*|\*([^*]+)\*|__([^_]+)__|_(.*?)_|~([^~]+)~|https?:\/\/[^\s]+|(?:\+?91[\s-]?)?[6-9]\d{9})/g;
+  const inlineRegex =
+    /(\*\*([^*]+)\*\*|\*([^*]+)\*|__([^_]+)__|_(.*?)_|~([^~]+)~|https?:\/\/[^\s]+|(?:\+?91[\s-]?)?[6-9]\d{9})/g;
 
   let lastIndex = 0;
   let match: RegExpExecArray | null;
 
   while ((match = inlineRegex.exec(remaining)) !== null) {
-    // Text before match
     if (match.index > lastIndex) {
       tokens.push(remaining.substring(lastIndex, match.index));
     }
@@ -55,7 +53,7 @@ function parseInline(text: string): React.ReactNode[] {
     if (match[1] && (match[2] || match[3])) {
       const boldContent = match[2] || match[3];
       tokens.push(
-        <strong key={`b-${keyIdx++}`} className="font-bold text-white tracking-wide">
+        <strong key={`b-${keyIdx++}`} className="font-extrabold text-[var(--fg)] tracking-wide">
           {boldContent}
         </strong>
       );
@@ -64,7 +62,7 @@ function parseInline(text: string): React.ReactNode[] {
     else if (match[4] || match[5]) {
       const italicContent = match[4] || match[5];
       tokens.push(
-        <em key={`i-${keyIdx++}`} className="italic text-neutral-300">
+        <em key={`i-${keyIdx++}`} className="italic text-[var(--fg-muted)]">
           {italicContent}
         </em>
       );
@@ -72,7 +70,7 @@ function parseInline(text: string): React.ReactNode[] {
     // Strike: ~text~
     else if (match[6]) {
       tokens.push(
-        <del key={`d-${keyIdx++}`} className="line-through text-neutral-500">
+        <del key={`d-${keyIdx++}`} className="line-through text-[var(--fg-subtle)]">
           {match[6]}
         </del>
       );
@@ -85,7 +83,7 @@ function parseInline(text: string): React.ReactNode[] {
           href={matchedStr}
           target="_blank"
           rel="noopener noreferrer"
-          className="inline-flex items-center gap-1 text-amber-400 hover:text-amber-300 underline underline-offset-2 break-all"
+          className="inline-flex items-center gap-1 text-[var(--accent)] hover:underline underline-offset-2 break-all font-semibold"
         >
           {matchedStr}
           <ExternalLink className="size-3 inline-block" />
@@ -102,10 +100,10 @@ function parseInline(text: string): React.ReactNode[] {
           href={`https://wa.me/${waNumber}`}
           target="_blank"
           rel="noopener noreferrer"
-          className="inline-flex items-center gap-1 font-semibold text-emerald-400 hover:text-emerald-300 underline underline-offset-2"
+          className="inline-flex items-center gap-1 font-bold text-emerald-800 dark:text-emerald-400 hover:underline underline-offset-2"
           title="Chat on WhatsApp"
         >
-          <MessageCircle className="size-3.5 inline-block text-emerald-400" />
+          <MessageCircle className="size-3.5 inline-block text-emerald-600 dark:text-emerald-400" />
           {matchedStr}
         </a>
       );
@@ -133,14 +131,10 @@ export default function FormattedDescription({
 
   const blocks = useMemo(() => {
     if (!content || typeof content !== "string") return [];
-
-    // Normalize newlines
     const normalized = content.replace(/\r\n/g, "\n").replace(/\r/g, "\n").trim();
     if (!normalized) return [];
 
-    // Split into paragraphs by 2 or more newlines
     const rawParagraphs = normalized.split(/\n{2,}/);
-
     return rawParagraphs
       .map((para) => {
         const lines = para.split("\n").map((l) => l.trim()).filter(Boolean);
@@ -149,7 +143,6 @@ export default function FormattedDescription({
       .filter((lines) => lines.length > 0);
   }, [content]);
 
-  // Partition blocks into preview (up to and including Prize Pool) and extended (remaining)
   const { previewBlocks, extendedBlocks, hasMore } = useMemo(() => {
     if (!collapsible || blocks.length === 0) {
       return { previewBlocks: blocks, extendedBlocks: [], hasMore: false };
@@ -185,8 +178,6 @@ export default function FormattedDescription({
       };
     }
 
-    // Fallback if no explicit prize pool line:
-    // If multiple blocks or long content, collapse after first 2 blocks
     const totalLines = blocks.reduce((acc, b) => acc + b.length, 0);
     const totalChars = blocks.reduce((acc, b) => acc + b.join(" ").length, 0);
 
@@ -205,12 +196,12 @@ export default function FormattedDescription({
   const renderLine = (line: string, lineIdx: number, blockIdx: number) => {
     const trimmed = line.trim();
 
-    // 1. Decorative Divider line
+    // 1. Divider line
     if (/^[━─—_\-=]{3,}$/.test(trimmed)) {
       return (
         <div
           key={`l-${blockIdx}-${lineIdx}`}
-          className="my-4 h-px w-full bg-gradient-to-r from-transparent via-white/15 to-transparent"
+          className="my-4 h-px w-full bg-gradient-to-r from-transparent via-[var(--border-strong)] to-transparent"
         />
       );
     }
@@ -223,26 +214,26 @@ export default function FormattedDescription({
           className="my-4 overflow-hidden rounded-2xl border border-amber-500/40 bg-gradient-to-r from-amber-500/20 via-yellow-500/10 to-transparent p-4 text-center sm:text-left flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 shadow-lg shadow-amber-500/5"
         >
           <div className="flex items-center gap-3 justify-center sm:justify-start">
-            <span className="grid size-10 place-items-center rounded-xl bg-amber-500/20 border border-amber-500/40 text-amber-300 text-lg">
+            <span className="grid size-10 place-items-center rounded-xl bg-amber-500/20 border border-amber-500/40 text-amber-500 text-lg">
               🏆
             </span>
             <div>
-              <span className="text-[11px] font-mono uppercase tracking-wider text-amber-300/80 block">
+              <span className="text-[11px] font-mono uppercase tracking-wider text-amber-800 dark:text-amber-300/80 block font-bold">
                 Prize Pool
               </span>
-              <span className="text-lg sm:text-xl font-black text-amber-300 tracking-tight">
+              <span className="text-lg sm:text-xl font-black text-amber-900 dark:text-amber-200 tracking-tight">
                 {parseInline(trimmed.replace(/[━─—_\-=]/g, "").trim())}
               </span>
             </div>
           </div>
-          <span className="inline-flex self-center sm:self-auto items-center gap-1 rounded-full bg-amber-500/20 px-3 py-1 text-xs font-bold text-amber-200">
-            <Sparkles className="size-3 text-amber-300 animate-pulse" /> Guaranteed
+          <span className="inline-flex self-center sm:self-auto items-center gap-1 rounded-full bg-amber-500/20 px-3 py-1 text-xs font-bold text-amber-800 dark:text-amber-200 border border-amber-500/30">
+            <Sparkles className="size-3 text-amber-500 animate-pulse" /> Guaranteed
           </span>
         </div>
       );
     }
 
-    // 3. Section Subheader: e.g. *COMPETITION CATEGORIES*, *CASH PRIZES*, *MARK YOUR CALENDAR*
+    // 3. Section Subheader
     const isHeaderCandidate =
       (trimmed.startsWith("*") && trimmed.endsWith("*") && trimmed.length < 70) ||
       (trimmed.toUpperCase() === trimmed && trimmed.length > 4 && trimmed.length < 60) ||
@@ -251,7 +242,7 @@ export default function FormattedDescription({
     if (isHeaderCandidate) {
       return (
         <div key={`l-${blockIdx}-${lineIdx}`} className="pt-3 pb-1">
-          <h4 className="inline-flex items-center gap-2 text-base sm:text-lg font-bold text-white uppercase tracking-wide">
+          <h4 className="inline-flex items-center gap-2 text-base sm:text-lg font-bold text-[var(--fg)] uppercase tracking-wide">
             <span className="size-2 rounded-full bg-amber-400 shrink-0" />
             <span>{parseInline(trimmed)}</span>
           </h4>
@@ -259,14 +250,13 @@ export default function FormattedDescription({
       );
     }
 
-    // 4. Bullet Points / List Items: e.g. 🔹, •, -, *, 🥇, 🥈, 🥉
+    // 4. Bullet Points / List Items
     const isListItem =
       /^(?:[•\-*]|\d+\.|\(?[a-zA-Z]\)|[🔹👉✅🏆🥇🥈🥉👑🌟🎭😍🩰💥🎖️🎓🗓️📍📌💳🚨📲📞📱📩📢💃🕺])\s+/.test(
         trimmed
       );
 
     if (isListItem) {
-      // Separate the leading icon/bullet from content
       const bulletMatch = trimmed.match(
         /^([•\-*]|\d+\.|\(?[a-zA-Z]\)|[🔹👉✅🏆🥇🥈🥉👑🌟🎭😍🩰💥🎖️🎓🗓️📍📌💳🚨📲📞📱📩📢💃🕺])\s+(.*)$/
       );
@@ -277,12 +267,12 @@ export default function FormattedDescription({
         return (
           <div
             key={`l-${blockIdx}-${lineIdx}`}
-            className="flex items-start gap-3 py-1 text-neutral-200 transition-colors hover:text-white"
+            className="flex items-start gap-3 py-1 text-[var(--fg)] transition-colors"
           >
-            <span className="shrink-0 text-amber-400 font-bold select-none text-base">
+            <span className="shrink-0 text-amber-500 dark:text-amber-400 font-bold select-none text-base">
               {bullet}
             </span>
-            <div className="flex-1 leading-relaxed">
+            <div className="flex-1 leading-relaxed text-[14.5px] sm:text-[15.5px]">
               {parseInline(rest)}
             </div>
           </div>
@@ -290,27 +280,26 @@ export default function FormattedDescription({
       }
     }
 
-    // 5. Key-Value Event Meta Line: e.g. *EVENT DATES:* ..., *VENUE:* ...
+    // 5. Key-Value Event Meta Line
     const isMetaLine =
-      /^\*[A-Z\s&]+:\*\s+/.test(trimmed) ||
-      /^[A-Z\s&]{3,25}:\s+/.test(trimmed);
+      /^\*[A-Z\s&]+:\*\s+/.test(trimmed) || /^[A-Z\s&]{3,25}:\s+/.test(trimmed);
 
     if (isMetaLine) {
       return (
         <div
           key={`l-${blockIdx}-${lineIdx}`}
-          className="rounded-xl border border-white/5 bg-white/[0.02] px-4 py-2.5 my-1.5 flex flex-wrap items-baseline gap-2"
+          className="rounded-xl border border-[var(--border)] bg-[var(--surface-2)]/50 px-4 py-2.5 my-1.5 flex flex-wrap items-baseline gap-2 text-[var(--fg)] font-medium"
         >
           {parseInline(trimmed)}
         </div>
       );
     }
 
-    // 6. Regular Text Line / Paragraph
+    // 6. Regular Text Line
     return (
       <p
         key={`l-${blockIdx}-${lineIdx}`}
-        className="leading-relaxed text-neutral-300/95"
+        className="leading-relaxed text-[14.5px] sm:text-[15.5px] text-[var(--fg)]"
       >
         {parseInline(trimmed)}
       </p>
@@ -320,7 +309,6 @@ export default function FormattedDescription({
   const renderBlockList = (blockList: string[][], baseIdx = 0) => {
     return blockList.map((lines, relIdx) => {
       const blockIdx = baseIdx + relIdx;
-      // Check if this whole block is a divider
       const isFullDivider = lines.every((l) =>
         /^[━─—_\-=*#✨🏆💎💰🔥\s]{4,}$/.test(l)
       );
@@ -332,7 +320,7 @@ export default function FormattedDescription({
             className="my-6 flex items-center justify-center gap-3"
           >
             <div className="h-px flex-1 bg-gradient-to-r from-transparent via-amber-500/30 to-transparent" />
-            <span className="text-amber-400/80 text-xs tracking-widest">✦ ✦ ✦</span>
+            <span className="text-amber-500/80 text-xs tracking-widest">✦ ✦ ✦</span>
             <div className="h-px flex-1 bg-gradient-to-r from-transparent via-amber-500/30 to-transparent" />
           </div>
         );
@@ -350,9 +338,9 @@ export default function FormattedDescription({
 
   return (
     <div
-      className={`w-full max-w-4xl text-[15px] sm:text-[16px] leading-[1.8] text-neutral-200 font-sans ${
+      className={`w-full max-w-4xl text-[15px] sm:text-[16px] leading-[1.8] text-[var(--fg)] font-sans ${
         cardStyle
-          ? "rounded-3xl border border-white/10 bg-white/[0.02] p-5 sm:p-8 backdrop-blur-sm shadow-xl"
+          ? "rounded-3xl border border-[var(--border)] bg-[var(--surface)] p-5 sm:p-8 shadow-lg"
           : ""
       } ${className}`}
     >
@@ -364,10 +352,10 @@ export default function FormattedDescription({
             <button
               type="button"
               onClick={() => setIsExpanded(true)}
-              className="inline-flex items-center gap-2 rounded-full border border-amber-400/50 bg-gradient-to-r from-amber-500/20 via-amber-400/10 to-amber-500/20 px-6 py-2.5 text-xs sm:text-sm font-bold uppercase tracking-wider text-amber-300 shadow-lg shadow-amber-500/10 backdrop-blur-sm transition-all duration-300 hover:border-amber-400 hover:bg-amber-500/30 hover:text-amber-100 hover:scale-[1.02] active:scale-95 group cursor-pointer"
+              className="inline-flex items-center gap-2 rounded-full border border-amber-500/40 bg-amber-500/10 px-6 py-2.5 text-xs sm:text-sm font-bold uppercase tracking-wider text-amber-800 dark:text-amber-300 shadow-sm transition-all duration-300 hover:bg-amber-500/20 active:scale-95 group cursor-pointer"
             >
-              <span>See More</span>
-              <ChevronDown className="size-4 text-amber-400 transition-transform duration-300 group-hover:translate-y-0.5" />
+              <span>See Full Details</span>
+              <ChevronDown className="size-4 text-amber-500 transition-transform duration-300 group-hover:translate-y-0.5" />
             </button>
           </div>
         )}
@@ -380,19 +368,19 @@ export default function FormattedDescription({
                 initial={{ opacity: 0, height: 0 }}
                 animate={{ opacity: 1, height: "auto" }}
                 exit={{ opacity: 0, height: 0 }}
-                transition={{ duration: 0.35, ease: "easeInOut" }}
-                className="overflow-hidden space-y-5 pt-1"
+                transition={{ duration: 0.4, ease: [0.16, 1, 0.3, 1] }}
+                className="overflow-hidden space-y-5 pt-3"
               >
                 {renderBlockList(extendedBlocks, previewBlocks.length)}
 
-                <div className="pt-4 flex justify-center">
+                <div className="pt-4 flex justify-center border-t border-[var(--border)]">
                   <button
                     type="button"
                     onClick={() => setIsExpanded(false)}
-                    className="inline-flex items-center gap-2 rounded-full border border-white/20 bg-white/5 px-6 py-2.5 text-xs sm:text-sm font-bold uppercase tracking-wider text-neutral-300 shadow-sm backdrop-blur-sm transition-all duration-300 hover:border-amber-400/50 hover:bg-white/10 hover:text-white active:scale-95 group cursor-pointer"
+                    className="inline-flex items-center gap-2 rounded-full border border-[var(--border)] bg-[var(--surface-2)] px-6 py-2.5 text-xs sm:text-sm font-bold uppercase tracking-wider text-[var(--fg)] shadow-sm transition-all duration-300 hover:border-amber-400 active:scale-95 group cursor-pointer"
                   >
-                    <span>See Less</span>
-                    <ChevronUp className="size-4 text-amber-400 transition-transform duration-300 group-hover:-translate-y-0.5" />
+                    <span>Show Less</span>
+                    <ChevronUp className="size-4 text-amber-500 transition-transform duration-300 group-hover:-translate-y-0.5" />
                   </button>
                 </div>
               </motion.div>

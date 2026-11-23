@@ -425,6 +425,60 @@ export function LearnGrid({
 
 /* ═══════════ TESTIMONIALS ═══════════ */
 
+function TestimonialAvatar({ src, name, index }: { src?: string | null; name: string; index: number }) {
+  const [imgFailed, setImgFailed] = useState(false);
+
+  const initials = (name || "Performer")
+    .split(" ")
+    .filter(Boolean)
+    .map((w) => w[0])
+    .join("")
+    .slice(0, 2)
+    .toUpperCase() || "P";
+
+  // Check if URL is invalid, a webpage rather than direct image, or failed to load
+  const isWebPage = typeof src === "string" && (
+    src.includes(".html") || 
+    src.includes(".htm") || 
+    src.includes("/photos-images/") ||
+    src.includes("/free-backgrounds-photos/")
+  );
+
+  const canShowImg = Boolean(src && isUsableImageUrl(src) && !isWebPage && !imgFailed);
+
+  if (!canShowImg) {
+    const avatarGradients = [
+      "from-amber-500/25 to-orange-600/35 text-amber-500 border-amber-500/40",
+      "from-purple-500/25 to-indigo-600/35 text-purple-400 border-purple-500/40",
+      "from-rose-500/25 to-pink-600/35 text-rose-400 border-rose-500/40",
+      "from-emerald-500/25 to-teal-600/35 text-emerald-400 border-emerald-500/40",
+      "from-cyan-500/25 to-blue-600/35 text-cyan-400 border-cyan-500/40",
+    ];
+    const grad = avatarGradients[index % avatarGradients.length];
+
+    return (
+      <div
+        className={cn(
+          "size-11 shrink-0 rounded-full border bg-gradient-to-br flex items-center justify-center font-display text-sm font-bold shadow-sm select-none",
+          grad
+        )}
+      >
+        {initials}
+      </div>
+    );
+  }
+
+  return (
+    <img
+      src={src || ""}
+      alt={name}
+      loading="lazy"
+      onError={() => setImgFailed(true)}
+      className="size-11 shrink-0 rounded-full border border-[var(--border-strong)] object-cover"
+    />
+  );
+}
+
 export function Testimonials({ items }: { items: TestimonialItem[] }) {
   if (!items?.length) return null;
 
@@ -432,8 +486,9 @@ export function Testimonials({ items }: { items: TestimonialItem[] }) {
     <section className="relative overflow-hidden border-y border-[var(--border)] bg-[var(--bg-elevated)] py-20 noise md:py-28">
       <div className="container-x relative">
         <Reveal className="max-w-2xl">
-          <SectionLabel>Voices from the floor</SectionLabel>
-          <SplitHeading text="What dancers say" className="mt-5 font-display text-[clamp(2.2rem,6vw,4.2rem)] font-bold uppercase leading-[0.9]" />
+          <SectionLabel>Voices from our stages</SectionLabel>
+          <SplitHeading text="What performers say" className="mt-5 font-display text-[clamp(2.2rem,6vw,4.2rem)] font-bold uppercase leading-[0.9]" />
+          <p className="mt-3 text-sm sm:text-base text-[var(--fg-muted)]">Straight from the people on our stages</p>
         </Reveal>
 
         <StaggerGroup className="mt-14 grid gap-6 md:grid-cols-2 lg:grid-cols-3" stagger={0.09}>
@@ -443,14 +498,9 @@ export function Testimonials({ items }: { items: TestimonialItem[] }) {
                 <Quote className="size-7 shrink-0 text-[var(--accent)]" aria-hidden />
                 <blockquote className="flex-1 text-[15px] leading-relaxed text-[var(--fg)]">"{t.message}"</blockquote>
                 <figcaption className="flex items-center gap-3 border-t border-[var(--border)] pt-5">
-                  <img
-                    src={imageFor(t.profile_image, i)}
-                    alt=""
-                    loading="lazy"
-                    className="size-11 shrink-0 rounded-full border border-[var(--border-strong)] object-cover"
-                  />
+                  <TestimonialAvatar src={t.profile_image} name={t.person_name} index={i} />
                   <span className="min-w-0">
-                    <span className="block truncate text-sm font-semibold">{t.person_name}</span>
+                    <span className="block truncate text-sm font-semibold text-[var(--fg)]">{t.person_name}</span>
                     {t.role && <span className="block truncate font-mono text-[10px] uppercase tracking-[0.18em] text-[var(--fg-subtle)]">{t.role}</span>}
                   </span>
                 </figcaption>
@@ -562,7 +612,7 @@ export function Sponsors({
   const list = [...rawList, ...rawList];
 
   return (
-    <section className="relative overflow-hidden border-y border-[var(--border)] py-10 sm:py-12 bg-[var(--surface-1)]/30">
+    <section className="relative overflow-hidden border-y border-[var(--border)] py-10 sm:py-12 bg-[var(--surface-2)]/30">
       <div className="container-x mb-6 sm:mb-8 flex items-center justify-between">
         <SectionLabel>{label}</SectionLabel>
       </div>
@@ -580,14 +630,14 @@ export function Sponsors({
                   href={b.website_url || "#"}
                   target={b.website_url && b.website_url !== "#" ? "_blank" : undefined}
                   rel="noopener noreferrer"
-                  className="group flex h-14 sm:h-16 shrink-0 items-center px-4 py-2 rounded-xl bg-white/[0.04] border border-white/10 shadow-sm transition-all duration-300 hover:bg-white/[0.08] hover:border-white/25 hover:scale-108 cursor-pointer"
+                  className="group flex h-14 sm:h-16 shrink-0 items-center px-5 py-2.5 rounded-xl bg-[var(--surface)] border border-[var(--border)] shadow-sm transition-all duration-300 hover:border-[var(--accent)] hover:shadow-md hover:scale-105 cursor-pointer"
                   aria-label={b.name}
                 >
                   {isUsableImageUrl(b.logo_url) ? (
                     <img
                       src={b.logo_url}
                       alt={b.name}
-                      className="h-8 sm:h-10 w-auto max-w-[140px] sm:max-w-[170px] object-contain drop-shadow transition-transform duration-300 group-hover:scale-105"
+                      className="h-8 sm:h-10 w-auto max-w-[140px] sm:max-w-[170px] object-contain drop-shadow transition-transform duration-300 group-hover:scale-105 dark:brightness-100 brightness-95"
                       loading="lazy"
                       onError={(e) => {
                         const img = e.currentTarget;
@@ -598,7 +648,7 @@ export function Sponsors({
                   ) : null}
                   <span
                     hidden={isUsableImageUrl(b.logo_url)}
-                    className="whitespace-nowrap text-base sm:text-lg font-bold tracking-tight text-white/90 group-hover:text-white"
+                    className="whitespace-nowrap text-base sm:text-lg font-bold tracking-tight text-[var(--fg)] group-hover:text-[var(--accent)]"
                   >
                     {b.name}
                   </span>

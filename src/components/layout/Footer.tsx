@@ -82,7 +82,8 @@ const CSS = `
   overflow:hidden; isolation:isolate;
 }
 
-:root[data-theme="blue"] .dfoot{
+:root[data-theme="blue"] .dfoot,
+:root[data-theme="light"] .dfoot{
   --paper:#fff7f1;  --paper-rgb:255 247 241;
   --ink:#2a1810;
   --body:#6b5546;
@@ -90,17 +91,22 @@ const CSS = `
   --mist:#fff0e6;   --mist-rgb:255 240 230;
   --list-fg:#2b1b11;
   --line:120 60 20;
-  --chip-bg:rgb(255 255 255 / .62);
-  --chip-line:rgb(120 60 20 / .16);
+  --chip-bg:rgb(255 255 255 / .85);
+  --chip-line:rgb(120 60 20 / .22);
   --mark-bg:linear-gradient(to bottom,#2b2b2b,#0a0a0a 55%);
   --mark-fg:#ffffff;
   --cta-bg:#1a1008;
   --cta-fg:#fff7f1;
   --cta-bg-hover:#332016;
-  --glass-fill:rgb(232 234 250 / .4);
-  --glass-grad:linear-gradient(to bottom,rgb(255 255 255 / .78),rgb(214 218 246 / .36) 48%,rgb(255 255 255 / .62));
-  --glass-rim:rgb(255 255 255 / .55);
-  --glass-halo:rgb(190 200 255 / .45);
+  --glass-fill:rgb(42 24 16 / .22);
+  --glass-grad:linear-gradient(to bottom,rgb(42 24 16 / .30),rgb(232 68 15 / .20) 48%,rgb(42 24 16 / .16));
+  --glass-rim:rgb(42 24 16 / .35);
+  --glass-halo:rgb(232 68 15 / .25);
+}
+
+:root[data-theme="blue"] .dfoot__video,
+:root[data-theme="light"] .dfoot__video{
+  mix-blend-mode:multiply;
 }
 
 .dfoot *,.dfoot *::before,.dfoot *::after{box-sizing:border-box}

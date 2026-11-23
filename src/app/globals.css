@@ -77,7 +77,8 @@
 }
 
 /* ── BLUE THEME (light counterpart — blue instead of white) ── */
-:root[data-theme="blue"] {
+:root[data-theme="blue"],
+:root[data-theme="light"] {
   --bg: #fff7f1;
   --bg-elevated: #fffaf6;
   --surface: #ffffff;
@@ -368,7 +369,8 @@ p { text-wrap: pretty; overflow-wrap: anywhere; }
   --stage-bloom: rgba(255, 94, 120, 0.4);
 }
 
-:root[data-theme="blue"] {
+:root[data-theme="blue"],
+:root[data-theme="light"] {
   --stage-grad: linear-gradient(104deg, #1340ff 0%, #2a2ee6 22%, #4723c8 46%, #5e1fa8 70%, #6a1d8c 100%);
   --stage-ribbon: rgba(2, 4, 24, 0.72);
   --stage-bloom: rgba(120, 170, 255, 0.4);
@@ -516,7 +518,8 @@ p { text-wrap: pretty; overflow-wrap: anywhere; }
   --street-red: #e3202a;
 }
 
-:root[data-theme="blue"] {
+:root[data-theme="blue"],
+:root[data-theme="light"] {
   --acid: #38e8ff;
   --acid-ink: #04121c;
   --street-bg: #060d22;
@@ -579,7 +582,8 @@ p { text-wrap: pretty; overflow-wrap: anywhere; }
   --theater-pink-hover: #f04a81;
 }
 
-:root[data-theme="blue"] {
+:root[data-theme="blue"],
+:root[data-theme="light"] {
   --theater-bg: #0d1540;
   --theater-deep: #060c2b;
   --theater-pink: #1b46ff;
@@ -614,7 +618,8 @@ p { text-wrap: pretty; overflow-wrap: anywhere; }
   color-scheme: dark;
 }
 
-:root[data-theme="blue"] input[type="date"] {
+:root[data-theme="blue"] input[type="date"],
+:root[data-theme="light"] input[type="date"] {
   color-scheme: light;
 }
 
@@ -641,7 +646,8 @@ input[type="date"]::-webkit-calendar-picker-indicator:hover {
   filter: invert(1) brightness(1.2);
 }
 
-:root[data-theme="blue"] input[type="date"]::-webkit-calendar-picker-indicator {
+:root[data-theme="blue"] input[type="date"]::-webkit-calendar-picker-indicator,
+:root[data-theme="light"] input[type="date"]::-webkit-calendar-picker-indicator {
   filter: invert(0.2) sepia(0.9) hue-rotate(340deg) saturate(3.5);
 }
 

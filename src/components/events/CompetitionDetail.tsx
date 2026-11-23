@@ -558,8 +558,8 @@ export default function CompetitionDetail({
   const stageConcluded =
     isResultsPublished || lifecycle.isEnded || comp.judging_status === "CLOSED";
   const isVotingOpen = Boolean(
-    comp.audience_voting_enabled &&
-    (comp.voting_status === "OPEN" || !comp.voting_status) &&
+    comp.audience_voting_enabled !== false &&
+    comp.voting_status !== "CLOSED" &&
     !isResultsPublished &&
     !lifecycle.isEnded
   );
@@ -1202,14 +1202,6 @@ export default function CompetitionDetail({
       setMsg({
         tone: "err",
         text: "Contestants cannot vote for their own submission.",
-      });
-      return;
-    }
-
-    if (isParticipant) {
-      setMsg({
-        tone: "err",
-        text: "Participants of this competition are not eligible to vote. Audience voting is restricted to audience members and fans.",
       });
       return;
     }
@@ -2480,50 +2472,49 @@ export default function CompetitionDetail({
                         )}
                       </div>
                       <div className="flex items-center gap-2 mt-0.5 text-[11px] text-[var(--fg-subtle)] flex-wrap">
-                        <span className="font-medium text-emerald-400">{nf(r.audience_votes)} votes</span>
+                        <span className="font-bold text-emerald-700 dark:text-emerald-400">{nf(r.audience_votes)} votes</span>
                         {r.judge_score != null && Number(r.judge_score) > 0 && (
-                          <span>• Judge: <strong className="text-white">{r.judge_score} pts</strong></span>
+                          <span>• Judge: <strong className="text-[var(--fg)]">{r.judge_score} pts</strong></span>
                         )}
                         {(r.final_score != null && Number(r.final_score) > 0) && (
-                          <span>• Total: <strong className="text-amber-400 font-bold">{nf(r.final_score)} pts</strong></span>
+                          <span>• Total: <strong className="text-amber-800 dark:text-amber-400 font-bold">{nf(r.final_score)} pts</strong></span>
                         )}
                       </div>
                     </div>
                     {isVotingOpen ? (
                       isSelfRow ? (
-                        <span className="inline-flex shrink-0 items-center rounded-full border border-amber-400/50 bg-amber-500/15 px-3 py-1.5 text-[11px] font-black text-amber-300">
+                        <span className="inline-flex shrink-0 items-center rounded-full border border-amber-400/50 bg-amber-500/15 px-3 py-1.5 text-[11px] font-black text-amber-900 dark:text-amber-300">
                           Your Entry
-                        </span>
-                      ) : isParticipant ? (
-                        <span
-                          title="Participants of this competition cannot vote"
-                          className="inline-flex shrink-0 items-center rounded-full border border-[var(--border)] bg-[var(--surface-2)]/60 px-2.5 py-1.5 text-[10.5px] font-medium text-[var(--fg-subtle)]"
-                        >
-                          Ineligible to vote
                         </span>
                       ) : (
                         <button
+                          type="button"
                           onClick={() => {
                             if (!user) {
-                              router.push(`/login?next=${encodeURIComponent(`/competitions/${id}#voting`)}`);
+                              router.push(`/login?next=${encodeURIComponent(`/competitions/${id}#contestants-section`)}`);
                               return;
                             }
                             doVote(pid);
                           }}
                           disabled={voted.has(pid) || votingId === pid}
                           aria-label={`Vote for ${r.name}`}
-                          className="inline-flex shrink-0 items-center gap-1.5 rounded-full border border-[var(--border)] px-3 py-1.5 text-[12px] font-semibold transition-all enabled:hover:border-[var(--accent)] enabled:hover:text-[var(--accent)] disabled:opacity-50"
+                          className={cn(
+                            "inline-flex shrink-0 items-center gap-1.5 rounded-full px-3.5 py-1.5 text-[12px] font-bold transition-all shadow-xs cursor-pointer active:scale-95",
+                            voted.has(pid)
+                              ? "bg-rose-500/20 border border-rose-500/40 text-rose-300 cursor-default"
+                              : "border border-rose-500/50 bg-rose-500/10 text-rose-800 dark:text-rose-300 hover:bg-rose-500 hover:text-white"
+                          )}
                         >
                           {votingId === pid ? (
                             <Loader2 className="size-3.5 animate-spin" aria-hidden />
                           ) : (
-                            <Heart className={`size-3.5 ${voted.has(pid) ? "fill-[var(--accent)] text-[var(--accent)]" : ""}`} aria-hidden />
+                            <Heart className={cn("size-3.5", voted.has(pid) ? "fill-rose-500 text-rose-500" : "")} aria-hidden />
                           )}
-                          {voted.has(pid) ? "Voted" : "Vote"}
+                          <span>{voted.has(pid) ? "Voted" : "Vote"}</span>
                         </button>
                       )
                     ) : (
-                      <span className="text-[11px] font-mono font-bold text-amber-400">
+                      <span className="text-[11px] font-mono font-bold text-amber-800 dark:text-amber-400">
                         {r.final_score != null ? `${nf(r.final_score)} pts` : `${nf(r.audience_votes)} votes`}
                       </span>
                     )}
@@ -2648,33 +2639,33 @@ export default function CompetitionDetail({
                     </div>
                   ) : lifecycle.isRegClosed && !lifecycle.isEnded ? (
                     <div className="rounded-2xl border border-amber-500/35 bg-gradient-to-br from-amber-500/15 via-[var(--surface-2)] to-[var(--surface-2)] p-4 text-center">
-                      <div className="mx-auto mb-2.5 grid size-12 place-items-center rounded-2xl border border-amber-500/40 bg-amber-500/20 text-amber-400">
+                      <div className="mx-auto mb-2.5 grid size-12 place-items-center rounded-2xl border border-amber-500/40 bg-amber-500/20 text-amber-500">
                         <Clock className="size-6" />
                       </div>
-                      <h4 className="font-display font-bold text-[15px] text-amber-200">Registration Has Closed</h4>
-                      <p className="mt-1 text-[12px] text-[var(--fg-muted)] leading-relaxed">
+                      <h4 className="font-display font-bold text-[15px] text-amber-900 dark:text-amber-200">Registration Has Closed</h4>
+                      <p className="mt-1 text-[12px] text-[var(--fg)] leading-relaxed">
                         {comp.registration_deadline
                           ? `The registration window closed on ${formatEventDate(comp.registration_deadline)}.`
                           : "Registration for this competition is closed."}
                         {comp.start_date && (
-                          <> The event begins on <strong className="text-white font-semibold">{formatEventDate(comp.start_date)}{comp.start_time || comp.time ? ` at ${comp.start_time || comp.time}` : ""}</strong>.</>
+                          <> The event begins on <strong className="text-[var(--fg)] font-bold">{formatEventDate(comp.start_date)}{comp.start_time || comp.time ? ` at ${comp.start_time || comp.time}` : ""}</strong>.</>
                         )}
                       </p>
                       <a
                         href="#contestants-section"
-                        className="mt-3.5 inline-flex w-full items-center justify-center gap-2 rounded-full border border-amber-500/40 bg-amber-500/20 py-2.5 text-xs font-bold text-amber-200 hover:bg-amber-500/30 transition-colors"
+                        className="mt-3.5 inline-flex w-full items-center justify-center gap-2 rounded-full border border-amber-500/40 bg-amber-500/20 py-2.5 text-xs font-bold text-amber-900 dark:text-amber-200 hover:bg-amber-500/30 transition-colors"
                       >
                         View Contestant Roster
                       </a>
                     </div>
                   ) : lifecycle.isRegUpcoming ? (
                     <div className="rounded-2xl border border-sky-500/35 bg-gradient-to-br from-sky-500/15 via-[var(--surface-2)] to-[var(--surface-2)] p-4 text-center">
-                      <div className="mx-auto mb-2.5 grid size-12 place-items-center rounded-2xl border border-sky-500/40 bg-sky-500/20 text-sky-400">
+                      <div className="mx-auto mb-2.5 grid size-12 place-items-center rounded-2xl border border-sky-500/40 bg-sky-500/20 text-sky-500">
                         <Calendar className="size-6" />
                       </div>
-                      <h4 className="font-display font-bold text-[15px] text-sky-200">Registration Opens Soon</h4>
-                      <p className="mt-1 text-[12px] text-[var(--fg-muted)] leading-relaxed">
-                        Online registrations open on <strong className="text-white font-semibold">{comp.registration_start_date ? formatEventDate(comp.registration_start_date) : "the scheduled date"}</strong>. Stay tuned to submit your entry!
+                      <h4 className="font-display font-bold text-[15px] text-sky-900 dark:text-sky-200">Registration Opens Soon</h4>
+                      <p className="mt-1 text-[12px] text-[var(--fg)] leading-relaxed">
+                        Online registrations open on <strong className="text-[var(--fg)] font-bold">{comp.registration_start_date ? formatEventDate(comp.registration_start_date) : "the scheduled date"}</strong>. Stay tuned to submit your entry!
                       </p>
                     </div>
                   ) : (
@@ -2740,7 +2731,7 @@ export default function CompetitionDetail({
                                 <span className={cn(
                                   "text-xs font-bold",
                                   isSelected
-                                    ? catEl.eligible || !hasAgeLimit ? "text-amber-300" : "text-rose-300"
+                                    ? catEl.eligible || !hasAgeLimit ? "text-amber-900 dark:text-amber-300" : "text-rose-900 dark:text-rose-300"
                                     : "text-[var(--fg)]"
                                 )}>
                                   {catName}
@@ -2759,10 +2750,10 @@ export default function CompetitionDetail({
                                 <span className={cn(
                                   "shrink-0 rounded px-1.5 py-0.5 text-[10px] font-mono font-extrabold",
                                   isFree
-                                    ? "bg-emerald-500/20 text-emerald-400 border border-emerald-500/30"
+                                    ? "bg-emerald-500/20 text-emerald-900 dark:text-emerald-400 border border-emerald-500/30"
                                     : isSelected
-                                    ? "bg-amber-400 text-black shadow-xs"
-                                    : "bg-amber-500/20 text-amber-300 border border-amber-500/30"
+                                    ? "bg-amber-400 text-slate-950 shadow-xs font-black"
+                                    : "bg-amber-500/20 text-amber-900 dark:text-amber-300 border border-amber-500/30"
                                 )}>
                                   {isFree ? "FREE" : `₹${catPrice}`}
                                 </span>
@@ -2772,14 +2763,14 @@ export default function CompetitionDetail({
                                   <span className={cn(
                                     "mt-1.5 rounded px-1.5 py-0.5 text-[9px] font-bold tracking-wide",
                                     catEl.eligible
-                                      ? "bg-emerald-500/20 text-emerald-400 border border-emerald-500/30"
-                                      : "bg-rose-500/20 text-rose-300 border border-rose-500/30"
+                                      ? "bg-emerald-500/20 text-emerald-900 dark:text-emerald-400 border border-emerald-500/30"
+                                      : "bg-rose-500/20 text-rose-900 dark:text-rose-300 border border-rose-500/30"
                                   )}>
                                     {catEl.eligible ? "✓ Eligible" : `✕ Age ${catEl.age}`}
                                   </span>
                                 ) : null
                               ) : (
-                                <span className="mt-1.5 rounded px-1.5 py-0.5 text-[9px] font-bold tracking-wide bg-sky-500/20 text-sky-300 border border-sky-500/30">
+                                <span className="mt-1.5 rounded px-1.5 py-0.5 text-[9px] font-bold tracking-wide bg-sky-500/20 text-sky-900 dark:text-sky-300 border border-sky-500/30">
                                   ✓ Open Age
                                 </span>
                               )}
@@ -2824,14 +2815,14 @@ export default function CompetitionDetail({
                       <div className="mt-2 text-[11px] leading-tight">
                         {selectedCatEligibility.age >= 0 ? (
                           selectedCatEligibility.eligible ? (
-                            <p className="flex items-center gap-1 text-emerald-300 font-medium">
-                              <CheckCircle2 className="size-3.5 shrink-0 text-emerald-400" />
+                            <p className="flex items-center gap-1 text-emerald-800 dark:text-emerald-300 font-bold">
+                              <CheckCircle2 className="size-3.5 shrink-0 text-emerald-600 dark:text-emerald-400" />
                               Age verified ({selectedCatEligibility.age} yrs). Eligible for {selectedCategory} division!
                             </p>
                           ) : (
                             <div className="space-y-1.5">
-                              <p className="flex items-start gap-1 text-rose-300 font-medium">
-                                <AlertCircle className="mt-0.5 size-3.5 shrink-0 text-rose-400" />
+                              <p className="flex items-start gap-1 text-rose-800 dark:text-rose-300 font-bold">
+                                <AlertCircle className="mt-0.5 size-3.5 shrink-0 text-rose-600 dark:text-rose-400" />
                                 <span>
                                   <strong>Not Eligible:</strong> Participant's calculated age is <strong>{selectedCatEligibility.age} years</strong> (DOB: {participantDob}). {selectedCategory} strictly requires <strong>{parseAgeRange(selectedCatObj).label}</strong>.
                                 </span>
@@ -2865,17 +2856,17 @@ export default function CompetitionDetail({
                         <div className="flex items-center gap-2">
                           <Ticket className="size-4.5 text-amber-400" />
                           <div>
-                            <span className="text-xs sm:text-[13px] font-bold uppercase tracking-wider text-[var(--fg-muted)]">
+                            <span className="text-xs sm:text-[13px] font-bold uppercase tracking-wider text-[var(--fg)]">
                               Entry Fee
                             </span>
                             {selectedCategory && (
-                              <span className="ml-2 inline-flex items-center rounded-md bg-amber-500/15 px-2 py-0.5 text-[11px] font-bold text-amber-300 border border-amber-500/30">
+                              <span className="ml-2 inline-flex items-center rounded-md bg-amber-500/15 px-2 py-0.5 text-[11px] font-bold text-amber-900 dark:text-amber-300 border border-amber-500/30">
                                 {selectedCategory}
                               </span>
                             )}
                           </div>
                         </div>
-                        <span className="font-sans text-xl sm:text-2xl font-black tracking-tight text-amber-400">
+                        <span className="font-sans text-xl sm:text-2xl font-black tracking-tight text-amber-800 dark:text-amber-400">
                           {formatINR(activeCategoryFee)}
                         </span>
                       </div>
