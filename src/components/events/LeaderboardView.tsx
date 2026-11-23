@@ -186,7 +186,7 @@ export default function LeaderboardView({
 
   const isVotingOpen = Boolean(
     activeComp?.audience_voting_enabled !== false &&
-    activeComp?.voting_status !== "CLOSED"
+    (activeComp?.audience_voting_enabled === true || activeComp?.voting_status !== "CLOSED")
   );
 
   const userEmail = user?.email?.toLowerCase().trim();
@@ -740,13 +740,8 @@ export default function LeaderboardView({
         </div>
       )}
 
-      {/* the board — the app's dark stage, in every site theme */}
-      <div className="relative mx-auto max-w-[760px] overflow-hidden rounded-[28px] bg-[#07080e] text-white shadow-2xl ring-1 ring-white/[0.06]">
-        <div
-          aria-hidden
-          className="pointer-events-none absolute inset-x-0 top-0 h-[420px]"
-          style={{ background: "linear-gradient(180deg, rgba(124,58,237,0.16), rgba(245,158,11,0.06) 45%, transparent)" }}
-        />
+      {/* the board — transparent stage blending seamlessly with page background */}
+      <div className="relative mx-auto max-w-[760px] text-white">
 
         {/* top bar: back · title · share + competition picker */}
         <div className="relative flex items-center justify-between gap-3 px-4 pt-4 sm:px-6 sm:pt-5">
