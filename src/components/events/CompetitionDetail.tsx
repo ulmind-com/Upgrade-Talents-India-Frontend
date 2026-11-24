@@ -1,6 +1,7 @@
 "use client";
 
 import { useState, useEffect, useMemo, useCallback, useRef } from "react";
+import { createPortal } from "react-dom";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { motion, AnimatePresence } from "framer-motion";
@@ -263,6 +264,11 @@ export default function CompetitionDetail({
   initialLeaderboard: Row[];
 }) {
   // Client-side refetch to always get fresh competition data (categories, settings, etc.)
+  const [mounted, setMounted] = useState(false);
+  useEffect(() => {
+    setMounted(true);
+  }, []);
+
   const [liveComp, setLiveComp] = useState<Comp | null>(null);
   const comp = liveComp || ssrComp;
   const id = comp._id || comp.id || "";
@@ -3442,22 +3448,23 @@ export default function CompetitionDetail({
       )}
 
       {/* ── Serial Performance Lineup Modal ── */}
-      <AnimatePresence>
-        {showLineupModal && (
-          <motion.div
-            initial={{ opacity: 0 }}
-            animate={{ opacity: 1 }}
-            exit={{ opacity: 0 }}
-            className="fixed inset-0 z-50 flex items-center justify-center bg-black/85 p-4 backdrop-blur-md"
-            onClick={() => setShowLineupModal(false)}
-          >
+      {mounted && createPortal(
+        <AnimatePresence>
+          {showLineupModal && (
             <motion.div
-              initial={{ scale: 0.95, opacity: 0 }}
-              animate={{ scale: 1, opacity: 1 }}
-              exit={{ scale: 0.95, opacity: 0 }}
-              onClick={(e) => e.stopPropagation()}
-              className="relative max-h-[90vh] w-full max-w-2xl overflow-hidden rounded-3xl border border-[var(--border)] bg-[var(--surface)] p-5 sm:p-6 shadow-2xl flex flex-col"
+              initial={{ opacity: 0 }}
+              animate={{ opacity: 1 }}
+              exit={{ opacity: 0 }}
+              className="fixed inset-0 z-[99990] flex items-center justify-center bg-black/85 p-4 backdrop-blur-md"
+              onClick={() => setShowLineupModal(false)}
             >
+              <motion.div
+                initial={{ scale: 0.95, opacity: 0 }}
+                animate={{ scale: 1, opacity: 1 }}
+                exit={{ scale: 0.95, opacity: 0 }}
+                onClick={(e) => e.stopPropagation()}
+                className="relative max-h-[90vh] w-full max-w-2xl overflow-hidden rounded-3xl border border-[var(--border)] bg-[var(--surface)] p-5 sm:p-6 shadow-2xl flex flex-col"
+              >
               {/* Header */}
               <div className="flex items-center justify-between border-b border-[var(--border)] pb-3.5">
                 <div className="flex items-center gap-2.5">
@@ -3763,7 +3770,9 @@ export default function CompetitionDetail({
             </motion.div>
           </motion.div>
         )}
-      </AnimatePresence>
+      </AnimatePresence>,
+      document.body
+    )}
 
       {/* ── Ultra Pro & Premium Competition Share Modal ── */}
       <ShareCompetitionModal

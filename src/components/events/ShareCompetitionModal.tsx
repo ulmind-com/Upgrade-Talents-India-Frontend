@@ -1,6 +1,7 @@
 "use client";
 
 import React, { useEffect, useState, useMemo, useRef } from "react";
+import { createPortal } from "react-dom";
 import { motion, AnimatePresence } from "framer-motion";
 import {
   X,
@@ -78,6 +79,7 @@ export default function ShareCompetitionModal({
   onClose,
   comp,
 }: ShareCompetitionModalProps) {
+  const [mounted, setMounted] = useState(false);
   const [copiedLink, setCopiedLink] = useState(false);
   const [copiedText, setCopiedText] = useState(false);
   const [shareMode, setShareMode] = useState<"details" | "register">("details");
@@ -194,6 +196,21 @@ export default function ShareCompetitionModal({
     }
   }, [isOpen, activeUrl]);
 
+  // Track client hydration mount
+  useEffect(() => {
+    setMounted(true);
+  }, []);
+
+  // Close on Escape key press
+  useEffect(() => {
+    if (!isOpen) return;
+    const handleKeyDown = (e: KeyboardEvent) => {
+      if (e.key === "Escape") onClose();
+    };
+    window.addEventListener("keydown", handleKeyDown);
+    return () => window.removeEventListener("keydown", handleKeyDown);
+  }, [isOpen, onClose]);
+
   // Lock body scroll when open
   useEffect(() => {
     if (isOpen) {
@@ -207,12 +224,10 @@ export default function ShareCompetitionModal({
     };
   }, [isOpen]);
 
-  if (!isOpen || !comp) return null;
-
   // Helper to fetch the actual poster image as a File object with proxy fallback
   const fetchPosterFile = async (): Promise<File | null> => {
     if (!posterImg) return null;
-    const safeTitle = (comp.title || "competition")
+    const safeTitle = (comp?.title || "competition")
       .replace(/[^a-zA-Z0-9]/g, "_")
       .toLowerCase()
       .slice(0, 40);
@@ -373,7 +388,7 @@ export default function ShareCompetitionModal({
         const a = document.createElement("a");
         a.href = posterImg;
         a.target = "_blank";
-        a.download = `${(comp.title || "competition").replace(/\s+/g, "_")}_poster.jpg`;
+        a.download = `${(comp?.title || "competition").replace(/\s+/g, "_")}_poster.jpg`;
         document.body.appendChild(a);
         a.click();
         document.body.removeChild(a);
@@ -449,33 +464,41 @@ export default function ShareCompetitionModal({
     if (!qrDataUrl) return;
     const a = document.createElement("a");
     a.href = qrDataUrl;
-    const cleanName = (comp.title || "competition").replace(/[^a-zA-Z0-9]/g, "-").toLowerCase();
+    const cleanName = (comp?.title || "competition").replace(/[^a-zA-Z0-9]/g, "-").toLowerCase();
     a.download = `UTI-Competition-QR-${cleanName}.png`;
     document.body.appendChild(a);
     a.click();
     document.body.removeChild(a);
   };
 
-  return (
-    <AnimatePresence>
-      <div className="fixed inset-0 z-[100] flex items-center justify-center p-3 sm:p-5 overflow-y-auto">
-        {/* Ambient Darkened Backdrop with Blur */}
-        <motion.div
-          initial={{ opacity: 0 }}
-          animate={{ opacity: 1 }}
-          exit={{ opacity: 0 }}
-          onClick={onClose}
-          className="fixed inset-0 bg-black/85 backdrop-blur-md transition-opacity"
-        />
+  if (!mounted) return null;
 
-        {/* Modal Window */}
-        <motion.div
-          initial={{ opacity: 0, scale: 0.94, y: 16 }}
-          animate={{ opacity: 1, scale: 1, y: 0 }}
-          exit={{ opacity: 0, scale: 0.94, y: 16 }}
-          transition={{ type: "spring", stiffness: 320, damping: 28 }}
-          className="relative w-full max-w-xl overflow-hidden rounded-3xl border border-white/15 bg-gradient-to-b from-[#111420] via-[#0b0e17] to-[#070a10] shadow-[0_25px_70px_rgba(0,0,0,0.8),0_0_50px_rgba(245,158,11,0.1)] text-white z-10 my-auto"
+  return createPortal(
+    <AnimatePresence>
+      {isOpen && comp && (
+        <div
+          className="fixed inset-0 z-[99999] flex items-center justify-center p-3 sm:p-5 overflow-y-auto"
+          onClick={onClose}
         >
+          {/* Ambient Darkened Backdrop with Blur */}
+          <motion.div
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            exit={{ opacity: 0 }}
+            transition={{ duration: 0.2 }}
+            className="fixed inset-0 bg-black/85 backdrop-blur-md transition-opacity cursor-pointer"
+            aria-hidden="true"
+          />
+
+          {/* Modal Window */}
+          <motion.div
+            initial={{ opacity: 0, scale: 0.94, y: 16 }}
+            animate={{ opacity: 1, scale: 1, y: 0 }}
+            exit={{ opacity: 0, scale: 0.94, y: 16 }}
+            transition={{ type: "spring", stiffness: 320, damping: 28 }}
+            className="relative w-full max-w-xl overflow-hidden rounded-3xl border border-white/15 bg-gradient-to-b from-[#111420] via-[#0b0e17] to-[#070a10] shadow-[0_25px_70px_rgba(0,0,0,0.8),0_0_50px_rgba(245,158,11,0.1)] text-white z-10 my-auto"
+            onClick={(e) => e.stopPropagation()}
+          >
           {/* Top Decorative Amber/Cyan Ambient Glow */}
           <div className="pointer-events-none absolute -top-24 left-1/2 -translate-x-1/2 size-72 rounded-full bg-gradient-to-r from-amber-500/20 via-rose-500/20 to-violet-500/20 blur-3xl opacity-70" />
 
@@ -981,8 +1004,10 @@ export default function ShareCompetitionModal({
               <ExternalLink className="size-3" />
             </a>
           </div>
-        </motion.div>
-      </div>
-    </AnimatePresence>
+          </motion.div>
+        </div>
+      )}
+    </AnimatePresence>,
+    document.body
   );
 }
