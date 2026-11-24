@@ -393,20 +393,37 @@ export default function Footer({ brandName = "UPGRADE TALENTS INDIA", tagline, c
     { label: "My Tickets", href: "/dashboard" },
   ];
 
-  const info = links.length
-    ? links.map((l) => {
-        let href = l.url || "#";
-        const label = l.title || l.label || "Link";
-        if (/privacy/i.test(label) && (href === "#" || href === "/contact")) href = "/privacy-policy";
-        if (/terms/i.test(label) && (href === "#" || href === "/contact")) href = "/terms-and-conditions";
-        return { label, href };
-      })
-    : [
-        { label: "About Us", href: "/about" },
-        { label: "Contact", href: "/contact" },
-        { label: "Privacy Policy", href: "/privacy-policy" },
-        { label: "Terms of Service", href: "/terms-and-conditions" },
-      ];
+  // Base information links that must always be present in the footer
+  const baseInfo = [
+    { label: "About Us", href: "/about" },
+    { label: "Contact", href: "/contact" },
+    { label: "Privacy Policy", href: "/privacy-policy" },
+    { label: "Terms of Service", href: "/terms-and-conditions" },
+  ];
+
+  // Process dynamic CMS links, overriding legacy URLs for privacy and terms
+  const customLinks = Array.isArray(links)
+    ? links
+        .map((l: any) => {
+          let href = (l?.url || l?.href || "#").trim();
+          const label = (l?.title || l?.label || "Link").trim();
+          if (/privacy/i.test(label) || /privacy/i.test(href)) {
+            href = "/privacy-policy";
+          } else if (/terms/i.test(label) || /terms/i.test(href)) {
+            href = "/terms-and-conditions";
+          }
+          return { label, href };
+        })
+        .filter((l) => {
+          return !baseInfo.some(
+            (b) =>
+              b.href === l.href ||
+              b.label.toLowerCase() === l.label.toLowerCase()
+          );
+        })
+    : [];
+
+  const info = [...baseInfo, ...customLinks];
 
   const { theme } = useTheme();
   const isLight = theme === "blue";
