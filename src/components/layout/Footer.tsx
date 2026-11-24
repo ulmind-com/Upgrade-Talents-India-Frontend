@@ -394,12 +394,18 @@ export default function Footer({ brandName = "UPGRADE TALENTS INDIA", tagline, c
   ];
 
   const info = links.length
-    ? links.map((l) => ({ label: l.title || l.label || "Link", href: l.url || "#" }))
+    ? links.map((l) => {
+        let href = l.url || "#";
+        const label = l.title || l.label || "Link";
+        if (/privacy/i.test(label) && (href === "#" || href === "/contact")) href = "/privacy-policy";
+        if (/terms/i.test(label) && (href === "#" || href === "/contact")) href = "/terms-and-conditions";
+        return { label, href };
+      })
     : [
         { label: "About Us", href: "/about" },
         { label: "Contact", href: "/contact" },
-        { label: "Privacy Policy", href: "/contact" },
-        { label: "Terms of Service", href: "/contact" },
+        { label: "Privacy Policy", href: "/privacy-policy" },
+        { label: "Terms of Service", href: "/terms-and-conditions" },
       ];
 
   const { theme } = useTheme();
