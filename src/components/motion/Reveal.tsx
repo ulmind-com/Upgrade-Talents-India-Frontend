@@ -4,20 +4,28 @@ import { motion, useInView, useReducedMotion, useScroll, useSpring, useTransform
 import { useEffect, useRef, useState, type ReactNode } from "react";
 
 /** Detects touch/narrow viewports after mount so mobile gets pure compositor animations and zero scroll-spring overhead. */
-export function useLiteMotion(): boolean {
-  const reduce = useReducedMotion();
-  const [lite, setLite] = useState(false);
+function useMotionProfile(): { lite: boolean; ready: boolean; reduce: boolean } {
+  const reduce = Boolean(useReducedMotion());
+  const [state, setState] = useState({ lite: false, ready: false });
 
   useEffect(() => {
     if (typeof window === "undefined") return;
     const mq = window.matchMedia("(max-width: 767px), (hover: none) and (pointer: coarse)");
-    const update = () => setLite(mq.matches);
+    const update = () => setState({ lite: mq.matches, ready: true });
     update();
     mq.addEventListener?.("change", update);
     return () => mq.removeEventListener?.("change", update);
   }, []);
 
-  return Boolean(reduce || lite);
+  return {
+    lite: Boolean(reduce || state.lite),
+    ready: Boolean(reduce || state.ready),
+    reduce,
+  };
+}
+
+export function useLiteMotion(): boolean {
+  return useMotionProfile().lite;
 }
 
 /** Scroll-triggered reveal with directional entry. */
@@ -38,34 +46,31 @@ export function Reveal({
   once?: boolean;
   className?: string;
 }) {
-  const reduce = useReducedMotion();
-  const lite = useLiteMotion();
+  const { lite, ready, reduce } = useMotionProfile();
   const ref = useRef<HTMLDivElement>(null);
-  const inView = useInView(ref, { once, margin: lite ? "0px 0px -4% 0px" : "-12% 0px -12% 0px" });
+  const inView = useInView(ref, { once, margin: lite ? "0px" : "-12% 0px -12% 0px" });
 
   if (reduce) return <div className={className}>{children}</div>;
 
-  if (lite) {
-    return (
-      <motion.div
-        ref={ref}
-        className={className}
-        initial={{ opacity: 0, y: Math.min(y, 18), x: 0 }}
-        animate={inView ? { opacity: 1, y: 0, x: 0 } : {}}
-        transition={{ duration: 0.35, delay: Math.min(delay, 0.1), ease: [0.16, 1, 0.3, 1] }}
-      >
-        {children}
-      </motion.div>
-    );
-  }
+  const useDesktopBlur = ready && !lite && blur;
 
   return (
     <motion.div
       ref={ref}
       className={className}
-      initial={{ opacity: 0, y, x, filter: blur ? "blur(10px)" : "none" }}
-      animate={inView ? { opacity: 1, y: 0, x: 0, filter: "blur(0px)" } : {}}
-      transition={{ duration: 0.85, delay, ease: [0.16, 1, 0.3, 1] }}
+      initial={lite ? { opacity: 0, y: Math.min(y, 18), x: 0, filter: "none" } : { opacity: 0, y, x }}
+      animate={
+        inView
+          ? { opacity: 1, y: 0, x: 0, filter: useDesktopBlur ? "blur(0px)" : "none" }
+          : useDesktopBlur
+            ? { filter: "blur(10px)" }
+            : { filter: "none" }
+      }
+      transition={
+        lite
+          ? { duration: 0.35, delay: Math.min(delay, 0.1), ease: [0.16, 1, 0.3, 1] }
+          : { duration: 0.85, delay, ease: [0.16, 1, 0.3, 1] }
+      }
     >
       {children}
     </motion.div>
@@ -82,10 +87,9 @@ export function StaggerGroup({
   className?: string;
   stagger?: number;
 }) {
-  const reduce = useReducedMotion();
-  const lite = useLiteMotion();
+  const { lite, reduce } = useMotionProfile();
   const ref = useRef<HTMLDivElement>(null);
-  const inView = useInView(ref, { once: true, margin: lite ? "0px 0px -2% 0px" : "-10% 0px" });
+  const inView = useInView(ref, { once: true, margin: lite ? "0px" : "-10% 0px" });
 
   if (reduce) return <div className={className}>{children}</div>;
 
