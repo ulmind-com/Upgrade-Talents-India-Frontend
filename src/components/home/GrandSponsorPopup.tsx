@@ -4,7 +4,7 @@ import { useEffect, useState, useCallback, useRef, useMemo } from "react";
 import { createPortal } from "react-dom";
 import Link from "next/link";
 import { AnimatePresence, motion } from "framer-motion";
-import { X, ExternalLink, ChevronLeft, ChevronRight } from "lucide-react";
+import { X, ChevronLeft, ChevronRight } from "lucide-react";
 import type { GrandSponsorPopupConfig, SponsorBannerCard } from "@/lib/api";
 
 /**
@@ -232,7 +232,6 @@ export default function GrandSponsorPopup({
 
   const normalizedCta = normalizeCtaLink(currentBanner.cta_link);
   const hasClickLink = Boolean(normalizedCta.href.length > 0);
-  const hasSponsorName = Boolean(currentBanner.sponsor_name && currentBanner.sponsor_name.trim().length > 0);
 
   const handlePrev = (e: React.MouseEvent) => {
     e.stopPropagation();
@@ -308,13 +307,6 @@ export default function GrandSponsorPopup({
 
             {/* Compact Centered Banner Card */}
             <div className="group/popup relative w-fit max-w-[82vw] sm:max-w-[420px] md:max-w-[460px] max-h-[54vh] overflow-hidden rounded-2xl sm:rounded-3xl border border-amber-500/40 bg-black shadow-[0_25px_80px_-10px_rgba(245,158,11,0.45)] inline-flex flex-col items-center justify-center">
-              {/* Multi-banner Slide Counter */}
-              {activeBanners.length > 1 && (
-                <div className="absolute top-2 left-2 sm:top-2.5 sm:left-2.5 z-40 px-2 py-0.5 rounded-full bg-black/75 border border-white/15 text-[9.5px] sm:text-[10px] font-mono font-bold text-amber-400 backdrop-blur-md shadow-lg pointer-events-none">
-                  {currentIdx + 1} / {activeBanners.length}
-                </div>
-              )}
-
               {/* Banner Image Stage (Auto-resizes strictly to compact banner dimensions) */}
               <div className="relative overflow-hidden flex items-center justify-center">
                 <AnimatePresence mode="wait">
@@ -352,19 +344,6 @@ export default function GrandSponsorPopup({
                   </motion.div>
                 </AnimatePresence>
 
-                {/* Optional Sponsor Name Tag */}
-                {hasSponsorName && (
-                  <div className="absolute bottom-2 left-2 sm:bottom-2.5 sm:left-2.5 z-30 pointer-events-none max-w-[70%]">
-                    <div className="inline-flex items-center gap-1.5 px-2 py-0.5 sm:px-2.5 sm:py-1 rounded-lg sm:rounded-xl bg-black/80 border border-white/20 text-white backdrop-blur-md shadow-2xl text-[10px] sm:text-[11px] font-semibold tracking-wide truncate">
-                      <span className="size-1.5 rounded-full bg-amber-400 animate-pulse shrink-0" />
-                      <span className="truncate">{currentBanner.sponsor_name}</span>
-                      {hasClickLink && (
-                        <ExternalLink className="size-2.5 sm:size-3 text-amber-400 shrink-0 opacity-80" />
-                      )}
-                    </div>
-                  </div>
-                )}
-
                 {/* Navigation Arrows for Multiple Banners (Visible on hover only) */}
                 {activeBanners.length > 1 && (
                   <>
@@ -385,27 +364,29 @@ export default function GrandSponsorPopup({
                     >
                       <ChevronRight className="size-3.5 sm:size-4" />
                     </button>
-
-                    {/* Clean Pagination Dots Floating at the bottom */}
-                    <div className="absolute bottom-2 sm:bottom-2.5 left-1/2 -translate-x-1/2 z-30 flex items-center justify-center gap-1 px-2 py-0.5 sm:py-1 rounded-full bg-black/60 backdrop-blur-md border border-white/10">
-                      {activeBanners.map((_, dotIdx) => (
-                        <button
-                          key={dotIdx}
-                          type="button"
-                          onClick={() => setCurrentIdx(dotIdx)}
-                          aria-label={`Go to sponsor banner ${dotIdx + 1}`}
-                          className={`h-1.5 rounded-full transition-all duration-300 cursor-pointer ${
-                            currentIdx === dotIdx
-                              ? "w-4 sm:w-5 bg-amber-400 shadow-[0_0_8px_rgba(251,191,36,0.9)]"
-                              : "w-1.5 bg-white/40 hover:bg-white/70"
-                          }`}
-                        />
-                      ))}
-                    </div>
                   </>
                 )}
               </div>
             </div>
+
+            {/* Clean Pagination Dots positioned cleanly below the card */}
+            {activeBanners.length > 1 && (
+              <div className="mt-2.5 flex items-center justify-center gap-1.5 px-2.5 py-1 rounded-full bg-black/70 backdrop-blur-md border border-white/15">
+                {activeBanners.map((_, dotIdx) => (
+                  <button
+                    key={dotIdx}
+                    type="button"
+                    onClick={() => setCurrentIdx(dotIdx)}
+                    aria-label={`Go to sponsor banner ${dotIdx + 1}`}
+                    className={`h-1.5 rounded-full transition-all duration-300 cursor-pointer ${
+                      currentIdx === dotIdx
+                        ? "w-4 sm:w-5 bg-amber-400 shadow-[0_0_8px_rgba(251,191,36,0.9)]"
+                        : "w-1.5 bg-white/40 hover:bg-white/70"
+                    }`}
+                  />
+                ))}
+              </div>
+            )}
           </motion.div>
         </div>
       )}
