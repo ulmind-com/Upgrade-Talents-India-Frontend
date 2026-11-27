@@ -307,7 +307,7 @@ export default function GrandSponsorPopup({
             </button>
 
             {/* Compact Centered Banner Card */}
-            <div className="relative w-fit max-w-[82vw] sm:max-w-[420px] md:max-w-[460px] max-h-[54vh] overflow-hidden rounded-2xl sm:rounded-3xl border border-amber-500/40 bg-black shadow-[0_25px_80px_-10px_rgba(245,158,11,0.45)] inline-flex flex-col items-center justify-center">
+            <div className="group/popup relative w-fit max-w-[82vw] sm:max-w-[420px] md:max-w-[460px] max-h-[54vh] overflow-hidden rounded-2xl sm:rounded-3xl border border-amber-500/40 bg-black shadow-[0_25px_80px_-10px_rgba(245,158,11,0.45)] inline-flex flex-col items-center justify-center">
               {/* Multi-banner Slide Counter */}
               {activeBanners.length > 1 && (
                 <div className="absolute top-2 left-2 sm:top-2.5 sm:left-2.5 z-40 px-2 py-0.5 rounded-full bg-black/75 border border-white/15 text-[9.5px] sm:text-[10px] font-mono font-bold text-amber-400 backdrop-blur-md shadow-lg pointer-events-none">
@@ -365,14 +365,14 @@ export default function GrandSponsorPopup({
                   </div>
                 )}
 
-                {/* Navigation Arrows for Multiple Banners */}
+                {/* Navigation Arrows for Multiple Banners (Visible on hover only) */}
                 {activeBanners.length > 1 && (
                   <>
                     <button
                       type="button"
                       onClick={handlePrev}
                       aria-label="Previous Sponsor"
-                      className="cursor-pointer absolute left-1.5 sm:left-2 top-1/2 -translate-y-1/2 z-30 flex size-7 sm:size-8 items-center justify-center rounded-full bg-black/70 hover:bg-black text-white/90 hover:text-white border border-white/20 hover:border-amber-400 backdrop-blur-md shadow-lg transition-all active:scale-90"
+                      className="cursor-pointer absolute left-1.5 sm:left-2 top-1/2 -translate-y-1/2 z-30 flex size-7 sm:size-8 items-center justify-center rounded-full bg-black/75 hover:bg-black text-white/90 hover:text-white border border-white/20 hover:border-amber-400 backdrop-blur-md shadow-lg opacity-0 pointer-events-none group-hover/popup:opacity-100 group-hover/popup:pointer-events-auto focus-visible:opacity-100 focus-visible:pointer-events-auto transition-all duration-200 active:scale-90"
                     >
                       <ChevronLeft className="size-3.5 sm:size-4" />
                     </button>
@@ -381,7 +381,7 @@ export default function GrandSponsorPopup({
                       type="button"
                       onClick={handleNext}
                       aria-label="Next Sponsor"
-                      className="cursor-pointer absolute right-1.5 sm:right-2 top-1/2 -translate-y-1/2 z-30 flex size-7 sm:size-8 items-center justify-center rounded-full bg-black/70 hover:bg-black text-white/90 hover:text-white border border-white/20 hover:border-amber-400 backdrop-blur-md shadow-lg transition-all active:scale-90"
+                      className="cursor-pointer absolute right-1.5 sm:right-2 top-1/2 -translate-y-1/2 z-30 flex size-7 sm:size-8 items-center justify-center rounded-full bg-black/75 hover:bg-black text-white/90 hover:text-white border border-white/20 hover:border-amber-400 backdrop-blur-md shadow-lg opacity-0 pointer-events-none group-hover/popup:opacity-100 group-hover/popup:pointer-events-auto focus-visible:opacity-100 focus-visible:pointer-events-auto transition-all duration-200 active:scale-90"
                     >
                       <ChevronRight className="size-3.5 sm:size-4" />
                     </button>
