@@ -8,13 +8,18 @@ import { imageFor, splitDate, truncate } from "@/lib/utils";
 import type { EventItem } from "@/lib/api";
 
 /* ═══════════ SCROLL-DRIVEN 3D SHOWCASE ═══════════
-   Pinned stage: a cylinder of event cards spins with the page scroll while a
-   giant outlined headline drifts behind it. At the end a four-point sparkle
-   expands out of the centre and wipes the screen into the next section. */
+   Desktop (>=768px): Pinned stage where a cylinder of event cards spins with page
+   scroll while a giant outlined headline drifts behind it, ending in a sparkle wipe.
+   Mobile (<768px): Normal-flow stage (no sticky scroll-runway lock) with smooth
+   finger-drag / swipe rotation + momentum inertia and clean tap-vs-drag navigation. */
 
-const TRACK_VH = 400;        // scroll runway the stage stays pinned across
 const SLOTS = 8;             // cards around the cylinder
 const STEP = 360 / SLOTS;
+const MOBILE_BREAKPOINT_PX = 768;
+const IDLE_SPIN_DEG_PER_SEC = -6;
+const INERTIA_DECAY = 0.06;  // share of throw velocity kept per second
+const DRAG_ACTIVATE_PX = 8;
+const TAP_MAX_MOVE_PX = 8;
 
 const MARQUEE_WORDS = [
   "DANCE THAT MOVES",
@@ -49,11 +54,353 @@ function buildSlots(events: EventItem[]): Slot[] {
 
 export default function StudioShowcase({ events = [] }: { events?: EventItem[] }) {
   const reduce = useReducedMotion();
+  const [slots] = useState(() => buildSlots(events));
+  // Starts false on both SSR and initial client render to guarantee zero hydration mismatch.
+  const [isMobileViewport, setIsMobileViewport] = useState(false);
+
+  useEffect(() => {
+    const mq = window.matchMedia(`(max-width: ${MOBILE_BREAKPOINT_PX - 1}px)`);
+    const sync = () => setIsMobileViewport(mq.matches);
+    sync();
+    mq.addEventListener("change", sync);
+    return () => mq.removeEventListener("change", sync);
+  }, []);
+
+  /* Reduced motion: a plain, readable rail instead of the pinned choreography. */
+  if (reduce) {
+    return (
+      <section className="studio-stage relative overflow-hidden border-y border-[var(--border)] py-16 sm:py-20 md:py-28">
+        <StudioStyles />
+        <div className="container-x">
+          <p className="font-mono text-[10px] sm:text-[11px] uppercase tracking-[0.24em] text-white/55">The collection</p>
+          <h2 className="mt-3 sm:mt-4 font-display text-[clamp(1.8rem,5vw,3.4rem)] font-bold uppercase leading-[0.95] text-white">
+            Dance that moves
+          </h2>
+          <div className="mt-8 sm:mt-10 flex snap-x gap-4 sm:gap-5 overflow-x-auto pb-4 no-scrollbar">
+            {slots.map((s) => (
+              <Link key={s.id} href={s.href} className="w-[220px] sm:w-[240px] shrink-0 snap-start">
+                <StudioCard slot={s} />
+              </Link>
+            ))}
+          </div>
+        </div>
+      </section>
+    );
+  }
+
+  if (isMobileViewport) {
+    return <MobileStudioShowcase slots={slots} />;
+  }
+
+  return <DesktopStudioShowcase slots={slots} />;
+}
+
+/* ═══════════ Mobile (<768px): normal-flow touch-drag 3D ring ═══════════ */
+
+function MobileStudioShowcase({ slots }: { slots: Slot[] }) {
+  const hostRef = useRef<HTMLElement>(null);
+  const stageRef = useRef<HTMLDivElement>(null);
+  const ringRef = useRef<HTMLDivElement>(null);
+  const marqueeRef = useRef<HTMLDivElement>(null);
+
+  const [card, setCard] = useState({ w: 235, r: 277 });
+  const cardRef = useRef(card);
+  cardRef.current = card;
+
+  const rotRef = useRef(0);
+  const velRef = useRef(0);
+  const inViewRef = useRef(true);
+  const dragRef = useRef<{
+    active: boolean;
+    locked: "x" | "y" | null;
+    startX: number;
+    startY: number;
+    lastX: number;
+    lastT: number;
+    moved: number;
+  }>({
+    active: false,
+    locked: null,
+    startX: 0,
+    startY: 0,
+    lastX: 0,
+    lastT: 0,
+    moved: 0,
+  });
+
+  /* Scale card width & cylinder radius cleanly across <768px phone/small-tablet widths. */
+  useEffect(() => {
+    const el = stageRef.current;
+    if (!el) return;
+    const measure = () => {
+      const width = el.offsetWidth || window.innerWidth;
+      const w = Math.max(200, Math.min(Math.round(width * 0.62), 270));
+      const r = Math.round(w * 1.18);
+      setCard({ w, r });
+    };
+    measure();
+    const ro = new ResizeObserver(measure);
+    ro.observe(el);
+    return () => ro.disconnect();
+  }, []);
+
+  const applyTransforms = () => {
+    const deg = rotRef.current;
+    if (ringRef.current) {
+      ringRef.current.style.transform = `rotateY(${deg.toFixed(3)}deg)`;
+    }
+    if (marqueeRef.current) {
+      // Seamless 0% -> -50% loop across the duplicated MARQUEE_WORDS track.
+      const pct = (((-deg * 0.22) % 50) + 50) % 50;
+      marqueeRef.current.style.transform = `translate3d(${-pct.toFixed(3)}%, 0, 0)`;
+    }
+  };
+
+  /* Inertia + gentle idle drift, paused when off-screen for zero idle CPU. */
+  useEffect(() => {
+    const host = hostRef.current;
+    if (!host) return;
+
+    let raf = 0;
+    let last = performance.now();
+
+    const tick = (now: number) => {
+      if (!inViewRef.current) return;
+      const dt = Math.min(0.05, Math.max(0, (now - last) / 1000));
+      last = now;
+
+      if (!dragRef.current.active) {
+        if (Math.abs(velRef.current) > 0.5) {
+          rotRef.current += velRef.current * dt;
+          velRef.current *= Math.pow(INERTIA_DECAY, dt);
+          if (Math.abs(velRef.current) <= 0.5) velRef.current = 0;
+        } else {
+          rotRef.current += IDLE_SPIN_DEG_PER_SEC * dt;
+        }
+        applyTransforms();
+      }
+
+      raf = requestAnimationFrame(tick);
+    };
+
+    applyTransforms();
+
+    let observer: IntersectionObserver | null = null;
+    if (typeof IntersectionObserver !== "undefined") {
+      observer = new IntersectionObserver(
+        ([entry]) => {
+          inViewRef.current = entry.isIntersecting;
+          if (entry.isIntersecting) {
+            last = performance.now();
+            applyTransforms();
+            cancelAnimationFrame(raf);
+            raf = requestAnimationFrame(tick);
+          } else {
+            cancelAnimationFrame(raf);
+          }
+        },
+        { rootMargin: "50px" }
+      );
+      observer.observe(host);
+    }
+
+    raf = requestAnimationFrame(tick);
+
+    const releaseDrag = () => {
+      if (!dragRef.current.active) return;
+      if (performance.now() - dragRef.current.lastT > 80) {
+        velRef.current = 0;
+      }
+      dragRef.current.active = false;
+      window.setTimeout(() => {
+        if (!dragRef.current.active) {
+          dragRef.current.moved = 0;
+          dragRef.current.locked = null;
+        }
+      }, 60);
+    };
+
+    window.addEventListener("pointerup", releaseDrag, { passive: true });
+    window.addEventListener("pointercancel", releaseDrag, { passive: true });
+
+    return () => {
+      cancelAnimationFrame(raf);
+      observer?.disconnect();
+      window.removeEventListener("pointerup", releaseDrag);
+      window.removeEventListener("pointercancel", releaseDrag);
+    };
+  }, []);
+
+  const onPointerDown = (e: React.PointerEvent) => {
+    if (e.button !== 0 && e.pointerType === "mouse") return;
+    const now = performance.now();
+    dragRef.current = {
+      active: true,
+      locked: null,
+      startX: e.clientX,
+      startY: e.clientY,
+      lastX: e.clientX,
+      lastT: now,
+      moved: 0,
+    };
+    velRef.current = 0;
+  };
+
+  const onPointerMove = (e: React.PointerEvent) => {
+    const d = dragRef.current;
+    if (!d.active) return;
+
+    const dxTotal = e.clientX - d.startX;
+    const dyTotal = e.clientY - d.startY;
+    const dist = Math.hypot(dxTotal, dyTotal);
+
+    if (d.locked === null) {
+      if (dist < DRAG_ACTIVATE_PX) return;
+      if (Math.abs(dyTotal) > Math.abs(dxTotal) * 1.1) {
+        // Yield immediately to browser vertical page scroll.
+        d.locked = "y";
+        d.active = false;
+        velRef.current = 0;
+        return;
+      }
+      d.locked = "x";
+    }
+
+    if (d.locked === "x") {
+      const now = performance.now();
+      const dx = e.clientX - d.lastX;
+      const dt = Math.max(1 / 240, (now - d.lastT) / 1000);
+      d.lastX = e.clientX;
+      d.lastT = now;
+      d.moved += Math.abs(dx);
+
+      const degPerPx = (1.15 * 180) / (Math.PI * Math.max(200, cardRef.current.r));
+      const deltaDeg = dx * degPerPx;
+      rotRef.current += deltaDeg;
+
+      const instVel = Math.max(-540, Math.min(540, deltaDeg / dt));
+      velRef.current = velRef.current * 0.45 + instVel * 0.55;
+      applyTransforms();
+    }
+  };
+
+  const onPointerEnd = () => {
+    const d = dragRef.current;
+    if (!d.active) return;
+    if (performance.now() - d.lastT > 80) {
+      velRef.current = 0;
+    }
+    d.active = false;
+    window.setTimeout(() => {
+      if (!dragRef.current.active) {
+        dragRef.current.moved = 0;
+        dragRef.current.locked = null;
+      }
+    }, 60);
+  };
+
+  return (
+    <section
+      ref={hostRef}
+      className="studio-stage relative flex w-full flex-col justify-between overflow-hidden py-10 sm:py-12"
+      aria-label="Event collection showcase"
+    >
+      <StudioStyles />
+
+      {/* Ambient glow */}
+      <div className="pointer-events-none absolute inset-0" aria-hidden style={{ background: "var(--studio-glow)" }} />
+
+      {/* Section chrome */}
+      <div className="pointer-events-none relative z-20 flex flex-col items-center px-4 text-center">
+        <p className="font-mono text-[10px] uppercase tracking-[0.26em] text-white/60">
+          The collection
+        </p>
+        <h2 className="mt-2.5 max-w-3xl font-display text-[clamp(1.5rem,4.2vw,3rem)] font-bold uppercase leading-[0.95] text-white">
+          Every stage we build
+        </h2>
+      </div>
+
+      {/* Interactive touch-drag 3D ring stage (touch-pan-y preserves smooth vertical page scrolling) */}
+      <div
+        ref={stageRef}
+        onPointerDown={onPointerDown}
+        onPointerMove={onPointerMove}
+        onPointerUp={onPointerEnd}
+        onPointerCancel={onPointerEnd}
+        className="relative z-10 flex h-[430px] min-[400px]:h-[495px] sm:h-[530px] w-full cursor-grab items-center justify-center touch-pan-y select-none active:cursor-grabbing"
+      >
+        {/* Giant outlined headline, drifting behind the cards */}
+        <div className="pointer-events-none absolute left-0 top-1/2 z-0 -translate-y-1/2" aria-hidden>
+          <div ref={marqueeRef} className="flex w-max items-center whitespace-nowrap will-change-transform">
+            {[0, 1].map((dup) =>
+              MARQUEE_WORDS.map((w, i) => (
+                <span key={`${dup}-${i}`} className="studio-ghost flex items-center">
+                  {w}
+                  <span className="mx-[0.35em] text-[0.3em] opacity-70">◆</span>
+                </span>
+              )),
+            )}
+          </div>
+        </div>
+
+        {/* 3D cylinder */}
+        <div
+          style={{ perspective: 1050 }}
+          className="relative z-10 flex size-full items-center justify-center"
+        >
+          <div
+            ref={ringRef}
+            style={{ transformStyle: "preserve-3d" }}
+            className="relative h-0 w-0 will-change-transform"
+          >
+            {slots.map((s, i) => (
+              <Link
+                key={s.id}
+                href={s.href}
+                draggable={false}
+                onClick={(e) => {
+                  if (e.detail !== 0 && (dragRef.current.locked === "x" || dragRef.current.moved > TAP_MAX_MOVE_PX)) {
+                    e.preventDefault();
+                  }
+                }}
+                className="absolute block rounded-[22px] sm:rounded-[26px] outline-none touch-manipulation focus-visible:ring-2 focus-visible:ring-[var(--accent)] will-change-transform"
+                style={{
+                  width: card.w,
+                  height: card.w * 1.34,
+                  left: -card.w / 2,
+                  top: (-card.w * 1.34) / 2,
+                  transform: `rotateY(${i * STEP}deg) translateZ(${card.r}px)`,
+                  backfaceVisibility: "hidden",
+                }}
+              >
+                <StudioCard slot={s} />
+              </Link>
+            ))}
+          </div>
+        </div>
+      </div>
+
+      {/* CTA */}
+      <div className="relative z-20 flex justify-center px-4 pt-2">
+        <Link
+          href="/events"
+          className="inline-flex items-center gap-2 rounded-full bg-white px-6 sm:px-7 py-3 sm:py-3.5 font-mono text-[10px] sm:text-[11px] font-bold uppercase tracking-[0.16em] sm:tracking-[0.18em] text-[#1a0f2e] transition-transform duration-300 hover:scale-[1.04] shadow-xl shadow-black/30"
+        >
+          Explore the collection
+          <ArrowRight className="size-4" aria-hidden />
+        </Link>
+      </div>
+    </section>
+  );
+}
+
+/* ═══════════ Desktop (>=768px): pinned scroll-driven 3D showcase ═══════════ */
+
+function DesktopStudioShowcase({ slots }: { slots: Slot[] }) {
   const trackRef = useRef<HTMLDivElement>(null);
   const stageRef = useRef<HTMLDivElement>(null);
   const videoRef = useRef<HTMLVideoElement>(null);
 
-  const [slots] = useState(() => buildSlots(events));
   const [card, setCard] = useState({ w: 280, r: 400 });
   const [isMobile, setIsMobile] = useState(false);
   const [trackVh, setTrackVh] = useState(380);
@@ -65,7 +412,7 @@ export default function StudioShowcase({ events = [] }: { events?: EventItem[] }
     v.play().catch(() => {});
   }, []);
 
-  /* Card size follows the stage width so the cylinder never self-overlaps and scales properly on mobile/tablet/desktop. */
+  /* Card size follows the stage width so the cylinder never self-overlaps and scales properly on tablet/desktop. */
   useEffect(() => {
     const el = stageRef.current;
     if (!el) return;
@@ -119,34 +466,17 @@ export default function StudioShowcase({ events = [] }: { events?: EventItem[] }
   const wipeSpin = useTransform(p, [0.80, 1], [-25, 10]);
   const wipeTextOpacity = useTransform(p, [0.88, 0.96], [0, 1]);
 
-  /* Reduced motion: a plain, readable rail instead of the pinned choreography. */
-  if (reduce) {
-    return (
-      <section className="studio-stage relative overflow-hidden border-y border-[var(--border)] py-16 sm:py-20 md:py-28">
-        <StudioStyles />
-        <div className="container-x">
-          <p className="font-mono text-[10px] sm:text-[11px] uppercase tracking-[0.24em] text-white/55">The collection</p>
-          <h2 className="mt-3 sm:mt-4 font-display text-[clamp(1.8rem,5vw,3.4rem)] font-bold uppercase leading-[0.95] text-white">
-            Dance that moves
-          </h2>
-          <div className="mt-8 sm:mt-10 flex snap-x gap-4 sm:gap-5 overflow-x-auto pb-4 no-scrollbar">
-            {slots.map((s) => (
-              <Link key={s.id} href={s.href} className="w-[220px] sm:w-[240px] shrink-0 snap-start">
-                <StudioCard slot={s} />
-              </Link>
-            ))}
-          </div>
-        </div>
-      </section>
-    );
-  }
-
   return (
-    <section ref={trackRef} className="relative" style={{ height: `${trackVh}vh` }} aria-label="Event collection showcase">
+    <section
+      ref={trackRef}
+      className="relative max-md:!h-[640px]"
+      style={{ height: `${trackVh}vh` }}
+      aria-label="Event collection showcase"
+    >
       <StudioStyles />
       <div
         ref={stageRef}
-        className="studio-stage sticky top-0 h-dvh w-full overflow-hidden"
+        className="studio-stage md:sticky md:top-0 h-full md:h-dvh w-full overflow-hidden"
       >
         {/* Ambient glow */}
         <div className="pointer-events-none absolute inset-0" aria-hidden style={{ background: "var(--studio-glow)" }} />
@@ -233,7 +563,7 @@ export default function StudioShowcase({ events = [] }: { events?: EventItem[] }
         </svg>
 
         {/* Sparkle wipe into the next section */}
-        <div className="pointer-events-none absolute inset-0 z-30 grid place-items-center overflow-hidden" aria-hidden>
+        <div className="pointer-events-none absolute inset-0 z-30 hidden md:grid place-items-center overflow-hidden" aria-hidden>
           <motion.div
             style={{
               scale: wipeScale,
@@ -308,7 +638,7 @@ export default function StudioShowcase({ events = [] }: { events?: EventItem[] }
         {/* Progress hairline */}
         <motion.div
           style={{ scaleX: p, transformOrigin: "0% 50%" }}
-          className="absolute inset-x-0 bottom-0 z-20 h-[2px] origin-left"
+          className="hidden md:block absolute inset-x-0 bottom-0 z-20 h-[2px] origin-left"
         >
           <div className="h-full w-full" style={{ background: "var(--grad-brand)" }} />
         </motion.div>
@@ -323,7 +653,7 @@ function StudioCard({ slot }: { slot: Slot }) {
   const d = splitDate(slot.date);
   return (
     <article className="group relative h-full w-full overflow-hidden rounded-[22px] sm:rounded-[26px] border border-white/12 bg-black/40 shadow-[0_25px_60px_-20px_rgba(0,0,0,0.85)] select-none">
-      <img src={slot.src} alt="" loading="lazy" className="absolute inset-0 size-full object-cover" />
+      <img src={slot.src} alt="" loading="lazy" draggable={false} className="absolute inset-0 size-full object-cover" />
       <div className="absolute inset-0 bg-gradient-to-t from-black/90 via-black/30 to-black/10" aria-hidden />
 
       {d.day !== "--" && (
