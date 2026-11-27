@@ -318,7 +318,7 @@ export default function Navbar({ brandName = "UPGRADE TALENTS INDIA", logo }: { 
                           <>
                             <div className="border-b border-[var(--border)] px-3 py-2.5">
                               <div className="flex items-center justify-between gap-2">
-                                <p className="truncate text-xs font-bold text-white">{user.full_name || user.name || "Official Judge"}</p>
+                                <p className="truncate text-xs font-bold text-[var(--fg)]">{user.full_name || user.name || "Official Judge"}</p>
                                 <span className="rounded-md bg-[color-mix(in_srgb,var(--accent)_14%,transparent)] px-1.5 py-0.5 text-[9.5px] font-bold uppercase tracking-wider text-[var(--accent)]">
                                   Judge
                                 </span>
@@ -354,8 +354,8 @@ export default function Navbar({ brandName = "UPGRADE TALENTS INDIA", logo }: { 
                           <>
                             <div className="border-b border-[var(--border)] px-3 py-2.5">
                               <div className="flex items-center justify-between gap-2">
-                                <p className="truncate text-xs font-bold text-white">{user.full_name || user.name || "Event Volunteer"}</p>
-                                <span className="rounded-md bg-cyan-500/15 px-1.5 py-0.5 text-[9.5px] font-bold uppercase tracking-wider text-cyan-400">
+                                <p className="truncate text-xs font-bold text-[var(--fg)]">{user.full_name || user.name || "Event Volunteer"}</p>
+                                <span className="rounded-md bg-cyan-500/15 px-1.5 py-0.5 text-[9.5px] font-bold uppercase tracking-wider text-cyan-700 dark:text-cyan-400">
                                   Volunteer
                                 </span>
                               </div>
@@ -368,15 +368,15 @@ export default function Navbar({ brandName = "UPGRADE TALENTS INDIA", logo }: { 
                                 onClick={() => setUserDropdownOpen(false)}
                                 className="flex items-center gap-2.5 rounded-xl px-3 py-2 text-xs font-medium text-[var(--fg)] hover:bg-[var(--surface-2)] transition-colors"
                               >
-                                <ScanLine className="size-4 text-cyan-400" /> Ticket Scanner Terminal
+                                <ScanLine className="size-4 text-cyan-700 dark:text-cyan-400" /> Ticket Scanner Terminal
                               </Link>
                             </div>
                           </>
                         ) : (
                           <>
                             <div className="border-b border-[var(--border)] px-3 py-2.5">
-                              <p className="truncate text-xs font-bold text-white flex items-center gap-1.5">
-                                <span>{user.name || "Valued Artist"}</span>
+                              <p className="truncate text-xs font-bold text-[var(--fg)] flex items-center gap-1.5">
+                                <span className="truncate">{user.name || "Valued Artist"}</span>
                                 {(user.is_verified || user.verified_badge) && <VerifiedBadge size="xs" />}
                               </p>
                               <p className="truncate font-mono text-[11px] text-[var(--fg-subtle)]">{user.email}</p>
@@ -418,7 +418,7 @@ export default function Navbar({ brandName = "UPGRADE TALENTS INDIA", logo }: { 
                         <div className="border-t border-[var(--border)] pt-1.5">
                           <button
                             onClick={handleSignOut}
-                            className="flex w-full items-center gap-2.5 rounded-xl px-3 py-2 text-xs font-semibold text-red-400 hover:bg-red-500/10 transition-colors cursor-pointer"
+                            className="flex w-full items-center gap-2.5 rounded-xl px-3 py-2 text-xs font-semibold text-red-600 dark:text-red-400 hover:bg-red-500/10 transition-colors cursor-pointer"
                           >
                             <LogOut className="size-4" /> Sign Out
                           </button>
