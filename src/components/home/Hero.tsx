@@ -203,10 +203,10 @@ export default function Hero({
         style={{ background: "var(--stage-bloom)", width: "46vw", height: "46vw", top: "6%", left: "-6%" }}
       />
 
-      {/* ── Performer gallery (left) ── */}
+      {/* ── Ambient stage silhouette backdrop ── */}
       <motion.figure
         style={{ y: reduce ? 0 : figureY }}
-        className="absolute inset-y-0 left-0 -z-10 w-full lg:w-[56%] xl:w-[52%] will-change-transform"
+        className="pointer-events-none absolute inset-y-0 left-0 -z-10 w-full lg:w-[56%] xl:w-[52%] will-change-transform"
       >
         <motion.div
           style={{ x: reduce ? 0 : figX, y: reduce ? 0 : figY2 }}
@@ -220,28 +220,80 @@ export default function Hero({
               aria-hidden
               className="stage-cutout absolute inset-0 size-full object-cover object-center mix-blend-luminosity lg:object-[35%_center]"
               initial={false}
-              animate={{ opacity: i === index ? 0.92 : 0, scale: i === index ? 1 : 1.07 }}
+              animate={{ opacity: i === index ? 0.18 : 0, scale: i === index ? 1.04 : 1.1 }}
               transition={{ duration: 1.25, ease }}
             />
           ))}
-          <span aria-hidden className="stage-cutout stage-bg absolute inset-0 mix-blend-color" />
+          <span aria-hidden className="stage-cutout stage-bg absolute inset-0 mix-blend-color opacity-80" />
         </motion.div>
       </motion.figure>
 
-      {/* Small-screen scrim — the copy sits directly on the photo below lg */}
+      {/* Small-screen scrim — keeps copy readable over the ambient backdrop */}
       <div
         aria-hidden
         className="pointer-events-none absolute inset-0 -z-[5] lg:hidden"
-        style={{ background: "linear-gradient(180deg, rgba(36,2,18,0.52) 0%, rgba(36,2,18,0.38) 38%, rgba(30,2,22,0.76) 100%)" }}
+        style={{ background: "linear-gradient(180deg, rgba(36,2,18,0.48) 0%, rgba(36,2,18,0.42) 45%, rgba(30,2,22,0.78) 100%)" }}
       />
+
+      {/* ── Desktop Left Poster Showcase (uncropped for 720x920 & any aspect ratio) ── */}
+      <div className="pointer-events-none absolute inset-y-0 left-0 z-10 hidden w-[46%] xl:w-[45%] items-center justify-center pl-8 xl:pl-14 pr-4 pt-24 pb-24 lg:flex">
+        <AnimatePresence mode="wait">
+          <motion.div
+            key={current.id}
+            style={{ x: reduce ? 0 : figX, y: reduce ? 0 : figY2 }}
+            initial={reduce ? false : { opacity: 0, scale: 0.96, y: 12 }}
+            animate={{ opacity: 1, scale: 1, y: 0 }}
+            exit={reduce ? { opacity: 0 } : { opacity: 0, scale: 0.97, y: -10 }}
+            transition={{ duration: 0.55, ease }}
+            className="pointer-events-auto flex max-h-full max-w-full items-center justify-center will-change-transform"
+          >
+            <Link
+              href={current.href}
+              aria-label={current.title ? `Open ${current.title}` : "Browse competition"}
+              className="group relative flex max-h-full max-w-full items-center justify-center rounded-2xl focus-visible:outline-2 focus-visible:outline-white"
+            >
+              <img
+                src={imageFor(current.src, index)}
+                alt={current.title || "Featured spotlight"}
+                className="block h-auto w-auto max-h-[calc(100dvh-13rem)] max-w-full rounded-2xl object-contain shadow-[0_32px_80px_-16px_rgba(0,0,0,0.75)] ring-1 ring-white/25 transition-transform duration-700 ease-[cubic-bezier(0.16,1,0.3,1)] group-hover:scale-[1.02]"
+              />
+            </Link>
+          </motion.div>
+        </AnimatePresence>
+      </div>
 
       {/* ── Copy column (right) ── */}
       <motion.div
         style={{ y: reduce ? 0 : copyY, opacity: fade }}
-        className="container-x relative z-10 flex flex-1 items-center justify-end pb-28 pt-28 md:pb-32 md:pt-32 will-change-transform"
+        className="container-x pointer-events-none relative z-10 flex flex-1 items-center justify-end pb-28 pt-24 md:pb-32 md:pt-28 will-change-transform"
       >
         <div className="flex w-full justify-end">
-          <div className="w-full max-w-[560px] lg:w-[52%]">
+          <div className="pointer-events-auto w-full max-w-[560px] lg:w-[50%]">
+            {/* Mobile uncropped featured poster preview (720x920 & any aspect ratio) */}
+            <div className="mb-5 flex justify-center lg:hidden">
+              <AnimatePresence mode="wait">
+                <motion.div
+                  key={current.id}
+                  initial={reduce ? false : { opacity: 0, scale: 0.96 }}
+                  animate={{ opacity: 1, scale: 1 }}
+                  exit={reduce ? { opacity: 0 } : { opacity: 0, scale: 0.96 }}
+                  transition={{ duration: 0.45, ease }}
+                  className="flex max-w-full justify-center"
+                >
+                  <Link
+                    href={current.href}
+                    aria-label={current.title ? `Open ${current.title}` : "Browse competition"}
+                    className="block max-w-full rounded-xl"
+                  >
+                    <img
+                      src={imageFor(current.src, index)}
+                      alt={current.title || "Featured spotlight"}
+                      className="block h-auto w-auto max-h-[34dvh] max-w-full rounded-xl object-contain shadow-[0_20px_50px_-12px_rgba(0,0,0,0.75)] ring-1 ring-white/25"
+                    />
+                  </Link>
+                </motion.div>
+              </AnimatePresence>
+            </div>
             {/* The headline, paragraph and thumbnail rail use CSS entrances
                 (see globals.css). A motion-library entrance would serialise
                 its opacity-0 start frame into the server HTML and leave the
@@ -276,7 +328,7 @@ export default function Hero({
                 and the rest march to the right. */}
             <ul
               style={{ animationDelay: "0.46s" }}
-              className="hero-lift mt-7 flex gap-4"
+              className="hero-lift mt-7 flex gap-3 sm:gap-4"
               aria-label="Recent stills"
             >
               <AnimatePresence initial={false} mode="popLayout">
@@ -293,13 +345,20 @@ export default function Hero({
                     <Link
                       href={shot.href}
                       aria-label={shot.title ? `Open ${shot.title}` : "Browse competitions"}
-                      className="group relative block aspect-square w-full overflow-hidden rounded-md ring-1 ring-white/30 transition-all duration-500 hover:scale-[1.03] hover:ring-2 hover:ring-white hover:shadow-[0_12px_30px_rgba(0,0,0,0.6)]"
+                      className="group relative block aspect-[4/5] w-full overflow-hidden rounded-lg bg-black/45 ring-1 ring-white/30 transition-all duration-500 hover:scale-[1.03] hover:ring-2 hover:ring-white hover:shadow-[0_12px_30px_rgba(0,0,0,0.6)]"
                     >
+                      <img
+                        src={imageFor(shot.src, 1)}
+                        alt=""
+                        aria-hidden
+                        loading="lazy"
+                        className="absolute inset-0 size-full scale-105 object-cover opacity-25"
+                      />
                       <img
                         src={imageFor(shot.src, 1)}
                         alt={shot.title}
                         loading="lazy"
-                        className="size-full object-cover transition-transform duration-[900ms] ease-[cubic-bezier(0.16,1,0.3,1)] group-hover:scale-110"
+                        className="relative z-[1] size-full object-contain transition-transform duration-[900ms] ease-[cubic-bezier(0.16,1,0.3,1)] group-hover:scale-105"
                       />
 
                       {/* Scrim for contrast */}
