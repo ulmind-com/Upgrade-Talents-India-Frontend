@@ -296,7 +296,7 @@ export default function LeaderboardView({
     }
   };
 
-  const applyBoard = useCallback((d: any, targetId: string) => {
+  const applyBoard = useCallback((d: any, targetId: string, roundsMeta?: any, roundNum?: number) => {
     const activeCompObj = compListRef.current.find((c: any) => (c._id || c.id) === targetId);
     const isPub =
       d?.score_visible_for_public !== undefined
@@ -308,15 +308,53 @@ export default function LeaderboardView({
               (activeCompObj as any)?.results_published ??
               true
           );
-    setIsScorePublic(isPub);
-    setRows(Array.isArray(d?.leaderboard) ? d.leaderboard : []);
-    setCategories(Array.isArray(d?.categories) ? d.categories : []);
-    setCategoryLeaderboards(
+    const nextRows = Array.isArray(d?.leaderboard) ? d.leaderboard : [];
+    const nextCats = Array.isArray(d?.categories) ? d.categories : [];
+    const nextCatLbs =
       d?.category_leaderboards && typeof d.category_leaderboards === "object"
         ? d.category_leaderboards
-        : {}
-    );
+        : {};
+
+    setIsScorePublic(isPub);
+    setRows(nextRows);
+    setCategories(nextCats);
+    setCategoryLeaderboards(nextCatLbs);
+
+    boardCacheRef.current.set(targetId, {
+      rows: nextRows,
+      categories: nextCats,
+      categoryLeaderboards: nextCatLbs,
+      isScorePublic: isPub,
+      roundsData: roundsMeta ?? null,
+      roundNum: roundNum ?? 1,
+    });
   }, []);
+
+  type CachedBoard = {
+    rows: Row[];
+    categories: string[];
+    categoryLeaderboards: Record<string, Row[]>;
+    isScorePublic: boolean;
+    roundsData: any;
+    roundNum: number;
+  };
+  const boardCacheRef = useRef<Map<string, CachedBoard>>(new Map());
+  const inflightPrefetchRef = useRef<Set<string>>(new Set());
+  const prevUrlCompIdRef = useRef<string>(urlCompId);
+
+  // Seed cache with SSR-provided initial competition so switching back to it is instant
+  useEffect(() => {
+    if (initialCompId && Array.isArray(initialRows) && initialRows.length > 0 && !boardCacheRef.current.has(initialCompId)) {
+      boardCacheRef.current.set(initialCompId, {
+        rows: initialRows,
+        categories: initialCategories || [],
+        categoryLeaderboards: initialCategoryLeaderboards || {},
+        isScorePublic: true,
+        roundsData: null,
+        roundNum: 1,
+      });
+    }
+  }, [initialCompId, initialRows, initialCategories, initialCategoryLeaderboards]);
 
   const fetchRoundOrOverallBoard = useCallback(
     (id: string, roundNum: number | null, multi: boolean) =>
@@ -326,33 +364,82 @@ export default function LeaderboardView({
     []
   );
 
+  const loadCompBoardData = useCallback(async (id: string, targetRound?: number) => {
+    const [rResult, defaultLb] = await Promise.all([
+      publicApi.rounds(id).catch(() => null),
+      publicApi.leaderboard(id).catch(() => null),
+    ]);
+    const hasRounds = Boolean(rResult && Array.isArray(rResult.rounds) && rResult.rounds.length > 0);
+    const multi = Boolean(rResult && Array.isArray(rResult.rounds) && rResult.rounds.length > 1);
+    const activeR = targetRound ?? rResult?.current_round ?? 1;
+
+    let d: any = defaultLb;
+    if (multi && (activeR !== 1 || !defaultLb)) {
+      d = await publicApi.roundLeaderboard(id, activeR).catch(() => defaultLb);
+    }
+    return { rData: hasRounds ? rResult : null, activeR, d };
+  }, []);
+
+  const prefetchComp = useCallback((id: string) => {
+    if (!id || boardCacheRef.current.has(id) || inflightPrefetchRef.current.has(id)) return;
+    inflightPrefetchRef.current.add(id);
+    loadCompBoardData(id)
+      .then(({ rData, activeR, d }) => {
+        if (!d) return;
+        const activeCompObj = compListRef.current.find((c: any) => (c._id || c.id) === id);
+        const isPub =
+          d?.score_visible_for_public !== undefined
+            ? Boolean(d.score_visible_for_public)
+            : d?.is_published !== undefined
+            ? Boolean(d.is_published)
+            : Boolean((activeCompObj as any)?.score_visible_for_public ?? (activeCompObj as any)?.results_published ?? true);
+        boardCacheRef.current.set(id, {
+          rows: Array.isArray(d?.leaderboard) ? d.leaderboard : [],
+          categories: Array.isArray(d?.categories) ? d.categories : [],
+          categoryLeaderboards: d?.category_leaderboards && typeof d.category_leaderboards === "object" ? d.category_leaderboards : {},
+          isScorePublic: isPub,
+          roundsData: rData,
+          roundNum: activeR,
+        });
+      })
+      .catch(() => {})
+      .finally(() => {
+        inflightPrefetchRef.current.delete(id);
+      });
+  }, [loadCompBoardData]);
+
   const pick = useCallback(
     async (id: string, targetRound?: number) => {
       if (!id) return;
       const rid = ++reqIdRef.current;
-      setLoading(true);
-      try {
-        let rData: any = null;
-        try {
-          rData = await publicApi.rounds(id);
-        } catch {
-          rData = null;
+
+      const cached = !targetRound ? boardCacheRef.current.get(id) : undefined;
+      if (cached) {
+        setRoundsData(cached.roundsData);
+        setActiveRoundNumber(cached.roundNum);
+        setIsScorePublic(cached.isScorePublic);
+        setRows(cached.rows);
+        setCategories(cached.categories);
+        setCategoryLeaderboards(cached.categoryLeaderboards);
+        setLoading(false);
+      } else {
+        // Clear previous competition's rows immediately so wrong podium never lingers while loading
+        if (id !== initialCompId || !rows.length) {
+          setRows([]);
         }
+        setRoundsData(null);
+        setLoading(true);
+      }
+
+      try {
+        const { rData, activeR, d } = await loadCompBoardData(id, targetRound);
         if (rid !== reqIdRef.current) return;
 
-        const hasRounds = Boolean(rData && Array.isArray(rData.rounds) && rData.rounds.length > 0);
-        const multi = Boolean(rData && Array.isArray(rData.rounds) && rData.rounds.length > 1);
-        setRoundsData(hasRounds ? rData : null);
-
-        const activeR = targetRound ?? rData?.current_round ?? 1;
+        setRoundsData(rData);
         setActiveRoundNumber(activeR);
-
-        const d: any = await fetchRoundOrOverallBoard(id, activeR, multi);
-        if (rid !== reqIdRef.current) return;
-
-        applyBoard(d, id);
+        applyBoard(d || {}, id, rData, activeR);
       } catch {
-        if (rid === reqIdRef.current) {
+        if (rid === reqIdRef.current && !cached) {
           setRows([]);
           setCategories([]);
           setCategoryLeaderboards({});
@@ -363,7 +450,7 @@ export default function LeaderboardView({
         }
       }
     },
-    [applyBoard, fetchRoundOrOverallBoard]
+    [applyBoard, loadCompBoardData, initialCompId, rows.length]
   );
 
   const handleSelectRound = async (roundNum: number) => {
@@ -374,7 +461,7 @@ export default function LeaderboardView({
     try {
       const d: any = await publicApi.roundLeaderboard(compId, roundNum);
       if (rid !== reqIdRef.current) return;
-      applyBoard(d, compId);
+      applyBoard(d, compId, roundsData, roundNum);
     } catch {
       if (rid === reqIdRef.current) {
         setRows([]);
@@ -422,27 +509,36 @@ export default function LeaderboardView({
     }
   }, [compId, compList]);
 
+  // Only sync URL -> state when urlCompId itself changes from external link navigation
   useEffect(() => {
-    if (urlCompId && urlCompId !== compId) {
-      setActiveCategory("ALL");
-      setActiveRoundNumber(null);
-      setCompId(urlCompId);
+    if (urlCompId !== prevUrlCompIdRef.current) {
+      prevUrlCompIdRef.current = urlCompId;
+      if (urlCompId && urlCompId !== compId) {
+        setActiveCategory("ALL");
+        setActiveRoundNumber(null);
+        setCompId(urlCompId);
+      }
     }
   }, [urlCompId, compId]);
 
-  useEffect(() => {
-    if (initialCompId && initialCompId !== compId && !urlCompId) {
-      setActiveCategory("ALL");
-      setActiveRoundNumber(null);
-      setCompId(initialCompId);
-    }
-  }, [initialCompId, compId, urlCompId]);
-
-  // Always load rounds & standings on mount and whenever compId changes (ensures Semi-Final / Final tabs load immediately)
+  // Always load rounds & standings on mount and whenever compId changes
   useEffect(() => {
     if (!compId) return;
     pick(compId);
-  }, [compId, pick]);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [compId]);
+
+  // Background-prefetch sibling competitions shortly after mount for 0ms pill switching
+  useEffect(() => {
+    if (!compList.length) return;
+    const t = window.setTimeout(() => {
+      compList.slice(0, 6).forEach((c) => {
+        const cid = (c._id || c.id) as string;
+        if (cid && cid !== compId) prefetchComp(cid);
+      });
+    }, 450);
+    return () => window.clearTimeout(t);
+  }, [compList, compId, prefetchComp]);
 
   useRealtimeSubscription(
     compId ? [`competition:${compId}`, "admin:competitions", "global"] : ["global"],
@@ -459,14 +555,14 @@ export default function LeaderboardView({
           !isMultiRound || !eventRound || !activeRoundNumber || eventRound === Number(activeRoundNumber);
 
         if (Array.isArray(data.leaderboard) && data.leaderboard.length > 0 && matchesCurrentRound) {
-          applyBoard(data, compId);
+          applyBoard(data, compId, roundsData, activeRoundNumber ?? undefined);
         } else if (compId) {
           fetchRoundOrOverallBoard(compId, activeRoundNumber, isMultiRound)
-            .then((d: any) => applyBoard(d, compId))
+            .then((d: any) => applyBoard(d, compId, roundsData, activeRoundNumber ?? undefined))
             .catch(() => {});
         }
       },
-      [compId, activeRoundNumber, isMultiRound, applyBoard, fetchRoundOrOverallBoard]
+      [compId, activeRoundNumber, isMultiRound, roundsData, applyBoard, fetchRoundOrOverallBoard]
     ),
     6000
   );
@@ -480,9 +576,13 @@ export default function LeaderboardView({
     } else {
       setCompId(newId);
     }
-    const params = new URLSearchParams(searchParams?.toString() || "");
-    params.set("competition", newId);
-    router.replace(`${pathname}?${params.toString()}`, { scroll: false });
+    // Update address bar synchronously without triggering a slow dynamic SSR reload
+    if (typeof window !== "undefined") {
+      const params = new URLSearchParams(window.location.search);
+      params.set("competition", newId);
+      prevUrlCompIdRef.current = newId;
+      window.history.replaceState(null, "", `${pathname}?${params.toString()}`);
+    }
   };
 
   const availableCategories = useMemo(() => {
@@ -774,9 +874,11 @@ export default function LeaderboardView({
                   <button
                     key={id}
                     type="button"
+                    onMouseEnter={() => prefetchComp(id)}
+                    onPointerDown={() => prefetchComp(id)}
                     onClick={() => handleSelectComp(id)}
                     className={cn(
-                      "h-8 shrink-0 cursor-pointer whitespace-nowrap rounded-full border px-3.5 text-xs font-bold transition",
+                      "h-8 shrink-0 cursor-pointer whitespace-nowrap rounded-full border px-3.5 text-xs font-bold transition-all active:scale-95",
                       on
                         ? "border-[#FF385C] bg-[#FF385C] text-white shadow-sm"
                         : "border-[var(--border-strong)] bg-[var(--surface)] text-[var(--fg-muted)] hover:bg-[var(--surface-2)] hover:text-[var(--fg)]"
