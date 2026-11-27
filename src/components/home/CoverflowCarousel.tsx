@@ -201,9 +201,12 @@ export default function CoverflowCarousel({
     const read = () => {
       const host = hostRef.current;
       const w = host?.clientWidth || window.innerWidth || 1440;
-      const narrow = window.innerWidth <= 820;
-      const s = narrow ? w / 640 : w / 1440;
-      const h = Math.max(230, Math.round((narrow ? 320 : BAND) * s));
+      const vw = window.innerWidth || w || 1440;
+      const isPhone = vw <= 640;
+      const isTablet = vw > 640 && vw <= 1024;
+      const s = isPhone ? w / 400 : isTablet ? w / 900 : w / 1440;
+      const bandUnits = isPhone ? 360 : isTablet ? 410 : BAND;
+      const h = Math.max(isPhone ? 290 : 260, Math.round(bandUnits * s));
       setHeight(h);
       dimsRef.current = {
         bw: w,
@@ -413,22 +416,22 @@ export default function CoverflowCarousel({
               {/* details overlay: visible on mobile/touch, reveals on hover on desktop */}
               <span
                 aria-hidden
-                className="absolute inset-0 opacity-80 sm:opacity-0 transition-opacity duration-300 sm:group-hover:opacity-100"
-                style={{ background: "linear-gradient(180deg, rgba(4,5,12,0) 25%, rgba(4,5,12,0.85) 72%, rgba(4,5,12,0.98) 100%)" }}
+                className="absolute inset-0 opacity-90 sm:opacity-0 transition-opacity duration-300 sm:group-hover:opacity-100"
+                style={{ background: "linear-gradient(180deg, rgba(4,5,12,0) 36%, rgba(4,5,12,0.78) 68%, rgba(4,5,12,0.97) 100%)" }}
               />
-              <div className="absolute inset-x-0 bottom-0 p-3 sm:p-3.5 text-white opacity-100 sm:opacity-0 transition-all duration-300 sm:translate-y-3 sm:group-hover:translate-y-0 sm:group-hover:opacity-100">
+              <div className="absolute inset-x-0 bottom-0 p-2.5 sm:p-3.5 text-white opacity-100 sm:opacity-0 transition-all duration-300 sm:translate-y-3 sm:group-hover:translate-y-0 sm:group-hover:opacity-100">
                 <div className="flex items-center justify-between gap-1">
-                  <p className="font-mono text-[10px] uppercase tracking-[0.2em] text-[var(--accent)] font-semibold">
+                  <p className="font-mono text-[9.5px] sm:text-[10px] uppercase tracking-[0.14em] sm:tracking-[0.2em] text-[var(--accent)] font-semibold whitespace-nowrap shrink-0">
                     {sd.month ? `${sd.month} ${sd.day}` : "Upcoming"}
                   </p>
                   {item.category && (
-                    <span className="rounded-full bg-white/15 px-2 py-0.5 text-[9px] font-mono uppercase tracking-wider text-white/90 backdrop-blur-sm">
+                    <span className="truncate max-w-[60%] rounded-full bg-white/15 px-1.5 sm:px-2 py-0.5 text-[8.5px] sm:text-[9px] font-mono uppercase tracking-wider text-white/90 backdrop-blur-sm">
                       {item.category}
                     </span>
                   )}
                 </div>
-                <h3 className="mt-1 font-display text-[0.98rem] font-bold leading-tight line-clamp-2 drop-shadow">{item.title}</h3>
-                <p className="mt-1 flex items-center gap-1.5 text-[11px] text-white/70">
+                <h3 className="mt-1 font-display text-[13px] sm:text-[0.98rem] font-bold leading-tight line-clamp-2 drop-shadow">{item.title}</h3>
+                <p className="mt-1 flex items-center gap-1 text-[10px] sm:text-[11px] text-white/75">
                   {item.isCompetition ? (
                     <>
                       <Trophy className="size-3 shrink-0 text-amber-400" aria-hidden />
@@ -441,9 +444,9 @@ export default function CoverflowCarousel({
                     </>
                   )}
                 </p>
-                <span className="mt-2.5 inline-flex items-center gap-1.5 rounded-full px-3 py-1.5 text-[11px] font-bold text-[var(--on-accent)] shadow-md transition-transform active:scale-95" style={{ background: "var(--grad-brand)" }}>
-                  {item.isCompetition ? <Trophy className="size-3.5" aria-hidden /> : <Ticket className="size-3.5" aria-hidden />}
-                  {item.ctaText || (item.isCompetition ? "Enter competition" : "Book tickets")}
+                <span className="mt-2 inline-flex max-w-full items-center gap-1 rounded-full px-2.5 py-1 sm:px-3 sm:py-1.5 text-[10px] sm:text-[11px] font-bold whitespace-nowrap text-[var(--on-accent)] shadow-md transition-transform active:scale-95" style={{ background: "var(--grad-brand)" }}>
+                  {item.isCompetition ? <Trophy className="size-3 shrink-0 sm:size-3.5" aria-hidden /> : <Ticket className="size-3 shrink-0 sm:size-3.5" aria-hidden />}
+                  <span className="truncate">{item.ctaText || (item.isCompetition ? "Enter competition" : "Book tickets")}</span>
                 </span>
               </div>
             </Link>
