@@ -136,11 +136,14 @@ export function Button({
 
 export function Magnetic({ children, strength = 0.28, className }: { children: ReactNode; strength?: number; className?: string }) {
   const lite = useLiteMotion();
+  if (lite) return <div className={className}>{children}</div>;
+  return <MagneticDesktop strength={strength} className={className}>{children}</MagneticDesktop>;
+}
+
+function MagneticDesktop({ children, strength = 0.28, className }: { children: ReactNode; strength?: number; className?: string }) {
   const ref = useRef<HTMLDivElement>(null);
   const x = useSpring(useMotionValue(0), { stiffness: 220, damping: 18, mass: 0.3 });
   const y = useSpring(useMotionValue(0), { stiffness: 220, damping: 18, mass: 0.3 });
-
-  if (lite) return <div className={className}>{children}</div>;
 
   const onMove = (e: MouseEvent<HTMLDivElement>) => {
     const r = ref.current?.getBoundingClientRect();
@@ -171,6 +174,25 @@ export function TiltCard({
   glare?: boolean;
 }) {
   const lite = useLiteMotion();
+  if (lite) return <div className={cn("relative", className)}>{children}</div>;
+  return (
+    <TiltCardDesktop className={className} intensity={intensity} glare={glare}>
+      {children}
+    </TiltCardDesktop>
+  );
+}
+
+function TiltCardDesktop({
+  children,
+  className,
+  intensity = 9,
+  glare = true,
+}: {
+  children: ReactNode;
+  className?: string;
+  intensity?: number;
+  glare?: boolean;
+}) {
   const ref = useRef<HTMLDivElement>(null);
   const mx = useMotionValue(0.5);
   const my = useMotionValue(0.5);
@@ -179,8 +201,10 @@ export function TiltCard({
   const rotateY = useSpring(useTransform(mx, [0, 1], [-intensity, intensity]), { stiffness: 180, damping: 20 });
   const glareX = useTransform(mx, [0, 1], ["0%", "100%"]);
   const glareY = useTransform(my, [0, 1], ["0%", "100%"]);
-
-  if (lite) return <div className={cn("relative", className)}>{children}</div>;
+  const glareBg = useTransform(
+    [glareX, glareY],
+    ([gx, gy]) => `radial-gradient(420px circle at ${gx} ${gy}, rgba(255,255,255,0.14), transparent 65%)`
+  );
 
   const onMove = (e: MouseEvent<HTMLDivElement>) => {
     const r = ref.current?.getBoundingClientRect();
@@ -203,12 +227,7 @@ export function TiltCard({
         <motion.div
           aria-hidden
           className="pointer-events-none absolute inset-0 z-20 rounded-[inherit] opacity-0 transition-opacity duration-500 group-hover:opacity-100"
-          style={{
-            background: useTransform(
-              [glareX, glareY],
-              ([gx, gy]) => `radial-gradient(420px circle at ${gx} ${gy}, rgba(255,255,255,0.14), transparent 65%)`
-            ) as any,
-          }}
+          style={{ background: glareBg as any }}
         />
       )}
     </motion.div>

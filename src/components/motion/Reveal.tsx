@@ -128,12 +128,23 @@ export function Parallax({
   className?: string;
 }) {
   const lite = useLiteMotion();
+  if (lite) return <div className={className}>{children}</div>;
+  return <ParallaxDesktop speed={speed} className={className}>{children}</ParallaxDesktop>;
+}
+
+function ParallaxDesktop({
+  children,
+  speed = 0.25,
+  className,
+}: {
+  children: ReactNode;
+  speed?: number;
+  className?: string;
+}) {
   const ref = useRef<HTMLDivElement>(null);
   const { scrollYProgress } = useScroll({ target: ref, offset: ["start end", "end start"] });
   const raw = useTransform(scrollYProgress, [0, 1], [speed * 120, speed * -120]);
   const y = useSpring(raw, { stiffness: 120, damping: 26, mass: 0.4 });
-
-  if (lite) return <div className={className}>{children}</div>;
 
   return (
     <div ref={ref} className={className}>
@@ -154,13 +165,25 @@ export function SplitHeading({
   delay?: number;
   as?: any;
 }) {
-  const reduce = useReducedMotion();
   const lite = useLiteMotion();
-  const ref = useRef<HTMLDivElement>(null);
-  const inView = useInView(ref, { once: true, margin: lite ? "0px 0px -4% 0px" : "-15% 0px" });
-  const words = text.split(" ");
+  if (lite) return <Tag className={className}>{text}</Tag>;
+  return <SplitHeadingDesktop text={text} className={className} delay={delay} as={Tag} />;
+}
 
-  if (reduce || lite) return <Tag className={className}>{text}</Tag>;
+function SplitHeadingDesktop({
+  text,
+  className,
+  delay = 0,
+  as: Tag = "h2",
+}: {
+  text: string;
+  className?: string;
+  delay?: number;
+  as?: any;
+}) {
+  const ref = useRef<HTMLDivElement>(null);
+  const inView = useInView(ref, { once: true, margin: "-15% 0px" });
+  const words = text.split(" ");
 
   return (
     <Tag className={className}>
@@ -186,9 +209,13 @@ export function SplitHeading({
 /** Scroll progress bar for the whole document (desktop only to keep mobile touch scroll lock-free). */
 export function ScrollProgress() {
   const lite = useLiteMotion();
+  if (lite) return null;
+  return <ScrollProgressDesktop />;
+}
+
+function ScrollProgressDesktop() {
   const { scrollYProgress } = useScroll();
   const scaleX = useSpring(scrollYProgress, { stiffness: 220, damping: 40, restDelta: 0.001 });
-  if (lite) return null;
   return (
     <motion.div
       aria-hidden
