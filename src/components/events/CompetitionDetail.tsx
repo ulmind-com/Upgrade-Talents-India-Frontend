@@ -2251,10 +2251,10 @@ export default function CompetitionDetail({
             </div>
           )}
 
-          {!isScorePublic ? (
+          {!isScorePublic && displayedRows.length === 0 ? (
             <div className="mt-4 flex flex-col items-center justify-center rounded-2xl border border-amber-500/30 bg-amber-500/10 p-6 text-center">
-              <Lock className="size-6 text-amber-400 mb-2" />
-              <p className="text-sm font-bold text-white">Scores are currently private</p>
+              <Lock className="size-6 text-amber-500 mb-2" />
+              <p className="text-sm font-bold text-[var(--fg)]">Scores are currently private</p>
               <p className="mt-1 text-xs text-[var(--fg-muted)] max-w-sm">
                 Judges are evaluating live performances. Full scores and rankings will be revealed once the official results are published.
               </p>
@@ -2264,7 +2264,7 @@ export default function CompetitionDetail({
               <div className="flex size-12 items-center justify-center rounded-2xl bg-[var(--surface-3)] text-[var(--fg-muted)] mb-3">
                 <Trophy className="size-6 text-[var(--accent)]" />
               </div>
-              <p className="text-sm font-semibold text-white">
+              <p className="text-sm font-semibold text-[var(--fg)]">
                 {leaderboardRound > 1
                   ? `Round ${leaderboardRound} standings in preparation`
                   : "Live standings pending"}

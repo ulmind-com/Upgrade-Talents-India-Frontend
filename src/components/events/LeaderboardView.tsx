@@ -27,7 +27,7 @@ import { publicApi, competeApi } from "@/lib/api";
 import { imageFor, cn } from "@/lib/utils";
 import Link from "next/link";
 import VerifiedBadge from "@/components/ui/VerifiedBadge";
-import { useAuth } from "@/components/motion/Providers";
+import { useAuth, useTheme } from "@/components/motion/Providers";
 import { useRealtimeSubscription } from "@/lib/realtime";
 import { Podium3D, RankLaurel, type PodiumContestant } from "@/components/events/Podium3D";
 
@@ -117,8 +117,8 @@ function useCountdown(target?: string | null): string | null {
 function Avatar({ row, size = 44, ring }: { row: Row; size?: number; ring?: string }) {
   return (
     <span
-      className="relative grid shrink-0 place-items-center overflow-hidden rounded-full bg-[#161724]"
-      style={{ width: size, height: size, border: `2px solid ${ring || "rgba(255,255,255,0.14)"}` }}
+      className="relative grid shrink-0 place-items-center overflow-hidden rounded-full bg-[var(--surface-2)]"
+      style={{ width: size, height: size, border: `2px solid ${ring || "var(--border-strong)"}` }}
     >
       <img
         src={imageFor(row.profile_photo, row.rank ?? 0)}
@@ -161,6 +161,8 @@ export default function LeaderboardView({
     "";
 
   const { user } = useAuth();
+  const { theme } = useTheme();
+  const isLight = theme === "blue" || theme === "light";
   const [compId, setCompId] = useState<string>(effectiveInitialId);
   const [compList, setCompList] = useState<Comp[]>(competitions || []);
   const [rows, setRows] = useState<Row[]>(initialRows || []);
@@ -698,7 +700,9 @@ export default function LeaderboardView({
     return Number.isInteger(v) ? v.toLocaleString("en-IN") : v.toFixed(2).replace(/\.?0+$/, "");
   };
   const iconBtn =
-    "relative grid size-10 shrink-0 cursor-pointer place-items-center rounded-full border border-white/[0.12] bg-white/[0.08] text-white transition hover:bg-white/[0.14] active:scale-95";
+    "relative grid size-10 shrink-0 cursor-pointer place-items-center rounded-full border border-[var(--border-strong)] bg-[var(--surface)] text-[var(--fg)] shadow-sm transition hover:bg-[var(--surface-2)] active:scale-95";
+  const goldInk = isLight ? "#b45309" : GOLD;
+  const okInk = isLight ? "#15803d" : OK;
 
   return (
     <section className={cn("container-x relative pb-24 pt-8 md:pt-12", poppins.variable)}>
@@ -707,12 +711,12 @@ export default function LeaderboardView({
         <div className="pointer-events-none fixed left-1/2 top-24 z-50 w-[92vw] max-w-md -translate-x-1/2">
           <div
             className={cn(
-              "flex items-center gap-3 rounded-2xl border bg-[#0b0c14]/95 p-3.5 text-[13px] font-semibold text-white shadow-2xl backdrop-blur-xl",
+              "flex items-center gap-3 rounded-2xl border bg-[var(--surface)] p-3.5 text-[13px] font-semibold text-[var(--fg)] shadow-2xl backdrop-blur-xl",
               voteToast.tone === "success" ? "border-emerald-500/40" : "border-[#FF385C]/50"
             )}
           >
             {voteToast.tone === "success" ? (
-              <CheckCircle2 className="size-5 shrink-0" style={{ color: OK }} />
+              <CheckCircle2 className="size-5 shrink-0" style={{ color: okInk }} />
             ) : (
               <ShieldCheck className="size-5 shrink-0" style={{ color: RED }} />
             )}
@@ -721,8 +725,8 @@ export default function LeaderboardView({
         </div>
       )}
 
-      {/* the board — transparent stage blending seamlessly with page background */}
-      <div className="relative mx-auto max-w-[760px] text-white">
+      {/* the board — blends seamlessly with both dark & light page backgrounds */}
+      <div className="relative mx-auto max-w-[760px] text-[var(--fg)]">
 
         {/* top bar: back · title · share + competition picker */}
         <div className="relative flex items-center justify-between gap-3 px-4 pt-4 sm:px-6 sm:pt-5">
@@ -730,8 +734,8 @@ export default function LeaderboardView({
             <ChevronLeft className="size-[22px]" strokeWidth={2.4} />
           </Link>
           <div className="min-w-0 flex-1 text-center">
-            <p className="text-[19px] font-bold tracking-[-0.3px]">Leaderboard</p>
-            {compTitle ? <p className="mt-px truncate text-[11px] text-white/50">{compTitle}</p> : null}
+            <p className="text-[19px] font-bold tracking-[-0.3px] text-[var(--fg)]">Leaderboard</p>
+            {compTitle ? <p className="mt-px truncate text-[11px] font-medium text-[var(--fg-muted)]">{compTitle}</p> : null}
           </div>
           <div className="flex shrink-0 items-center gap-2">
             {compId ? (
@@ -749,7 +753,7 @@ export default function LeaderboardView({
                   aria-label="Choose competition"
                 >
                   {compList.map((c) => (
-                    <option key={c._id || c.id} value={c._id || c.id}>
+                    <option key={c._id || c.id} value={c._id || c.id} className="bg-[var(--surface)] text-[var(--fg)]">
                       {c.title || c.name || "Competition"}
                     </option>
                   ))}
@@ -773,7 +777,9 @@ export default function LeaderboardView({
                     onClick={() => handleSelectComp(id)}
                     className={cn(
                       "h-8 shrink-0 cursor-pointer whitespace-nowrap rounded-full border px-3.5 text-xs font-bold transition",
-                      on ? "border-[#FF385C] bg-[#FF385C] text-white" : "border-white/10 bg-white/[0.06] text-[#9EA3B8] hover:text-white"
+                      on
+                        ? "border-[#FF385C] bg-[#FF385C] text-white shadow-sm"
+                        : "border-[var(--border-strong)] bg-[var(--surface)] text-[var(--fg-muted)] hover:bg-[var(--surface-2)] hover:text-[var(--fg)]"
                     )}
                   >
                     {c.title || c.name}
@@ -786,10 +792,10 @@ export default function LeaderboardView({
           {/* round switch — real names + status, like the app */}
           {isMultiRound && (
             <div className="overflow-x-auto px-4 sm:px-6 [scrollbar-width:none]">
-              <div className="mx-auto mb-3 mt-1 flex w-max gap-1 rounded-full bg-white/[0.055] p-1">
+              <div className="mx-auto mb-3 mt-1 flex w-max gap-1 rounded-full border border-[var(--border)] bg-[var(--surface-2)] p-1">
                 {roundsData.rounds.map((rd: any) => {
                   const on = currentRoundNum === rd.round_number;
-                  const st = roundTone(rd.status);
+                  const st = roundTone(rd.status, isLight);
                   return (
                     <button
                       key={rd.round_number}
@@ -799,10 +805,10 @@ export default function LeaderboardView({
                       onClick={() => handleSelectRound(rd.round_number)}
                       className={cn(
                         "flex min-h-[46px] cursor-pointer flex-col items-center justify-center rounded-full px-[18px] py-1.5 transition",
-                        on ? "bg-white/[0.13]" : "hover:bg-white/[0.06]"
+                        on ? "bg-[var(--surface)] shadow-sm" : "hover:bg-[var(--surface)]/60"
                       )}
                     >
-                      <span className={cn("whitespace-nowrap text-[13px] font-bold", on ? "text-white" : "text-white/55")}>
+                      <span className={cn("whitespace-nowrap text-[13px] font-bold", on ? "text-[var(--fg)]" : "text-[var(--fg-muted)]")}>
                         {rd.name || `Round ${rd.round_number}`}
                       </span>
                       <span className="mt-0.5 flex items-center gap-1 text-[10px] font-semibold" style={{ color: st.color }}>
@@ -817,7 +823,7 @@ export default function LeaderboardView({
           )}
 
           {roundInfo ? (
-            <RoundBrief round={roundInfo} total={roundsData.rounds.length} advancing={advancingCount} isLive={currentRoundNum === liveRound} />
+            <RoundBrief round={roundInfo} total={roundsData.rounds.length} advancing={advancingCount} isLive={currentRoundNum === liveRound} isLight={isLight} />
           ) : null}
 
           {/* categories */}
@@ -833,11 +839,14 @@ export default function LeaderboardView({
                     onClick={() => setActiveCategory(cat)}
                     className={cn(
                       "flex h-[30px] shrink-0 cursor-pointer items-center gap-1.5 whitespace-nowrap rounded-full border px-3 text-[11.5px] font-bold transition",
-                      on ? "border-[#FF385C] bg-[#FF385C]/20 text-[#FF385C]" : "border-white/[0.08] bg-white/[0.05] text-[#9EA3B8] hover:text-white"
+                      on
+                        ? "border-[#FF385C] bg-[#FF385C]/15 text-[#E11D48] dark:text-[#FF385C]"
+                        : "border-[var(--border-strong)] bg-[var(--surface)] text-[var(--fg-muted)] hover:text-[var(--fg)] hover:bg-[var(--surface-2)]"
                     )}
+                    style={on ? { color: RED } : undefined}
                   >
                     {cat}
-                    <span className={cn("tabular-nums", on ? "text-[#FF385C]/80" : "text-white/35")}>{n}</span>
+                    <span className={cn("tabular-nums", on ? "opacity-85" : "text-[var(--fg-subtle)]")}>{n}</span>
                   </button>
                 );
               })}
@@ -848,14 +857,14 @@ export default function LeaderboardView({
           <div className="px-4 pb-2 pt-2 sm:px-6">
             <div
               className={cn(
-                "flex h-[50px] items-center gap-2.5 rounded-2xl border pl-1.5 pr-2 transition",
+                "flex h-[50px] items-center gap-2.5 rounded-2xl border pl-1.5 pr-2 transition shadow-sm",
                 searchFocused
-                  ? "border-[#FF385C]/55 bg-[#181A23] shadow-[0_0_14px_rgba(255,56,92,0.22)]"
-                  : "border-white/[0.08] bg-[#14161E]"
+                  ? "border-[#FF385C]/65 bg-[var(--surface)] shadow-[0_0_14px_rgba(255,56,92,0.18)]"
+                  : "border-[var(--border-strong)] bg-[var(--surface)]"
               )}
             >
-              <span className={cn("grid size-[38px] shrink-0 place-items-center rounded-xl", searchFocused ? "bg-[#FF385C]/[0.14]" : "bg-white/[0.06]")}>
-                <Search className="size-4" strokeWidth={2.4} style={{ color: searchFocused ? RED : "#9EA3B8" }} />
+              <span className={cn("grid size-[38px] shrink-0 place-items-center rounded-xl", searchFocused ? "bg-[#FF385C]/[0.14]" : "bg-[var(--surface-2)]")}>
+                <Search className="size-4" strokeWidth={2.4} style={{ color: searchFocused ? RED : "var(--fg-muted)" }} />
               </span>
               <input
                 value={q}
@@ -865,13 +874,13 @@ export default function LeaderboardView({
                 placeholder="Search name, email or ID"
                 aria-label="Search contestants"
                 autoComplete="off"
-                className="min-w-0 flex-1 bg-transparent text-[14.5px] font-medium text-white caret-[#FF385C] outline-none placeholder:text-[#6B7186]"
+                className="min-w-0 flex-1 bg-transparent text-[14.5px] font-medium text-[var(--fg)] caret-[#FF385C] outline-none placeholder:text-[var(--fg-subtle)]"
               />
               {q.trim() ? (
                 <>
                   <span
-                    className="rounded-full bg-white/[0.06] px-2 py-1 text-[11px] font-bold"
-                    style={{ color: filtered.length ? "#C5CAD6" : RED }}
+                    className="rounded-full bg-[var(--surface-2)] px-2 py-1 text-[11px] font-bold"
+                    style={{ color: filtered.length ? "var(--fg-muted)" : RED }}
                   >
                     {filtered.length ? `${filtered.length} found` : "No match"}
                   </span>
@@ -879,7 +888,7 @@ export default function LeaderboardView({
                     type="button"
                     onClick={() => setQ("")}
                     aria-label="Clear search"
-                    className="grid size-[26px] cursor-pointer place-items-center rounded-full bg-white/[0.14]"
+                    className="grid size-[26px] cursor-pointer place-items-center rounded-full bg-[var(--surface-2)] text-[var(--fg)] hover:bg-[var(--border)]"
                   >
                     <X className="size-[13px]" strokeWidth={2.6} />
                   </button>
@@ -889,22 +898,29 @@ export default function LeaderboardView({
           </div>
 
           {/* your standing */}
-          {userContestantRow && isScorePublic ? (
-            <div className="mx-4 mb-2.5 flex items-center justify-between gap-3 overflow-hidden rounded-2xl border border-emerald-500/35 p-3 sm:mx-6" style={{ background: "linear-gradient(135deg, rgba(124,58,237,0.25), rgba(16,185,129,0.12))" }}>
+          {userContestantRow ? (
+            <div
+              className="mx-4 mb-2.5 flex items-center justify-between gap-3 overflow-hidden rounded-2xl border border-emerald-500/35 bg-[var(--surface)] p-3 shadow-sm sm:mx-6"
+              style={{
+                backgroundImage: isLight
+                  ? "linear-gradient(135deg, rgba(124,58,237,0.08), rgba(16,185,129,0.08))"
+                  : "linear-gradient(135deg, rgba(124,58,237,0.22), rgba(16,185,129,0.12))",
+              }}
+            >
               <div className="flex min-w-0 items-center gap-3">
-                <span className="grid size-9 shrink-0 place-items-center rounded-[10px] border border-emerald-500/40 bg-emerald-500/15 text-base font-extrabold" style={{ ...DISPLAY, color: "#10B981" }}>
+                <span className="grid size-9 shrink-0 place-items-center rounded-[10px] border border-emerald-500/40 bg-emerald-500/15 text-base font-extrabold" style={{ ...DISPLAY, color: okInk }}>
                   #{userContestantRow.rank ?? "—"}
                 </span>
                 <div className="min-w-0">
-                  <p className="flex items-center gap-1.5 text-[12.5px] font-bold">
-                    <UserCheck className="size-[13px] text-[#A78BFA]" /> Your Standing
+                  <p className="flex items-center gap-1.5 text-[12.5px] font-bold text-[var(--fg)]">
+                    <UserCheck className="size-[13px] text-violet-500" /> Your Standing
                   </p>
-                  <p className="truncate text-[11px] text-white/55">
+                  <p className="truncate text-[11px] text-[var(--fg-muted)]">
                     {userContestantRow.name || user?.name || "You"} • {fmt(userContestantRow.points ?? userContestantRow.final_score)} pts • {fmt(userContestantRow.audience_votes)} votes
                   </p>
                 </div>
               </div>
-              <span className="flex shrink-0 items-center gap-1 rounded-full bg-emerald-500/[0.12] px-2 py-1 text-[11px] font-bold" style={{ color: "#10B981" }}>
+              <span className="flex shrink-0 items-center gap-1 rounded-full bg-emerald-500/15 px-2.5 py-1 text-[11px] font-bold" style={{ color: okInk }}>
                 <TrendingUp className="size-[13px]" /> Active
               </span>
             </div>
@@ -913,8 +929,8 @@ export default function LeaderboardView({
           {/* ── content ── */}
           {loading && !rows.length ? (
             <div className="space-y-3.5 px-4 pb-6 pt-2 sm:px-6">
-              <div className="h-[260px] animate-pulse rounded-[22px] bg-white/[0.05]" />
-              <div className="h-[300px] animate-pulse rounded-[22px] bg-white/[0.05]" />
+              <div className="h-[260px] animate-pulse rounded-[22px] bg-[var(--surface)]" />
+              <div className="h-[300px] animate-pulse rounded-[22px] bg-[var(--surface)]" />
             </div>
           ) : roundUpcoming ? (
             <QualifiedList
@@ -923,43 +939,15 @@ export default function LeaderboardView({
               )}
               loading={qualified === null}
               roundName={roundInfo?.name || `Round ${currentRoundNum}`}
+              isLight={isLight}
             />
           ) : data.length === 0 ? (
             <Empty
-              icon={<Trophy className="size-7" style={{ color: "#9EA3B8" }} />}
+              icon={<Trophy className="size-7" style={{ color: "var(--fg-muted)" }} />}
               title={q ? "No contestant matches search" : "No rankings available"}
               subtitle={q ? "Try searching with a different name." : "Scores will appear once judging or voting commences."}
               action={compId ? { href: `/competitions/${compId}`, label: "View competition" } : undefined}
             />
-          ) : !isScorePublic ? (
-            /* private scores — your own card stays visible, the rest is hidden */
-            <div className="space-y-4 px-4 pb-6 pt-2 sm:px-6">
-              {userContestantRow ? (
-                <div className="rounded-[20px] border border-[#F5C542]/35 p-4" style={{ background: "linear-gradient(135deg, rgba(245,197,66,0.16), rgba(20,22,30,0.92))" }}>
-                  <div className="flex items-center gap-3">
-                    <Avatar row={userContestantRow} size={52} ring={GOLD} />
-                    <div className="min-w-0">
-                      <p className="text-[9.5px] font-extrabold uppercase tracking-[2px]" style={{ color: GOLD }}>Your scorecard</p>
-                      <p className="mt-0.5 flex items-center gap-1.5 truncate text-[15px] font-bold">
-                        {userContestantRow.name}
-                        {(userContestantRow.is_verified || userContestantRow.verified_badge) && <VerifiedBadge size="xs" />}
-                      </p>
-                      <p className="text-[11px] text-white/55">{userContestantRow.category || "General"} · visible only to you</p>
-                    </div>
-                  </div>
-                  <div className="mt-3.5 grid grid-cols-3 gap-2">
-                    <Stat value={fmt(userContestantRow.judge_score)} label="Judge score" />
-                    <Stat value={fmt(userContestantRow.audience_votes)} label="Votes" />
-                    <Stat value={fmt(userContestantRow.points ?? userContestantRow.final_score)} label="Total" color={GOLD} />
-                  </div>
-                </div>
-              ) : null}
-              <Empty
-                icon={<Lock className="size-7" style={{ color: GOLD }} />}
-                title="Public standings hidden"
-                subtitle="Judging is in progress. Rankings are revealed once the panel completes evaluations."
-              />
-            </div>
           ) : (
             <>
               {/* podium */}
@@ -967,34 +955,51 @@ export default function LeaderboardView({
                 <Podium3D first={top1} second={top2} third={top3} replayKey={`${compId}|${currentRoundNum}|${activeCategory}`} maxWidth={560} />
               </div>
 
-              {/* spotlight — sits on the fading foot of the champion block */}
-              <div className="relative -mt-12 mb-3.5 flex flex-col items-center px-5 text-center sm:-mt-14">
+              {/* spotlight — cleanly below pedestal in Day mode, tucked on Dark mode */}
+              <div
+                className={cn(
+                  "relative mb-3.5 flex flex-col items-center px-5 text-center",
+                  isLight ? "mt-4" : "-mt-12 sm:-mt-14"
+                )}
+              >
                 {compId ? (
-                  <Link href={`/competitions/${compId}`} className="text-[13px] font-bold underline underline-offset-2" style={{ color: GOLD, textDecorationColor: GOLD }}>
+                  <Link
+                    href={`/competitions/${compId}`}
+                    className="text-[13px] font-bold underline underline-offset-2"
+                    style={{ color: goldInk, textDecorationColor: goldInk }}
+                  >
                     See how it works
                   </Link>
                 ) : null}
-                <h2 className="mt-2 text-[30px] font-extrabold leading-[1.1] tracking-[-0.6px] sm:text-[34px]" style={{ ...DISPLAY, textShadow: "0 0 8px rgba(0,0,0,0.6)" }}>
+                <h2
+                  className="mt-2 text-[28px] font-extrabold leading-[1.12] tracking-[-0.6px] text-[var(--fg)] sm:text-[34px]"
+                  style={{ ...DISPLAY, textShadow: isLight ? "none" : "0 0 8px rgba(0,0,0,0.6)" }}
+                >
                   {prizeTitle}
                 </h2>
                 {timeLeft ? (
-                  <p className="mt-1 flex items-center justify-center gap-1.5 text-[12.5px] font-medium" style={{ color: MUTED }}>
+                  <p className="mt-1 flex items-center justify-center gap-1.5 text-[12.5px] font-medium text-[var(--fg-muted)]">
                     <Clock className="size-[13px]" />
                     {/ended/i.test(timeLeft) ? "Entries closed" : `Ends in: ${timeLeft}`}
                   </p>
                 ) : null}
+                {!isScorePublic && (
+                  <span className="mt-2 inline-flex items-center gap-1.5 rounded-full border border-amber-500/30 bg-amber-500/10 px-3 py-1 text-[11px] font-semibold" style={{ color: goldInk }}>
+                    <Sparkles className="size-3" /> Live Audience Standings · Judging in Progress
+                  </span>
+                )}
               </div>
 
               {/* standings table */}
-              <div className="mt-2 border-t border-white/[0.08]" style={{ opacity: loading ? 0.6 : 1, transition: "opacity .2s" }}>
+              <div className="mt-2 border-t border-[var(--border)]" style={{ opacity: loading ? 0.6 : 1, transition: "opacity .2s" }}>
                 {scoreNote ? (
-                  <p className="mx-4 mb-1 mt-3 rounded-xl bg-white/[0.035] px-3 py-2.5 text-[11.5px] leading-4 sm:mx-6" style={{ color: MUTED }}>
-                    <span className="font-bold text-[#C5CAD6]">How it&apos;s scored · </span>
+                  <p className="mx-4 mb-1 mt-3 rounded-xl border border-[var(--border)] bg-[var(--surface)] px-3.5 py-2.5 text-[11.5px] leading-4 text-[var(--fg-muted)] shadow-xs sm:mx-6">
+                    <span className="font-bold text-[var(--fg)]">How it&apos;s scored · </span>
                     {scoreNote}
                   </p>
                 ) : null}
 
-                <div className="grid grid-cols-[44px_1fr_64px_70px] items-center border-b border-white/[0.05] px-4 py-2.5 text-[10.5px] font-bold tracking-[0.8px] text-[#64748B] sm:px-6">
+                <div className="grid grid-cols-[44px_1fr_64px_70px] items-center border-b border-[var(--border)] px-4 py-2.5 text-[10.5px] font-bold tracking-[0.8px] text-[var(--fg-subtle)] sm:px-6">
                   <span className="text-center">RANK</span>
                   <span className="pl-2">USER</span>
                   <span className="pr-2.5 text-right">SCORE</span>
@@ -1017,8 +1022,8 @@ export default function LeaderboardView({
                       <React.Fragment key={pid + rankNum}>
                         <div
                           className={cn(
-                            "grid grid-cols-[44px_1fr_64px_70px] items-center border-b border-white/[0.04] px-4 py-2.5 sm:px-6",
-                            isMe && "bg-[#FF385C]/[0.07]",
+                            "grid grid-cols-[44px_1fr_64px_70px] items-center border-b border-[var(--border)] px-4 py-2.5 sm:px-6",
+                            isMe && "bg-[#FF385C]/[0.08]",
                             out && "opacity-55"
                           )}
                         >
@@ -1026,7 +1031,7 @@ export default function LeaderboardView({
                             {rankNum <= 3 ? (
                               <RankLaurel rank={rankNum} size={42} medal />
                             ) : (
-                              <span className="grid size-[30px] place-items-center rounded-full border-[1.5px] border-white/[0.16] bg-[#151824] text-[12.5px] font-bold text-[#E2E8F0]">
+                              <span className="grid size-[30px] place-items-center rounded-full border-[1.5px] border-[var(--border-strong)] bg-[var(--surface-2)] text-[12.5px] font-bold text-[var(--fg)]">
                                 {rankNum}
                               </span>
                             )}
@@ -1035,10 +1040,10 @@ export default function LeaderboardView({
                           <div className="flex min-w-0 items-center gap-2.5 pl-2">
                             <Avatar row={r} size={38} ring={RING[i % RING.length]} />
                             <div className="min-w-0">
-                              <p className="flex items-start gap-1 text-[13.5px] font-bold leading-[18px]">
+                              <p className="flex items-start gap-1 text-[13.5px] font-bold leading-[18px] text-[var(--fg)]">
                                 <span className="break-words">{r.name || "Contestant"}</span>
                                 {isMe ? (
-                                  <span className="mt-px shrink-0 rounded px-1.5 text-[9.5px] font-extrabold leading-4" style={{ background: RED }}>
+                                  <span className="mt-px shrink-0 rounded px-1.5 text-[9.5px] font-extrabold leading-4 text-white" style={{ background: RED }}>
                                     YOU
                                   </span>
                                 ) : null}
@@ -1048,11 +1053,14 @@ export default function LeaderboardView({
                                   </span>
                                 )}
                               </p>
-                              {r.category ? <p className="mt-px text-[10px] text-white/45">{r.category}</p> : null}
+                              {r.category ? <p className="mt-px text-[10.5px] font-medium text-[var(--fg-subtle)]">{r.category}</p> : null}
                               {advancing || out ? (
                                 <span
                                   className="mt-1 inline-flex h-[18px] items-center gap-[3px] rounded-full px-[7px] text-[10px] font-bold"
-                                  style={{ background: advancing ? "rgba(34,197,94,0.12)" : "rgba(255,255,255,0.06)", color: advancing ? OK : MUTED }}
+                                  style={{
+                                    background: advancing ? "rgba(34,197,94,0.14)" : "var(--surface-2)",
+                                    color: advancing ? okInk : "var(--fg-muted)",
+                                  }}
                                 >
                                   {advancing ? <ArrowUpRight className="size-[10px]" strokeWidth={3} /> : null}
                                   {advancing ? (roundInfo?.is_final_round ? "Winner zone" : "Qualifies") : "Eliminated"}
@@ -1061,16 +1069,14 @@ export default function LeaderboardView({
                             </div>
                           </div>
 
-                          <span className="pr-2.5 text-right text-[13.5px] font-extrabold tabular-nums">{fmt(r.points ?? r.final_score)}</span>
+                          <span className="pr-2.5 text-right text-[13.5px] font-extrabold tabular-nums text-[var(--fg)]">
+                            {fmt(r.points ?? r.final_score)}
+                          </span>
 
                           <div className="flex justify-end pr-1">
-                            {isMe ? (
-                              <span className="inline-flex items-center gap-1 rounded-full border border-white/10 bg-white/[0.05] px-2 py-[3px] text-[11.5px] font-bold text-[#C5CAD6]">
+                            {isMe || !canVote ? (
+                              <span className="inline-flex items-center gap-1 rounded-full border border-[var(--border-strong)] bg-[var(--surface-2)] px-2.5 py-[3px] text-[11.5px] font-bold text-[var(--fg-muted)]">
                                 <Heart className="size-3" /> {fmt(r.audience_votes)}
-                              </span>
-                            ) : !canVote ? (
-                              <span className="inline-flex items-center gap-1 rounded-full border border-white/10 bg-white/[0.05] px-2 py-[3px] text-[11.5px] font-bold text-[#C5CAD6]">
-                                <Heart className="size-3" style={{ color: MUTED }} /> {fmt(r.audience_votes)}
                               </span>
                             ) : (
                               <button
@@ -1079,11 +1085,12 @@ export default function LeaderboardView({
                                 disabled={hasVoted || busy}
                                 aria-label={`Vote for ${r.name || "contestant"}`}
                                 className={cn(
-                                  "inline-flex cursor-pointer items-center gap-1 rounded-full border px-2 py-[3px] text-[11.5px] font-bold transition active:scale-90",
+                                  "inline-flex cursor-pointer items-center gap-1 rounded-full border px-2.5 py-[3px] text-[11.5px] font-bold transition active:scale-90",
                                   hasVoted
                                     ? "cursor-default border-[#FF385C] bg-[#FF385C]/15 text-[#FF385C]"
-                                    : "border-emerald-500/25 bg-emerald-500/[0.12] text-[#10B981] hover:bg-emerald-500/20"
+                                    : "border-emerald-500/35 bg-emerald-500/[0.12] hover:bg-emerald-500/20"
                                 )}
+                                style={!hasVoted ? { color: okInk } : undefined}
                               >
                                 {busy ? (
                                   <Loader2 className="size-3 animate-spin" />
@@ -1098,7 +1105,7 @@ export default function LeaderboardView({
                         {cutoffAfter ? (
                           <div className="flex items-center gap-2 px-4 py-2 sm:px-6">
                             <span className="h-px flex-1 bg-emerald-500/35" />
-                            <span className="text-[10px] font-bold tracking-[1.4px]" style={{ color: OK }}>
+                            <span className="text-[10px] font-bold tracking-[1.4px]" style={{ color: okInk }}>
                               {advancingCount ? `TOP ${advancingCount} ADVANCE` : "QUALIFYING CUTOFF"}
                             </span>
                             <span className="h-px flex-1 bg-emerald-500/35" />
@@ -1115,7 +1122,7 @@ export default function LeaderboardView({
           {/* way out */}
           {compId ? (
             <div className="flex flex-wrap items-center justify-center gap-x-5 gap-y-2 px-4 pb-7 pt-5 text-[12.5px] font-bold">
-              <Link href={`/competitions/${compId}`} className="text-white/70 transition hover:text-white">Competition overview</Link>
+              <Link href={`/competitions/${compId}`} className="text-[var(--fg-muted)] transition hover:text-[var(--fg)]">Competition overview</Link>
               <Link href={`/competitions/${compId}/results`} className="transition hover:opacity-80" style={{ color: RED }}>
                 Results &amp; Hall of Fame →
               </Link>
@@ -1129,12 +1136,12 @@ export default function LeaderboardView({
 
 /* ── rounds ──────────────────────────────────────────────────────────────── */
 
-const ROUND_TONE: Record<string, { label: string; color: string }> = {
-  ACTIVE: { label: "Live", color: RED },
-  COMPLETED: { label: "Done", color: OK },
-  UPCOMING: { label: "Upcoming", color: MUTED },
+const roundTone = (status?: string, isLight?: boolean) => {
+  const s = String(status || "").toUpperCase();
+  if (s === "ACTIVE") return { label: "Live", color: RED };
+  if (s === "COMPLETED") return { label: "Done", color: isLight ? "#15803d" : OK };
+  return { label: "Upcoming", color: isLight ? "#6b5546" : MUTED };
 };
-const roundTone = (status?: string) => ROUND_TONE[String(status || "").toUpperCase()] || ROUND_TONE.UPCOMING;
 
 const shortDate = (d?: string | null) => {
   if (!d) return null;
@@ -1142,21 +1149,21 @@ const shortDate = (d?: string | null) => {
   return Number.isFinite(t.getTime()) ? t.toLocaleDateString("en-IN", { day: "numeric", month: "short" }) : null;
 };
 
-function RoundBrief({ round, total, advancing, isLive }: { round: any; total: number; advancing: number | null; isLive: boolean }) {
-  const t = roundTone(round.status);
+function RoundBrief({ round, total, advancing, isLive, isLight }: { round: any; total: number; advancing: number | null; isLive: boolean; isLight: boolean }) {
+  const t = roundTone(round.status, isLight);
   const dates = [shortDate(round.start_date), shortDate(round.end_date)].filter(Boolean).join(" – ");
   const count = round.qualified_contestant_count ?? round.qualified_contestants_count;
   const facts = [`Round ${round.round_number} of ${total}`, count != null ? `${count} in this round` : null, dates || null].filter(Boolean);
   return (
-    <div className="mx-4 mb-3 flex gap-3 rounded-[18px] border border-white/[0.08] bg-white/[0.04] p-3.5 sm:mx-6">
+    <div className="mx-4 mb-3 flex gap-3 rounded-[18px] border border-[var(--border)] bg-[var(--surface)] p-3.5 shadow-xs sm:mx-6">
       <span className="grid size-9 shrink-0 place-items-center rounded-xl" style={{ background: t.color + "1F" }}>
         {round.is_final_round ? <Trophy className="size-4" style={{ color: t.color }} /> : <Flag className="size-4" style={{ color: t.color }} />}
       </span>
       <div className="min-w-0">
-        <p className="text-sm font-bold">{round.name || `Round ${round.round_number}`}</p>
-        <p className="mt-0.5 text-[11.5px]" style={{ color: MUTED }}>{facts.join(" · ")}</p>
-        {round.description ? <p className="mt-1.5 text-xs leading-[17px] text-[#C5CAD6]">{round.description}</p> : null}
-        <p className="mt-1.5 text-[11.5px] font-semibold" style={{ color: round.is_final_round ? GOLD : OK }}>
+        <p className="text-sm font-bold text-[var(--fg)]">{round.name || `Round ${round.round_number}`}</p>
+        <p className="mt-0.5 text-[11.5px] text-[var(--fg-muted)]">{facts.join(" · ")}</p>
+        {round.description ? <p className="mt-1.5 text-xs leading-[17px] text-[var(--fg-muted)]">{round.description}</p> : null}
+        <p className="mt-1.5 text-[11.5px] font-semibold" style={{ color: round.is_final_round ? (isLight ? "#b45309" : GOLD) : (isLight ? "#15803d" : OK) }}>
           {round.is_final_round
             ? "Final round — this decides the winners"
             : advancing
@@ -1164,39 +1171,40 @@ function RoundBrief({ round, total, advancing, isLive }: { round: any; total: nu
             : "Qualifiers are picked when this round closes"}
         </p>
         {!isLive && String(round.status).toUpperCase() !== "UPCOMING" ? (
-          <p className="mt-1 text-[11px]" style={{ color: MUTED }}>Votes now count towards the live round.</p>
+          <p className="mt-1 text-[11px] text-[var(--fg-subtle)]">Votes now count towards the live round.</p>
         ) : null}
       </div>
     </div>
   );
 }
 
-function QualifiedList({ rows, loading, roundName }: { rows: any[]; loading: boolean; roundName: string }) {
+function QualifiedList({ rows, loading, roundName, isLight }: { rows: any[]; loading: boolean; roundName: string; isLight: boolean }) {
   if (loading) {
     return (
       <div className="space-y-2.5 px-4 pb-6 pt-2 sm:px-6">
         {[0, 1, 2, 3].map((i) => (
-          <div key={i} className="h-[60px] animate-pulse rounded-2xl bg-white/[0.05]" />
+          <div key={i} className="h-[60px] animate-pulse rounded-2xl bg-[var(--surface)]" />
         ))}
       </div>
     );
   }
   if (!rows.length) {
-    return <Empty icon={<Lock className="size-7" style={{ color: "#9EA3B8" }} />} title={`${roundName} hasn't started`} subtitle="Qualifiers are announced when the previous round closes." />;
+    return <Empty icon={<Lock className="size-7" style={{ color: "var(--fg-muted)" }} />} title={`${roundName} hasn't started`} subtitle="Qualifiers are announced when the previous round closes." />;
   }
+  const okInk = isLight ? "#15803d" : OK;
   return (
     <div className="px-4 pb-4 pt-2 sm:px-6">
       <div className="mb-3 flex items-baseline justify-between">
-        <p className="text-[17px] font-bold">Qualified for {roundName}</p>
-        <p className="text-xs font-semibold" style={{ color: MUTED }}>{rows.length}</p>
+        <p className="text-[17px] font-bold text-[var(--fg)]">Qualified for {roundName}</p>
+        <p className="text-xs font-semibold text-[var(--fg-muted)]">{rows.length}</p>
       </div>
       <div className="space-y-2">
         {rows.map((r: any, i) => (
-          <div key={r.registration_id || r.user_email || i} className="flex items-center gap-2.5 rounded-2xl border border-white/[0.05] bg-white/[0.035] p-2.5">
-            <span className="w-[22px] text-center text-xs font-extrabold" style={{ color: MUTED }}>{i + 1}</span>
+          <div key={r.registration_id || r.user_email || i} className="flex items-center gap-2.5 rounded-2xl border border-[var(--border)] bg-[var(--surface)] p-2.5 shadow-xs">
+            <span className="w-[22px] text-center text-xs font-extrabold text-[var(--fg-muted)]">{i + 1}</span>
             <Avatar row={{ profile_photo: r.profile_photo || r.avatar, rank: i } as any} size={38} />
             <div className="min-w-0 flex-1">
-              <p className="flex items-start gap-1 text-[13.5px] font-bold leading-[18px]">
+              <p className="flex items-start gap-1 text-[13.5px] font-bold leading-[18px] text-[var(--fg)]">
                 <span className="break-words">{r.user_name || r.full_name || "Contestant"}</span>
                 {(r.is_verified || r.verified_badge) && (
                   <span className="mt-[3px] shrink-0">
@@ -1204,23 +1212,14 @@ function QualifiedList({ rows, loading, roundName }: { rows: any[]; loading: boo
                   </span>
                 )}
               </p>
-              {r.category ? <p className="mt-px text-[10.5px] text-white/45">{r.category}</p> : null}
+              {r.category ? <p className="mt-px text-[10.5px] text-[var(--fg-subtle)]">{r.category}</p> : null}
             </div>
-            <span className="inline-flex h-[18px] items-center gap-[3px] rounded-full px-[7px] text-[10px] font-bold" style={{ background: "rgba(34,197,94,0.12)", color: OK }}>
+            <span className="inline-flex h-[18px] items-center gap-[3px] rounded-full px-[7px] text-[10px] font-bold" style={{ background: "rgba(34,197,94,0.14)", color: okInk }}>
               <Check className="size-[10px]" strokeWidth={3} /> Qualified
             </span>
           </div>
         ))}
       </div>
-    </div>
-  );
-}
-
-function Stat({ value, label, color = "#fff" }: { value: string; label: string; color?: string }) {
-  return (
-    <div className="rounded-xl border border-white/[0.08] bg-[#0B0C14] px-2 py-2.5 text-center">
-      <p className="text-[17px] font-extrabold tabular-nums" style={{ color }}>{value}</p>
-      <p className="mt-0.5 text-[9.5px] font-semibold uppercase tracking-[1px]" style={{ color: MUTED }}>{label}</p>
     </div>
   );
 }
@@ -1237,12 +1236,12 @@ function Empty({
   action?: { href: string; label: string };
 }) {
   return (
-    <div className="mx-4 my-6 flex flex-col items-center rounded-[22px] border border-dashed border-white/[0.12] px-6 py-14 text-center sm:mx-6">
-      <span className="grid size-14 place-items-center rounded-full bg-white/[0.05]">{icon}</span>
-      <p className="mt-4 text-lg font-bold">{title}</p>
-      <p className="mt-1 max-w-sm text-[13px]" style={{ color: MUTED }}>{subtitle}</p>
+    <div className="mx-4 my-6 flex flex-col items-center rounded-[22px] border border-dashed border-[var(--border-strong)] bg-[var(--surface)]/60 px-6 py-14 text-center sm:mx-6">
+      <span className="grid size-14 place-items-center rounded-full bg-[var(--surface-2)]">{icon}</span>
+      <p className="mt-4 text-lg font-bold text-[var(--fg)]">{title}</p>
+      <p className="mt-1 max-w-sm text-[13px] text-[var(--fg-muted)]">{subtitle}</p>
       {action ? (
-        <Link href={action.href} className="mt-5 rounded-full border border-white/[0.12] px-5 py-2.5 text-xs font-semibold transition hover:bg-white/[0.06]">
+        <Link href={action.href} className="mt-5 rounded-full border border-[var(--border-strong)] bg-[var(--surface-2)] px-5 py-2.5 text-xs font-semibold text-[var(--fg)] transition hover:bg-[var(--border)]">
           {action.label}
         </Link>
       ) : null}

@@ -75,9 +75,9 @@
 .avatar {
   border-radius: 999px;
   overflow: hidden;
-  background: #1a1c2a;
-  border: 0.55cqw solid rgba(255, 255, 255, 0.14);
-  box-shadow: 0 1.1cqw 2.8cqw rgba(0, 0, 0, 0.55);
+  background: var(--surface-2, #1a1c2a);
+  border: 0.55cqw solid var(--border-strong, rgba(255, 255, 255, 0.14));
+  box-shadow: 0 1.1cqw 2.8cqw rgba(0, 0, 0, 0.35);
 }
 .avatar img {
   width: 100%;
@@ -94,12 +94,16 @@
   justify-content: center;
   gap: 0.8cqw;
   padding: 0 0.5cqw;
-  color: #fff;
+  color: var(--fg, #fff);
   font-weight: 700;
   font-size: clamp(11px, 3.6cqw, 15px);
   line-height: 1.25;
   text-align: center;
-  text-shadow: 0 0 4px rgba(0, 0, 0, 0.8);
+  text-shadow: 0 1px 4px rgba(0, 0, 0, 0.55);
+}
+:global(:root[data-theme="blue"]) .name,
+:global(:root[data-theme="light"]) .name {
+  text-shadow: none;
 }
 .nameText {
   overflow: hidden;
