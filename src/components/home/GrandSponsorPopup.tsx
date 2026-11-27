@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useState, useCallback, useRef, useMemo } from "react";
+import { createPortal } from "react-dom";
 import Link from "next/link";
 import { AnimatePresence, motion } from "framer-motion";
 import { X, ExternalLink, ChevronLeft, ChevronRight } from "lucide-react";
@@ -62,7 +63,12 @@ export default function GrandSponsorPopup({
 }: {
   popup?: GrandSponsorPopupConfig | null;
 }) {
+  const [mounted, setMounted] = useState(false);
   const [isOpen, setIsOpen] = useState(false);
+
+  useEffect(() => {
+    setMounted(true);
+  }, []);
   const [currentIdx, setCurrentIdx] = useState(0);
   const [isPaused, setIsPaused] = useState(false);
   const [timeLeft, setTimeLeft] = useState<number | null>(null);
@@ -246,17 +252,22 @@ export default function GrandSponsorPopup({
       <img
         src={desktopImg}
         alt={currentBanner.sponsor_name || "Sponsor Banner"}
-        className={`block w-auto h-auto max-w-[94vw] sm:max-w-[88vw] md:max-w-4xl max-h-[80vh] sm:max-h-[84vh] object-contain select-none transition-transform duration-500 ${
+        className={`block w-auto h-auto max-w-[82vw] sm:max-w-[420px] md:max-w-[460px] max-h-[50vh] sm:max-h-[54vh] object-contain select-none transition-transform duration-500 ${
           hasClickLink ? "group-hover:scale-[1.015]" : ""
         }`}
       />
     </picture>
   );
 
-  return (
+  if (!mounted) return null;
+
+  return createPortal(
     <AnimatePresence>
       {isOpen && (
-        <div className="fixed inset-0 z-[9999] flex items-center justify-center p-3 sm:p-5 md:p-6 overflow-y-auto">
+        <div
+          onClick={handleClose}
+          className="fixed inset-0 z-[99999] flex items-center justify-center p-4 pt-14 sm:p-6 sm:pt-14 overflow-y-auto"
+        >
           {/* Backdrop Blur Overlay */}
           <motion.div
             initial={{ opacity: 0 }}
@@ -264,11 +275,11 @@ export default function GrandSponsorPopup({
             exit={{ opacity: 0 }}
             transition={{ duration: 0.25 }}
             onClick={handleClose}
-            className="fixed inset-0 bg-black/85 backdrop-blur-md cursor-pointer"
+            className="fixed inset-0 bg-black/80 backdrop-blur-md cursor-pointer"
             aria-hidden="true"
           />
 
-          {/* Visual Sponsor Banner Modal (Auto-resizes strictly to banner dimensions) */}
+          {/* Outer Dialog Wrapper (No overflow-hidden so Close X sits cleanly OUTSIDE the popup card) */}
           <motion.div
             initial={{ opacity: 0, scale: 0.92, y: 15 }}
             animate={{ opacity: 1, scale: 1, y: 0 }}
@@ -279,121 +290,126 @@ export default function GrandSponsorPopup({
             onTouchStart={handleTouchStart}
             onTouchMove={handleTouchMove}
             onTouchEnd={handleTouchEnd}
-            className="relative z-10 w-fit max-w-[94vw] sm:max-w-[88vw] md:max-w-4xl max-h-[88vh] overflow-hidden rounded-2xl sm:rounded-3xl border border-amber-500/40 bg-black shadow-[0_25px_80px_-10px_rgba(245,158,11,0.45)] inline-flex flex-col items-center justify-center select-none"
+            onClick={(e) => e.stopPropagation()}
+            className="relative z-10 inline-flex flex-col items-center justify-center select-none"
             role="dialog"
             aria-modal="true"
             aria-label={currentBanner.sponsor_name || "Sponsor Banner"}
           >
-            {/* Top Floating Close Button */}
+            {/* Floating Close Button — positioned cleanly OUTSIDE above the top-right corner */}
             <button
               type="button"
               onClick={handleClose}
-              className="cursor-pointer absolute top-2.5 right-2.5 sm:top-3.5 sm:right-3.5 z-40 flex size-8 sm:size-9 items-center justify-center rounded-full bg-black/80 hover:bg-black text-white/90 hover:text-white border border-white/20 hover:border-amber-400 backdrop-blur-md shadow-2xl transition-all active:scale-90"
+              className="cursor-pointer absolute bottom-full right-0 mb-2.5 z-40 flex size-8 sm:size-9 items-center justify-center rounded-full bg-black/85 hover:bg-amber-500 text-white hover:text-black border border-white/25 hover:border-amber-400 backdrop-blur-md shadow-[0_6px_20px_rgba(0,0,0,0.65)] transition-all duration-200 active:scale-90"
               aria-label="Close dialog"
             >
               <X className="size-4 sm:size-4.5" />
             </button>
 
-            {/* Multi-banner Slide Counter */}
-            {activeBanners.length > 1 && (
-              <div className="absolute top-2.5 left-2.5 sm:top-3.5 sm:left-3.5 z-40 px-2.5 py-1 rounded-full bg-black/75 border border-white/15 text-[10px] sm:text-[11px] font-mono font-bold text-amber-400 backdrop-blur-md shadow-lg pointer-events-none">
-                {currentIdx + 1} / {activeBanners.length}
-              </div>
-            )}
-
-            {/* Banner Image Stage (Auto-resizes strictly to banner intrinsic dimensions) */}
-            <div className="relative overflow-hidden flex items-center justify-center">
-              <AnimatePresence mode="wait">
-                <motion.div
-                  key={currentBanner.id || currentIdx}
-                  initial={{ opacity: 0 }}
-                  animate={{ opacity: 1 }}
-                  exit={{ opacity: 0 }}
-                  transition={{ duration: 0.25, ease: "easeOut" }}
-                  className="relative flex items-center justify-center"
-                >
-                  {hasClickLink ? (
-                    normalizedCta.isExternal ? (
-                      <a
-                        href={normalizedCta.href}
-                        target="_blank"
-                        rel="noopener noreferrer"
-                        onClick={handleClose}
-                        className="block cursor-pointer group"
-                      >
-                        {renderBannerMedia()}
-                      </a>
-                    ) : (
-                      <Link
-                        href={normalizedCta.href}
-                        onClick={handleClose}
-                        className="block cursor-pointer group"
-                      >
-                        {renderBannerMedia()}
-                      </Link>
-                    )
-                  ) : (
-                    renderBannerMedia()
-                  )}
-                </motion.div>
-              </AnimatePresence>
-
-              {/* Optional Sponsor Name Tag */}
-              {hasSponsorName && (
-                <div className="absolute bottom-2.5 left-2.5 sm:bottom-3.5 sm:left-3.5 z-30 pointer-events-none max-w-[70%]">
-                  <div className="inline-flex items-center gap-1.5 px-2.5 py-1 sm:px-3 sm:py-1 rounded-lg sm:rounded-xl bg-black/80 border border-white/20 text-white backdrop-blur-md shadow-2xl text-[11px] sm:text-xs font-semibold tracking-wide truncate">
-                    <span className="size-1.5 sm:size-2 rounded-full bg-amber-400 animate-pulse shrink-0" />
-                    <span className="truncate">{currentBanner.sponsor_name}</span>
-                    {hasClickLink && (
-                      <ExternalLink className="size-3 text-amber-400 shrink-0 opacity-80" />
-                    )}
-                  </div>
+            {/* Compact Centered Banner Card */}
+            <div className="relative w-fit max-w-[82vw] sm:max-w-[420px] md:max-w-[460px] max-h-[54vh] overflow-hidden rounded-2xl sm:rounded-3xl border border-amber-500/40 bg-black shadow-[0_25px_80px_-10px_rgba(245,158,11,0.45)] inline-flex flex-col items-center justify-center">
+              {/* Multi-banner Slide Counter */}
+              {activeBanners.length > 1 && (
+                <div className="absolute top-2 left-2 sm:top-2.5 sm:left-2.5 z-40 px-2 py-0.5 rounded-full bg-black/75 border border-white/15 text-[9.5px] sm:text-[10px] font-mono font-bold text-amber-400 backdrop-blur-md shadow-lg pointer-events-none">
+                  {currentIdx + 1} / {activeBanners.length}
                 </div>
               )}
 
-              {/* Navigation Arrows for Multiple Banners */}
-              {activeBanners.length > 1 && (
-                <>
-                  <button
-                    type="button"
-                    onClick={handlePrev}
-                    aria-label="Previous Sponsor"
-                    className="cursor-pointer absolute left-2 sm:left-3 top-1/2 -translate-y-1/2 z-30 flex size-8 sm:size-9 items-center justify-center rounded-full bg-black/70 hover:bg-black text-white/90 hover:text-white border border-white/20 hover:border-amber-400 backdrop-blur-md shadow-lg transition-all active:scale-90"
+              {/* Banner Image Stage (Auto-resizes strictly to compact banner dimensions) */}
+              <div className="relative overflow-hidden flex items-center justify-center">
+                <AnimatePresence mode="wait">
+                  <motion.div
+                    key={currentBanner.id || currentIdx}
+                    initial={{ opacity: 0 }}
+                    animate={{ opacity: 1 }}
+                    exit={{ opacity: 0 }}
+                    transition={{ duration: 0.25, ease: "easeOut" }}
+                    className="relative flex items-center justify-center"
                   >
-                    <ChevronLeft className="size-4 sm:size-5" />
-                  </button>
+                    {hasClickLink ? (
+                      normalizedCta.isExternal ? (
+                        <a
+                          href={normalizedCta.href}
+                          target="_blank"
+                          rel="noopener noreferrer"
+                          onClick={handleClose}
+                          className="block cursor-pointer group"
+                        >
+                          {renderBannerMedia()}
+                        </a>
+                      ) : (
+                        <Link
+                          href={normalizedCta.href}
+                          onClick={handleClose}
+                          className="block cursor-pointer group"
+                        >
+                          {renderBannerMedia()}
+                        </Link>
+                      )
+                    ) : (
+                      renderBannerMedia()
+                    )}
+                  </motion.div>
+                </AnimatePresence>
 
-                  <button
-                    type="button"
-                    onClick={handleNext}
-                    aria-label="Next Sponsor"
-                    className="cursor-pointer absolute right-2 sm:right-3 top-1/2 -translate-y-1/2 z-30 flex size-8 sm:size-9 items-center justify-center rounded-full bg-black/70 hover:bg-black text-white/90 hover:text-white border border-white/20 hover:border-amber-400 backdrop-blur-md shadow-lg transition-all active:scale-90"
-                  >
-                    <ChevronRight className="size-4 sm:size-5" />
-                  </button>
-
-                  {/* Clean Pagination Dots Floating at the bottom */}
-                  <div className="absolute bottom-2.5 sm:bottom-3.5 left-1/2 -translate-x-1/2 z-30 flex items-center justify-center gap-1.5 px-2.5 py-1 rounded-full bg-black/60 backdrop-blur-md border border-white/10">
-                    {activeBanners.map((_, dotIdx) => (
-                      <button
-                        key={dotIdx}
-                        type="button"
-                        onClick={() => setCurrentIdx(dotIdx)}
-                        aria-label={`Go to sponsor banner ${dotIdx + 1}`}
-                        className={`h-1.5 rounded-full transition-all duration-300 cursor-pointer ${
-                          currentIdx === dotIdx
-                            ? "w-5 sm:w-6 bg-amber-400 shadow-[0_0_8px_rgba(251,191,36,0.9)]"
-                            : "w-1.5 bg-white/40 hover:bg-white/70"
-                        }`}
-                      />
-                    ))}
+                {/* Optional Sponsor Name Tag */}
+                {hasSponsorName && (
+                  <div className="absolute bottom-2 left-2 sm:bottom-2.5 sm:left-2.5 z-30 pointer-events-none max-w-[70%]">
+                    <div className="inline-flex items-center gap-1.5 px-2 py-0.5 sm:px-2.5 sm:py-1 rounded-lg sm:rounded-xl bg-black/80 border border-white/20 text-white backdrop-blur-md shadow-2xl text-[10px] sm:text-[11px] font-semibold tracking-wide truncate">
+                      <span className="size-1.5 rounded-full bg-amber-400 animate-pulse shrink-0" />
+                      <span className="truncate">{currentBanner.sponsor_name}</span>
+                      {hasClickLink && (
+                        <ExternalLink className="size-2.5 sm:size-3 text-amber-400 shrink-0 opacity-80" />
+                      )}
+                    </div>
                   </div>
-                </>
-              )}
+                )}
+
+                {/* Navigation Arrows for Multiple Banners */}
+                {activeBanners.length > 1 && (
+                  <>
+                    <button
+                      type="button"
+                      onClick={handlePrev}
+                      aria-label="Previous Sponsor"
+                      className="cursor-pointer absolute left-1.5 sm:left-2 top-1/2 -translate-y-1/2 z-30 flex size-7 sm:size-8 items-center justify-center rounded-full bg-black/70 hover:bg-black text-white/90 hover:text-white border border-white/20 hover:border-amber-400 backdrop-blur-md shadow-lg transition-all active:scale-90"
+                    >
+                      <ChevronLeft className="size-3.5 sm:size-4" />
+                    </button>
+
+                    <button
+                      type="button"
+                      onClick={handleNext}
+                      aria-label="Next Sponsor"
+                      className="cursor-pointer absolute right-1.5 sm:right-2 top-1/2 -translate-y-1/2 z-30 flex size-7 sm:size-8 items-center justify-center rounded-full bg-black/70 hover:bg-black text-white/90 hover:text-white border border-white/20 hover:border-amber-400 backdrop-blur-md shadow-lg transition-all active:scale-90"
+                    >
+                      <ChevronRight className="size-3.5 sm:size-4" />
+                    </button>
+
+                    {/* Clean Pagination Dots Floating at the bottom */}
+                    <div className="absolute bottom-2 sm:bottom-2.5 left-1/2 -translate-x-1/2 z-30 flex items-center justify-center gap-1 px-2 py-0.5 sm:py-1 rounded-full bg-black/60 backdrop-blur-md border border-white/10">
+                      {activeBanners.map((_, dotIdx) => (
+                        <button
+                          key={dotIdx}
+                          type="button"
+                          onClick={() => setCurrentIdx(dotIdx)}
+                          aria-label={`Go to sponsor banner ${dotIdx + 1}`}
+                          className={`h-1.5 rounded-full transition-all duration-300 cursor-pointer ${
+                            currentIdx === dotIdx
+                              ? "w-4 sm:w-5 bg-amber-400 shadow-[0_0_8px_rgba(251,191,36,0.9)]"
+                              : "w-1.5 bg-white/40 hover:bg-white/70"
+                          }`}
+                        />
+                      ))}
+                    </div>
+                  </>
+                )}
+              </div>
             </div>
           </motion.div>
         </div>
       )}
-    </AnimatePresence>
+    </AnimatePresence>,
+    document.body
   );
 }
