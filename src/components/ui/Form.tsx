@@ -174,18 +174,18 @@ export function AuthShell({
   const logoSrc = isLight ? "/logo-dark-mode.png" : "/logo-white-mode.png";
 
   return (
-    <section className="relative min-h-dvh w-full max-w-[100vw] overflow-x-clip pt-24 sm:pt-28 md:pt-36 pb-16 sm:pb-24 noise">
+    <section className="relative min-h-svh md:min-h-dvh w-full max-w-[100vw] overflow-x-clip pt-24 sm:pt-28 md:pt-36 pb-16 sm:pb-24 noise">
       <div
         aria-hidden
-        className="spotlight float-y pointer-events-none"
+        className="spotlight md:float-y pointer-events-none"
         style={{ background: "var(--spot-1)", width: "min(60vw,640px)", height: "min(60vw,640px)", top: "-18%", left: "-10%" }}
       />
       <div
         aria-hidden
-        className="spotlight float-y pointer-events-none"
+        className="spotlight md:float-y pointer-events-none"
         style={{ background: "var(--spot-2)", width: "min(50vw,520px)", height: "min(50vw,520px)", bottom: "-20%", right: "-8%", animationDelay: "1.8s" }}
       />
-      <div className="container-x relative grid min-w-0 items-center gap-6 sm:gap-10 lg:gap-14 lg:grid-cols-2">
+      <div className="container-x relative grid min-w-0 items-start lg:items-center gap-6 sm:gap-10 lg:gap-14 lg:grid-cols-2">
         <div className="mx-auto w-full min-w-0 max-w-lg">
           <Link href="/" className="hidden sm:inline-block mb-3 sm:mb-6 transition-opacity hover:opacity-85" aria-label="Upgrade Talents India home">
             <img src={logoSrc} alt="Upgrade Talents India" className="h-7 sm:h-9 w-auto object-contain" />

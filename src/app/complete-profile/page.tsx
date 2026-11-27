@@ -29,6 +29,7 @@ export default function CompleteProfilePage() {
 
   const fileInputRef = useRef<HTMLInputElement>(null);
   const formRef = useRef<HTMLFormElement>(null);
+  const focusTimerRef = useRef<number | null>(null);
   const [photoFile, setPhotoFile] = useState<File | null>(null);
   const [photoPreview, setPhotoPreview] = useState<string | null>(null);
 
@@ -41,33 +42,30 @@ export default function CompleteProfilePage() {
   const [loading, setLoading] = useState(false);
   const [formError, setFormError] = useState<string | null>(null);
   const [errors, setErrors] = useState<Record<string, string>>({});
-  const [keyboardInset, setKeyboardInset] = useState(0);
 
-  // Track mobile virtual keyboard height so lower fields & submit button never get buried behind it
   useEffect(() => {
-    if (typeof window === "undefined" || !window.visualViewport) return;
-    const vv = window.visualViewport;
-    const syncViewport = () => {
-      const obscured = Math.max(0, Math.round(window.innerHeight - vv.height - vv.offsetTop));
-      setKeyboardInset(obscured > 90 ? obscured + 24 : 0);
-    };
-    syncViewport();
-    vv.addEventListener("resize", syncViewport);
-    vv.addEventListener("scroll", syncViewport);
     return () => {
-      vv.removeEventListener("resize", syncViewport);
-      vv.removeEventListener("scroll", syncViewport);
+      if (focusTimerRef.current !== null) window.clearTimeout(focusTimerRef.current);
     };
   }, []);
 
-  // Keep whichever input is being typed centered comfortably between top navbar and mobile keyboard
+  // Scroll only if the focused input is actually obscured by the mobile keyboard or fixed top navbar
   const handleFormFocusCapture = (e: React.FocusEvent<HTMLFormElement>) => {
     const target = e.target as HTMLElement | null;
     if (!target || !["INPUT", "TEXTAREA", "SELECT"].includes(target.tagName)) return;
-    window.setTimeout(() => {
-      const container = target.closest("[data-field-row]") || target;
-      container.scrollIntoView({ behavior: "smooth", block: "center" });
-    }, 260);
+    if (focusTimerRef.current !== null) window.clearTimeout(focusTimerRef.current);
+    focusTimerRef.current = window.setTimeout(() => {
+      const container = (target.closest("[data-field-row]") as HTMLElement | null) || target;
+      const rect = container.getBoundingClientRect();
+      const visibleH = window.visualViewport?.height ?? window.innerHeight;
+      const topGuard = 92;
+      const bottomGuard = visibleH - 20;
+      if (rect.top < topGuard) {
+        window.scrollBy({ top: rect.top - topGuard - 12, behavior: "smooth" });
+      } else if (rect.bottom > bottomGuard) {
+        window.scrollBy({ top: rect.bottom - bottomGuard + 18, behavior: "smooth" });
+      }
+    }, 300);
   };
 
   useEffect(() => {
@@ -217,13 +215,12 @@ export default function CompleteProfilePage() {
         onSubmit={handleSubmit}
         onFocusCapture={handleFormFocusCapture}
         noValidate
-        style={keyboardInset ? { paddingBottom: `${keyboardInset}px` } : undefined}
-        className="flex w-full min-w-0 max-w-full flex-col gap-4 sm:gap-5 transition-[padding] duration-200"
+        className="flex w-full min-w-0 max-w-full flex-col gap-4 sm:gap-5 pb-44 sm:pb-6"
       >
         {formError && <FormAlert tone="error">{formError}</FormAlert>}
 
         {/* ── ARTIST HEADER + COMPLETION METER CARD ── */}
-        <div className="relative overflow-hidden rounded-2xl border border-[var(--border-strong)] bg-[var(--surface)]/90 p-4 sm:p-5 shadow-[0_18px_45px_-28px_rgba(0,0,0,0.5)] backdrop-blur-xl">
+        <div className="relative overflow-hidden rounded-2xl border border-[var(--border-strong)] bg-[var(--surface)] md:bg-[var(--surface)]/90 p-4 sm:p-5 shadow-[0_18px_45px_-28px_rgba(0,0,0,0.5)] md:backdrop-blur-xl">
           <div
             aria-hidden
             className="pointer-events-none absolute -right-12 -top-12 size-36 rounded-full opacity-20 blur-2xl"
@@ -310,7 +307,7 @@ export default function CompleteProfilePage() {
         </div>
 
         {/* ── CARD 1: PERSONAL IDENTITY ── */}
-        <div className="min-w-0 rounded-2xl border border-[var(--border)] bg-[var(--surface)]/85 p-4 sm:p-5 shadow-sm backdrop-blur-md space-y-4">
+        <div className="min-w-0 rounded-2xl border border-[var(--border)] bg-[var(--surface)] md:bg-[var(--surface)]/85 p-4 sm:p-5 shadow-sm md:backdrop-blur-md space-y-4">
           <div className="flex items-center justify-between gap-2 pb-2 border-b border-[var(--border)]">
             <div className="flex items-center gap-2 min-w-0">
               <span
@@ -387,7 +384,7 @@ export default function CompleteProfilePage() {
         </div>
 
         {/* ── CARD 2: CONTACT & GUARDIAN SAFETY ── */}
-        <div className="min-w-0 rounded-2xl border border-[var(--border)] bg-[var(--surface)]/85 p-4 sm:p-5 shadow-sm backdrop-blur-md space-y-4">
+        <div className="min-w-0 rounded-2xl border border-[var(--border)] bg-[var(--surface)] md:bg-[var(--surface)]/85 p-4 sm:p-5 shadow-sm md:backdrop-blur-md space-y-4">
           <div className="flex items-center justify-between gap-2 pb-2 border-b border-[var(--border)]">
             <div className="flex items-center gap-2 min-w-0">
               <span className="grid size-6.5 shrink-0 place-items-center rounded-lg bg-[color-mix(in_srgb,var(--success)_18%,transparent)] text-[11px] font-mono font-bold text-[var(--success)]">
