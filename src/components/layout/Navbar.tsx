@@ -99,7 +99,10 @@ export default function Navbar({ brandName = "UPGRADE TALENTS INDIA", logo }: { 
   const userDropdownRef = useRef<HTMLDivElement>(null);
   const { scrollY } = useScroll();
 
-  useMotionValueEvent(scrollY, "change", (v) => setScrolled(v > 30));
+  useMotionValueEvent(scrollY, "change", (v) => {
+    const next = v > 30;
+    setScrolled((prev) => (prev === next ? prev : next));
+  });
 
   useEffect(() => {
     setOpen(false);
@@ -128,7 +131,7 @@ export default function Navbar({ brandName = "UPGRADE TALENTS INDIA", logo }: { 
     <>
       <header
         className={cn(
-          "fixed inset-x-0 top-0 z-[80] transition-all duration-300 ease-[cubic-bezier(0.16,1,0.3,1)]",
+          "fixed inset-x-0 top-0 z-[80] transform-gpu transition-all duration-300 ease-[cubic-bezier(0.16,1,0.3,1)]",
           scrolled ? "py-2 sm:py-2.5" : "py-4 sm:py-5"
         )}
       >
@@ -138,7 +141,7 @@ export default function Navbar({ brandName = "UPGRADE TALENTS INDIA", logo }: { 
           className={cn(
             "pointer-events-none absolute inset-0 -z-10 transition-opacity duration-300",
             scrolled
-              ? "opacity-100 bg-[var(--bg)]/95 backdrop-blur-2xl border-b border-[var(--border)] shadow-[0_12px_32px_-10px_rgba(0,0,0,0.5)]"
+              ? "opacity-100 bg-[var(--bg)]/95 backdrop-blur-md md:backdrop-blur-2xl border-b border-[var(--border)] shadow-[0_12px_32px_-10px_rgba(0,0,0,0.5)]"
               : "opacity-0"
           )}
         />
@@ -497,7 +500,7 @@ export default function Navbar({ brandName = "UPGRADE TALENTS INDIA", logo }: { 
             exit={{ opacity: 0 }}
             transition={{ duration: 0.3 }}
           >
-            <div className="absolute inset-0 bg-[var(--scrim)] backdrop-blur-2xl" onClick={() => setOpen(false)} />
+            <div className="absolute inset-0 bg-[var(--scrim)] backdrop-blur-md" onClick={() => setOpen(false)} />
             <motion.div
               className="absolute inset-y-0 right-0 flex w-full max-w-sm flex-col gap-8 overflow-y-auto border-l border-[var(--border)] bg-[var(--bg-elevated)] px-7 pb-[max(5rem,calc(env(safe-area-inset-bottom)+2rem))] pt-[max(1.5rem,env(safe-area-inset-top))]"
               initial={{ x: "100%" }}

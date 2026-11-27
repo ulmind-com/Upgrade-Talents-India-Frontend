@@ -219,6 +219,7 @@ const CSS = `
   .dfoot__stage::after{
     background:linear-gradient(to bottom,var(--paper) 0%,rgb(var(--paper-rgb) / .95) 50%,rgb(var(--paper-rgb) / .8) 68%,rgb(var(--paper-rgb) / 0) 90%);
   }
+  :root[data-theme="blue"] .dfoot__video,:root[data-theme="light"] .dfoot__video{mix-blend-mode:normal}
   .dfoot__content{
     grid-template-columns:auto auto auto;justify-content:space-between;
     column-gap:12px;row-gap:36px;width:100%;padding:84px 20px 0;margin-bottom:max(34vw,180px);
@@ -231,12 +232,12 @@ const CSS = `
   .dbrand__copy,.dcredit{font-size:12.5px}
   .dcredit{grid-column:1 / -1;justify-self:start;gap:7px;margin-top:4px}
   .dcredit img{height:17px}
-  .dchip{height:28px;font-size:12px}
+  .dchip{height:28px;font-size:12px;backdrop-filter:none;-webkit-backdrop-filter:none}
   .dcol__title{font-size:15px}
   .dfoot .dcol__list,.dfoot .dcol--menu .dcol__list{gap:14px;margin-top:20px;font-size:13px;letter-spacing:0;white-space:nowrap}
   .dfoot .dcol--contact .dcol__list{white-space:normal}
   .dcol--contact a{overflow-wrap:anywhere}
-  .dfoot__wordmark{bottom:115px;font-size:27vw}
+  .dfoot__wordmark{bottom:115px;font-size:27vw;filter:none}
   .dfoot__fog{height:7%}
 }
 
@@ -270,7 +271,7 @@ function FooterReel() {
     let swapping = false;
     let visible = false;
     let started = false;
-    let raf = 0;
+    let pollTimer: number | null = null;
 
     const play = (v: HTMLVideoElement) => { v.play().catch(() => {}); };
 
@@ -286,7 +287,6 @@ function FooterReel() {
     };
 
     const tick = () => {
-      raf = requestAnimationFrame(tick);
       if (swapping || !visible || !started || reduce) return;
       const cur = showing === 0 ? A : B;
       const nxt = showing === 0 ? B : A;
@@ -309,14 +309,26 @@ function FooterReel() {
         swapping = false;
       }, FADE * 1000);
     };
-    raf = requestAnimationFrame(tick);
+
+    const stopLoop = () => {
+      if (pollTimer !== null) {
+        window.clearInterval(pollTimer);
+        pollTimer = null;
+      }
+    };
 
     const io = new IntersectionObserver(([e]) => {
       visible = e.isIntersecting;
       if (visible) {
         start();
-        if (!reduce) play(showing === 0 ? A : B);
+        if (!reduce) {
+          play(showing === 0 ? A : B);
+          if (pollTimer === null) {
+            pollTimer = window.setInterval(tick, 250);
+          }
+        }
       } else {
+        stopLoop();
         A.pause();
         B.pause();
       }
@@ -324,7 +336,7 @@ function FooterReel() {
     io.observe(stage);
 
     return () => {
-      cancelAnimationFrame(raf);
+      stopLoop();
       io.disconnect();
       A.pause();
       B.pause();

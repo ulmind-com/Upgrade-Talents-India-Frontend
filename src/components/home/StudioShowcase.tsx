@@ -6,6 +6,7 @@ import { motion, useReducedMotion, useScroll, useSpring, useTransform } from "fr
 import { ArrowRight, CalendarDays, MapPin } from "lucide-react";
 import { imageFor, splitDate, truncate } from "@/lib/utils";
 import type { EventItem } from "@/lib/api";
+import { useLiteMotion } from "@/components/motion/Reveal";
 
 /* ═══════════ SCROLL-DRIVEN 3D SHOWCASE ═══════════
    Pinned stage: a cylinder of event cards spins with the page scroll while a
@@ -49,6 +50,7 @@ function buildSlots(events: EventItem[]): Slot[] {
 
 export default function StudioShowcase({ events = [] }: { events?: EventItem[] }) {
   const reduce = useReducedMotion();
+  const lite = useLiteMotion();
   const trackRef = useRef<HTMLDivElement>(null);
   const stageRef = useRef<HTMLDivElement>(null);
   const videoRef = useRef<HTMLVideoElement>(null);
@@ -119,8 +121,8 @@ export default function StudioShowcase({ events = [] }: { events?: EventItem[] }
   const wipeSpin = useTransform(p, [0.80, 1], [-25, 10]);
   const wipeTextOpacity = useTransform(p, [0.88, 0.96], [0, 1]);
 
-  /* Reduced motion: a plain, readable rail instead of the pinned choreography. */
-  if (reduce) {
+  /* Reduced motion or mobile/touch: a plain, readable snap rail instead of pinned 3D scroll choreography. */
+  if (reduce || lite) {
     return (
       <section className="studio-stage relative overflow-hidden border-y border-[var(--border)] py-16 sm:py-20 md:py-28">
         <StudioStyles />

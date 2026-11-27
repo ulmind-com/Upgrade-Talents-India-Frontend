@@ -8,6 +8,7 @@ import StageRibbons from "./StageRibbons";
 import { FALLBACK_IMAGES, imageFor } from "@/lib/utils";
 import type { EventItem } from "@/lib/api";
 import { getCompetitionLifecycle } from "@/lib/competition-lifecycle";
+import { useLiteMotion } from "@/components/motion/Reveal";
 
 const TABS = ["Training", "Collection", "Inspiration"];
 const ROTATE_MS = 4500;
@@ -48,6 +49,7 @@ export default function Hero({
   brandBody?: string;
 }) {
   const reduce = useReducedMotion();
+  const lite = useLiteMotion();
   const ref = useRef<HTMLElement>(null);
   const [index, setIndex] = useState(0);
   const [tab, setTab] = useState(0);
@@ -152,7 +154,7 @@ export default function Hero({
   const ribX = useSpring(useTransform(px, [-0.5, 0.5], [22, -22]), { stiffness: 60, damping: 24 });
 
   const onPointerMove = (e: React.PointerEvent<HTMLElement>) => {
-    if (reduce) return;
+    if (lite) return;
     const r = ref.current?.getBoundingClientRect();
     if (!r) return;
     px.set((e.clientX - r.left) / r.width - 0.5);
@@ -192,24 +194,24 @@ export default function Hero({
       className="stage-bg on-media relative isolate flex min-h-dvh flex-col overflow-hidden"
     >
       {/* Ribbon lines */}
-      <motion.div style={{ x: reduce ? 0 : ribX }} className="absolute inset-0 -z-20">
+      <motion.div style={{ x: lite ? 0 : ribX }} className="absolute inset-0 -z-20">
         <StageRibbons className="ribbon-drift absolute inset-0 size-full" />
       </motion.div>
 
       {/* Light bloom behind the performer */}
       <div
         aria-hidden
-        className="pointer-events-none absolute -z-20 rounded-full blur-[110px]"
+        className="pointer-events-none absolute -z-20 rounded-full blur-2xl md:blur-[110px]"
         style={{ background: "var(--stage-bloom)", width: "46vw", height: "46vw", top: "6%", left: "-6%" }}
       />
 
       {/* ── Performer gallery (left) ── */}
       <motion.figure
-        style={{ y: reduce ? 0 : figureY }}
+        style={{ y: lite ? 0 : figureY }}
         className="absolute inset-y-0 left-0 -z-10 w-full lg:w-[56%] xl:w-[52%] will-change-transform"
       >
         <motion.div
-          style={{ x: reduce ? 0 : figX, y: reduce ? 0 : figY2 }}
+          style={{ x: lite ? 0 : figX, y: lite ? 0 : figY2 }}
           className="relative size-full will-change-transform"
         >
           {pool.map((shot, i) => (
@@ -237,7 +239,7 @@ export default function Hero({
 
       {/* ── Copy column (right) ── */}
       <motion.div
-        style={{ y: reduce ? 0 : copyY, opacity: fade }}
+        style={{ y: lite ? 0 : copyY, opacity: lite ? 1 : fade }}
         className="container-x relative z-10 flex flex-1 items-center justify-end pb-28 pt-28 md:pb-32 md:pt-32 will-change-transform"
       >
         <div className="flex w-full justify-end">

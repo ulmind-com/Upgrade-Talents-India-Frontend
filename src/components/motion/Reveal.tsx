@@ -1,7 +1,24 @@
 "use client";
 
 import { motion, useInView, useReducedMotion, useScroll, useSpring, useTransform } from "framer-motion";
-import { useRef, type ReactNode } from "react";
+import { useEffect, useRef, useState, type ReactNode } from "react";
+
+/** Detects touch/narrow viewports after mount so mobile gets pure compositor animations and zero scroll-spring overhead. */
+export function useLiteMotion(): boolean {
+  const reduce = useReducedMotion();
+  const [lite, setLite] = useState(false);
+
+  useEffect(() => {
+    if (typeof window === "undefined") return;
+    const mq = window.matchMedia("(max-width: 767px), (hover: none) and (pointer: coarse)");
+    const update = () => setLite(mq.matches);
+    update();
+    mq.addEventListener?.("change", update);
+    return () => mq.removeEventListener?.("change", update);
+  }, []);
+
+  return Boolean(reduce || lite);
+}
 
 /** Scroll-triggered reveal with directional entry. */
 export function Reveal({
@@ -22,10 +39,25 @@ export function Reveal({
   className?: string;
 }) {
   const reduce = useReducedMotion();
+  const lite = useLiteMotion();
   const ref = useRef<HTMLDivElement>(null);
-  const inView = useInView(ref, { once, margin: "-12% 0px -12% 0px" });
+  const inView = useInView(ref, { once, margin: lite ? "0px 0px -4% 0px" : "-12% 0px -12% 0px" });
 
   if (reduce) return <div className={className}>{children}</div>;
+
+  if (lite) {
+    return (
+      <motion.div
+        ref={ref}
+        className={className}
+        initial={{ opacity: 0, y: Math.min(y, 18), x: 0 }}
+        animate={inView ? { opacity: 1, y: 0, x: 0 } : {}}
+        transition={{ duration: 0.35, delay: Math.min(delay, 0.1), ease: [0.16, 1, 0.3, 1] }}
+      >
+        {children}
+      </motion.div>
+    );
+  }
 
   return (
     <motion.div
@@ -51,8 +83,9 @@ export function StaggerGroup({
   stagger?: number;
 }) {
   const reduce = useReducedMotion();
+  const lite = useLiteMotion();
   const ref = useRef<HTMLDivElement>(null);
-  const inView = useInView(ref, { once: true, margin: "-10% 0px" });
+  const inView = useInView(ref, { once: true, margin: lite ? "0px 0px -2% 0px" : "-10% 0px" });
 
   if (reduce) return <div className={className}>{children}</div>;
 
@@ -62,7 +95,7 @@ export function StaggerGroup({
       className={className}
       initial="hidden"
       animate={inView ? "show" : "hidden"}
-      variants={{ hidden: {}, show: { transition: { staggerChildren: stagger } } }}
+      variants={{ hidden: {}, show: { transition: { staggerChildren: lite ? Math.min(stagger, 0.03) : stagger } } }}
     >
       {children}
     </motion.div>
@@ -70,8 +103,8 @@ export function StaggerGroup({
 }
 
 export const staggerItem = {
-  hidden: { opacity: 0, y: 36, filter: "blur(8px)" },
-  show: { opacity: 1, y: 0, filter: "blur(0px)", transition: { duration: 0.7, ease: [0.16, 1, 0.3, 1] } },
+  hidden: { opacity: 0, y: 24 },
+  show: { opacity: 1, y: 0, transition: { duration: 0.45, ease: [0.16, 1, 0.3, 1] } },
 };
 
 export function StaggerItem({ children, className }: { children: ReactNode; className?: string }) {
@@ -84,7 +117,7 @@ export function StaggerItem({ children, className }: { children: ReactNode; clas
   );
 }
 
-/** Parallax wrapper — element drifts at a different rate than the page. */
+/** Parallax wrapper — element drifts at a different rate than the page (desktop only for 60fps mobile scroll). */
 export function Parallax({
   children,
   speed = 0.25,
@@ -94,13 +127,13 @@ export function Parallax({
   speed?: number;
   className?: string;
 }) {
-  const reduce = useReducedMotion();
+  const lite = useLiteMotion();
   const ref = useRef<HTMLDivElement>(null);
   const { scrollYProgress } = useScroll({ target: ref, offset: ["start end", "end start"] });
   const raw = useTransform(scrollYProgress, [0, 1], [speed * 120, speed * -120]);
   const y = useSpring(raw, { stiffness: 120, damping: 26, mass: 0.4 });
 
-  if (reduce) return <div className={className}>{children}</div>;
+  if (lite) return <div className={className}>{children}</div>;
 
   return (
     <div ref={ref} className={className}>
@@ -122,11 +155,12 @@ export function SplitHeading({
   as?: any;
 }) {
   const reduce = useReducedMotion();
+  const lite = useLiteMotion();
   const ref = useRef<HTMLDivElement>(null);
-  const inView = useInView(ref, { once: true, margin: "-15% 0px" });
+  const inView = useInView(ref, { once: true, margin: lite ? "0px 0px -4% 0px" : "-15% 0px" });
   const words = text.split(" ");
 
-  if (reduce) return <Tag className={className}>{text}</Tag>;
+  if (reduce || lite) return <Tag className={className}>{text}</Tag>;
 
   return (
     <Tag className={className}>
@@ -149,15 +183,17 @@ export function SplitHeading({
   );
 }
 
-/** Scroll progress bar for the whole document. */
+/** Scroll progress bar for the whole document (desktop only to keep mobile touch scroll lock-free). */
 export function ScrollProgress() {
+  const lite = useLiteMotion();
   const { scrollYProgress } = useScroll();
   const scaleX = useSpring(scrollYProgress, { stiffness: 220, damping: 40, restDelta: 0.001 });
+  if (lite) return null;
   return (
     <motion.div
       aria-hidden
       style={{ scaleX }}
-      className="fixed left-0 top-0 z-[90] h-[3px] w-full origin-left"
+      className="fixed left-0 top-0 z-[90] hidden md:block h-[3px] w-full origin-left"
     >
       <div className="h-full w-full" style={{ background: "var(--grad-brand)" }} />
     </motion.div>

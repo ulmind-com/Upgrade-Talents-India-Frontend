@@ -3,6 +3,7 @@
 import { motion, useScroll, useTransform } from "framer-motion";
 import { useRef } from "react";
 import { imageFor } from "@/lib/utils";
+import { useLiteMotion } from "@/components/motion/Reveal";
 
 /** Reusable glitch-style page banner used across inner pages. */
 export default function PageHero({
@@ -22,6 +23,7 @@ export default function PageHero({
   className?: string;
   titleClassName?: string;
 }) {
+  const lite = useLiteMotion();
   const ref = useRef<HTMLElement>(null);
   const { scrollYProgress } = useScroll({ target: ref, offset: ["start start", "end start"] });
   const y = useTransform(scrollYProgress, [0, 1], ["0%", "30%"]);
@@ -35,7 +37,7 @@ export default function PageHero({
         compact ? "min-h-[34vh] sm:min-h-[38vh] md:min-h-[40vh]" : "min-h-[60vh] md:min-h-[68vh]"
       } ${className || ""}`}
     >
-      <motion.div style={{ y, scale }} className="absolute inset-0 -z-20">
+      <motion.div style={lite ? undefined : { y, scale }} className="absolute inset-0 -z-20">
         <img src={imageFor(image, seed)} alt="" aria-hidden className="size-full object-cover" />
       </motion.div>
 
@@ -48,7 +50,7 @@ export default function PageHero({
       <div aria-hidden className="hero-fade absolute inset-0 -z-10" />
 
       <motion.div
-        style={{ opacity }}
+        style={lite ? undefined : { opacity }}
         className={`on-media container-x relative z-10 ${
           compact ? "pb-6 sm:pb-8 pt-28 sm:pt-32 md:pt-36" : "pb-12 pt-36 md:pt-40"
         }`}

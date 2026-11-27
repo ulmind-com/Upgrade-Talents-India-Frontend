@@ -3,6 +3,7 @@
 import { useRef } from "react";
 import { motion, useScroll, useTransform } from "framer-motion";
 import { imageFor } from "@/lib/utils";
+import { useLiteMotion } from "@/components/motion/Reveal";
 
 /**
  * Street-poster banner: the wordmark straddles the photo with a narrow
@@ -21,6 +22,7 @@ export default function TicketsHero({
   image?: string | null;
   seed?: number;
 }) {
+  const lite = useLiteMotion();
   const ref = useRef<HTMLElement>(null);
   const { scrollYProgress } = useScroll({ target: ref, offset: ["start start", "end start"] });
   const y = useTransform(scrollYProgress, [0, 1], ["0%", "18%"]);
@@ -32,7 +34,7 @@ export default function TicketsHero({
     <section ref={ref} className="street-bg relative isolate overflow-hidden pt-20">
       <div className="relative min-h-[46vh] md:min-h-[62vh]">
         {/* Photo */}
-        <motion.div style={{ y, scale }} className="absolute inset-0 -z-20">
+        <motion.div style={lite ? undefined : { y, scale }} className="absolute inset-0 -z-20">
           <img src={imageFor(image, seed)} alt="" aria-hidden className="size-full object-cover" />
         </motion.div>
 

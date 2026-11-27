@@ -1,10 +1,11 @@
 "use client";
 
 import Link from "next/link";
-import { motion, useMotionValue, useReducedMotion, useSpring, useTransform } from "framer-motion";
+import { motion, useMotionValue, useSpring, useTransform } from "framer-motion";
 import { useRef, type ReactNode, type MouseEvent } from "react";
 import { cn } from "@/lib/utils";
 import { Loader2 } from "lucide-react";
+import { useLiteMotion } from "@/components/motion/Reveal";
 
 /* ─────────────── BUTTON ─────────────── */
 
@@ -134,12 +135,12 @@ export function Button({
 /* ─────────────── MAGNETIC WRAPPER ─────────────── */
 
 export function Magnetic({ children, strength = 0.28, className }: { children: ReactNode; strength?: number; className?: string }) {
-  const reduce = useReducedMotion();
+  const lite = useLiteMotion();
   const ref = useRef<HTMLDivElement>(null);
   const x = useSpring(useMotionValue(0), { stiffness: 220, damping: 18, mass: 0.3 });
   const y = useSpring(useMotionValue(0), { stiffness: 220, damping: 18, mass: 0.3 });
 
-  if (reduce) return <div className={className}>{children}</div>;
+  if (lite) return <div className={className}>{children}</div>;
 
   const onMove = (e: MouseEvent<HTMLDivElement>) => {
     const r = ref.current?.getBoundingClientRect();
@@ -169,7 +170,7 @@ export function TiltCard({
   intensity?: number;
   glare?: boolean;
 }) {
-  const reduce = useReducedMotion();
+  const lite = useLiteMotion();
   const ref = useRef<HTMLDivElement>(null);
   const mx = useMotionValue(0.5);
   const my = useMotionValue(0.5);
@@ -179,7 +180,7 @@ export function TiltCard({
   const glareX = useTransform(mx, [0, 1], ["0%", "100%"]);
   const glareY = useTransform(my, [0, 1], ["0%", "100%"]);
 
-  if (reduce) return <div className={className}>{children}</div>;
+  if (lite) return <div className={cn("relative", className)}>{children}</div>;
 
   const onMove = (e: MouseEvent<HTMLDivElement>) => {
     const r = ref.current?.getBoundingClientRect();

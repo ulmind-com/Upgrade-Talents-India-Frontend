@@ -147,23 +147,6 @@ export function MobileBottomNav() {
 
   return (
     <div className="lg-bottom-wrapper md:hidden" role="navigation" aria-label="Mobile Bottom Navigation">
-      {/* 
-        SVG Filters for Liquid Refraction 
-        Used by the CSS url(#liquid-glass) and url(#liquid-toggler) 
-      */}
-      <svg width="0" height="0" style={{ position: "absolute", pointerEvents: "none" }} aria-hidden="true">
-        <defs>
-          <filter id="liquid-glass" x="-20%" y="-20%" width="140%" height="140%">
-            <feTurbulence type="fractalNoise" baseFrequency="0.012" numOctaves="3" result="noise" />
-            <feDisplacementMap in="SourceGraphic" in2="noise" scale="6" xChannelSelector="R" yChannelSelector="G" />
-          </filter>
-          <filter id="liquid-toggler" x="-20%" y="-20%" width="140%" height="140%">
-            <feTurbulence type="fractalNoise" baseFrequency="0.015" numOctaves="3" result="noise" />
-            <feDisplacementMap in="SourceGraphic" in2="noise" scale="12" xChannelSelector="R" yChannelSelector="G" />
-          </filter>
-        </defs>
-      </svg>
-
       {/* 4-item liquid glass pill */}
       <nav
         className="lg-bottom-nav"
