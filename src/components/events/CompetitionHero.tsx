@@ -138,7 +138,7 @@ export default function CompetitionHero({ comp }: CompetitionHeroProps) {
       />
       <div
         aria-hidden
-        className="absolute bottom-0 left-0 right-0 h-40 bg-gradient-to-t from-[var(--bg)] to-transparent -z-10"
+        className="absolute bottom-0 left-0 right-0 h-10 bg-gradient-to-t from-[var(--bg)] to-transparent -z-10"
       />
 
       {/* ── Content Container (Ultra Pro, Elegant Scale) ── */}
@@ -285,7 +285,7 @@ export default function CompetitionHero({ comp }: CompetitionHeroProps) {
               transition={{ duration: 0.6, delay: 0.22 }}
               className="mt-3.5 flex flex-wrap items-center gap-2"
             >
-              <span className="text-[11px] font-bold text-neutral-400 uppercase tracking-wider mr-1">
+              <span className="text-[11px] font-bold text-white/80 uppercase tracking-wider mr-1">
                 Divisions:
               </span>
               {(comp as any).categories.map((cat: any, idx: number) => {
@@ -296,7 +296,7 @@ export default function CompetitionHero({ comp }: CompetitionHeroProps) {
                 return (
                   <span
                     key={idx}
-                    className="inline-flex items-center gap-1.5 rounded-full border border-white/15 bg-white/10 px-3 py-1 text-xs font-semibold text-white backdrop-blur-md shadow-xs"
+                    className="inline-flex items-center gap-1.5 rounded-full border border-white/25 bg-black/55 px-3 py-1 text-xs font-semibold text-white backdrop-blur-md shadow-xs"
                   >
                     <span>{cName}</span>
                     <span className="rounded-full bg-amber-400/25 px-1.5 py-0.2 font-mono text-[11px] font-bold text-amber-300">
@@ -354,7 +354,7 @@ export default function CompetitionHero({ comp }: CompetitionHeroProps) {
 
             <Link
               href={`/leaderboard?competition=${compId}`}
-              className="inline-flex items-center gap-2 rounded-full border border-white/20 bg-white/10 px-4 py-2.5 text-xs font-semibold text-white backdrop-blur-md transition-colors hover:bg-white/20"
+              className="inline-flex items-center gap-2 rounded-full border border-white/25 bg-black/55 px-4 py-2.5 text-xs font-semibold text-white backdrop-blur-md transition-colors hover:bg-black/75"
             >
               <span>View Leaderboard</span>
               <ChevronRight className="size-3.5" />
@@ -364,7 +364,7 @@ export default function CompetitionHero({ comp }: CompetitionHeroProps) {
             <button
               type="button"
               onClick={() => setShareOpen(true)}
-              className="cursor-pointer inline-flex items-center gap-2 rounded-full border border-amber-400/40 bg-gradient-to-r from-amber-500/20 via-orange-500/20 to-amber-500/20 hover:from-amber-500/30 hover:to-orange-500/30 text-amber-200 hover:text-white px-5 py-2.5 text-xs font-extrabold backdrop-blur-md transition-all shadow-md shadow-amber-500/10 active:scale-95 group"
+              className="cursor-pointer inline-flex items-center gap-2 rounded-full border border-amber-400/50 bg-black/60 hover:bg-amber-500/30 text-amber-200 hover:text-white px-5 py-2.5 text-xs font-extrabold backdrop-blur-md transition-all shadow-md shadow-amber-500/10 active:scale-95 group"
             >
               <Share2 className="size-3.5 text-amber-400 group-hover:scale-110 transition-transform" />
               <span>Share Competition</span>

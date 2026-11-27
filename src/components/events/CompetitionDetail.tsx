@@ -1858,11 +1858,11 @@ export default function CompetitionDetail({
             className="mb-8 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4 rounded-2xl border border-amber-500/35 bg-gradient-to-r from-amber-500/10 via-[var(--surface)] to-[var(--surface)] p-4 shadow-sm"
           >
             <div className="flex items-center gap-3">
-              <div className="grid size-10 shrink-0 place-items-center rounded-xl bg-amber-500/20 text-amber-400">
+              <div className="grid size-10 shrink-0 place-items-center rounded-xl bg-amber-500/20 text-amber-700 dark:text-amber-400">
                 <Clock className="size-5" />
               </div>
               <div>
-                <p className="font-display font-bold text-amber-200 text-sm">
+                <p className="font-display font-bold text-amber-950 dark:text-amber-200 text-sm">
                   Registration Window Closed
                 </p>
                 <p className="text-xs text-[var(--fg-muted)]">
@@ -1873,7 +1873,7 @@ export default function CompetitionDetail({
             </div>
             <a
               href="#contestants-section"
-              className="inline-flex items-center justify-center gap-1.5 rounded-full border border-amber-500/40 bg-amber-500/20 px-4 py-2 text-xs font-semibold text-amber-200 hover:bg-amber-500/30 transition-colors shrink-0"
+              className="inline-flex items-center justify-center gap-1.5 rounded-full border border-amber-600/40 bg-amber-500/15 px-4 py-2 text-xs font-semibold text-amber-950 hover:bg-amber-500/25 dark:border-amber-500/40 dark:bg-amber-500/20 dark:text-amber-200 dark:hover:bg-amber-500/30 transition-colors shrink-0"
             >
               Registered Entries ↓
             </a>
@@ -1885,19 +1885,19 @@ export default function CompetitionDetail({
           <motion.div
             initial={{ opacity: 0, y: -10 }}
             animate={{ opacity: 1, y: 0 }}
-            className="mb-8 overflow-hidden rounded-2xl border border-emerald-500/35 bg-gradient-to-br from-emerald-500/15 via-[var(--surface)] to-[var(--surface)] p-5 shadow-lg"
+            className="mb-8 overflow-hidden rounded-2xl border border-emerald-600/35 bg-gradient-to-br from-emerald-500/15 via-[var(--surface)] to-[var(--surface)] p-5 shadow-lg"
           >
             <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-4">
               <div className="flex items-start sm:items-center gap-3.5">
-                <div className="grid size-12 shrink-0 place-items-center rounded-2xl border border-emerald-500/40 bg-emerald-500/20 text-emerald-400 shadow-sm">
+                <div className="grid size-12 shrink-0 place-items-center rounded-2xl border border-emerald-600/40 bg-emerald-500/20 text-emerald-700 dark:border-emerald-500/40 dark:text-emerald-400 shadow-sm">
                   <CheckCircle2 className="size-6" />
                 </div>
                 <div>
                   <div className="flex flex-wrap items-center gap-2">
-                    <span className="font-display font-bold text-sm sm:text-base text-emerald-200">
+                    <span className="font-display font-bold text-sm sm:text-base text-emerald-900 dark:text-emerald-200">
                       Enrolled &amp; Audition Entry Submitted
                     </span>
-                    <span className="rounded-full bg-emerald-500/20 px-2.5 py-0.5 text-[10px] font-bold text-emerald-300">
+                    <span className="rounded-full bg-emerald-500/20 px-2.5 py-0.5 text-[10px] font-bold text-emerald-800 dark:text-emerald-300">
                       {isResultsPublished ? "Completed & Judged" : "Under Review"}
                     </span>
                   </div>
@@ -1917,18 +1917,18 @@ export default function CompetitionDetail({
                 )}
 
                 {(enrollmentInfo?.category || selectedCategory) && (
-                  <div className="rounded-xl border border-amber-500/35 bg-amber-500/10 px-3 py-1.5 text-xs text-amber-300">
+                  <div className="rounded-xl border border-amber-600/35 bg-amber-500/15 px-3 py-1.5 text-xs text-amber-900 dark:border-amber-500/35 dark:bg-amber-500/10 dark:text-amber-300">
                     <span className="font-semibold flex items-center gap-1.5">
-                      <Trophy className="size-3.5 text-amber-400" />
+                      <Trophy className="size-3.5 text-amber-700 dark:text-amber-400" />
                       Division: {enrollmentInfo?.category || selectedCategory}
                     </span>
                   </div>
                 )}
 
                 {enrollmentInfo?.cash_payment && (
-                  <div className="rounded-xl border border-amber-500/35 bg-amber-500/10 px-3 py-1.5 text-xs text-amber-300">
+                  <div className="rounded-xl border border-amber-600/35 bg-amber-500/15 px-3 py-1.5 text-xs text-amber-900 dark:border-amber-500/35 dark:bg-amber-500/10 dark:text-amber-300">
                     <span className="font-semibold flex items-center gap-1.5">
-                      <Banknote className="size-3.5 text-amber-400" />
+                      <Banknote className="size-3.5 text-amber-700 dark:text-amber-400" />
                       Cash on Spot (₹{comp.participation_fee || comp.fee} at Venue)
                     </span>
                   </div>
@@ -1952,7 +1952,7 @@ export default function CompetitionDetail({
                   <button
                     onClick={handleDownloadCert}
                     disabled={downloadingCert}
-                    className="inline-flex items-center gap-1.5 rounded-full border border-amber-500/40 bg-amber-500/15 px-3.5 py-1.5 text-xs font-bold text-amber-300 transition-colors hover:bg-amber-500/25"
+                    className="inline-flex items-center gap-1.5 rounded-full border border-amber-600/40 bg-amber-500/15 px-3.5 py-1.5 text-xs font-bold text-amber-900 hover:bg-amber-500/25 dark:border-amber-500/40 dark:text-amber-300 transition-colors"
                   >
                     {downloadingCert ? <Loader2 className="size-3.5 animate-spin" /> : <Award className="size-3.5" />}
                     Certificate
@@ -2008,10 +2008,10 @@ export default function CompetitionDetail({
               <span className={cn(
                 "inline-flex items-center gap-1.5 rounded-full border px-3.5 py-1.5 text-[12px] font-semibold",
                 lifecycle.isRegClosed
-                  ? "border-amber-500/30 bg-amber-500/10 text-amber-300"
+                  ? "border-amber-600/35 bg-amber-500/15 text-amber-900 dark:border-amber-500/30 dark:bg-amber-500/10 dark:text-amber-300"
                   : "border-[var(--border)] bg-[var(--surface)] text-[var(--fg)]"
               )}>
-                <Clock className={cn("size-3.5", lifecycle.isRegClosed ? "text-amber-400" : "text-[var(--fg-subtle)]")} aria-hidden />{" "}
+                <Clock className={cn("size-3.5", lifecycle.isRegClosed ? "text-amber-700 dark:text-amber-400" : "text-[var(--fg-subtle)]")} aria-hidden />{" "}
                 {lifecycle.isRegClosed
                   ? `Registration closed ${formatEventDate(comp.registration_deadline)}`
                   : `Registration closes ${formatEventDate(comp.registration_deadline)}`}
@@ -2019,30 +2019,30 @@ export default function CompetitionDetail({
             </StaggerItem>
           ) : comp.registration_start_date && lifecycle.isRegUpcoming ? (
             <StaggerItem>
-              <span className="inline-flex items-center gap-1.5 rounded-full border border-sky-500/30 bg-sky-500/10 px-3.5 py-1.5 text-[12px] font-semibold text-sky-300">
-                <Calendar className="size-3.5 text-sky-400" aria-hidden />{" "}
+              <span className="inline-flex items-center gap-1.5 rounded-full border border-sky-600/35 bg-sky-500/12 px-3.5 py-1.5 text-[12px] font-semibold text-sky-900 dark:border-sky-500/30 dark:bg-sky-500/10 dark:text-sky-300">
+                <Calendar className="size-3.5 text-sky-700 dark:text-sky-400" aria-hidden />{" "}
                 Registration opens {formatEventDate(comp.registration_start_date)}
               </span>
             </StaggerItem>
           ) : (
             <StaggerItem>
-              <span className="inline-flex items-center gap-1.5 rounded-full border border-emerald-500/30 bg-emerald-500/10 px-3.5 py-1.5 text-[12px] font-semibold text-emerald-300">
-                <Clock className="size-3.5 text-emerald-400" aria-hidden /> Open entry (No deadline)
+              <span className="inline-flex items-center gap-1.5 rounded-full border border-emerald-600/35 bg-emerald-500/12 px-3.5 py-1.5 text-[12px] font-semibold text-emerald-800 dark:border-emerald-500/30 dark:bg-emerald-500/10 dark:text-emerald-300">
+                <Clock className="size-3.5 text-emerald-700 dark:text-emerald-400" aria-hidden /> Open entry (No deadline)
               </span>
             </StaggerItem>
           )}
 
           {comp.submission_deadline && (
             <StaggerItem>
-              <span className="inline-flex items-center gap-1.5 rounded-full border border-[var(--border)] bg-[var(--surface)] px-3.5 py-1.5 text-[12px] font-semibold text-amber-300 border-amber-500/30 bg-amber-500/10">
-                <Calendar className="size-3.5 text-amber-400" aria-hidden /> Submissions due {formatEventDate(comp.submission_deadline)}
+              <span className="inline-flex items-center gap-1.5 rounded-full border border-amber-600/35 bg-amber-500/15 px-3.5 py-1.5 text-[12px] font-semibold text-amber-900 dark:border-amber-500/30 dark:bg-amber-500/10 dark:text-amber-300">
+                <Calendar className="size-3.5 text-amber-700 dark:text-amber-400" aria-hidden /> Submissions due {formatEventDate(comp.submission_deadline)}
               </span>
             </StaggerItem>
           )}
 
           {(comp.min_age || comp.max_age) && (
             <StaggerItem>
-              <span className="inline-flex items-center gap-1.5 rounded-full border border-[var(--border)] bg-[var(--surface)] px-3.5 py-1.5 text-[12px] font-semibold">
+              <span className="inline-flex items-center gap-1.5 rounded-full border border-[var(--border)] bg-[var(--surface)] px-3.5 py-1.5 text-[12px] font-semibold text-[var(--fg)]">
                 <ShieldCheck className="size-3.5 text-[var(--fg-subtle)]" aria-hidden /> Age {comp.min_age ?? 0}{comp.max_age ? `–${comp.max_age}` : "+"}
               </span>
             </StaggerItem>
@@ -2050,8 +2050,8 @@ export default function CompetitionDetail({
 
           {isVotingOpen && (
             <StaggerItem>
-              <span className="inline-flex items-center gap-1.5 rounded-full border border-rose-500/40 bg-rose-500/10 px-3 py-1.5 text-[12px] font-bold text-rose-400">
-                <Radio className="size-3.5 animate-pulse text-rose-400" /> Live Voting Active
+              <span className="inline-flex items-center gap-1.5 rounded-full border border-rose-600/35 bg-rose-500/12 px-3 py-1.5 text-[12px] font-bold text-rose-700 dark:border-rose-500/40 dark:bg-rose-500/10 dark:text-rose-400">
+                <Radio className="size-3.5 animate-pulse text-rose-600 dark:text-rose-400" /> Live Voting Active
               </span>
             </StaggerItem>
           )}
@@ -2060,9 +2060,9 @@ export default function CompetitionDetail({
             <button
               type="button"
               onClick={() => setShareOpen(true)}
-              className="cursor-pointer inline-flex items-center gap-1.5 rounded-full border border-amber-400/40 bg-amber-500/15 hover:bg-amber-500/25 px-3.5 py-1.5 text-[12px] font-extrabold text-amber-200 hover:text-white transition-all active:scale-95 shadow-xs group"
+              className="cursor-pointer inline-flex items-center gap-1.5 rounded-full border border-amber-600/40 bg-amber-500/15 hover:bg-amber-500/25 px-3.5 py-1.5 text-[12px] font-extrabold text-amber-900 hover:text-amber-950 dark:border-amber-400/40 dark:text-amber-200 dark:hover:text-white transition-all active:scale-95 shadow-xs group"
             >
-              <Share2 className="size-3.5 text-amber-400 group-hover:scale-110 transition-transform" />
+              <Share2 className="size-3.5 text-amber-700 dark:text-amber-400 group-hover:scale-110 transition-transform" />
               <span>Share Competition</span>
             </button>
           </StaggerItem>

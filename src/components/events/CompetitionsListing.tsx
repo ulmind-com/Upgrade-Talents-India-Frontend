@@ -152,7 +152,7 @@ export default function CompetitionsListing({ items }: { items: Comp[] }) {
 
                   {/* Body Content */}
                   <div className="flex flex-1 flex-col p-5 pointer-events-none">
-                    <h3 className="font-display text-[1.25rem] font-bold leading-tight text-[var(--fg)] group-hover:text-amber-400 transition-colors line-clamp-2">
+                    <h3 className="font-display text-[1.25rem] font-bold leading-tight text-[var(--fg)] group-hover:text-amber-700 dark:group-hover:text-amber-400 transition-colors line-clamp-2">
                       {c.title || c.name || "Competition"}
                     </h3>
                     {c.description && (
@@ -171,10 +171,10 @@ export default function CompetitionsListing({ items }: { items: Comp[] }) {
                           return (
                             <span
                               key={cIdx}
-                              className="inline-flex items-center gap-1 rounded-md border border-amber-500/25 bg-amber-500/10 px-2 py-0.5 text-[10.5px] font-semibold text-amber-300"
+                              className="inline-flex items-center gap-1 rounded-md border border-amber-600/35 bg-amber-500/15 px-2 py-0.5 text-[10.5px] font-semibold text-amber-900 dark:border-amber-500/25 dark:bg-amber-500/10 dark:text-amber-300"
                             >
                               <span>{catName}</span>
-                              <span className="font-mono font-bold text-amber-200">
+                              <span className="font-mono font-bold text-amber-950 dark:text-amber-200">
                                 {catPrice === 0 ? "Free" : `₹${catPrice}`}
                               </span>
                             </span>
@@ -191,7 +191,7 @@ export default function CompetitionsListing({ items }: { items: Comp[] }) {
                     {/* Footer Info & Grand Eye-Catching Button */}
                     <div className="mt-auto flex flex-col gap-3 pt-5 border-t border-[var(--border)]">
                       <span className="inline-flex items-center gap-1.5 text-[12px] text-[var(--fg-subtle)] font-medium">
-                        <Calendar className="size-3.5 shrink-0 text-amber-400" aria-hidden />{" "}
+                        <Calendar className="size-3.5 shrink-0 text-amber-700 dark:text-amber-400" aria-hidden />{" "}
                         <span className="truncate">
                           {lifecycle.isLive && lifecycle.canRegister
                             ? "Live right now • Open reg"
