@@ -6,7 +6,6 @@ import { motion, useReducedMotion, useScroll, useSpring, useTransform } from "fr
 import { ArrowRight, CalendarDays, MapPin } from "lucide-react";
 import { imageFor, splitDate, truncate } from "@/lib/utils";
 import type { EventItem } from "@/lib/api";
-import { useLiteMotion } from "@/components/motion/Reveal";
 
 /* ═══════════ SCROLL-DRIVEN 3D SHOWCASE ═══════════
    Pinned stage: a cylinder of event cards spins with the page scroll while a
@@ -50,39 +49,11 @@ function buildSlots(events: EventItem[]): Slot[] {
 
 export default function StudioShowcase({ events = [] }: { events?: EventItem[] }) {
   const reduce = useReducedMotion();
-  const lite = useLiteMotion();
-  const [slots] = useState(() => buildSlots(events));
-
-  /* Reduced motion or mobile/touch: a plain, readable snap rail instead of pinned 3D scroll choreography. */
-  if (reduce || lite) {
-    return (
-      <section className="studio-stage relative overflow-hidden border-y border-[var(--border)] py-16 sm:py-20 md:py-28">
-        <StudioStyles />
-        <div className="container-x">
-          <p className="font-mono text-[10px] sm:text-[11px] uppercase tracking-[0.24em] text-white/55">The collection</p>
-          <h2 className="mt-3 sm:mt-4 font-display text-[clamp(1.8rem,5vw,3.4rem)] font-bold uppercase leading-[0.95] text-white">
-            Dance that moves
-          </h2>
-          <div className="mt-8 sm:mt-10 flex snap-x gap-4 sm:gap-5 overflow-x-auto pb-4 no-scrollbar">
-            {slots.map((s) => (
-              <Link key={s.id} href={s.href} className="w-[220px] sm:w-[240px] shrink-0 snap-start">
-                <StudioCard slot={s} />
-              </Link>
-            ))}
-          </div>
-        </div>
-      </section>
-    );
-  }
-
-  return <StudioShowcaseDesktop slots={slots} />;
-}
-
-function StudioShowcaseDesktop({ slots }: { slots: Slot[] }) {
   const trackRef = useRef<HTMLDivElement>(null);
   const stageRef = useRef<HTMLDivElement>(null);
   const videoRef = useRef<HTMLVideoElement>(null);
 
+  const [slots] = useState(() => buildSlots(events));
   const [card, setCard] = useState({ w: 280, r: 400 });
   const [isMobile, setIsMobile] = useState(false);
   const [trackVh, setTrackVh] = useState(380);
@@ -147,6 +118,28 @@ function StudioShowcaseDesktop({ slots }: { slots: Slot[] }) {
   const wipeOpacity = useTransform(p, [0.80, 0.84], [0, 1]);
   const wipeSpin = useTransform(p, [0.80, 1], [-25, 10]);
   const wipeTextOpacity = useTransform(p, [0.88, 0.96], [0, 1]);
+
+  /* Reduced motion: a plain, readable rail instead of the pinned choreography. */
+  if (reduce) {
+    return (
+      <section className="studio-stage relative overflow-hidden border-y border-[var(--border)] py-16 sm:py-20 md:py-28">
+        <StudioStyles />
+        <div className="container-x">
+          <p className="font-mono text-[10px] sm:text-[11px] uppercase tracking-[0.24em] text-white/55">The collection</p>
+          <h2 className="mt-3 sm:mt-4 font-display text-[clamp(1.8rem,5vw,3.4rem)] font-bold uppercase leading-[0.95] text-white">
+            Dance that moves
+          </h2>
+          <div className="mt-8 sm:mt-10 flex snap-x gap-4 sm:gap-5 overflow-x-auto pb-4 no-scrollbar">
+            {slots.map((s) => (
+              <Link key={s.id} href={s.href} className="w-[220px] sm:w-[240px] shrink-0 snap-start">
+                <StudioCard slot={s} />
+              </Link>
+            ))}
+          </div>
+        </div>
+      </section>
+    );
+  }
 
   return (
     <section ref={trackRef} className="relative" style={{ height: `${trackVh}vh` }} aria-label="Event collection showcase">

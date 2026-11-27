@@ -19,7 +19,6 @@ import {
 import { formatEventDate, imageFor, istParts, isUsableImageUrl, parseIst, truncate } from "@/lib/utils";
 import { getCompetitionLifecycle } from "@/lib/competition-lifecycle";
 import { SectionLabel } from "@/components/ui/Primitives";
-import { useLiteMotion } from "@/components/motion/Reveal";
 
 const EASE = [0.16, 1, 0.3, 1] as const;
 
@@ -154,7 +153,6 @@ export function QuadTiles({
 }
 
 function TileBackdrop({ src, seed, reduce }: { src?: string | null; seed: number; reduce: boolean }) {
-  const lite = useLiteMotion();
   const ref = useRef<HTMLSpanElement>(null);
   const { scrollYProgress } = useScroll({ target: ref, offset: ["start end", "end start"] });
   const y = useTransform(scrollYProgress, [0, 1], ["-7%", "7%"]);
@@ -165,7 +163,7 @@ function TileBackdrop({ src, seed, reduce }: { src?: string | null; seed: number
         src={imageFor(src, seed)}
         alt=""
         loading="lazy"
-        style={reduce || lite ? undefined : { y, willChange: "transform" }}
+        style={reduce ? undefined : { y, willChange: "transform" }}
         className="absolute inset-0 size-full scale-[1.16] object-cover transition-transform duration-[1.4s] ease-[cubic-bezier(0.16,1,0.3,1)] group-hover:scale-[1.26]"
       />
     </span>
@@ -432,7 +430,6 @@ export function FeaturedShow({
 
 function FeaturedShowStage({ shows }: { shows: FeaturedStageItem[] }) {
   const reduce = useReducedMotion();
-  const lite = useLiteMotion();
   const ref = useRef<HTMLElement>(null);
   const [i, setI] = useState(0);
   const [isPaused, setIsPaused] = useState(false);
@@ -462,8 +459,8 @@ function FeaturedShowStage({ shows }: { shows: FeaturedStageItem[] }) {
       onMouseLeave={() => setIsPaused(false)}
       className="theater-bg relative isolate min-h-[70vh] overflow-hidden md:min-h-[88vh]"
     >
-      {/* Backdrop layer — parallax applies on desktop only */}
-      <motion.div style={reduce || lite ? undefined : { y: bgY, willChange: "transform" }} className="absolute inset-0 -z-20 scale-[1.12]">
+      {/* Backdrop layer — parallax applies here only */}
+      <motion.div style={reduce ? undefined : { y: bgY, willChange: "transform" }} className="absolute inset-0 -z-20 scale-[1.12]">
         <AnimatePresence initial={false} mode="popLayout">
           <motion.img
             key={show.id}

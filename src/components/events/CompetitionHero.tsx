@@ -10,7 +10,6 @@ import {
 import { formatEventDate, formatINR, imageFor, cn } from "@/lib/utils";
 import { getCompetitionLifecycle } from "@/lib/competition-lifecycle";
 import ShareCompetitionModal from "@/components/events/ShareCompetitionModal";
-import { useLiteMotion } from "@/components/motion/Reveal";
 
 interface CompetitionHeroProps {
   comp: {
@@ -50,7 +49,6 @@ interface CompetitionHeroProps {
 }
 
 export default function CompetitionHero({ comp }: CompetitionHeroProps) {
-  const lite = useLiteMotion();
   const ref = useRef<HTMLElement>(null);
   const { scrollYProgress } = useScroll({ target: ref, offset: ["start start", "end start"] });
   const y = useTransform(scrollYProgress, [0, 1], ["0%", "25%"]);
@@ -115,7 +113,7 @@ export default function CompetitionHero({ comp }: CompetitionHeroProps) {
       </button>
 
       {/* ── Background Media Container with Dual 16:9 & 9:16 support ── */}
-      <motion.div style={lite ? undefined : { y }} className="absolute inset-0 -z-20 size-full overflow-hidden">
+      <motion.div style={{ y }} className="absolute inset-0 -z-20 size-full overflow-hidden">
         <picture className="size-full">
           {mobileImg && (
             <source media="(max-width: 640px)" srcSet={mobileImg} />
@@ -144,7 +142,7 @@ export default function CompetitionHero({ comp }: CompetitionHeroProps) {
       />
 
       {/* ── Content Container (Ultra Pro, Elegant Scale) ── */}
-      <motion.div style={lite ? undefined : { opacity }} className="container-x relative z-10 w-full">
+      <motion.div style={{ opacity }} className="container-x relative z-10 w-full">
         <div className="max-w-4xl">
           {/* ── Badges & Live Status Row ── */}
           <div className="flex flex-wrap items-center gap-2.5 mb-3.5">

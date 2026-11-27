@@ -206,21 +206,15 @@ function SplitHeadingDesktop({
   );
 }
 
-/** Scroll progress bar for the whole document (desktop only to keep mobile touch scroll lock-free). */
+/** Scroll progress bar for the whole document. */
 export function ScrollProgress() {
-  const lite = useLiteMotion();
-  if (lite) return null;
-  return <ScrollProgressDesktop />;
-}
-
-function ScrollProgressDesktop() {
   const { scrollYProgress } = useScroll();
   const scaleX = useSpring(scrollYProgress, { stiffness: 220, damping: 40, restDelta: 0.001 });
   return (
     <motion.div
       aria-hidden
       style={{ scaleX }}
-      className="fixed left-0 top-0 z-[90] hidden md:block h-[3px] w-full origin-left"
+      className="fixed left-0 top-0 z-[90] h-[3px] w-full origin-left"
     >
       <div className="h-full w-full" style={{ background: "var(--grad-brand)" }} />
     </motion.div>

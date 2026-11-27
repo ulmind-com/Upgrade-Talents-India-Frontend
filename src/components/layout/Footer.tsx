@@ -219,7 +219,6 @@ const CSS = `
   .dfoot__stage::after{
     background:linear-gradient(to bottom,var(--paper) 0%,rgb(var(--paper-rgb) / .95) 50%,rgb(var(--paper-rgb) / .8) 68%,rgb(var(--paper-rgb) / 0) 90%);
   }
-  :root[data-theme="blue"] .dfoot__video,:root[data-theme="light"] .dfoot__video{mix-blend-mode:normal}
   .dfoot__content{
     grid-template-columns:auto auto auto;justify-content:space-between;
     column-gap:12px;row-gap:36px;width:100%;padding:84px 20px 0;margin-bottom:max(34vw,180px);
@@ -232,12 +231,12 @@ const CSS = `
   .dbrand__copy,.dcredit{font-size:12.5px}
   .dcredit{grid-column:1 / -1;justify-self:start;gap:7px;margin-top:4px}
   .dcredit img{height:17px}
-  .dchip{height:28px;font-size:12px;backdrop-filter:none;-webkit-backdrop-filter:none}
+  .dchip{height:28px;font-size:12px}
   .dcol__title{font-size:15px}
   .dfoot .dcol__list,.dfoot .dcol--menu .dcol__list{gap:14px;margin-top:20px;font-size:13px;letter-spacing:0;white-space:nowrap}
   .dfoot .dcol--contact .dcol__list{white-space:normal}
   .dcol--contact a{overflow-wrap:anywhere}
-  .dfoot__wordmark{bottom:115px;font-size:27vw;filter:none}
+  .dfoot__wordmark{bottom:115px;font-size:27vw}
   .dfoot__fog{height:7%}
 }
 

@@ -3,7 +3,6 @@
 import { useRef } from "react";
 import { motion, useScroll, useTransform } from "framer-motion";
 import { imageFor } from "@/lib/utils";
-import { useLiteMotion } from "@/components/motion/Reveal";
 
 /** Full-bleed crowd banner with a glitched wordmark and gradient rule. */
 export default function EventsHero({
@@ -17,7 +16,6 @@ export default function EventsHero({
   image?: string | null;
   seed?: number;
 }) {
-  const lite = useLiteMotion();
   const ref = useRef<HTMLElement>(null);
   const { scrollYProgress } = useScroll({ target: ref, offset: ["start start", "end start"] });
   const y = useTransform(scrollYProgress, [0, 1], ["0%", "24%"]);
@@ -25,7 +23,7 @@ export default function EventsHero({
 
   return (
     <section ref={ref} className="on-media relative isolate flex min-h-[62vh] items-center justify-center overflow-hidden md:min-h-[74vh]">
-      <motion.div style={lite ? undefined : { y, scale }} className="absolute inset-0 -z-20">
+      <motion.div style={{ y, scale }} className="absolute inset-0 -z-20">
         <img src={imageFor(image, seed)} alt="" aria-hidden className="size-full object-cover object-[center_30%]" />
       </motion.div>
 
@@ -41,9 +39,9 @@ export default function EventsHero({
 
       <div className="container-x relative z-10 pb-20 pt-32 text-center">
         <motion.h1
-          initial={lite ? { opacity: 0, y: 20 } : { opacity: 0, y: 40, filter: "blur(12px)" }}
-          animate={lite ? { opacity: 1, y: 0 } : { opacity: 1, y: 0, filter: "blur(0px)" }}
-          transition={{ duration: lite ? 0.45 : 1, ease: [0.16, 1, 0.3, 1] }}
+          initial={{ opacity: 0, y: 40, filter: "blur(12px)" }}
+          animate={{ opacity: 1, y: 0, filter: "blur(0px)" }}
+          transition={{ duration: 1, ease: [0.16, 1, 0.3, 1] }}
           className="relative inline-block"
         >
           <span
