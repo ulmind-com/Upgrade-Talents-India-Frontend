@@ -7,7 +7,7 @@ import {
   AlertCircle, LogIn, ArrowUpRight, IndianRupee, Coins, Sparkles,
 } from "lucide-react";
 import type { CourseItem } from "@/lib/api";
-import { registrationsApi, profileApi, walletApi } from "@/lib/api";
+import { registrationsApi, profileApi, walletApi, sanitizePublicEnv } from "@/lib/api";
 import { useAuth } from "@/components/motion/Providers";
 import { Badge, Button, SectionLabel } from "@/components/ui/Primitives";
 import { Reveal } from "@/components/motion/Reveal";
@@ -100,7 +100,7 @@ export default function LearnDetail({ item, kind }: { item: CourseItem; kind: "c
 
       const info = res.payment_info;
       const checkout = info.checkout_data || {};
-      const keyId = checkout.key || info.key_id || process.env.NEXT_PUBLIC_RAZORPAY_KEY_ID;
+      const keyId = checkout.key || info.key_id || sanitizePublicEnv(process.env.NEXT_PUBLIC_RAZORPAY_KEY_ID);
       if (!keyId) {
         setMsg({ tone: "err", text: "Payment gateway is being configured. Please try again shortly." });
         return;

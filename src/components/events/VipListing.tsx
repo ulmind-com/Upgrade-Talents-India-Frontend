@@ -8,7 +8,7 @@ import { Crown, Check, DoorOpen, Sofa, KeyRound, Users, Car, Sparkles, X, Minus,
 import { Reveal, StaggerGroup, StaggerItem } from "@/components/motion/Reveal";
 import { SectionLabel } from "@/components/ui/Primitives";
 import { useAuth } from "@/components/motion/Providers";
-import { vipApi, ApiError } from "@/lib/api";
+import { vipApi, ApiError, sanitizePublicEnv } from "@/lib/api";
 import { formatINR } from "@/lib/utils";
 
 declare global { interface Window { Razorpay?: any } }
@@ -225,7 +225,7 @@ function BookingModal({ offering, user, onClose }: { offering: Offering | null; 
 
       // 5. Extract checkout data from backend response
       const checkout = paymentDetails.checkout_data || {};
-      const keyId = checkout.key || process.env.NEXT_PUBLIC_RAZORPAY_KEY_ID;
+      const keyId = checkout.key || sanitizePublicEnv(process.env.NEXT_PUBLIC_RAZORPAY_KEY_ID);
 
       if (!keyId) {
         throw new ApiError("Payment gateway is not configured yet. Please contact support.", 0);

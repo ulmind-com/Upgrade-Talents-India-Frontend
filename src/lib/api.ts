@@ -3,8 +3,23 @@
  * Mirrors the FastAPI backend exactly. No backend contract is modified here.
  */
 
-export const API_BASE =
-  process.env.NEXT_PUBLIC_API_BASE_URL?.replace(/\/$/, "") || "http://localhost:8000";
+const DEFAULT_PROD_API_BASE = "https://event-management-backend-nijj.onrender.com";
+
+export function sanitizePublicEnv(value: string | undefined): string | undefined {
+  const trimmed = value?.trim();
+  if (!trimmed || trimmed === "[SENSITIVE]") return undefined;
+  return trimmed;
+}
+
+function resolveApiBase(): string {
+  const raw = sanitizePublicEnv(process.env.NEXT_PUBLIC_API_BASE_URL);
+  if (raw && /^https?:\/\//i.test(raw)) {
+    return raw.replace(/\/$/, "");
+  }
+  return process.env.NODE_ENV === "production" ? DEFAULT_PROD_API_BASE : "http://localhost:8000";
+}
+
+export const API_BASE = resolveApiBase();
 
 const TOKEN_KEY = "uti_access_token";
 const ROLE_KEY = "uti_user_role";

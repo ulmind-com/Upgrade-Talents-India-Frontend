@@ -6,7 +6,7 @@ import { AnimatePresence, motion } from "framer-motion";
 import { X, Minus, Plus, Trash2, ShoppingBag, ArrowRight, CheckCircle2, ArrowLeft, Lock, AlertCircle } from "lucide-react";
 import { useAuth, useTheme } from "@/components/motion/Providers";
 import SlideCommit from "@/components/ui/SlideCommit";
-import { shopApi } from "@/lib/api";
+import { sanitizePublicEnv, shopApi } from "@/lib/api";
 import { formatINR } from "@/lib/utils";
 
 declare global {
@@ -308,7 +308,10 @@ function CartDrawer() {
       }
 
       const checkout = paymentDetails?.checkout_data;
-      const keyId = checkout?.key || process.env.NEXT_PUBLIC_RAZORPAY_KEY_ID || "rzp_test_TBRo7AUeaKIhKB";
+      const keyId =
+        checkout?.key ||
+        sanitizePublicEnv(process.env.NEXT_PUBLIC_RAZORPAY_KEY_ID) ||
+        "rzp_test_TBRo7AUeaKIhKB";
       const rawOrderId = checkout?.order_id || paymentDetails?.provider_order_id;
       // Only pass order_id to Razorpay SDK if it is a real Razorpay order ID (starts with order_)
       const validOrderId = rawOrderId && String(rawOrderId).startsWith("order_") ? String(rawOrderId) : undefined;

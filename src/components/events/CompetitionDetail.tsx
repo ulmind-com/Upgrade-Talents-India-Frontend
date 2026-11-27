@@ -16,7 +16,7 @@ import { Reveal, StaggerGroup, StaggerItem } from "@/components/motion/Reveal";
 import { SectionLabel, Badge } from "@/components/ui/Primitives";
 import { useAuth } from "@/components/motion/Providers";
 import FormattedDescription from "@/components/ui/FormattedDescription";
-import { competeApi, profileApi, publicApi, certificatesApi } from "@/lib/api";
+import { competeApi, profileApi, publicApi, certificatesApi, sanitizePublicEnv } from "@/lib/api";
 import { imageFor, formatEventDate, formatINR, cn } from "@/lib/utils";
 import { getCompetitionLifecycle } from "@/lib/competition-lifecycle";
 import VerifiedBadge from "@/components/ui/VerifiedBadge";
@@ -1025,7 +1025,7 @@ export default function CompetitionDetail({
       // Paid registration — open Razorpay checkout
       const pInfo = regRes.payment_info;
       const checkout = pInfo.checkout_data || {};
-      const keyId = checkout.key || pInfo.key_id || process.env.NEXT_PUBLIC_RAZORPAY_KEY_ID;
+      const keyId = checkout.key || pInfo.key_id || sanitizePublicEnv(process.env.NEXT_PUBLIC_RAZORPAY_KEY_ID);
 
       if (!keyId) {
         setMsg({ tone: "err", text: "Payment gateway is being configured. Please try again shortly." });

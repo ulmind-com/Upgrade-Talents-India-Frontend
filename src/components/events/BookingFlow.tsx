@@ -29,7 +29,7 @@ import {
 } from "lucide-react";
 import { Reveal } from "@/components/motion/Reveal";
 import { cn, formatEventDate, formatINR, isEventExpired, isDeadlinePassed, FALLBACK_IMAGES } from "@/lib/utils";
-import { activitiesApi, bookingsApi, paymentsApi, type EventItem, type TicketTier, ApiError } from "@/lib/api";
+import { activitiesApi, bookingsApi, paymentsApi, sanitizePublicEnv, type EventItem, type TicketTier, ApiError } from "@/lib/api";
 import { useAuth, useTheme } from "@/components/motion/Providers";
 import FormattedDescription from "@/components/ui/FormattedDescription";
 import { EventCard } from "@/components/home/Sections";
@@ -846,7 +846,7 @@ export default function BookingFlow({
       const ok = await loadRazorpay();
       if (!ok) throw new ApiError("Could not reach payment gateway. Check your connection and retry.", 0);
 
-      const keyId = info.key_id || info.checkout_data?.key || process.env.NEXT_PUBLIC_RAZORPAY_KEY_ID;
+      const keyId = info.key_id || info.checkout_data?.key || sanitizePublicEnv(process.env.NEXT_PUBLIC_RAZORPAY_KEY_ID);
       if (!keyId) throw new ApiError("Payment gateway is not configured yet. Please contact support.", 0);
 
       const rzp = new window.Razorpay({
