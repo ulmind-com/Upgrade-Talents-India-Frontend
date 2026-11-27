@@ -150,7 +150,7 @@ export function EventCard({ ev, index = 0 }: { ev: EventItem; index?: number }) 
           {categories && (
             <div className="flex flex-wrap gap-1.5">
               {categories.slice(0, 3).map((c: any, i: number) => (
-                <span key={i} className="rounded-md bg-white/5 border border-white/10 px-2 py-0.5 font-mono text-[10px] text-white/70">
+                <span key={i} className="rounded-md border border-[var(--border-strong)] bg-[var(--surface-2)] px-2.5 py-0.5 font-mono text-[10.5px] font-semibold text-[var(--fg)]">
                   {c.name}: {formatINR(c.price)}
                 </span>
               ))}
@@ -180,7 +180,7 @@ export function EventCard({ ev, index = 0 }: { ev: EventItem; index?: number }) 
               className={cn(
                 "inline-flex min-h-[44px] items-center gap-2 rounded-full border px-5 text-[12px] font-semibold uppercase tracking-[0.12em] transition-all duration-300",
                 expired
-                  ? "border-red-500/30 bg-red-500/10 text-red-400 hover:bg-red-500/20"
+                  ? "border-red-600/35 bg-red-500/12 text-red-700 hover:bg-red-500/20 dark:border-red-500/30 dark:bg-red-500/10 dark:text-red-400"
                   : "border-[var(--border-strong)] hover:border-transparent hover:bg-[var(--accent)] hover:text-[var(--on-accent)]"
               )}
             >
