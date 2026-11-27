@@ -91,6 +91,8 @@ const handle = (r: Row) =>
 const nf = (n?: number) =>
   new Intl.NumberFormat("en-IN").format(Math.round(Number(n ?? 0)));
 
+const pidOf = (r: Row | PodiumContestant) => r.participant_id || r.email || "";
+
 function useCountdown(target?: string | null): string | null {
   const [now, setNow] = useState(() => Date.now());
   useEffect(() => {
@@ -225,8 +227,6 @@ export default function LeaderboardView({
       }
     } catch {}
   };
-
-  const pidOf = (r: Row | PodiumContestant) => r.participant_id || r.email || "";
 
   const handleVote = async (r: Row | PodiumContestant) => {
     const pId = pidOf(r);
@@ -506,89 +506,66 @@ export default function LeaderboardView({
     return Array.from(set);
   }, [categories, categoryLeaderboards, rows, activeComp]);
 
-  const allNormalizedRows = useMemo(() => {
-    const rawList = rows.length ? rows : [];
+  /** Normalizes scores/votes and ranks all contestants (including 0-point entries) descending. */
+  const normalizeAndRankRows = useCallback(
+    (list: any[]) => {
+      if (!Array.isArray(list) || list.length === 0) return [];
 
-    const scoredList = rawList.filter((r: any) => {
-      const pid = pidOf(r);
-      const rawFinal = r.final_score ?? r.total_score ?? r.score ?? r.points;
-      const votes = Number(r.audience_votes ?? r.raw_audience_votes ?? 0) + (bump[pid] || 0);
-      const judge = Number(r.judge_score ?? r.raw_judge_score ?? 0);
-      const effectivePoints = rawFinal != null && rawFinal > 0 ? rawFinal : judge > 0 ? judge : votes;
-      return effectivePoints > 0 || Boolean(r.is_scored || r.has_scored);
-    });
-
-    const targetList = [...scoredList];
-
-    targetList.sort((a: any, b: any) => {
-      const aPid = pidOf(a);
-      const bPid = pidOf(b);
-      const aVotes = Number(a.audience_votes ?? a.raw_audience_votes ?? 0) + (bump[aPid] || 0);
-      const bVotes = Number(b.audience_votes ?? b.raw_audience_votes ?? 0) + (bump[bPid] || 0);
-      const aPts = a.final_score ?? a.total_score ?? a.score ?? a.points ?? a.judge_score ?? aVotes;
-      const bPts = b.final_score ?? b.total_score ?? b.score ?? b.points ?? b.judge_score ?? bVotes;
-      return Number(bPts) - Number(aPts);
-    });
-
-    return targetList.map((r: any, i) => {
-      const pid = pidOf(r);
-      const rawFinal = r.final_score ?? r.total_score ?? r.score ?? r.points;
-      const votes = Number(r.audience_votes ?? r.raw_audience_votes ?? 0) + (bump[pid] || 0);
-      const judge = Number(r.judge_score ?? r.raw_judge_score ?? 0);
-      const effectivePoints = rawFinal != null && rawFinal > 0 ? rawFinal : judge > 0 ? judge : votes;
-      return {
-        ...r,
-        rank: i + 1,
-        audience_votes: votes,
-        judge_score: judge,
-        final_score: effectivePoints,
-        points: effectivePoints,
-      };
-    });
-  }, [rows, bump]);
-
-  const categoryRows = useMemo(() => {
-    if (activeCategory === "ALL") return allNormalizedRows;
-
-    const precalcKey = Object.keys(categoryLeaderboards).find(
-      (k) => k.trim().toLowerCase() === activeCategory.trim().toLowerCase()
-    );
-    const precalc = precalcKey ? categoryLeaderboards[precalcKey] : undefined;
-    if (Array.isArray(precalc) && precalc.length > 0) {
-      const scoredPrecalc = precalc.filter((r: any) => {
+      const enriched = list.map((r: any) => {
         const pid = pidOf(r);
         const rawFinal = r.final_score ?? r.total_score ?? r.score ?? r.points;
         const votes = Number(r.audience_votes ?? r.raw_audience_votes ?? 0) + (bump[pid] || 0);
         const judge = Number(r.judge_score ?? r.raw_judge_score ?? 0);
-        return (rawFinal != null && rawFinal > 0) || votes > 0 || judge > 0 || Boolean(r.is_scored || r.has_scored);
-      });
-
-      return scoredPrecalc.map((r: any, i) => {
-        const pid = pidOf(r);
-        const rawFinal = r.final_score ?? r.total_score ?? r.score ?? r.points;
-        const votes = Number(r.audience_votes ?? r.raw_audience_votes ?? 0) + (bump[pid] || 0);
-        const judge = Number(r.judge_score ?? r.raw_judge_score ?? 0);
-        const effectivePoints = rawFinal != null && rawFinal > 0 ? rawFinal : judge > 0 ? judge : votes;
+        const effectivePoints =
+          rawFinal != null && Number(rawFinal) > 0 ? Number(rawFinal) : judge > 0 ? judge : votes;
         return {
           ...r,
-          rank: i + 1,
           audience_votes: votes,
           judge_score: judge,
           final_score: effectivePoints,
           points: effectivePoints,
         };
       });
+
+      enriched.sort((a, b) => {
+        if (b.points !== a.points) return b.points - a.points;
+        if (b.judge_score !== a.judge_score) return b.judge_score - a.judge_score;
+        return b.audience_votes - a.audience_votes;
+      });
+
+      return enriched.map((r, i) => ({
+        ...r,
+        rank: i + 1,
+      }));
+    },
+    [bump]
+  );
+
+  const allNormalizedRows = useMemo(
+    () => normalizeAndRankRows(rows),
+    [rows, normalizeAndRankRows]
+  );
+
+  const categoryRows = useMemo(() => {
+    if (activeCategory === "ALL") return allNormalizedRows;
+
+    const cClean = activeCategory.trim().toLowerCase();
+    const precalcKey = Object.keys(categoryLeaderboards).find(
+      (k) => k.trim().toLowerCase() === cClean
+    );
+    const precalc = precalcKey ? categoryLeaderboards[precalcKey] : undefined;
+    if (Array.isArray(precalc) && precalc.length > 0) {
+      return normalizeAndRankRows(precalc);
     }
 
     const filteredList = allNormalizedRows.filter(
-      (r) => (r.category || "").trim().toLowerCase() === activeCategory.trim().toLowerCase()
+      (r) => (r.category || "").trim().toLowerCase() === cClean
     );
-    filteredList.sort((a, b) => (b.points ?? 0) - (a.points ?? 0));
     return filteredList.map((r, idx) => ({
       ...r,
       rank: idx + 1,
     }));
-  }, [activeCategory, allNormalizedRows, categoryLeaderboards, bump]);
+  }, [activeCategory, allNormalizedRows, categoryLeaderboards, normalizeAndRankRows]);
 
   const categoryCounts = useMemo(() => {
     const counts: Record<string, number> = {};
@@ -596,7 +573,7 @@ export default function LeaderboardView({
       const cClean = cat.trim().toLowerCase();
       const precalcKey = Object.keys(categoryLeaderboards).find((k) => k.trim().toLowerCase() === cClean);
       const precalc = precalcKey ? categoryLeaderboards[precalcKey] : undefined;
-      if (Array.isArray(precalc)) {
+      if (Array.isArray(precalc) && precalc.length > 0) {
         counts[cat] = precalc.length;
       } else {
         counts[cat] = allNormalizedRows.filter(
