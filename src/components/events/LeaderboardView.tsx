@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useEffect, useMemo, useState, useCallback } from "react";
+import React, { useEffect, useMemo, useState, useCallback, useRef } from "react";
 import { useSearchParams, useRouter, usePathname } from "next/navigation";
 import { Poppins } from "next/font/google";
 import {
@@ -174,6 +174,11 @@ export default function LeaderboardView({
   const [roundsData, setRoundsData] = useState<any | null>(null);
   const [activeRoundNumber, setActiveRoundNumber] = useState<number | null>(null);
   const [isScorePublic, setIsScorePublic] = useState<boolean>(true);
+  const reqIdRef = useRef(0);
+  const compListRef = useRef<Comp[]>(compList);
+  useEffect(() => {
+    compListRef.current = compList;
+  }, [compList]);
 
   /* ── Interactive Voting State ── */
   const [votingId, setVotingId] = useState<string | null>(null);
@@ -263,15 +268,11 @@ export default function LeaderboardView({
       setVoteToast({ tone: "success", msg: `★ Vote Counted! You backed ${who}. Rankings update live.` });
       setTimeout(() => setVoteToast(null), 4000);
 
-      // Refresh standings
-      if (activeRoundNumber && activeRoundNumber > 1) {
-        publicApi.roundLeaderboard(compId, activeRoundNumber).then((d: any) => {
-          if (Array.isArray(d?.leaderboard)) setRows(d.leaderboard);
-        }).catch(() => {});
+      // Refresh current round & category standings
+      if (isMultiRound && currentRoundNum) {
+        publicApi.roundLeaderboard(compId, currentRoundNum).then((d: any) => applyBoard(d, compId)).catch(() => {});
       } else {
-        publicApi.leaderboard(compId).then((d: any) => {
-          if (Array.isArray(d?.leaderboard)) setRows(d.leaderboard);
-        }).catch(() => {});
+        publicApi.leaderboard(compId).then((d: any) => applyBoard(d, compId)).catch(() => {});
       }
     } catch (e: any) {
       const msg = e?.message || "Could not submit vote right now.";
@@ -293,88 +294,95 @@ export default function LeaderboardView({
     }
   };
 
-  const pick = useCallback(async (id: string, targetRound?: number) => {
-    if (!id) return;
-    setLoading(true);
-    try {
-      let rData = null;
+  const applyBoard = useCallback((d: any, targetId: string) => {
+    const activeCompObj = compListRef.current.find((c: any) => (c._id || c.id) === targetId);
+    const isPub =
+      d?.score_visible_for_public !== undefined
+        ? Boolean(d.score_visible_for_public)
+        : d?.is_published !== undefined
+        ? Boolean(d.is_published)
+        : Boolean(
+            (activeCompObj as any)?.score_visible_for_public ??
+              (activeCompObj as any)?.results_published ??
+              true
+          );
+    setIsScorePublic(isPub);
+    setRows(Array.isArray(d?.leaderboard) ? d.leaderboard : []);
+    setCategories(Array.isArray(d?.categories) ? d.categories : []);
+    setCategoryLeaderboards(
+      d?.category_leaderboards && typeof d.category_leaderboards === "object"
+        ? d.category_leaderboards
+        : {}
+    );
+  }, []);
+
+  const fetchRoundOrOverallBoard = useCallback(
+    (id: string, roundNum: number | null, multi: boolean) =>
+      multi && roundNum
+        ? publicApi.roundLeaderboard(id, roundNum)
+        : publicApi.leaderboard(id),
+    []
+  );
+
+  const pick = useCallback(
+    async (id: string, targetRound?: number) => {
+      if (!id) return;
+      const rid = ++reqIdRef.current;
+      setLoading(true);
       try {
-        rData = await publicApi.rounds(id);
-        if (rData && Array.isArray(rData.rounds) && rData.rounds.length > 0) {
-          setRoundsData(rData);
-        } else {
-          setRoundsData(null);
+        let rData: any = null;
+        try {
+          rData = await publicApi.rounds(id);
+        } catch {
+          rData = null;
         }
+        if (rid !== reqIdRef.current) return;
+
+        const hasRounds = Boolean(rData && Array.isArray(rData.rounds) && rData.rounds.length > 0);
+        const multi = Boolean(rData && Array.isArray(rData.rounds) && rData.rounds.length > 1);
+        setRoundsData(hasRounds ? rData : null);
+
+        const activeR = targetRound ?? rData?.current_round ?? 1;
+        setActiveRoundNumber(activeR);
+
+        const d: any = await fetchRoundOrOverallBoard(id, activeR, multi);
+        if (rid !== reqIdRef.current) return;
+
+        applyBoard(d, id);
       } catch {
-        setRoundsData(null);
+        if (rid === reqIdRef.current) {
+          setRows([]);
+          setCategories([]);
+          setCategoryLeaderboards({});
+        }
+      } finally {
+        if (rid === reqIdRef.current) {
+          setLoading(false);
+        }
       }
-
-      const activeR = targetRound ?? rData?.current_round ?? 1;
-      setActiveRoundNumber(activeR);
-
-      let d: any = null;
-      if (rData && Array.isArray(rData.rounds) && rData.rounds.length > 1) {
-        d = await publicApi.roundLeaderboard(id, activeR);
-      } else {
-        d = await publicApi.leaderboard(id);
-      }
-
-      const activeCompObj = compList.find((c: any) => (c._id || c.id) === id);
-      const isPub =
-        d?.score_visible_for_public !== undefined
-          ? Boolean(d.score_visible_for_public)
-          : d?.is_published !== undefined
-          ? Boolean(d.is_published)
-          : Boolean(
-              (activeCompObj as any)?.score_visible_for_public ??
-                (activeCompObj as any)?.results_published ??
-                true
-            );
-      setIsScorePublic(isPub);
-
-      setRows(Array.isArray(d?.leaderboard) ? d.leaderboard : []);
-      if (Array.isArray(d?.categories)) {
-        setCategories(d.categories);
-      }
-      if (d?.category_leaderboards && typeof d.category_leaderboards === "object") {
-        setCategoryLeaderboards(d.category_leaderboards);
-      }
-    } catch {
-      setRows([]);
-    } finally {
-      setLoading(false);
-    }
-  }, [compList]);
+    },
+    [applyBoard, fetchRoundOrOverallBoard]
+  );
 
   const handleSelectRound = async (roundNum: number) => {
     if (!compId) return;
+    const rid = ++reqIdRef.current;
     setActiveRoundNumber(roundNum);
     setLoading(true);
     try {
       const d: any = await publicApi.roundLeaderboard(compId, roundNum);
-      const activeCompObj = compList.find((c: any) => (c._id || c.id) === compId);
-      const isPub =
-        d?.score_visible_for_public !== undefined
-          ? Boolean(d.score_visible_for_public)
-          : d?.is_published !== undefined
-          ? Boolean(d.is_published)
-          : Boolean(
-              (activeCompObj as any)?.score_visible_for_public ??
-                (activeCompObj as any)?.results_published ??
-                true
-            );
-      setIsScorePublic(isPub);
-      setRows(Array.isArray(d?.leaderboard) ? d.leaderboard : []);
-      if (Array.isArray(d?.categories)) {
-        setCategories(d.categories);
-      }
-      if (d?.category_leaderboards && typeof d.category_leaderboards === "object") {
-        setCategoryLeaderboards(d.category_leaderboards);
-      }
+      if (rid !== reqIdRef.current) return;
+      applyBoard(d, compId);
     } catch {
-      setRows([]);
+      if (rid === reqIdRef.current) {
+        setRows([]);
+        setCategories([]);
+        setCategoryLeaderboards({});
+      }
     } finally {
-      setLoading(false);
+      if (rid === reqIdRef.current) {
+        setLoading(false);
+      }
     }
   };
 
@@ -414,19 +422,25 @@ export default function LeaderboardView({
 
   useEffect(() => {
     if (urlCompId && urlCompId !== compId) {
+      setActiveCategory("ALL");
+      setActiveRoundNumber(null);
       setCompId(urlCompId);
-      pick(urlCompId);
     }
-  }, [urlCompId, compId, pick]);
+  }, [urlCompId, compId]);
 
   useEffect(() => {
     if (initialCompId && initialCompId !== compId && !urlCompId) {
+      setActiveCategory("ALL");
+      setActiveRoundNumber(null);
       setCompId(initialCompId);
-      setRows(initialRows || []);
-      if (initialCategories) setCategories(initialCategories);
-      if (initialCategoryLeaderboards) setCategoryLeaderboards(initialCategoryLeaderboards);
     }
-  }, [initialCompId, initialRows, initialCategories, initialCategoryLeaderboards, compId, urlCompId]);
+  }, [initialCompId, compId, urlCompId]);
+
+  // Always load rounds & standings on mount and whenever compId changes (ensures Semi-Final / Final tabs load immediately)
+  useEffect(() => {
+    if (!compId) return;
+    pick(compId);
+  }, [compId, pick]);
 
   useRealtimeSubscription(
     compId ? [`competition:${compId}`, "admin:competitions", "global"] : ["global"],
@@ -438,42 +452,32 @@ export default function LeaderboardView({
           return;
         }
 
-        if (Array.isArray(data.leaderboard) && data.leaderboard.length > 0) {
-          setRows(data.leaderboard);
-          if (data.categories && Array.isArray(data.categories)) {
-            setCategories(data.categories);
-          }
-          if (data.category_leaderboards && typeof data.category_leaderboards === "object") {
-            setCategoryLeaderboards(data.category_leaderboards);
-          }
-          if (data.score_visible_for_public !== undefined) {
-            setIsScorePublic(Boolean(data.score_visible_for_public));
-          }
-        } else {
-          if (activeRoundNumber && activeRoundNumber > 1) {
-            publicApi.roundLeaderboard(compId, activeRoundNumber).then((d: any) => {
-              if (Array.isArray(d?.leaderboard)) setRows(d.leaderboard);
-              if (Array.isArray(d?.categories)) setCategories(d.categories);
-              if (d?.category_leaderboards) setCategoryLeaderboards(d.category_leaderboards);
-            }).catch(() => {});
-          } else {
-            publicApi.leaderboard(compId).then((d: any) => {
-              if (Array.isArray(d?.leaderboard)) setRows(d.leaderboard);
-              if (Array.isArray(d?.categories)) setCategories(d.categories);
-              if (d?.category_leaderboards) setCategoryLeaderboards(d.category_leaderboards);
-            }).catch(() => {});
-          }
+        const eventRound = data.round_number != null ? Number(data.round_number) : null;
+        const matchesCurrentRound =
+          !isMultiRound || !eventRound || !activeRoundNumber || eventRound === Number(activeRoundNumber);
+
+        if (Array.isArray(data.leaderboard) && data.leaderboard.length > 0 && matchesCurrentRound) {
+          applyBoard(data, compId);
+        } else if (compId) {
+          fetchRoundOrOverallBoard(compId, activeRoundNumber, isMultiRound)
+            .then((d: any) => applyBoard(d, compId))
+            .catch(() => {});
         }
       },
-      [compId, activeRoundNumber]
+      [compId, activeRoundNumber, isMultiRound, applyBoard, fetchRoundOrOverallBoard]
     ),
     6000
   );
 
   const handleSelectComp = (newId: string) => {
     if (!newId) return;
-    setCompId(newId);
-    pick(newId);
+    setActiveCategory("ALL");
+    setActiveRoundNumber(null);
+    if (newId === compId) {
+      pick(newId);
+    } else {
+      setCompId(newId);
+    }
     const params = new URLSearchParams(searchParams?.toString() || "");
     params.set("competition", newId);
     router.replace(`${pathname}?${params.toString()}`, { scroll: false });

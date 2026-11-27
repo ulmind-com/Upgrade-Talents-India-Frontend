@@ -613,9 +613,11 @@ export default function CompetitionDetail({
         : (data?.is_published !== undefined ? Boolean(data.is_published) : Boolean((comp as any)?.score_visible_for_public ?? comp?.results_published ?? true));
       setIsScorePublic(pub);
 
-      if (data?.category_leaderboards && typeof data.category_leaderboards === "object") {
-        setCategoryLeaderboards(data.category_leaderboards);
-      }
+      setCategoryLeaderboards(
+        data?.category_leaderboards && typeof data.category_leaderboards === "object"
+          ? data.category_leaderboards
+          : {}
+      );
 
       if (Array.isArray(data?.leaderboard)) {
         const mapped: Row[] = data.leaderboard.map((r: any) => ({
@@ -892,6 +894,20 @@ export default function CompetitionDetail({
     }
   }, []);
 
+  // Keep refs to active round and loader so WebSocket updates always refresh the selected round & categories
+  const leaderboardRoundRef = useRef(leaderboardRound);
+  const loadLeaderboardRef = useRef(loadLeaderboard);
+  const isMultiRoundRef = useRef(false);
+  useEffect(() => {
+    leaderboardRoundRef.current = leaderboardRound;
+  }, [leaderboardRound]);
+  useEffect(() => {
+    loadLeaderboardRef.current = loadLeaderboard;
+  }, [loadLeaderboard]);
+  useEffect(() => {
+    isMultiRoundRef.current = Boolean(roundsData?.rounds && roundsData.rounds.length > 1);
+  }, [roundsData?.rounds]);
+
   // Real-time WebSocket Leaderboard Updates
   useEffect(() => {
     if (!id || typeof window === "undefined") return;
@@ -906,30 +922,21 @@ export default function CompetitionDetail({
         try {
           const payload = JSON.parse(event.data);
           if (payload.type === "INITIAL_STATE" && Array.isArray(payload.leaderboard)) {
-            setRows(
-              payload.leaderboard.map((r: any) => ({
-                ...r,
-                audience_votes: r.audience_votes ?? r.raw_audience_votes,
-                final_score: r.final_score,
-              }))
-            );
+            if (!isMultiRoundRef.current) {
+              setRows(
+                payload.leaderboard.map((r: any) => ({
+                  ...r,
+                  audience_votes: r.audience_votes ?? r.raw_audience_votes,
+                  final_score: r.final_score,
+                }))
+              );
+            }
           } else if (
             payload.type === "LEADERBOARD_UPDATED" ||
             payload.type === "SCORE_SUBMITTED" ||
             payload.type === "LIVE_SCORE_BROADCAST"
           ) {
-            // Refetch provisional leaderboard
-            publicApi.leaderboard(id).then((lb) => {
-              if (Array.isArray(lb?.leaderboard)) {
-                setRows(
-                  lb.leaderboard.map((r: any) => ({
-                    ...r,
-                    audience_votes: r.audience_votes ?? r.raw_audience_votes,
-                    final_score: r.final_score,
-                  }))
-                );
-              }
-            }).catch(() => {});
+            loadLeaderboardRef.current(leaderboardRoundRef.current);
           }
         } catch {}
       };
